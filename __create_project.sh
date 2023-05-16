@@ -19,7 +19,7 @@ create_ifnotexist() { #1 filename relative to ./../
 # create subdirs and add .gitkeep file
 for d in docs state target; do
   mkdir -p ${project_dir}/${d}
-  create_ifnotexist ${project_dir}/${d}/.gitkeep </dev/null
+  create_ifnotexist ${d}/.gitkeep </dev/null
 done
 
 # copy and rename examples: Makefile, Pipfile
