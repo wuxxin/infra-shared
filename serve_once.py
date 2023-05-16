@@ -13,7 +13,7 @@ import yaml
 def usage():
     print(
         """
-https service using stdin for cert,key and data, to serve data on a path once and exit
+https service using stdin for cert, key, data and metadata, to serve on a path once and exit
 
 + call with: `cat config.yaml | $0 --yes`
 
@@ -44,7 +44,7 @@ mtls: false
 mtls_clientid:
 metadata:
   x: y
-payload: |
+data: |
   data payload
 ```
 
