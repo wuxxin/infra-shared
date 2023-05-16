@@ -3,7 +3,6 @@
 ## Tools 
 
 - as command line utility: `$0 stack library function`
-    - eg. `pipenv run infra/tools.py sim infra.build build_openwrt`
 
 ### Functions
 - ssh_copy
@@ -483,7 +482,7 @@ if __name__ == "__main__":
     sys.path.insert(0, project_dir)
 
     parser = argparse.ArgumentParser(
-        description="Calls `pulumi up` on the selected function import on a selected stack.\n\n"
+        description="Equivalent to `pulumi up` on the selected library.function import on the selected stack.\n\n"
         + "eg. `pipenv run infra/tools.py sim infra.build build_openwrt`",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
