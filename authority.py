@@ -2,7 +2,6 @@
 ## Authority - TLS/X509 Certificates, OpenSSH Keys
 
 ### Config
-#### mandatory
 - ca_name
 - ca_org
 - ca_unit
@@ -12,8 +11,6 @@
 - ca_provision_name
 - ca_provision_unit
 - ca_provision_dns_names
-
-#### optional
 - ca_permitted_domains
 - ca_validity_period_hours
 - ca_max_path_length
