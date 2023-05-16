@@ -4,11 +4,13 @@ Software Defined Git Operated Infrastructure As Code.
 
 
 reusables of a **learning project** by rewriting parts of my home infrastructure
-as a **pulumi and core-os** based **gitops** project in python.
+
+as a **pulumi and core-os** based **gitops** project in **python**.
 
 
 Inspired and impressed by https://github.com/deuill/coreos-home-server
 
+See https://github.com/wuxxin/example_infra for usage in an example project
 
 ### Architecture
 
@@ -73,7 +75,7 @@ git submodule add https://github.com/wuxxin/infra-shared.git infra
 infra/__create_project.sh
 ```
 
-- See https://github.com/wuxxin/example_infra for usage example if infra-shared
+
 - See `notebooks` for jupyter notebooks of interactive pulumi, mqtt and homeassistant pyscript examples
 
 #### install build requirements
