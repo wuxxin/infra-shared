@@ -65,7 +65,7 @@ Operating Systems / Frameworks:
 project_name=example
 
 base_dir=$(pwd)
-project_dir=${base_dir}/${project_name}}
+project_dir=${base_dir}/${project_name}
 mkdir -p ${project_dir}
 cd ${project_dir}
 git init
