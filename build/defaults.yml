@@ -1,12 +1,12 @@
 openwrt:
-  version: "22.03.3"
+  version: "22.03.5"
   target: x86-64
   model: generic
   baseurl: https://downloads.openwrt.org/releases
   sign:
     id: CD54E82DADB3684D
     fingerprint: BF856781A01293C8409ABE72CD54E82DADB3684D
-    sha256sum: e4f76808cac62b28d0b4b7a5f1bd70a4eb2e4378454d33480054b4bb1bfc9191
+    sha256sum: 0501809e242be14e154cf3bf47a9f9170765e5ad60c4f688ccfccb03388f2511
     baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
   disabled_services:
     - uhttpd
