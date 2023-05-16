@@ -36,7 +36,7 @@ Tools:
 - `pulumi` - imperativ infrastructure delaration using python
 - `age` - file and pulumi production password encryption supplied using openssh keys
 - `fcos` - Fedora-CoreOS Image with clevis (sss,tang,tpm) storage unlock
-- `butane` - define fcos ignition using jinja enhanced butane yaml config
+- `butane` - define fcos ignition using `jinja` enhanced butane yaml config
 - `saltstack`
     - local build environment and file system plumbing
     - remote fcos config update using butane to saltstack translation and execution
