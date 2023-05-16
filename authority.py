@@ -1,0 +1,472 @@
+"""
+## Authority - TLS/X509 Certificates, OpenSSH Keys
+
+### Config
+#### mandatory
+- ca_name
+- ca_org
+- ca_unit
+- ca_locality
+- ca_country
+- ca_dns_names
+- ca_provision_name
+- ca_provision_unit
+- ca_provision_dns_names
+
+#### optional
+- ca_permitted_domains
+- ca_validity_period_hours
+- ca_max_path_length
+- ca_create_using_vault
+- cert_validity_period_hours
+- ssh_provision_name
+
+### Exported
+
+- config
+- stack_name
+- project_name
+- project_dir
+
+- ca_config
+    - ca_name
+    - ca_org
+    - ca_unit
+    - ca_locality
+    - ca_country
+    - ca_validity_period_hours
+    - ca_max_path_length
+    - ca_dns_names_list
+    - ca_dns_names
+    - ca_provision_name
+    - ca_provision_unit
+    - ca_provision_dns_names_list
+    - ca_provision_dns_names
+    - ca_permitted_domains_list
+    - ca_permitted_domains
+    - cert_validity_period_hours
+    - ssh_provision_name
+
+- ca_factory
+    - ca_type
+    - root_key_pem
+    - root_cert_pem
+    - provision_key_pem
+    - provision_request_pem
+    - provision_cert_pem
+
+- ssh_factory
+    - provision_key
+    - provision_publickey
+    - authorized_keys
+
+### Functions
+
+- create_host_cert
+- create_client_cert
+- create_selfsigned_cert
+
+### Components
+
+- SSHFactory
+- CACertFactoryVault
+- CACertFactoryPulumi
+- CASignedCert
+- SelfSignedCert
+
+"""
+
+import os
+import json
+import copy
+import pulumi
+import pulumi_tls as tls
+import pulumi_command as command
+
+from pulumi import Output, Alias
+
+from infra.tools import public_local_export
+
+
+# exports
+config = pulumi.Config("")
+stack_name = pulumi.get_stack()
+project_name = pulumi.get_project()
+project_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+
+
+class CACertFactoryVault(pulumi.ComponentResource):
+    def __init__(self, name, ca_config, opts=None):
+        super().__init__("pkg:index:CACertFactoryVault", name, None, opts)
+
+        # asure that permitted_domains is set to empty list, empty string, if not configured
+        vault_config = copy.deepcopy(ca_config)
+        if vault_config.get("ca_permitted_domains", None) is None:
+            vault_config.update({"ca_permitted_domains_list": [], "ca_permitted_domains": ""})
+
+        vault_ca = command.local.Command(
+            "{}_vault_ca".format(name),
+            create="./__vault_pipe.sh --yes",
+            stdin=json.dumps(vault_config),
+            dir=os.path.join(project_dir, "infra"),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                additional_secret_outputs=["stdout"],
+                protect=True,
+                # XXX make pulumi find legacy name for ca_factory_fault_ca
+                aliases=[Alias(name="vault_ca")] if name == "ca_factory" else [],
+            ),
+        )
+        ca_secrets = vault_ca.stdout.apply(lambda x: json.loads(x))
+        ca_root_hash = command.local.Command(
+            "{}_root_hash".format(name),
+            create="openssl x509 -hash -noout",
+            stdin=Output.unsecret(ca_secrets["ca_root_cert_pem"]),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[vault_ca],
+                # XXX make pulumi find legacy name for ca_factory_root_hash
+                aliases=[Alias(name="ca_root_hash")] if name == "ca_factory" else [],
+            ),
+        )
+
+        self.ca_type = "vault"
+        self.root_key_pem = Output.secret(ca_secrets["ca_root_key_pem"])
+        self.root_cert_pem = Output.unsecret(ca_secrets["ca_root_cert_pem"])
+        self.root_hash_id = ca_root_hash.stdout
+        self.provision_key_pem = Output.secret(ca_secrets["ca_provision_key_pem"])
+        self.provision_request_pem = Output.unsecret(ca_secrets["ca_provision_request_pem"])
+        self.provision_cert_pem = Output.unsecret(ca_secrets["ca_provision_cert_pem"])
+        self.register_outputs({})
+
+
+class CACertFactoryPulumi(pulumi.ComponentResource):
+    def __init__(self, name, ca_config, opts=None):
+        super().__init__("pkg:index:CACertFactoryPulumi", name, None, opts)
+
+        ca_uses = ["cert_signing", "crl_signing"]
+        ca_root_key = tls.PrivateKey(
+            "{}_root_key".format(name),
+            algorithm="ECDSA",
+            ecdsa_curve="P384",
+            opts=pulumi.ResourceOptions(parent=self, protect=True),
+        )
+        ca_root_cert = tls.SelfSignedCert(
+            "{}_root_cert".format(name),
+            allowed_uses=ca_uses,
+            private_key_pem=ca_root_key.private_key_pem,
+            is_ca_certificate=True,
+            validity_period_hours=ca_config["ca_validity_period_hours"],
+            dns_names=ca_config["ca_dns_names_list"],
+            subject=tls.SelfSignedCertSubjectArgs(
+                common_name=ca_config["ca_name"],
+                organizational_unit=ca_config["ca_unit"],
+                organization=ca_config["ca_org"],
+                country=ca_config["ca_country"],
+                locality=ca_config["ca_locality"],
+            ),
+            opts=pulumi.ResourceOptions(parent=self, protect=True),
+        )
+        ca_provision_key = tls.PrivateKey(
+            "{}_provision_key".format(name),
+            algorithm="ECDSA",
+            ecdsa_curve="P384",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        ca_provision_request = tls.CertRequest(
+            "{}_prov_request".format(name),
+            private_key_pem=ca_provision_key.private_key_pem,
+            dns_names=ca_config["ca_provision_dns_names_list"],
+            subject=tls.CertRequestSubjectArgs(
+                common_name=ca_config["ca_provision_name"],
+                organizational_unit=ca_config["ca_provision_unit"],
+                organization=ca_config["ca_org"],
+                country=ca_config["ca_country"],
+                locality=ca_config["ca_locality"],
+            ),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        # substract one day from validity_period_hours of root ca for provision ca
+        ca_provision_cert = tls.LocallySignedCert(
+            "{}_provision_cert".format(name),
+            allowed_uses=ca_uses,
+            ca_cert_pem=ca_root_cert.cert_pem,
+            ca_private_key_pem=ca_root_key.private_key_pem,
+            cert_request_pem=ca_provision_request.cert_request_pem,
+            validity_period_hours=(ca_config["ca_validity_period_hours"] - 24),
+            is_ca_certificate=True,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        # hash ca_root cert, needed for symlinking and therelike
+        ca_root_hash = command.local.Command(
+            "{}_root_hash".format(name),
+            create="openssl x509 -hash -noout",
+            stdin=ca_root_cert.cert_pem,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        self.ca_type = "pulumi"
+        self.root_key_pem = ca_root_key.private_key_pem
+        self.root_cert_pem = ca_root_cert.cert_pem
+        self.root_hash_id = ca_root_hash.stdout
+        self.provision_key_pem = ca_provision_key.private_key_pem
+        self.provision_request_pem = ca_provision_request.cert_request_pem
+        self.provision_cert_pem = ca_provision_cert.cert_pem
+        self.register_outputs({})
+
+
+class SSHFactory(pulumi.ComponentResource):
+    def __init__(self, name, ssh_provision_name, opts=None):
+        super().__init__("pkg:index:SSHFactory", name, None, opts)
+
+        ssh_provision_key = tls.PrivateKey(
+            "ssh_provision_key",
+            algorithm="ED25519",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        ssh_provision_publickey = ssh_provision_key.public_key_openssh.apply(
+            lambda x: "{} {}".format(x.strip(), ssh_provision_name)
+        )
+        # read ssh_authorized_keys from project_dir/authorized_keys
+        ssh_authorized_keys = open(
+            os.path.join(project_dir, "authorized_keys"), "r"
+        ).readlines()
+        # combine with provision key
+        ssh_authorized_keys += [Output.concat(ssh_provision_publickey, "\n")]
+        ssh_authorized_keys = Output.concat(*ssh_authorized_keys)
+
+        self.provision_key = ssh_provision_key
+        self.provision_publickey = ssh_provision_publickey
+        self.authorized_keys = ssh_authorized_keys
+        self.register_outputs({})
+
+
+class CASignedCert(pulumi.ComponentResource):
+    def __init__(self, name, cert_config, opts=None):
+        super().__init__("pkg:index:CASignedCert", "{}_cacert".format(name), None, opts)
+
+        ca_config = cert_config["ca_config"]
+        ca_factory = cert_config["ca_factory"]
+        common_name = cert_config["common_name"]
+        dns_names = cert_config["dns_names"]
+        ip_addresses = cert_config.get("ip_addresses", [])
+        allowed_uses = cert_config["allowed_uses"]
+        is_ca_certificate = cert_config.get("is_ca_certificate", False)
+
+        # decide which CA to use, root-ca or provision ca
+        use_provision_ca = cert_config.get("use_provision_ca", True)
+        if use_provision_ca:
+            ca_cert_pem = ca_factory.provision_cert_pem
+            ca_private_key_pem = ca_factory.provision_key_pem
+        else:
+            ca_cert_pem = ca_factory.root_cert_pem
+            ca_private_key_pem = ca_factory.root_key_pem
+        early_renewal_hours = ca_config.get("cert_early_renewal_hours", 48)
+        validity_period_hours = ca_config.get("cert_validity_period_hours", (24 * 820))
+
+        resource_key = tls.PrivateKey(
+            "{}_cert_key".format(name),
+            algorithm="ECDSA",
+            ecdsa_curve="P256",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        resource_request = tls.CertRequest(
+            "{}_cert_request".format(name),
+            private_key_pem=resource_key.private_key_pem,
+            dns_names=dns_names,
+            ip_addresses=ip_addresses,
+            subject=tls.CertRequestSubjectArgs(
+                common_name=common_name,
+                organization=ca_config["ca_org"],
+            ),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        resource_cert = tls.LocallySignedCert(
+            "{}_cert".format(name),
+            allowed_uses=allowed_uses,
+            is_ca_certificate=is_ca_certificate,
+            ca_cert_pem=ca_cert_pem,
+            ca_private_key_pem=ca_private_key_pem,
+            cert_request_pem=resource_request.cert_request_pem,
+            early_renewal_hours=early_renewal_hours,
+            validity_period_hours=validity_period_hours,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        self.key = resource_key
+        self.request = resource_request
+        self.cert = resource_cert
+        self.chain = (
+            Output.concat(resource_cert.cert_pem, "\n", ca_factory.provision_cert_pem)
+            if use_provision_ca
+            else Output.concat(resource_cert.cert_pem)
+        )
+        self.register_outputs({})
+
+
+class SelfSignedCert(pulumi.ComponentResource):
+    def __init__(self, name, cert_config, opts=None):
+        super().__init__("pkg:index:SelfSignedCert", "{}_sscert".format(name), None, opts)
+
+        common_name = cert_config["common_name"]
+        dns_names = cert_config["dns_names"]
+        ip_addresses = cert_config.get("ip_addresses", [])
+        org_name = cert_config["org_name"]
+        allowed_uses = cert_config["allowed_uses"]
+        early_renewal_hours = cert_config.get("cert_early_renewal_hours", 48)
+        validity_period_hours = cert_config.get("cert_validity_period_hours", (24 * 820))
+
+        resource_key = tls.PrivateKey(
+            "{}_selfsigned_key".format(name),
+            algorithm="ECDSA",
+            ecdsa_curve="P256",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        resource_cert = tls.SelfSignedCert(
+            "{}_selfsigned_cert".format(name),
+            private_key_pem=resource_key.private_key_pem,
+            allowed_uses=allowed_uses,
+            dns_names=dns_names,
+            ip_addresses=ip_addresses,
+            is_ca_certificate=False,
+            subject=tls.SelfSignedCertSubjectArgs(
+                common_name=common_name,
+                organization=org_name,
+            ),
+            early_renewal_hours=early_renewal_hours,
+            validity_period_hours=validity_period_hours,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        # hash cert, needed for symlinking and therelike
+        resource_hash = command.local.Command(
+            "{}_selfsigned_hash".format(name),
+            create="openssl x509 -hash -noout",
+            stdin=resource_cert.cert_pem,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        self.key = resource_key
+        self.cert = resource_cert
+        self.hash_id = resource_hash.stdout
+        self.register_outputs({})
+
+
+def create_host_cert(
+    resource_name,
+    common_name,
+    dns_names,
+    ip_addresses=[],
+    custom_ca_config=None,
+    custom_ca_factory=None,
+    opts=None,
+):
+    host_config = {
+        "ca_config": ca_config if not custom_ca_config else custom_ca_config,
+        "ca_factory": ca_factory if not custom_ca_factory else custom_ca_factory,
+        "common_name": common_name,
+        "dns_names": dns_names,
+        "ip_addresses": ip_addresses,
+        "allowed_uses": ["client_auth", "server_auth"],
+    }
+    host_cert = CASignedCert(resource_name, host_config, opts=opts)
+    pulumi.export(resource_name, host_cert)
+    return host_cert
+
+
+def create_client_cert(
+    resource_name,
+    common_name,
+    dns_names=[],
+    custom_ca_config=None,
+    custom_ca_factory=None,
+    opts=None,
+):
+    client_config = {
+        "ca_config": ca_config if not custom_ca_config else custom_ca_config,
+        "ca_factory": ca_factory if not custom_ca_factory else custom_ca_factory,
+        "common_name": common_name,
+        "dns_names": dns_names,
+        "allowed_uses": ["client_auth"],
+    }
+    client_cert = CASignedCert(resource_name, client_config, opts=opts)
+    pulumi.export(resource_name, client_cert)
+    return client_cert
+
+
+def create_selfsigned_cert(
+    resource_name,
+    common_name,
+    dns_names=[],
+    ip_addresses=[],
+    org_name="",
+    allowed_uses=["client_auth", "server_auth"],
+    opts=None,
+):
+    self_config = {
+        "common_name": common_name,
+        "dns_names": dns_names,
+        "ip_addresses": ip_addresses,
+        "org_name": org_name if org_name else common_name,
+        "allowed_uses": allowed_uses,
+    }
+    selfsigned_cert = SelfSignedCert(resource_name, self_config, opts=opts)
+    pulumi.export(resource_name, selfsigned_cert)
+    return selfsigned_cert
+
+
+# ### X509 ca_config
+__ca_permitted_list = config.get_object(
+    "ca_permitted_domains",
+    ["lan", project_name],
+)
+__ca_dns_list = config.get_object(
+    "ca_dns_names",
+    ["ca.{}.lan".format(project_name), "ca.{}.{}".format(project_name, project_name)],
+)
+__prov_dns_list = config.get_object("ca_provision_dns_names", __ca_dns_list)
+
+ca_config = {
+    "ca_name": config.get("ca_name", "{}-{}-Root-CA".format(project_name, stack_name)),
+    "ca_org": config.get("ca_org", "{}-{}".format(project_name, stack_name)),
+    "ca_unit": config.get("ca_unit", "Certificate Authority"),
+    "ca_locality": config.get("ca_locality", "World"),
+    "ca_country": config.get("ca_country", "UN"),
+    "ca_validity_period_hours": config.get_int("ca_validity_period_hours", (24 * 365 * 8)),
+    "ca_dns_names_list": __ca_dns_list,
+    "ca_dns_names": ",".join(__ca_dns_list),
+    "ca_provision_name": config.get(
+        "ca_provision_name", "{}-{}-Provision-CA".format(project_name, stack_name)
+    ),
+    "ca_provision_unit": config.get("ca_provision_unit", "Certificate Provision"),
+    "ca_provision_dns_names_list": __prov_dns_list,
+    "ca_provision_dns_names": ",".join(__prov_dns_list),
+    "ca_permitted_domains_list": __ca_permitted_list,
+    "ca_permitted_domains": ",".join(__ca_permitted_list),
+    # https://superuser.com/questions/1492207/
+    "cert_validity_period_hours": config.get_int("cert_validity_period_hours", (24 * 820)),
+    # XXX keep not strictly needed cert_early_renewal_hours, so pulumi does not recreate root_ca
+    "cert_early_renewal_hours": config.get_int("cert_early_renewal_hours", 48),
+    "ssh_provision_name": config.get(
+        "ssh_provision_name", "provision@{}.{}".format(stack_name, project_name)
+    ),
+}
+pulumi.export("ca_config", ca_config)
+
+
+# ### X509 Certificate Authority
+if config.get_bool("ca_create_using_vault", True):
+    # use vault for initial CA creation and permitted_domains support
+    ca_factory = CACertFactoryVault("ca_factory", ca_config)
+else:
+    # create cert and keys using buildin pulumi tls module
+    ca_factory = CACertFactoryPulumi("ca_factory", ca_config)
+pulumi.export("ca_factory", ca_factory)
+
+# write out public part of ca cert for usage as file
+exported_ca_factory = public_local_export(
+    "ca_factory", "ca_cert.pem", ca_factory.root_cert_pem
+)
+
+
+# ### SSH Certificate and authorized_keys
+ssh_factory = SSHFactory("ssh_factory", ca_config["ssh_provision_name"])
+pulumi.export("ssh_factory", ssh_factory)

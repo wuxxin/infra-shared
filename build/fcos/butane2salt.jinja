@@ -1,0 +1,104 @@
+{# translate a subset of butane spec into saltstack salt spec #}
+{# only storage.files/directories/links/trees systemd are translated #}
+
+{%- if "storage" in butane and "directories" in butane.storage %}
+  {%- for d in butane.storage.directories %}
+{{ d.name }}:
+  file.directory:
+    - makedirs: true
+    {%- if d.user is defined %}
+    - user: {{ d.user }}
+    {%- endif %}
+    {%- if d.group is defined %}
+    - group: {{ d.group }}
+    {%- endif %}
+    {%- if d.mode is defined %}
+    - mode: {{ d.mode }}
+    {%- endif %}
+  {%- endfor %}
+{%- endif %}
+
+
+{%- if "storage" in butane and "files" in butane.storage %}
+  {%- for f in butane.storage.files %}
+{{ f.name }}:
+  file.managed:
+    - source: {{ f.path }}
+    {%- if f.user is defined %}
+    - user: {{ f.user }}
+    {%- endif %}
+    {%- if f.group is defined %}
+    - group: {{ f.group }}
+    {%- endif %}
+    {%- if f.mode is defined %}
+    - mode: {{ f.mode }}
+    {%- endif %}
+    {%- if f.contents is defined %}
+    - contents: |
+      {%- if f.contents.inline is defined %}
+        {{ f.contents.inline|indent(8) }}
+      {%- endif %}
+    {%- endif %}
+  {%- endfor %}
+{%- endif %}
+
+{%- if "storage" in butane and "links" in butane.storage %}
+  {%- for l in butane.storage.links %}
+{{ l.name }}:
+  file.symlink:
+    - target: {{ l.path }}
+    {%- if l.user is defined %}
+    - user: {{ l.user }}
+    {%- endif %}
+    {%- if l.group is defined %}
+    - group: {{ l.group }}
+    {%- endif %}
+    {%- if l.hard is defined and l.hard %}
+    - hard: true
+    {%- endif %}
+  {%- endfor %}
+{%- endif %}
+
+{%- if "storage" in butane and "trees" in butane.storage %}
+  {%- for t in butane.storage.trees %}
+{{ t.name }}:
+  file.recurse:
+    - source: {{ t.path }}
+    {%- if t.user is defined %}
+    - user: {{ t.user }}
+    {%- endif %}
+    {%- if t.group is defined %}
+    - group: {{ t.group }}
+    {%- endif %}
+    {%- if t.mode is defined %}
+    - mode: {{ t.mode }}
+    {%- endif %}
+    {%- if t.clean is defined and t.clean %}
+    - clean: true
+    {%- endif %}
+  {%- endfor %}
+{%- endif %}
+
+{%- if "systemd" in butane %}
+  {%- for s in butane.systemd %}
+{{ s.name }}:
+  systemd.unit:
+    - enabled: true
+    - restart: always
+    {%- if s.enable is defined %}
+    - enable: {{ s.enable }}
+    {%- endif %}
+    {%- if s.mask is defined %}
+    - mask: {{ s.mask }}
+    {%- endif %}
+    {%- if s.template is defined %}
+    - template: {{ s.template }}
+    {%- endif %}
+    {%- if s.contents is defined %}
+    - contents: |
+      {%- for line in s.contents.split('\n') %}
+      {{ line }}
+      {%- endfor %}
+    {%- endif %}
+  {%- endfor %}
+{%- endif %}

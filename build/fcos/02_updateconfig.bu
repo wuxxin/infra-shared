@@ -1,0 +1,36 @@
+# storage:
+#   files:
+#     - path: /etc/containers/build/saltstack/Containerfile
+#       contents:
+#         inline: |
+#           FROM saltstack/salt:3005
+
+systemd:
+  units:
+    - name: coreos-update-config.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Update coreos Configuration, apply transpiled butane as saltstack config
+        Wants=containers-build@saltstack.service
+        After=containers-build@saltstack.service
+        ConditionPathExists=/run/user/1000/coreos-update-config/minion.cfg
+
+        [Service]
+        Type=oneshot
+        ExecStart=podman run --privileged \
+          -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
+          localhost/saltstack:latest \
+          /usr/bin/salt-call -c /run/user/1000/coreos-update-config \
+          state.highstate mock=true > /dev/null
+
+        ExecStart=podman run --privileged \
+          -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
+          localhost/saltstack:latest \
+          /usr/bin/salt-call -c /run/user/1000/coreos-update-config \
+          state.highstate
+
+        ExecStart=rm -rf /run/user/1000/coreos-update-config
+
+        [Install]
+        WantedBy=multi-user.target

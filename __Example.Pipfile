@@ -1,0 +1,95 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+
+### Pulumi
+
+# pulumi - imperativ infrastructure delaration using python
+pulumi = ">=3.0.0,<4.0.0"
+
+# Python implementation of Pulumi passphrase encryption and decryption
+pulumi-crypto= "*"
+
+# pulumi-command >= 0.7.0 breaks preview of stdout parsing as json
+# ETA to fix at 0.8.3, see https://github.com/pulumi/pulumi-command/issues/166
+pulumi-command = "<0.7.0"
+
+pulumi-docker = "*"
+pulumi-keycloak = "*"
+pulumi-libvirt = "*"
+pulumi-postgresql = "*"
+pulumi-random = "*"
+pulumi-tls = "*"
+pulumiverse_purrl = "*"
+
+# pulumi-cloudinit = "*"
+# pulumi-github = "*"
+# pulumi-hcloud = "*"
+# pulumi-minio = "*"
+# pulumi-vault = "*"
+# pulumi-acme = "*"
+# pulumiverse-sentry = "*"
+# pulumiverse-time = "*"
+# pulumi-gandi = "*"
+
+
+### Tools
+
+# yaml handling
+pyyaml = "*"
+# templating library
+jinja2 = "*"
+# phao-mqtt - mqtt library for publish and subscribe to mqtt messages
+paho-mqtt = "*"
+# use this venv as jupyter kernel (needs ipykernel installed)
+ipykernel = "*"
+# have ipython tinkering available
+ipython = "*"
+# pre commit checks
+pre-commit = "*"
+
+## saltstack - local build dependencies
+# pin pyzmq<20 to workaround pyzmq version resolution error (because of salt) in pipenv
+pyzmq = "<20"
+salt = "*"
+
+## homeassistant kernel
+hass-pyscript-kernel = "*"
+
+
+### Docs
+
+# mkdocs - Project documentation with Markdown
+mkdocs = "*"
+# A Mermaid graphs plugin for MkDocs
+mkdocs-mermaid2-plugin = "*"
+# Python implementation of Lunr.js (for mkdocs)
+lunr = "*"
+# MkDocs plugin to add a last updated date to your site
+mkdocs-git-revision-date-localized-plugin = "*"
+# Plugin to generate a single PDF file from a MkDocs
+mkdocs-with-pdf = "*"
+# MkDocs plugin to automagically generate relative links
+mkdocs-ezlinks-plugin = "*"
+# Open source plugin for Mkdocs page redirects
+mkdocs-redirects = "*"
+
+# Material design theme for MkDocs
+mkdocs-material = "*"
+# Markdown extension resources for MkDocs Material
+mkdocs-material-extensions = "*"
+# MkDocs Material additions used for pymdownx
+mkdocs_pymdownx_material_extras = "*"
+
+
+### Examples
+# podman-compose = {git = "https://github.com/containers/podman-compose"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.10"

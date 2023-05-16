@@ -1,0 +1,98 @@
+openwrt:
+  version: "22.03.3"
+  target: x86-64
+  model: generic
+  baseurl: https://downloads.openwrt.org/releases
+  sign:
+    id: CD54E82DADB3684D
+    fingerprint: BF856781A01293C8409ABE72CD54E82DADB3684D
+    sha256sum: e4f76808cac62b28d0b4b7a5f1bd70a4eb2e4378454d33480054b4bb1bfc9191
+    baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
+  disabled_services:
+    - uhttpd
+  defaults:
+    # can be overwritten using pulumi:config("build").openwrt.defaults.ip
+    ip: "192.168.1.1"
+  packages:
+    - coreutils-base64
+    - coreutils-nohup
+    - hostapd-utils
+    - ipset
+    - knot-dig
+    - knot-host
+    - knot-nsupdate
+    - luci-app-firewall
+    - luci-app-nlbwmon
+    - luci-app-sqm
+    - luci-app-unbound
+    - luci-app-upnp
+    - luci-app-wireguard
+    - luci-app-wol
+    - luci-mod-admin-full
+    - luci-proto-ipv6
+    - luci-proto-ppp
+    - luci-proto-wireguard
+    - luci-theme-material
+    - mosquitto-client-ssl
+    - qrencode
+    - resolveip
+    - tcpdump
+    - unbound-anchor
+    - unbound-control
+    - unbound-control-setup
+    - unbound-daemon
+    # replaced packages
+    - "-dropbear"
+    - "-uhttpd"
+    - "-wpad-basic-wolfssl"
+    # remove nginx-ssl, dragged in by luci-ssl-nginx, because nginx-all-module conflicts with it
+    - "-nginx-ssl"
+    # replacement packages
+    - nginx-all-module
+    - luci-ssl-nginx
+    - nginx-mod-luci-ssl
+    - nginx-ssl-util
+    - openssh-server
+    - openssh-sftp-server
+    - wpad-openssl
+
+fcos:
+  # Fedora-CoreOS
+  stream: stable
+  architecture: x86_64
+  platform: metal
+  format: raw.xz
+  rpi_efi_extras: false
+  rpi_release: 37
+
+homeassistant:
+  version: "9.0"
+  baseurl: https://github.com/home-assistant/operating-system/releases/download
+  target: generic-x86-64
+
+esphome:
+  esp32:
+    board: adafruit_feather_esp32_v2
+    framework:
+      type: esp-idf
+      # version:
+      # platform_version:
+      sdkconfig_options:
+        # CONFIG_MBEDTLS_DEBUG: y
+
+truenas:
+  version: "13.0"
+  patchlevel: U2
+  baseurl: https://download.freenas.org
+  sign:
+    id: C8D62DEF767C1DB0DFF4E6EC358EAA9112CF7946
+    keyfile: salt://build/truenas.asc
+
+android:
+  - type: mobile_phone
+    packages:
+      []
+      # fdroid repositories and packages
+  - type: wifi_tablet
+  - type: wifi_phone
+  - type: wifi_appliance

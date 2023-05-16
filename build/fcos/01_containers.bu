@@ -1,0 +1,60 @@
+storage:
+  directories:
+    - path: /etc/containers/environment
+      mode: 0600
+    - path: /etc/containers/build
+
+systemd:
+  units:
+    - name: containers-tls-secrets.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Load Podman TLS Secrets
+        Wants=network-online.target
+        After=network-online.target
+        ConditionPathExists=!/var/local/flags/%N.stamp
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/podman secret create root_ca.crt /etc/ssl/certs/root_ca.crt
+        ExecStart=/usr/bin/podman secret create server.crt /etc/ssl/certs/server.crt
+        ExecStart=/usr/bin/podman secret create server.key /etc/ssl/private/server.key
+        ExecStart=/bin/touch /var/local/flags/%N.stamp
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: containers-build@.path
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Build Container for %I
+
+        [Path]
+        PathModified=/etc/containers/build/%i/Containerfile
+        Unit=containers-build@%i.service
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: containers-build@.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Build Container for %I
+        Wants=network-online.target containers-build@%i.path
+        After=network-online.target 
+        ConditionPathExists=/etc/containers/build/%i/Containerfile
+
+        [Service]
+        Type=oneshot
+        SyslogIdentifier=%N
+        Environment=PODMAN_BUILD_OPTIONS=
+        ExecStart=/bin/podman build $PODMAN_BUILD_OPTIONS \
+            --file /etc/containers/build/%i/Containerfile \
+            --tag localhost/%i:latest /etc/containers/build/%i
+
+        [Install]
+        WantedBy=multi-user.target

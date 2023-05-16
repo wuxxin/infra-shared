@@ -1,0 +1,136 @@
+#!/bin/bash
+set -eo pipefail
+# set -x
+
+self_path=$(dirname "$(readlink -e "$0")")
+project_dir=$(readlink -f ${self_path}/..)
+project_name=$(basename "${project_dir}")
+
+create_ifnotexist() { #1 filename relative to ./../
+  fname="${project_dir}/$1"
+  if test ! -e "$fname"; then
+    cat - >"$fname"
+  else
+    echo "Warning: not touching existing $fname"
+    cat - >/dev/null
+  fi
+}
+
+# create subdirs and add .gitkeep file
+for d in docs state target; do
+  mkdir -p ${project_dir}/${d}
+  create_ifnotexist ${project_dir}/${d}/.gitkeep </dev/null
+done
+
+# copy and rename examples: Makefile, Pipfile
+for f in __Example.Makefile __Example.Pipfile; do
+  cat ${self_path}/${f} | create_ifnotexist ${f#__Example.}
+done
+
+# symlink README.md to docs
+ln -s ../README.md ${project_dir}/docs/README.md
+
+create_ifnotexist README.md <<EOF
+# ${project_name}
+
+Software Defined Git Operated Infrastructure as Code
+
+EOF
+
+create_ifnotexist __main__.py <<EOF
+"""A Python Pulumi program"""
+
+
+import infra.authority
+
+EOF
+
+create_ifnotexist pulumi.yaml <<EOF
+name: ${project_name}
+runtime:
+  name: python
+  options:
+    virtualenv: ./state/venv
+description: ${project_name} pulumi infrastructure
+
+EOF
+
+create_ifnotexist config-template.yaml <<EOF
+config:
+  libvirt:uri: qemu:///system
+  ${project_name}:locale:
+    lang_short: de_DE
+    lang: de_DE.UTF-8
+    keymap: de
+    timezone: Europe/Vienna
+    country_code: AT
+    city: Vienna
+
+EOF
+
+create_ifnotexist .gitignore <<EOF
+
+# python virtualenv symlink
+state/venv
+
+# directory for temporary files
+state/tmp
+
+# saltstack state files
+state/salt
+
+# mkdocs generated documentation files
+state/site
+
+# pulumi state for stacks "*sim"
+state/pulumi/.pulumi/backups/*sim
+state/pulumi/.pulumi/history/*sim
+state/pulumi/.pulumi/locks/*sim
+state/pulumi/.pulumi/stacks/*sim.json*
+
+# pulumi config for stacks "*sim"
+Pulumi.*sim.yaml
+
+# exported infrastructure states files for stacks "*sim"
+state/files/*sim
+
+# interactive python checkpoints
+.ipynb_checkpoints
+
+# compiled python
+*.pyc
+__pycache__
+
+# .vscode artefacts
+.vscode
+
+EOF
+
+create_ifnotexist mkdocs.yml <<EOF
+site_name: ${project_name} Infrastructure
+site_dir: state/site
+
+## configure for local file:// scheme, overwrite for online usage
+# site_url: local browser usage
+site_url: ""
+# use_directory_urls: local browser usage
+use_directory_urls: false
+
+theme:
+  name: material
+
+markdown_extensions:
+  - smarty
+  - toc:
+      permalink: "#"
+  - pymdownx.magiclink
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - README.md
+
+EOF
