@@ -1,8 +1,11 @@
+#!/usr/bin/env python
 """
 ## Tools 
- 
-### Functions
 
+- as command line utility: `$0 stack library function`
+    - eg. `pipenv run infra/tools.py sim infra.build build_openwrt`
+
+### Functions
 - ssh_copy
 - ssh_deploy
 - ssh_execute
@@ -12,7 +15,6 @@
 - sha256sum_file
 
 ### Components
-
 - LocalSaltCall
 - RemoteSaltCall
 
@@ -22,8 +24,9 @@
 
 """
 
-import hashlib
 import os
+import sys
+import hashlib
 import random
 import yaml
 
@@ -384,7 +387,7 @@ class LocalSaltCall(pulumi.ComponentResource):
         with open(os.path.join(pillar_dir, "main.sls"), "w") as m:
             m.write(yaml.safe_dump(pillar))
 
-        salt_executed = command.local.Command(
+        self.executed = command.local.Command(
             resource_name,
             create="pipenv run salt-call -c {conf_dir} {args}".format(
                 conf_dir=config["root_dir"],
@@ -393,7 +396,8 @@ class LocalSaltCall(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
             **kwargs,
         )
-        return salt_executed
+        self.result = self.executed
+        self.register_outputs({})
 
 
 class RemoteSaltCall(pulumi.ComponentResource):
@@ -472,20 +476,32 @@ class RemoteSaltCall(pulumi.ComponentResource):
 
 
 if __name__ == "__main__":
-    """
-    usage: $0 <stackname> <library-name> <function-name>
+    import argparse
+    import importlib
 
-        calls a pulumi up on a selected function import.
-        eg. $0 sim infra.build build_openwrt
+    # add base of project to begin of python import path list
+    sys.path.insert(0, project_dir)
 
-    """
+    parser = argparse.ArgumentParser(
+        description="Calls `pulumi up` on the selected function import on a selected stack.\n\n"
+        + "eg. `pipenv run infra/tools.py sim infra.build build_openwrt`",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("stack", type=str, help="Name of the stack", default="sim")
+    parser.add_argument("library", type=str, help="Name of the library")
+    parser.add_argument("function", type=str, help="Name of the function")
+    args = parser.parse_args()
+
+    my_library = importlib.import_module(args.library)
+    my_function = getattr(my_library, args.function)
+    project_name = os.path.basename(project_dir)
     os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
-    import target.gateway
 
     stack = pulumi.automation.select_stack(
-        stack_name="sim",
-        project_name="athome",
-        program=target.gateway,
-        work_dir=os.path.abspath(os.path.dirname(os.path.abspath(__file__))),
+        stack_name=args.stack,
+        project_name=project_name,
+        program=my_function,
+        work_dir=project_dir,
+        opts=pulumi.automation.LocalWorkspaceOptions(work_dir=project_dir),
     )
-    up_res = stack.up(on_output=print)
+    up_res = stack.up(log_to_std_err=True, on_output=print)
