@@ -37,7 +37,7 @@ Tools:
 
 - `pulumi` - imperativ infrastructure delaration using python
 - `age` - file and pulumi production password encryption supplied using openssh keys
-- `fcos` - Fedora-CoreOS Image with clevis (sss,tang,tpm) storage unlock
+- `fcos` - Fedora-CoreOS Image with `clevis` (sss,tang,tpm) storage unlock
 - `butane` - define fcos ignition using `jinja` enhanced butane yaml config
 - `saltstack`
     - local build environment and file system plumbing
@@ -48,13 +48,11 @@ Tools:
 
 Operating Systems / Frameworks:
 
+- Provision: **Arch Linux**, **Manjaro Linux** or as **Container Image**
 - Server: **Fedora-CoreOS** -- updating, minimal, monolithic, container-focused operating system
-- Router/Gateway: **Openwrt** -- Operating system targeting embedded devices
-- Home Automation: **Homeassistant** OS -- Open source home automation Control Bridge (Zigbee,BT,Wifi)
-- **Esphome** based **Sensor/Actor** Devices:
-    - Device: Esphome on **Arduino** or **ESP-IDF** based framework -- ESP32 based sensor/actor systems
-<!-- + Media: **LibreELEC** -- kodi centered media player os -->
-<!-- **FreeBSD**: Files: **TrueNAS** -- File Storage NAS -->
+- Router: **Openwrt** -- Operating system targeting embedded devices
+- Automation: **Homeassistant** OS -- Open source home automation Control Bridge (Zigbee,BT,Wifi)
+- IOT: **Esphome** - ESP32 based, yaml configured **Sensor/Actor** Devices based on  **Arduino** or **ESP-IDF** framework
 
 ### Usage
 
@@ -117,12 +115,21 @@ export PULUMI_SKIP_UPDATE_CHECK=1
 export PULUMI_CONFIG_PASSPHRASE=sim
 pulumi stack select sim
 pulumi about
-pipenv shell ipython
+
+# execute in python environment
+pipenv run ipython
 
 # sim stack: destroy, cleanup, preview, up
 make sim-clean
 make sim-create
-# test if changes would compute
+
+# interactive execution of openwrt image build
+pipenv run infra/tools.py sim infra.build build_openwrt
+
+# show recorded image build salt-call stdout log output
+make sim-show | jq .build_openwrt_image.result.stdout -r
+
+# test if changes would compute before applying
 make sim__ args="preview --suppress-outputs"
 make sim-up
 ```
