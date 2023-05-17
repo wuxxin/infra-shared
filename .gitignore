@@ -1,0 +1,4 @@
+# compiled python
+*.pyc
+__pycache__
+
