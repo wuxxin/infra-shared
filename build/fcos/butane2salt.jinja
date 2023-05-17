@@ -9,7 +9,7 @@ eg. from the systemd service coreos-update.config.service
 
 - only the currently used subset in *.bu files of the butane spec is supported,
 - only storage:directories/links/files/trees and systemd:units are translated
-- a custom tag list_files "subdir" is available for browsing templates available in basedir/subdir
+- a custom tag list_files("subdir") is available for browsing templates available in basedir/subdir
 - use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
 
 #}
@@ -72,7 +72,7 @@ eg. from the systemd service coreos-update.config.service
       {%- if f.contents.local is defined %}
         {%- import f.contents.local as contents %}
     - contents: |
-        {{ contents|indent(8) }}
+        {{ contents|string()|indent(8) }}
       {%- endif %}
     {%- endif %}
   {% endfor %}
@@ -82,12 +82,13 @@ eg. from the systemd service coreos-update.config.service
 {%- if "storage" in butane and "trees" in butane.storage %}
   {%- for t in butane.storage.trees %}
     {%- set path = t.path|d("/") %}
-    {%- for f in list_files t.local %}
+    {% set list_str= t.local|list_files() %}
+    {%- for f in list_str.split("\n") %}
       {%- import f as contents %}
-{{ path }}/{{ f }}:
+{{ path }}{{ f }}:
   file.managed:
     - contents: |
-        {{ contents|indent(8) }}
+        {{ contents|string()|indent(8) }}
     {% endfor %}
   {% endfor %}
 {%- endif %}
@@ -110,7 +111,7 @@ eg. from the systemd service coreos-update.config.service
         {%- if u.contents_local is defined %}
           {%- import u.contents_local as contents %}
     - contents: |
-        {{ contents|indent(8) }}
+        {{ contents|string()|indent(8) }}
         {%- endif %}
       {%- else %}
   service.dead:
@@ -136,7 +137,7 @@ mask_{{ u.name }}:
         {%- if d.contents_local is defined %}
           {%- import d.contents_local as contents %}
     - contents: |
-        {{ contents|indent(8) }}
+        {{ contents|string()|indent(8) }}
         {%- endif %}
       {% endfor %}
     {%- endif %}
