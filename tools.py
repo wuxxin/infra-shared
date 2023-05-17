@@ -2,8 +2,7 @@
 """
 ## Tools 
 
-- as command line utility
-    - `$0 stack library function`
+- Usage as command line utility: `$0 stack library function`
 
 ### Functions
 - ssh_copy
@@ -80,7 +79,7 @@ def jinja_run(template_str, base_dir, environment={}):
 
     - custom filter "sub_dir"|list_files() returns
         - a string with a newline seperated list of files in base_dir/sub_dir
-        - each of this listed files are available for "import x as y" in jinja
+        - each of these listed files are available for "import x as y" in jinja
 
     Example:
     # Import all files available under subdir "test" and place it in a salstack state file
