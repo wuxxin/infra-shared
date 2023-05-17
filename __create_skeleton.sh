@@ -6,6 +6,15 @@ self_path=$(dirname "$(readlink -e "$0")")
 project_dir=$(readlink -f ${self_path}/..)
 project_name=$(basename "${project_dir}")
 
+usage() {
+  cat - <<EOF
+$(basename $0) --yes
+
+creates directories and files needed for a project
+
+EOF
+}
+
 create_ifnotexist() { #1 filename relative to ./../
   fname="${project_dir}/$1"
   if test ! -e "$fname"; then
@@ -15,6 +24,11 @@ create_ifnotexist() { #1 filename relative to ./../
     cat - >/dev/null
   fi
 }
+
+if test "$1" != "--yes"; then
+  usage
+  exit 1
+fi
 
 # create subdirs and add .gitkeep file
 for d in docs state target; do

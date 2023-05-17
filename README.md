@@ -56,6 +56,17 @@ Operating Systems / Frameworks:
 
 ### Usage
 
+#### Quick start
+
+```sh
+mkdir -p example; cd example; git init
+git submodule add https://github.com/wuxxin/infra-shared.git infra
+infra/__create_skeleton.sh --yes
+make sim-up
+```
+
+or see https://github.com/wuxxin/example_infra for usage in an example project
+
 #### Bootstrap skeleton files to a new repo
 
 - from current directory, eg. pwd=~/code
@@ -73,12 +84,6 @@ git submodule add https://github.com/wuxxin/infra-shared.git infra
 infra/__create_project.sh
 # creates README.md, __main__.py, pulumi.yaml, Makefile, Pipfile,
 #   config-template.yaml, .gitignore, mkdocs.yml
-```
-
-#### Quick start
-
-```sh
-make sim-up
 ```
 
 - install all build requirements, install and configure a simulation of the production targets
