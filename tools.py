@@ -2,24 +2,25 @@
 """
 ## Tools 
 
-- as command line utility: `$0 stack library function`
+- as command line utility
+    - `$0 stack library function`
 
 ### Functions
-- jinja_run
 - ssh_copy
 - ssh_deploy
 - ssh_execute
+
 - encrypted_local_export
 - public_local_export
+
+- log_warn
+- jinja_run
+- jinja_run_template
 - sha256sum_file
 
 ### Components
 - LocalSaltCall
 - RemoteSaltCall
-
-- SSHCopier
-- SSHDeployer
-- DataExport
 
 """
 
@@ -31,6 +32,7 @@ import glob
 
 import yaml
 import jinja2
+
 import jinja2.ext
 import pulumi
 import pulumi_command as command
@@ -39,7 +41,14 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.abspath(os.path.join(this_dir, ".."))
 
 
-class WildcardFileLoader(jinja2.FileSystemLoader):
+def log_warn(x):
+    "write str(var) to pulumi.log.warn with line numbering, to be used as var.apply(log_warn)"
+    pulumi.log.warn(
+        "\n".join(["{}:{}".format(n + 1, l) for n, l in enumerate(str(x).splitlines())])
+    )
+
+
+class ListedFileLoader(jinja2.FileSystemLoader):
     def __init__(self, searchpath):
         self.basepath = os.path.normpath(searchpath)
         super().__init__(self.basepath)
@@ -55,33 +64,45 @@ class WildcardFileLoader(jinja2.FileSystemLoader):
 
 
 class ListFilesExtension(jinja2.ext.Extension):
-    tags = {"list_files"}
-
     def __init__(self, environment):
-        super().__init__(environment)
+        super(ListFilesExtension, self).__init__(environment)
+        self.environment = environment
+        self.environment.filters["list_files"] = self.list_files
 
-    def parse(self, parser):
-        lineno = next(parser.stream).lineno
-        parameter = parser.parse_expression()
-        call_node = self.call_method("_filter_list_files", [parameter])
-        return jinja2.nodes.Output([call_node], lineno=lineno)
-
-    def _filter_list_files(self, parameter):
+    def list_files(self, value):
         loader = self.environment.loader
-        templates = loader.list_files(parameter)
-        return templates
+        files = loader.list_files(value)
+        return "\n".join(files)
 
 
 def jinja_run(template_str, base_dir, environment={}):
-    """renders a template string with environment, additional includes are available from base_dir
+    """renders a template string with environment, with optional includes from base_dir
 
-    - additional tag list_files "sub_dir" that returns list of templates in base_dir/sub_dir
+    - custom filter "sub_dir"|list_files() returns
+        - a string with a newline seperated list of files in base_dir/sub_dir
+        - files available for "import x as y" in jinja
+
     """
-    env = jinja2.Environment(loader=WildcardFileLoader(base_dir))
-    env.add_extension(ListFilesExtension)
+    env = jinja2.Environment(
+        loader=ListedFileLoader(base_dir), extensions=[ListFilesExtension]
+    )
     template = env.from_string(template_str)
-    transformed = template.render(environment)
-    return transformed
+    rendered = template.render(environment)
+    return rendered
+
+
+def jinja_run_template(template_filename, base_dir, environment={}):
+    """renders a template file available from base_dir with environment
+
+    - custom tag: list_files("sub_dir") returns a list of files in base_dir/sub_dir
+
+    """
+    env = jinja2.Environment(
+        loader=ListedFileLoader(base_dir), extensions=[ListFilesExtension]
+    )
+    template = env.get_template(template_filename)
+    rendered = template.render(environment)
+    return rendered
 
 
 def combine_path(prefix, path):
@@ -398,17 +419,47 @@ def public_local_export(prefix, filename, data, filter="", delete=False, opts=No
     return DataExport(prefix, filename, data, filter=filter, delete=delete, opts=opts)
 
 
-def salt_config(resource_name, stack, base_dir, root_dir=None, tmp_dir=None, sls_dir=None):
-    "generate a saltstack salt config, sls_dir defaults to base_dir/infra"
+def salt_config(
+    resource_name, stack_name, base_dir, root_dir=None, tmp_dir=None, sls_dir=None
+):
+    """generate a saltstack salt config
+
+    - sls_dir defaults to base_dir
+    - grains available
+      - project_name, resource_name, stack_name
+      - base_dir, root_dir, tmp_dir, sls_dir, pillar_dir
+
+    """
+
+    project_name = os.path.basename(base_dir)
+    root_dir = root_dir or os.path.join(base_dir, "state", "salt", stack_name, resource_name)
+    tmp_dir = tmp_dir or os.path.join(base_dir, "state", "tmp", stack_name, resource_name)
+    sls_dir = sls_dir if sls_dir else base_dir
+    pillar_dir = os.path.join(root_dir, "pillar")
 
     config = yaml.safe_load(
         """
-id: {id}
+id: {resource_name}
 local: True
+log_level_logfile: info
 file_client: local
 fileserver_backend:
 - roots
-log_level_logfile: info
+file_roots:
+  base:
+  - {sls_dir}
+pillar_roots:
+  base:
+  - {pillar_dir}
+grains:
+  project_name: {project_name}
+  resource_name: {resource_name}
+  stack_name: {stack_name}
+  base_dir: {base_dir}
+  root_dir: {root_dir}
+  tmp_dir: {tmp_dir}
+  sls_dir: {sls_dir}
+  pillar_dir: {pillar_dir}
 root_dir: {root_dir}
 conf_file: {root_dir}/minion
 pki_dir: {root_dir}/etc/salt/pki/minion
@@ -417,34 +468,34 @@ sock_dir: {root_dir}/var/run/salt/minion
 cachedir: {root_dir}/var/cache/salt/minion
 extension_modules: {root_dir}/var/cache/salt/minion/extmods
 log_file: {root_dir}/var/log/salt/minion
-file_roots:
-  base:
-  - {sls_dir}
-pillar_roots:
-  base:
-  - {root_dir}/pillar
-grains:
-  base_dir: {base_dir}
-  root_dir: {root_dir}
-  tmp_dir: {tmp_dir}
-  stack: {stack}
-  resource_name: {resource_name}
 
 """.format(
-            id=os.path.basename(base_dir),
-            base_dir=base_dir,
-            stack=stack,
+            project_name=project_name,
             resource_name=resource_name,
-            root_dir=root_dir or os.path.join(base_dir, "state", "salt", stack, resource_name),
-            tmp_dir=tmp_dir or os.path.join(base_dir, "state", "tmp", stack, resource_name),
-            sls_dir=sls_dir if sls_dir else os.path.join(base_dir, "infra"),
+            stack_name=stack_name,
+            base_dir=base_dir,
+            root_dir=root_dir,
+            tmp_dir=tmp_dir,
+            sls_dir=sls_dir,
+            pillar_dir=pillar_dir,
         )
     )
     return config
 
 
 class LocalSaltCall(pulumi.ComponentResource):
-    """configure and execute a saltstack salt-call on a local provision machine"""
+    """configure and execute a saltstack salt-call on a local provision machine
+
+    - sls_dir= project_dir
+    - config/run/tmp/cache and other files= state/salt/stackname
+    - grains from salt_config available
+
+    Example:
+        # execute states in projectdir/infra/build/openwrt[/__init__].sls
+        LocalSaltCall("build_openwrt_image", "state.sls", "infra.build.openwrt",
+            pillar={}, environment=environment)
+
+    """
 
     def __init__(self, resource_name, *args, pillar={}, sls_dir=None, opts=None, **kwargs):
         super().__init__("pkg:index:LocalSaltCall", resource_name, None, opts)
@@ -476,7 +527,13 @@ class LocalSaltCall(pulumi.ComponentResource):
 
 
 class RemoteSaltCall(pulumi.ComponentResource):
-    "configure and execute a saltstack salt-call on a remote target machine"
+    """configure and execute a saltstack salt-call on a remote target machine
+
+    - grains from salt_config available
+    - NOTE: function replaces parameters "{base_dir}" and "{args}" in the "exec" string
+        - therefore avoid (rename) shell vars named "${base_dir}" or "${args}"
+
+    """
 
     def __init__(
         self,
