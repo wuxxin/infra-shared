@@ -11,13 +11,13 @@ def build_openwrt():
     from infra.authority import config, project_dir, ssh_factory
     from infra.tools import sha256sum_file, LocalSaltCall
 
-    # build openwrt image
+    resource_name = "build_openwrt"
     pillar = {"build": config.get_object("build", {"openwrt": {}})}
     environment = {"authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))}
-    openwrt_image = LocalSaltCall(
-        "build_openwrt_image",
+    resource = LocalSaltCall(
+        resource_name,
         "state.sls",
-        "build.openwrt",
+        "infra.build.openwrt",
         pillar=pillar,
         environment=environment,
         triggers=[
@@ -28,8 +28,8 @@ def build_openwrt():
         ],
         opts=pulumi.ResourceOptions(depends_on=[ssh_factory]),
     )
-    pulumi.export("build_openwrt_image", openwrt_image)
-    return openwrt_image
+    pulumi.export(resource_name, resource)
+    return resource
 
 
 def build_esphome():

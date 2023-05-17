@@ -139,7 +139,7 @@ make sim-create
 # manual execution of the openwrt image build by calling a function
 pipenv run infra/tools.py sim infra.build build_openwrt
 # show recorded image build salt-call stdout log output
-make sim-show | jq .build_openwrt_image.result.stdout -r
+make sim-show | jq .build_openwrt.result.stdout -r
 
 # test if changes would compute before applying
 make sim__ args="preview --suppress-outputs"

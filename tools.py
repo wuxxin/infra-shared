@@ -492,7 +492,7 @@ class LocalSaltCall(pulumi.ComponentResource):
 
     Example:
         # execute states in projectdir/infra/build/openwrt[/__init__].sls
-        LocalSaltCall("build_openwrt_image", "state.sls", "infra.build.openwrt",
+        LocalSaltCall("build_openwrt", "state.sls", "infra.build.openwrt",
             pillar={}, environment=environment)
 
     """
