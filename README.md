@@ -58,6 +58,8 @@ Operating Systems / Frameworks:
 
 #### Quick start
 
+create a base project, install build requirements, install and update a simulation of the targets
+
 ```sh
 mkdir -p example; cd example; git init
 git submodule add https://github.com/wuxxin/infra-shared.git infra
@@ -65,29 +67,27 @@ infra/__create_skeleton.sh --yes
 make sim-up
 ```
 
-or see https://github.com/wuxxin/example_infra for usage in an example project
+- see https://github.com/wuxxin/example_infra for usage in an example project
+- see [notebooks](https://github.com/wuxxin/example_infra/notebooks) for jupyter notebooks of interactive pulumi, mqtt and homeassistant pyscript examples
 
 #### Bootstrap skeleton files to a new repo
 
 - from current directory, eg. pwd=~/code
 
-```
-# choose a project/directory name
+```sh
 project_name=example
-
 base_dir=$(pwd)
 project_dir=${base_dir}/${project_name}
 mkdir -p ${project_dir}
 cd ${project_dir}
 git init
 git submodule add https://github.com/wuxxin/infra-shared.git infra
-infra/__create_project.sh
-# creates README.md, __main__.py, pulumi.yaml, Makefile, Pipfile,
-#   config-template.yaml, .gitignore, mkdocs.yml
+infra/__create_skeleton.sh --yes
 ```
 
-- install all build requirements, install and configure a simulation of the production targets
-- See `notebooks` for jupyter notebooks of interactive pulumi, mqtt and homeassistant pyscript examples
+- `infra/__create_skeleton.sh` creates the following files in the base dir
+    - README.md, __main__.py, pulumi.yaml, Makefile, Pipfile,
+    - config-template.yaml, .gitignore, mkdocs.yml
 
 #### Install build requirements
 
@@ -113,7 +113,7 @@ make docs
 #### Simulation
 
 ```sh
-# all in one simstack up
+# create/build/install simulation target
 make sim-up
 
 # show root cert pem
