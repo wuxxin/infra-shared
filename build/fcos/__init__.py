@@ -23,17 +23,9 @@ import pulumi_command as command
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 
-from infra.tools import jinja_run
+from infra.tools import jinja_run, log_warn
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
-
-
-def is_dict_like(v):
-    return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
-
-
-def is_list_like(v):
-    return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
 
 
 class ButaneTranspiler(pulumi.ComponentResource):
@@ -142,7 +134,7 @@ storage:
             lambda args: self.merge_yaml_struct(args[0], args[1])
         )
 
-        # jinja template *.bu yaml files from basedir, *.bu yaml from fcos and merge with base yaml
+        # jinja template *.bu yaml files from basedir, *.bu yaml from /fcos and merge with base yaml
         self.butane_config = pulumi.Output.all(
             loaded_yaml=self.load_yaml_files(
                 basedir,
@@ -155,14 +147,9 @@ storage:
                 self.merge_yaml_struct(args["loaded_yaml"], args["base_yaml"])
             )
         )
+        # self.butane_config.apply(log_warn)
 
-        # self.butane_config.apply(
-        #     lambda x: pulumi.log.warn(
-        #         "\n".join(["{}:{}".format(n, l) for n, l in enumerate(x.splitlines())])
-        #     )
-        # )
-
-        # transpile merged butane yaml to saltstack salt yaml config and append this_dir/*.sls to it
+        # transpile merged butane yaml to saltstack salt yaml config and append basedir/*.sls to it
         self.jinja_transform = open(os.path.join(this_dir, "butane2salt.jinja"), "r").read()
         self.jinja_hash = hashlib.sha256(self.jinja_transform.encode("utf-8")).hexdigest()
         self.saltstack_config = pulumi.Output.concat(
@@ -173,10 +160,12 @@ storage:
                     {"butane": yaml.safe_load(args["butane"]), "jinja_hash": self.jinja_hash},
                 )
             ),
-            *[open(f, "r").read() for f in glob.glob(os.path.join(this_dir, "*.sls"))],
+            *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
 
         # transpile merged butane yaml to ignition json config
+        # XXX due to pulumi-command exit 1 on stderr output, we silence stderr,
+        #   but output is vital for finding compilation warning and errors, so remove 2>/dev/null on debug
         self.ignition_config = command.local.Command(
             "{}_ignition_config".format(resource_name),
             create="butane -d . -r -p 2>/dev/null",
@@ -214,6 +203,12 @@ storage:
         return merged_yaml
 
     def merge_yaml_struct(self, yaml1, yaml2):
+        def is_dict_like(v):
+            return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
+
+        def is_list_like(v):
+            return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
+
         if is_dict_like(yaml1) and is_dict_like(yaml2):
             for key in yaml2:
                 if key in yaml1:
