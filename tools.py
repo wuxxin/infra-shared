@@ -80,7 +80,17 @@ def jinja_run(template_str, base_dir, environment={}):
 
     - custom filter "sub_dir"|list_files() returns
         - a string with a newline seperated list of files in base_dir/sub_dir
-        - files available for "import x as y" in jinja
+        - each of this listed files are available for "import x as y" in jinja
+
+    Example:
+    # Import all files available under subdir "test" and place it in a salstack state file
+
+    {% for f in 'test'|list_files().split('\n') %}{% import f as c %}
+    {{ f }}:
+      file.managed:
+        - contents: |
+            {{ c|string()|indent(8) }}
+    {% endfor %}
 
     """
     env = jinja2.Environment(
