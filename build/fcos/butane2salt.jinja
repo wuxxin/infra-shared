@@ -1,104 +1,144 @@
-{# translate a subset of butane spec into saltstack salt spec #}
-{# only storage.files/directories/links/trees systemd are translated #}
+{#
 
+translates a restricted subset of butane spec into a one file saltstack salt spec
+
+this is to be used in a saltstack salt-call command, 
+which updates the config to the desired state while keeping changes minimal
+
+eg. from the systemd service coreos-update.config.service
+
+- only the currently used subset in *.bu files of the butane spec is supported,
+- only storage:directories/links/files/trees and systemd:units are translated
+- a custom tag list_files "subdir" is available for browsing templates available in basedir/subdir
+- use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
+
+#}
+{%- macro user_group_mode(o) -%}
+{%- if o.user is defined -%}
+{%- if o.user.id is defined   %}    - user: {{ o.user.id }}{% endif %}
+{%- if o.user.name is defined %}    - user: {{ o.user.name }}{% endif %}
+{%- endif -%}
+{%- if o.group is defined -%}
+{%- if o.group.id is defined   %}    - group: {{ o.group.id }}{% endif %}
+{%- if o.group.name is defined %}    - group: {{ o.group.name }}{% endif %}
+{%- endif -%}
+{%- if o.mode is defined %}    - mode: {{ o.mode }}{% endif %}
+{%- endmacro -%}
+{#
+
+#}
 {%- if "storage" in butane and "directories" in butane.storage %}
   {%- for d in butane.storage.directories %}
-{{ d.name }}:
+{{ d.path }}:
   file.directory:
     - makedirs: true
-    {%- if d.user is defined %}
-    - user: {{ d.user }}
+{{ user_group_mode(d) }}
+  {% endfor %}
+{%- endif %}
+
+
+{%- if "storage" in butane and "links" in butane.storage %}
+  {%- for l in butane.storage.links %}
+{{ l.path }}:
+  file.symlink:
+    {%- if l.target is defined %}
+    - target: {{ l.target }}
     {%- endif %}
-    {%- if d.group is defined %}
-    - group: {{ d.group }}
+    {%- if l.hard is defined and l.hard %}
+    - hard: true
     {%- endif %}
-    {%- if d.mode is defined %}
-    - mode: {{ d.mode }}
-    {%- endif %}
-  {%- endfor %}
+{{ user_group_mode(l) }}
+  {% endfor %}
 {%- endif %}
 
 
 {%- if "storage" in butane and "files" in butane.storage %}
   {%- for f in butane.storage.files %}
-{{ f.name }}:
+
+{{ f.path }}:
   file.managed:
-    - source: {{ f.path }}
-    {%- if f.user is defined %}
-    - user: {{ f.user }}
-    {%- endif %}
-    {%- if f.group is defined %}
-    - group: {{ f.group }}
-    {%- endif %}
-    {%- if f.mode is defined %}
-    - mode: {{ f.mode }}
-    {%- endif %}
+{{ user_group_mode(f) }}
     {%- if f.contents is defined %}
-    - contents: |
+      {%- if f.contents.source is defined %}
+    - source: {{ f.contents.source }}
+      {%- endif %}
+      {%- if f.verification is defined %}
+    - source_hash: {{ f.verification[7:] }}
+      {%- endif %}
       {%- if f.contents.inline is defined %}
+    - contents: |
         {{ f.contents.inline|indent(8) }}
       {%- endif %}
+      {%- if f.contents.local is defined %}
+        {%- import f.contents.local as contents %}
+    - contents: |
+        {{ contents|indent(8) }}
+      {%- endif %}
     {%- endif %}
-  {%- endfor %}
+  {% endfor %}
 {%- endif %}
 
-{%- if "storage" in butane and "links" in butane.storage %}
-  {%- for l in butane.storage.links %}
-{{ l.name }}:
-  file.symlink:
-    - target: {{ l.path }}
-    {%- if l.user is defined %}
-    - user: {{ l.user }}
-    {%- endif %}
-    {%- if l.group is defined %}
-    - group: {{ l.group }}
-    {%- endif %}
-    {%- if l.hard is defined and l.hard %}
-    - hard: true
-    {%- endif %}
-  {%- endfor %}
-{%- endif %}
 
 {%- if "storage" in butane and "trees" in butane.storage %}
   {%- for t in butane.storage.trees %}
-{{ t.name }}:
-  file.recurse:
-    - source: {{ t.path }}
-    {%- if t.user is defined %}
-    - user: {{ t.user }}
-    {%- endif %}
-    {%- if t.group is defined %}
-    - group: {{ t.group }}
-    {%- endif %}
-    {%- if t.mode is defined %}
-    - mode: {{ t.mode }}
-    {%- endif %}
-    {%- if t.clean is defined and t.clean %}
-    - clean: true
-    {%- endif %}
-  {%- endfor %}
+    {%- set path = t.path|d("/") %}
+    {%- for f in list_files t.local %}
+      {%- import f as contents %}
+{{ path }}/{{ f }}:
+  file.managed:
+    - contents: |
+        {{ contents|indent(8) }}
+    {% endfor %}
+  {% endfor %}
 {%- endif %}
 
-{%- if "systemd" in butane %}
-  {%- for s in butane.systemd %}
-{{ s.name }}:
-  systemd.unit:
-    - enabled: true
-    - restart: always
-    {%- if s.enable is defined %}
-    - enable: {{ s.enable }}
-    {%- endif %}
-    {%- if s.mask is defined %}
-    - mask: {{ s.mask }}
-    {%- endif %}
-    {%- if s.template is defined %}
-    - template: {{ s.template }}
-    {%- endif %}
-    {%- if s.contents is defined %}
+
+{%- if "systemd" in butane and "units" in butane.systemd %}
+  {%- for u in butane.systemd.units %}
+    {%- if u.enabled is defined %}
+{{ u.name }}:
+      {%- if u.enabled %}
+  service.running:
+    - enable: true
+        {%- if u.mask|d(false) %}
+    - unmask: true
+        {%- endif %}
+        {%- if u.contents is defined %}
     - contents: |
-      {%- for line in s.contents.split('\n') %}
-      {{ line }}
-      {%- endfor %}
+        {{ u.contents|indent(8) }}
+        {%- endif %}
+        {%- if u.contents_local is defined %}
+          {%- import u.contents_local as contents %}
+    - contents: |
+        {{ contents|indent(8) }}
+        {%- endif %}
+      {%- else %}
+  service.dead:
+    - enable: false
+        {%- if u.mask|d(false) %}
+
+mask_{{ u.name }}:
+  service.masked:
+    - name: {{ u.name }}
+        {%- endif %}
+      {%- endif %}
     {%- endif %}
-  {%- endfor %}
+
+    {%- if u.dropins is defined %}
+      {%- for d in u.dropins %}
+/etc/systemd/system/{{ u.name }}.d/{{ d.name }}:
+  file.managed:
+    - makedirs: True
+        {%- if d.contents is defined %}
+    - contents: |
+        {{ d.contents|indent(8) }}
+        {%- endif %}
+        {%- if d.contents_local is defined %}
+          {%- import d.contents_local as contents %}
+    - contents: |
+        {{ contents|indent(8) }}
+        {%- endif %}
+      {% endfor %}
+    {%- endif %}
+  {% endfor %}
 {%- endif %}

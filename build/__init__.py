@@ -8,8 +8,8 @@ import infra.build.fcos as fcos
 
 
 def build_openwrt():
-    from authority import config, project_dir, ssh_factory
-    from tools import sha256sum_file, LocalSaltCall
+    from infra.authority import config, project_dir, ssh_factory
+    from infra.tools import sha256sum_file, LocalSaltCall
 
     # build openwrt image
     pillar = {"build": config.get_object("build", {"openwrt": {}})}

@@ -16,7 +16,6 @@ import os
 import yaml
 import json
 import glob
-import jinja2
 import hashlib
 
 import pulumi
@@ -24,6 +23,7 @@ import pulumi_command as command
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 
+from infra.tools import jinja_run
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -130,16 +130,12 @@ storage:
         # template butane_input and butane_security_keys with jinja and merge together
         base_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_input, env=env).apply(
-                lambda args: yaml.safe_load(
-                    jinja2.Template(args["yaml_str"]).render(args["env"])
-                )
+                lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
         security_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_security_keys, env=env).apply(
-                lambda args: yaml.safe_load(
-                    jinja2.Template(args["yaml_str"]).render(args["env"])
-                )
+                lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
         merged_dict = pulumi.Output.all(security_dict, base_dict).apply(
@@ -171,8 +167,10 @@ storage:
         self.jinja_hash = hashlib.sha256(self.jinja_transform.encode("utf-8")).hexdigest()
         self.saltstack_config = pulumi.Output.concat(
             pulumi.Output.all(butane=self.butane_config).apply(
-                lambda args: jinja2.Template(self.jinja_transform).render(
-                    {"butane": yaml.safe_load(args["butane"]), "jinja_hash": self.jinja_hash}
+                lambda args: jinja_run(
+                    self.jinja_transform,
+                    basedir,
+                    {"butane": yaml.safe_load(args["butane"]), "jinja_hash": self.jinja_hash},
                 )
             ),
             *[open(f, "r").read() for f in glob.glob(os.path.join(this_dir, "*.sls"))],
@@ -181,7 +179,7 @@ storage:
         # transpile merged butane yaml to ignition json config
         self.ignition_config = command.local.Command(
             "{}_ignition_config".format(resource_name),
-            create="butane -d . -r -p ",
+            create="butane -d . -r -p 2>/dev/null",
             stdin=self.butane_config,
             dir=basedir,
             opts=child_opts,
@@ -205,7 +203,7 @@ storage:
             with open(file, "r") as f:
                 yaml_dict = pulumi.Output.all(yaml_str=f.read(), env=env).apply(
                     lambda args: yaml.safe_load(
-                        jinja2.Template(args["yaml_str"]).render(args["env"])
+                        jinja_run(args["yaml_str"], basedir, args["env"])
                     )
                 )
                 merged_yaml = pulumi.Output.all(
@@ -385,7 +383,8 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             "{}_libvirt_ignition".format(resource_name),
             name="ignition",
             content=ignition_config,
-            opts=child_opts,
+            # XXX ignore changes to ignition_configm, because saltstack is used for configuration updates
+            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["content"]),
         )
 
         # download qemu base image
@@ -423,7 +422,8 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             qemu_agent=True,
             tpm=libvirt.DomainTpmArgs(backend_version="2.0", backend_persistent_state=True),
             xml=libvirt.DomainXmlArgs(xslt=self.domain_additions_xslt),
-            opts=child_opts,
+            # XXX ignore changes to ignition_configm, because saltstack is used for configuration updates
+            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["coreos_ignition"]),
         )
         self.result = self.vm
         self.register_outputs({})

@@ -5,12 +5,12 @@
 - as command line utility: `$0 stack library function`
 
 ### Functions
+- jinja_run
 - ssh_copy
 - ssh_deploy
 - ssh_execute
 - encrypted_local_export
 - public_local_export
-
 - sha256sum_file
 
 ### Components
@@ -27,13 +27,61 @@ import os
 import sys
 import hashlib
 import random
-import yaml
+import glob
 
+import yaml
+import jinja2
+import jinja2.ext
 import pulumi
 import pulumi_command as command
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.abspath(os.path.join(this_dir, ".."))
+
+
+class WildcardFileLoader(jinja2.FileSystemLoader):
+    def __init__(self, searchpath):
+        self.basepath = os.path.normpath(searchpath)
+        super().__init__(self.basepath)
+
+    def list_files(self, pattern=""):
+        globpath = os.path.join(self.basepath, pattern, "**")
+        files = [
+            os.path.relpath(os.path.normpath(file), self.basepath)
+            for file in glob.glob(globpath, recursive=True)
+            if os.path.isfile(file)
+        ]
+        return files
+
+
+class ListFilesExtension(jinja2.ext.Extension):
+    tags = {"list_files"}
+
+    def __init__(self, environment):
+        super().__init__(environment)
+
+    def parse(self, parser):
+        lineno = next(parser.stream).lineno
+        parameter = parser.parse_expression()
+        call_node = self.call_method("_filter_list_files", [parameter])
+        return jinja2.nodes.Output([call_node], lineno=lineno)
+
+    def _filter_list_files(self, parameter):
+        loader = self.environment.loader
+        templates = loader.list_files(parameter)
+        return templates
+
+
+def jinja_run(template_str, base_dir, environment={}):
+    """renders a template string with environment, additional includes are available from base_dir
+
+    - additional tag list_files "sub_dir" that returns list of templates in base_dir/sub_dir
+    """
+    env = jinja2.Environment(loader=WildcardFileLoader(base_dir))
+    env.add_extension(ListFilesExtension)
+    template = env.from_string(template_str)
+    transformed = template.render(environment)
+    return transformed
 
 
 def combine_path(prefix, path):
@@ -59,6 +107,8 @@ def sha256sum_file(filename):
 
 
 class SSHCopier(pulumi.ComponentResource):
+    """Pulumi Component: use with function ssh_copy()"""
+
     def __init__(self, name, props, opts=None):
         super().__init__("pkg:index:SSHCopier", name, None, opts)
 
@@ -103,6 +153,8 @@ class SSHCopier(pulumi.ComponentResource):
 
 
 class SSHDeployer(pulumi.ComponentResource):
+    """Pulumi Component: use with function ssh_deploy()"""
+
     def __init__(self, name, props, opts=None):
         super().__init__("pkg:index:SSHDeployer", name, None, opts)
 
@@ -153,8 +205,21 @@ class SSHDeployer(pulumi.ComponentResource):
         return value_deployed
 
 
-def ssh_copy(prefix, host, user, files={}, port=22, delete=False, remote_prefix="", opts=None):
+def ssh_copy(
+    prefix,
+    host,
+    user,
+    files={},
+    port=22,
+    delete=False,
+    remote_prefix="",
+    simulate=None,
+    opts=None,
+):
     """copy a set of files from localhost to ssh target using ssh/sftp
+
+    if simulate==True: files are not transfered but written out to state/tmp/stack_name
+    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     - files: {remotepath: localpath,}
     """
@@ -170,7 +235,7 @@ def ssh_copy(prefix, host, user, files={}, port=22, delete=False, remote_prefix=
         "sshkey": ssh_factory.provision_key,
         "delete": delete,
         "remote_prefix": remote_prefix,
-        "simulate": stack_name.endswith("sim"),
+        "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
     }
     transfered = SSHCopier(prefix, props, opts=opts)
@@ -188,9 +253,13 @@ def ssh_deploy(
     delete=False,
     remote_prefix="",
     refresh=False,
+    simulate=None,
     opts=None,
 ):
     """deploy a set of strings as small files to a ssh target
+
+    if simulate==True: data is not transfered but written out to state/tmp/stack_name
+    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     - files: dict= {targetpath: targetdata,}
     """
@@ -207,7 +276,7 @@ def ssh_deploy(
         "delete": delete,
         "remote_prefix": remote_prefix,
         "refresh": refresh,
-        "simulate": stack_name.endswith("sim"),
+        "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
     }
     deployed = SSHDeployer(prefix, props, opts=opts)
@@ -215,20 +284,27 @@ def ssh_deploy(
     return deployed
 
 
-def ssh_execute(prefix, host, user, cmdline, port=22, opts=None):
-    """execute a command on a ssh target"""
+def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, opts=None):
+    """execute a command as user on a ssh target host
+
+    if simulate==True: command is not executed but written out to state/tmp/stack_name
+    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+
+    """
 
     from infra.authority import ssh_factory
 
     resource_name = "{}_ssh_execute".format(prefix)
     stack_name = pulumi.get_stack()
-    if stack_name.endswith("sim"):
+    simulate = stack_name.endswith("sim") if simulate is None else simulate
+
+    if simulate:
         tmpdir = os.path.join(project_dir, "state", "tmp", stack_name)
         os.makedirs(tmpdir, exist_ok=True)
         ssh_executed = command.local.Command(
             resource_name,
             create="cat - > {}".format(os.path.join(tmpdir, resource_name)),
-            delete="rm {} || true",
+            delete="rm {} || true".format(os.path.join(tmpdir, resource_name)),
             stdin=cmdline,
             opts=opts,
         )
@@ -456,6 +532,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
             user,
             self.config_dict,
             remote_prefix=base_dir,
+            simulate=False,
             opts=pulumi.ResourceOptions(parent=self),
         )
 
@@ -467,6 +544,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
                 base_dir=self.config["root_dir"],
                 args=" ".join(args),
             ),
+            simulate=False,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
             **kwargs,
         )
@@ -491,15 +569,15 @@ if __name__ == "__main__":
     parser.add_argument("function", type=str, help="Name of the function")
     args = parser.parse_args()
 
-    my_library = importlib.import_module(args.library)
-    my_function = getattr(my_library, args.function)
+    target_library = importlib.import_module(args.library)
+    target_function = getattr(target_library, args.function)
     project_name = os.path.basename(project_dir)
     os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
 
     stack = pulumi.automation.select_stack(
         stack_name=args.stack,
         project_name=project_name,
-        program=my_function,
+        program=target_function,
         work_dir=project_dir,
         opts=pulumi.automation.LocalWorkspaceOptions(work_dir=project_dir),
     )
