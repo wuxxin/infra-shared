@@ -28,7 +28,7 @@ See https://github.com/wuxxin/example_infra for usage in an example project
     - facilitate a comfortable **simulation environment** that is accurate enough for replication on production
 - treat **state as code**
     - favor **state reconcilation** and **higher level** tools
-    - have the **complete encrypted state** in the **git repository** alongeside the code
+    - have the **complete encrypted state** in the **git repository** alongeside the code as single source of truth
 - **documentation** and **interactive notebooks** alongside code
     - help onboarding with **interactive tinkering** using **jupyter notebooks**
     - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
@@ -52,11 +52,11 @@ Operating Systems / Frameworks:
 - Server: **Fedora-CoreOS** -- updating, minimal, monolithic, container-focused operating system
 - Router: **Openwrt** -- Operating system targeting embedded devices
 - Automation: **Homeassistant** OS -- Open source home automation Control Bridge (Zigbee,BT,Wifi)
-- IOT: **Esphome** - ESP32 based, yaml configured **Sensor/Actor** Devices based on  **Arduino** or **ESP-IDF** framework
+- IOT: **Esphome** - yaml configured **Sensor/Actor** ESP32 like **Devices** on **Arduino** or **ESP-IDF** framework
 
 ### Usage
 
-#### bootstrap a new repo
+#### Bootstrap skeleton files to a new repo
 
 - from current directory, eg. pwd=~/code
 
@@ -71,12 +71,20 @@ cd ${project_dir}
 git init
 git submodule add https://github.com/wuxxin/infra-shared.git infra
 infra/__create_project.sh
+# creates README.md, __main__.py, pulumi.yaml, Makefile, Pipfile,
+#   config-template.yaml, .gitignore, mkdocs.yml
 ```
 
+#### Quick start
 
+```sh
+make sim-up
+```
+
+- install all build requirements, install and configure a simulation of the production targets
 - See `notebooks` for jupyter notebooks of interactive pulumi, mqtt and homeassistant pyscript examples
 
-#### install build requirements
+#### Install build requirements
 
 + on arch or manjaro linux
 
@@ -91,13 +99,13 @@ make container
 sudo podman run -i -v $(pwd):$(pwd) infra_build /bin/bash -i
 ```
 
-#### build documentation
+#### Build documentation
 
 ```sh
 make docs
 ```
 
-#### simulation
+#### Simulation
 
 ```sh
 # all in one simstack up
@@ -123,9 +131,8 @@ pipenv run ipython
 make sim-clean
 make sim-create
 
-# interactive execution of openwrt image build
+# manual execution of the openwrt image build by calling a function
 pipenv run infra/tools.py sim infra.build build_openwrt
-
 # show recorded image build salt-call stdout log output
 make sim-show | jq .build_openwrt_image.result.stdout -r
 
@@ -134,12 +141,12 @@ make sim__ args="preview --suppress-outputs"
 make sim-up
 ```
 
-### production
+### Production
 
-#### create stack
+#### Create stack
 
 ```sh
 make prod-create
-make prod__ args="preview"
-make prod__ args="up"
+make prod__ args=preview
+make prod__ args=up
 ```
