@@ -82,7 +82,9 @@ def jinja_run(template_str, base_dir, environment={}):
         - each of these listed files are available for "import x as y" in jinja
 
     Example:
-    # Import all files available under subdir "test" and place it in a salstack state file
+        - import files available under subdir "test" and translate into a saltstack state file
+
+    ```jinja
 
     {% for f in 'test'|list_files().split('\n') %}{% import f as c %}
     {{ f }}:
@@ -90,6 +92,7 @@ def jinja_run(template_str, base_dir, environment={}):
         - contents: |
             {{ c|string()|indent(8) }}
     {% endfor %}
+    ```
 
     """
     env = jinja2.Environment(
