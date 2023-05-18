@@ -14,17 +14,14 @@ See https://github.com/wuxxin/example_infra for usage in an example project
 
 ### Architecture
 
-- **avoid legacy** technologies,
-    build a clear **chain of trust**,
-    **encrypted storage** at rest,
-    aim for **structural isolation** and **reusability**
+- **avoid legacy** technologies, build a clear **chain of trust**, **encrypted storage** at rest
     - use **ssh keys** as root of trust for pulumi **secrets** using **age**
     - store **secrets in repository** using pulumi stack secret
     - per project **tls root-ca, server-certs**, rollout **m-tls** client certificates where possible
     - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
-    - target creating **disposable/immutable-ish** infrastructure
+- target creating **disposable/immutable-ish** infrastructure
 - have a **big/full featured provision client** as the center of operation
-    - target one build os and a **container** for foreign distros and **continous integration** processes
+    - target one provision build os and a **container** for foreign distros and **continous integration** processes
     - facilitate a comfortable **simulation environment** that is accurate enough for replication on production
 - treat **state as code**
     - favor **state reconcilation** and **higher level** tools
