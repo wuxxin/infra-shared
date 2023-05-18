@@ -3,13 +3,12 @@
 translates a restricted subset of butane spec into a one file saltstack salt spec
 
 this is to be used in a saltstack salt-call command, 
+eg. from the systemd service "coreos-update.config.service"
 which updates the config to the desired state while keeping changes minimal
 
-eg. from the systemd service coreos-update.config.service
-
-- only the currently used subset in *.bu files of the butane spec is supported,
+- only the currently used subset in *.bu files of the butane spec is supported
 - only storage:directories/links/files/trees and systemd:units are translated
-- a custom tag list_files("subdir") is available for browsing templates available in basedir/subdir
+- custom filter "subdir"|list_files() returns a newline seperated list of files available in basedir/subdir
 - use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
 
 #}

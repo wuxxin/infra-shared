@@ -21,7 +21,7 @@ See https://github.com/wuxxin/example_infra for usage in an example project
     - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
 - target creating **disposable/immutable-ish** infrastructure
 - have a **big/full featured provision client** as the center of operation
-    - target one provision build os and a **container** for foreign distros and **continous integration** processes
+    - target one **provision os** and a **container** for foreign distros and **continous integration** processes
     - facilitate a comfortable **simulation environment** that is accurate enough for replication on production
 - treat **state as code**
     - favor **state reconcilation** and **higher level** tools

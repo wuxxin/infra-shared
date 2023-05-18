@@ -11,9 +11,9 @@ systemd:
       enabled: true
       contents: |
         [Unit]
-        Description=Update coreos Configuration, apply transpiled butane as saltstack config
-        Wants=containers-build@saltstack.service
-        After=containers-build@saltstack.service
+        Description=Update Coreos Configuration by applying (transpiled butane) saltstack config
+        Wants=containers-build@saltstack.service boot-complete.target
+        After=containers-build@saltstack.service boot-complete.target
         ConditionPathExists=/run/user/1000/coreos-update-config/minion
 
         [Service]
