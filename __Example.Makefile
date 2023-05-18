@@ -34,9 +34,10 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
 
 .PHONY: container
-container: ## Build infrastructure container
+container: ## Build provision client container
 	@echo "+ $@"
-	@cd infra/build && sudo -E $(DOCKER) build $$(pwd) -t infra_build:latest
+	@cd infra/Containerfile/provision_client && sudo -E $(DOCKER) build $$(pwd)
+	# -t provision_client:latest
 
 .PHONY: install-requirements
 install-requirements: ## Install tools used for devop tasks (uses sudo for install)
