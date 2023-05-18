@@ -68,7 +68,7 @@ make sim-up
 - see https://github.com/wuxxin/example_infra for usage in an example project
 - see [notebooks](https://github.com/wuxxin/example_infra/notebooks) for jupyter notebooks of interactive pulumi, mqtt and homeassistant pyscript examples
 
-#### Help list of available Makefile targets/commands
+#### list of available Makefile targets/commands
 
 ```sh
 make
