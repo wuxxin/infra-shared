@@ -1,7 +1,7 @@
 FROM archlinux:base-devel
 
 # # to update package lists, execute from here:
-# cat Containerfile | ../requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
+# cat Containerfile | ../../requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
 
 RUN pacman-key --init && pacman -Syu --noconfirm base-devel lsb-release git doas && \
     pacman -Syu --noconfirm  age atftp esptool gnupg go jq knot openssl pango pulumi python-pipenv rust vault xz zip gawk git openssl wget unzip python ncurses zlib gettext libxslt ; \

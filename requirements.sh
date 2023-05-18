@@ -18,8 +18,8 @@ Usage of "--containerfile" needs two replacement lines in Containerfile for pack
     - Hook for AUR packages   : "    yay -Sy --noconfirm"
 
 Example:
-    cd infra/build/ &&
-        cat Containerfile | ../$(basename $0) --containerfile > Containerfile.new &&
+    cd infra/Containerfile/provision &&
+        cat Containerfile | ../../$(basename $0) --containerfile > Containerfile.new &&
             mv Containerfile.new Containerfile
 
 EOF
