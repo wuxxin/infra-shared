@@ -39,7 +39,10 @@ done
 
 # copy and rename examples: Makefile, Pipfile
 for f in __Example.Makefile __Example.Pipfile; do
-  cat ${this_dir}/${f} | create_ifnotexist ${f#__Example.}
+  # replace hardcoded instances of infra/ to support different submodule naming
+  cat ${this_dir}/${f} |
+    sed -r "s#infra/#${this_dir_short}/#g" |
+    create_ifnotexist ${f#__Example.}
 done
 
 # symlink README.md to docs
