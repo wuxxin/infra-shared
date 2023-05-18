@@ -55,7 +55,8 @@ Operating Systems / Frameworks:
 
 #### Quick start
 
-create a base project, install build requirements, install and update a simulation of the targets
+create a base project, lock and install build requirements,
+install and configure a simulation of the targets
 
 ```sh
 mkdir -p example; cd example; git init
@@ -66,6 +67,12 @@ make sim-up
 
 - see https://github.com/wuxxin/example_infra for usage in an example project
 - see [notebooks](https://github.com/wuxxin/example_infra/notebooks) for jupyter notebooks of interactive pulumi, mqtt and homeassistant pyscript examples
+
+#### Help list of available Makefile targets/commands
+
+```sh
+make
+```
 
 #### Bootstrap skeleton files to a new repo
 
@@ -107,38 +114,47 @@ sudo podman run -i -v $(pwd):$(pwd) provision_client /bin/bash -i
 make docs
 ```
 
-#### Simulation
-
+#### create/build/install simulation target
 ```sh
-# create/build/install simulation target
 make sim-up
+```
 
-# show root cert pem
+#### show/use root and provision cert
+```sh
 make sim__ args="stack output ca_factory --json" | \
     jq ".root_cert_pem" -r | openssl x509 -in - -noout -text
-# show provision cert
 make sim__ args="stack output ca_factory --json" | \
     jq ".provision_cert_pem" -r  | openssl x509 -in - -noout -text
+```
 
-# manual pulumi invocation
+#### manual pulumi invocation
+```sh
 export PULUMI_SKIP_UPDATE_CHECK=1
 export PULUMI_CONFIG_PASSPHRASE=sim
 pulumi stack select sim
 pulumi about
+```
 
-# execute in python environment
+#### execute in provision python environment
+```sh
 pipenv run ipython
+```
 
-# sim stack: destroy, cleanup, preview, up
+#### sim stack: destroy, cleanup, re/create
+```sh
 make sim-clean
 make sim-create
+```
 
-# manual execution of the openwrt image build by calling a function
+#### manual execution of the openwrt image build by calling a function
+```sh
 pipenv run infra/tools.py sim infra.build build_openwrt
 # show recorded image build salt-call stdout log output
 make sim-show | jq .build_openwrt.result.stdout -r
+```
 
-# test if changes would compute before applying
+#### test if changes would compute before applying
+```sh
 make sim__ args="preview --suppress-outputs"
 make sim-up
 ```
