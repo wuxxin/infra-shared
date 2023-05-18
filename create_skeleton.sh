@@ -63,7 +63,7 @@ import ${this_dir_short}.authority
 
 EOF
 
-create_ifnotexist pulumi.yaml <<EOF
+create_ifnotexist Pulumi.yaml <<EOF
 name: ${project_name}
 runtime:
   name: python
