@@ -18,11 +18,12 @@
 - cert_validity_period_hours
 - ssh_provision_name
 
-### Exported
+### Available
 
 - config
 - stack_name
 - project_name
+- this_dir
 - project_dir
 
 - ca_config
@@ -82,14 +83,15 @@ import pulumi_command as command
 
 from pulumi import Output, Alias
 
-from infra.tools import public_local_export
+from .tools import public_local_export
 
 
-# exports
+# reusables
 config = pulumi.Config("")
 stack_name = pulumi.get_stack()
 project_name = pulumi.get_project()
-project_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+this_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.abspath(os.path.join(this_dir, ".."))
 
 
 class CACertFactoryVault(pulumi.ComponentResource):
@@ -105,7 +107,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
             "{}_vault_ca".format(name),
             create="./vault_pipe.sh --yes",
             stdin=json.dumps(vault_config),
-            dir=os.path.join(project_dir, "infra"),
+            dir=this_dir,
             opts=pulumi.ResourceOptions(
                 parent=self,
                 additional_secret_outputs=["stdout"],

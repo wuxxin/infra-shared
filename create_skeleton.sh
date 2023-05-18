@@ -2,8 +2,9 @@
 set -eo pipefail
 # set -x
 
-self_path=$(dirname "$(readlink -e "$0")")
-project_dir=$(readlink -f ${self_path}/..)
+this_dir=$(dirname "$(readlink -e "$0")")
+this_dir_short=$(basename "${this_dir}")
+project_dir=$(readlink -f ${this_dir}/..)
 project_name=$(basename "${project_dir}")
 
 usage() {
@@ -38,7 +39,7 @@ done
 
 # copy and rename examples: Makefile, Pipfile
 for f in __Example.Makefile __Example.Pipfile; do
-  cat ${self_path}/${f} | create_ifnotexist ${f#__Example.}
+  cat ${this_dir}/${f} | create_ifnotexist ${f#__Example.}
 done
 
 # symlink README.md to docs
@@ -55,7 +56,7 @@ create_ifnotexist __main__.py <<EOF
 """A Python Pulumi program"""
 
 
-import infra.authority
+import ${this_dir_short}.authority
 
 EOF
 

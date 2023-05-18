@@ -258,7 +258,7 @@ def ssh_copy(
     - files: {remotepath: localpath,}
     """
 
-    from infra.authority import ssh_factory
+    from .authority import ssh_factory
 
     stack_name = pulumi.get_stack()
     props = {
@@ -297,7 +297,7 @@ def ssh_deploy(
 
     - files: dict= {targetpath: targetdata,}
     """
-    from infra.authority import ssh_factory
+    from .authority import ssh_factory
 
     stack_name = pulumi.get_stack()
     props = {
@@ -326,7 +326,7 @@ def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, opts=None):
 
     """
 
-    from infra.authority import ssh_factory
+    from .authority import ssh_factory
 
     resource_name = "{}_ssh_execute".format(prefix)
     stack_name = pulumi.get_stack()
@@ -413,7 +413,7 @@ class DataExport(pulumi.ComponentResource):
 def encrypted_local_export(prefix, filename, data, filter="", delete=False, opts=None):
     "store sensitive state data age encrypted in state/files/"
 
-    from infra.authority import ssh_factory
+    from .authority import ssh_factory
 
     return DataExport(
         prefix,
@@ -499,14 +499,13 @@ log_file: {root_dir}/var/log/salt/minion
 class LocalSaltCall(pulumi.ComponentResource):
     """configure and execute a saltstack salt-call on a local provision machine
 
-    - sls_dir= project_dir
-    - config/run/tmp/cache and other files= state/salt/stackname
+    - sls_dir defaults to project_dir
+    - config/run/tmp/cache and other files default to state/salt/stackname
     - grains from salt_config available
 
-    Example:
-        # execute projectdir/infra/openwrt[/__init__].sls
-        LocalSaltCall("build_openwrt", "state.sls", "openwrt",
-            pillar={}, environment=environment, sls_dir=os.path.join(project_dir, "infra"))
+    Example: build openwrt image
+        LocalSaltCall("build_openwrt", "state.sls", "build_openwrt",
+            pillar={}, environment={}, sls_dir=this_dir)
 
     """
 
@@ -514,7 +513,7 @@ class LocalSaltCall(pulumi.ComponentResource):
         super().__init__("pkg:index:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
         config = salt_config(resource_name, stack, project_dir, sls_dir=sls_dir)
-        pillar_dir = config["pillar_roots"]["base"][0]
+        pillar_dir = self.config["grains"]["pillar_dir"]
 
         os.makedirs(config["root_dir"], exist_ok=True)
         os.makedirs(pillar_dir, exist_ok=True)
@@ -575,8 +574,8 @@ class RemoteSaltCall(pulumi.ComponentResource):
         self.config = salt_config(
             resource_name, stack, base_dir, root_dir=root_dir, tmp_dir=tmp_dir, sls_dir=sls_dir
         )
-        pillar_dir = self.config["pillar_roots"]["base"][0]
-        sls_dir = self.config["file_roots"]["base"][0]
+        pillar_dir = self.config["grains"]["pillar_dir"]
+        sls_dir = self.config["grains"]["sls_dir"]
         rel_pillar_dir = os.path.relpath(pillar_dir, base_dir)
         rel_sls_dir = os.path.relpath(sls_dir, base_dir)
 
@@ -630,8 +629,11 @@ if __name__ == "__main__":
     sys.path.insert(0, project_dir)
 
     parser = argparse.ArgumentParser(
-        description="Equivalent to `pulumi up` on the selected library.function import on the selected stack.\n\n"
-        + "eg. `pipenv run infra/tools.py sim infra.build build_openwrt`",
+        description="""
+Equivalent to `pulumi up` on the selected library.function import on the selected stack.
+eg. `pipenv run {this_dir_short}/tools.py sim {this_dir_short}.build build_openwrt`""".format(
+            this_dir_short=os.path.basename(this_dir)
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("stack", type=str, help="Name of the stack", default="sim")

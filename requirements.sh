@@ -3,6 +3,7 @@ set -eo pipefail
 # set -x
 
 usage() {
+    local this_dir_short=$(basename $(dirname "$(readlink -e "$0")"))
     cat <<EOF
 Usage: $(basename $0)  --check | --list | --install | --install-aur | --containerfile
 
@@ -18,7 +19,7 @@ Usage of "--containerfile" needs two replacement lines in Containerfile for pack
     - Hook for AUR packages   : "    yay -Sy --noconfirm"
 
 Example:
-    cd infra/Containerfile/provision &&
+    cd ${this_dir_short}/Containerfile/provision &&
         cat Containerfile | ../../$(basename $0) --containerfile > Containerfile.new &&
             mv Containerfile.new Containerfile
 

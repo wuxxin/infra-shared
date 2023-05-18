@@ -23,7 +23,7 @@ import pulumi_command as command
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 
-from infra.tools import jinja_run, log_warn
+from ..tools import jinja_run, log_warn
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -35,7 +35,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
     - configure ssh keys, tls root_ca, server cert and key as files and container secrets
     - customizable software overlays, add serial tty autlogin on stack "*.sim" for easy debug
     - template includes
-        - infra/build/fcos/*.bu
+        - {this_dir}/*.bu
         - {basedir}/*.bu
         - {basedir}/*.sls
     - returns
@@ -47,7 +47,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
     def __init__(
         self, resource_name, hostname, hostcert, butane_input, basedir, env=None, opts=None
     ):
-        from infra.authority import ssh_factory, ca_factory
+        from ..authority import ssh_factory, ca_factory
 
         super().__init__(
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
@@ -230,7 +230,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
     "download a version of fedora-coreos to local path, decompress, return filename"
 
     def __init__(self, stream=None, architecture=None, platform=None, format=None, opts=None):
-        from infra.authority import project_dir, stack_name
+        from ..authority import project_dir, stack_name
 
         defaults = yaml.safe_load(open(os.path.join(this_dir, "..", "defaults.yml"), "r"))
 
@@ -278,7 +278,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
 
 class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
     def __init__(self, resource_name, hostname, remoteurl, opts=None):
-        from infra.authority import ca_factory
+        from ..authority import ca_factory
 
         super().__init__(
             "pkg:index:RemoteDownloadIgnitionConfig",
@@ -426,7 +426,7 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 
 class FcosConfigUpdate(pulumi.ComponentResource):
     def __init__(self, resource_name, host, salt, pillar={}, opts=None):
-        from infra.tools import RemoteSaltCall
+        from ..tools import RemoteSaltCall
 
         super().__init__(
             "pkg:index:FcosConfigUpdate",
