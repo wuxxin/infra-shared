@@ -4,9 +4,9 @@
 
 #}
 
-{% import_yaml "build/defaults.yml" as defaults %}
+{% import_yaml "infra/defaults.yml" as defaults %}
 {% set settings=salt['grains.filter_by']({'default': defaults},
-    grain='default', default= 'default', merge= salt['pillar.get']('builder', {})) %}
+    grain='default', default= 'default', merge= salt['pillar.get']('build', {})) %}
 {% set tmp_dir= grains["tmp_dir"] %}
 {% set major= settings.openwrt.target.partition("-")[0] %}
 {% set minor= settings.openwrt.target.partition("-")[2] %}
