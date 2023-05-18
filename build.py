@@ -3,8 +3,8 @@ import json
 import hashlib
 import pulumi
 
-from infra.authority import config, ssh_factory
-from infra.tools import sha256sum_file, LocalSaltCall
+from .authority import config, ssh_factory
+from .tools import sha256sum_file, LocalSaltCall
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,12 +36,12 @@ def build_this(resource_name, sls_name, config_name):
 
 def build_openwrt():
     "build an openwrt image"
-    return build_this("build_openwrt", "openwrt", "openwrt")
+    return build_this("build_openwrt", "build_openwrt", "openwrt")
 
 
 def build_homeassistant():
     "build an homeassistant image"
-    return build_this("build_homeassistant", "homeassistant", "homeassistant")
+    return build_this("build_homeassistant", "build_homeassistant", "homeassistant")
 
 
 def build_esphome():
