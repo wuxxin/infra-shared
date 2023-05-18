@@ -33,7 +33,7 @@ See https://github.com/wuxxin/example_infra for usage in an example project
 Tools:
 
 - `pulumi` - imperativ infrastructure delaration using python
-- `age` - file and pulumi production password encryption supplied using openssh keys
+- `age` - file and pulumi production password encryption supplied using ssh keys
 - `fcos` - Fedora-CoreOS Image with `clevis` (sss,tang,tpm) storage unlock
 - `butane` - define fcos ignition using `jinja` enhanced butane yaml config
 - `saltstack`
@@ -82,7 +82,7 @@ git submodule add https://github.com/wuxxin/infra-shared.git infra
 infra/create_skeleton.sh --yes
 ```
 
-- `infra/create_skeleton.sh` creates the following files in the base dir
+- `create_skeleton.sh` creates the following files in the base dir
     - README.md, \_\_main\_\_.py, pulumi.yaml, Makefile, Pipfile,
     - config-template.yaml, .gitignore, mkdocs.yml
 
