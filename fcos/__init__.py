@@ -1,5 +1,5 @@
 """
-## FCOS - Fedora-CoreOS
+## FCOS - Fedora-CoreOS -- updating, minimal, monolithic, container-focused operating system
 
 ### Components
 
