@@ -98,7 +98,7 @@ make install-requirements
 
 ```sh
 make container
-sudo podman run -i -v $(pwd):$(pwd) infra_build /bin/bash -i
+sudo podman run -i -v $(pwd):$(pwd) provision_client /bin/bash -i
 ```
 
 #### Build documentation
