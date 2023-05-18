@@ -103,7 +103,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
 
         vault_ca = command.local.Command(
             "{}_vault_ca".format(name),
-            create="./__vault_pipe.sh --yes",
+            create="./vault_pipe.sh --yes",
             stdin=json.dumps(vault_config),
             dir=os.path.join(project_dir, "infra"),
             opts=pulumi.ResourceOptions(
