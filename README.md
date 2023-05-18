@@ -63,7 +63,7 @@ create a base project, install build requirements, install and update a simulati
 ```sh
 mkdir -p example; cd example; git init
 git submodule add https://github.com/wuxxin/infra-shared.git infra
-infra/__create_skeleton.sh --yes
+infra/create_skeleton.sh --yes
 make sim-up
 ```
 
@@ -82,11 +82,11 @@ mkdir -p ${project_dir}
 cd ${project_dir}
 git init
 git submodule add https://github.com/wuxxin/infra-shared.git infra
-infra/__create_skeleton.sh --yes
+infra/create_skeleton.sh --yes
 ```
 
-- `infra/__create_skeleton.sh` creates the following files in the base dir
-    - README.md, __main__.py, pulumi.yaml, Makefile, Pipfile,
+- `infra/create_skeleton.sh` creates the following files in the base dir
+    - README.md, \__main\__.py, pulumi.yaml, Makefile, Pipfile,
     - config-template.yaml, .gitignore, mkdocs.yml
 
 #### Install build requirements
