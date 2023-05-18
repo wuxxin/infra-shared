@@ -11,7 +11,8 @@ PIPENV ?= $(call find-cmd,pipenv)
 # set default target
 .DEFAULT_GOAL := help
 
-DOCKER := podman
+# default to use root podman as docker command (-E = pass/keep environment)
+DOCKER := sudo -E podman
 
 # skip annoying version information
 PULUMI_SKIP_UPDATE_CHECK=1
@@ -36,7 +37,7 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 .PHONY: container
 container: ## Build provision client container
 	@echo "+ $@"
-	@cd infra/Containerfile/provision_client && sudo -E $(DOCKER) build $$(pwd)
+	@cd infra/Containerfile/provision_client && $(DOCKER) build $$(pwd)
 	# -t provision_client:latest
 
 .PHONY: install-requirements
@@ -88,6 +89,7 @@ ifeq ($(shell test -f Pulumi.prod.yaml && echo "ok"), ok)
 	@touch -c Pulumi.prod.yaml
 else
 	@echo "+ $@"
+	@mkdir -p $(ROOTDIR)state/pulumi
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
 	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) stack init prod --secrets-provider passphrase
 endif
@@ -106,6 +108,7 @@ ifeq ($(shell test -f Pulumi.sim.yaml && echo "ok"), ok)
 	@touch -c Pulumi.sim.yaml
 else
 	@echo "+ $@"
+	@mkdir -p $(ROOTDIR)state/pulumi
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack init sim --secrets-provider passphrase
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack "select" "sim"
