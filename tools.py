@@ -12,9 +12,10 @@
 - encrypted_local_export
 - public_local_export
 
-- log_warn
 - jinja_run
 - jinja_run_template
+
+- log_warn
 - sha256sum_file
 
 ### Components
@@ -503,9 +504,9 @@ class LocalSaltCall(pulumi.ComponentResource):
     - grains from salt_config available
 
     Example:
-        # execute states in projectdir/infra/openwrt[/__init__].sls
-        LocalSaltCall("build_openwrt", "state.sls", "infra.openwrt",
-            pillar={}, environment=environment)
+        # execute projectdir/infra/openwrt[/__init__].sls
+        LocalSaltCall("build_openwrt", "state.sls", "openwrt",
+            pillar={}, environment=environment, sls_dir=os.path.join(project_dir, "infra"))
 
     """
 

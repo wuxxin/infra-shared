@@ -4,7 +4,7 @@
 
 #}
 
-{% import_yaml "infra/defaults.yml" as defaults %}
+{% import_yaml "defaults.yml" as defaults %}
 {% set settings=salt['grains.filter_by']({'default': defaults},
     grain='default', default= 'default', merge= salt['pillar.get']('build', {})) %}
 {% set tmp_dir= grains["tmp_dir"] %}

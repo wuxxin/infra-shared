@@ -3,30 +3,45 @@ import json
 import hashlib
 import pulumi
 
+from infra.authority import config, ssh_factory
+from infra.tools import sha256sum_file, LocalSaltCall
 
-def build_openwrt():
-    from infra.authority import config, project_dir, ssh_factory
-    from infra.tools import sha256sum_file, LocalSaltCall
+this_dir = os.path.dirname(os.path.abspath(__file__))
 
-    resource_name = "build_openwrt"
-    pillar = {"build": config.get_object("build", {"openwrt": {}})}
+
+def build_this(resource_name, sls_name, config_name):
+    "build an image/os with LocalSaltCall, using defaults.yml, authorized_keys in environment"
+    pillar = {"build": config.get_object("build", {config_name: {}})}
     environment = {"authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))}
     resource = LocalSaltCall(
         resource_name,
         "state.sls",
-        "infra.openwrt",
+        sls_name,
         pillar=pillar,
         environment=environment,
+        sls_dir=this_dir,
         triggers=[
-            # trigger: build:openwrt:* , file:build:defaults.yml
+            # trigger on: pillar:build:config_name, file:defaults.yml
             # changes to environment are triggered automatically
-            hashlib.sha256(json.dumps(pillar["build"]["openwrt"]).encode("utf-8")).hexdigest(),
-            sha256sum_file(os.path.join(project_dir, "infra", "defaults.yml")),
+            hashlib.sha256(
+                json.dumps(pillar["build"][config_name]).encode("utf-8")
+            ).hexdigest(),
+            sha256sum_file(os.path.join(this_dir, "defaults.yml")),
         ],
         opts=pulumi.ResourceOptions(depends_on=[ssh_factory]),
     )
     pulumi.export(resource_name, resource)
     return resource
+
+
+def build_openwrt():
+    "build an openwrt image"
+    return build_this("build_openwrt", "openwrt", "openwrt")
+
+
+def build_homeassistant():
+    "build an homeassistant image"
+    return build_this("build_homeassistant", "homeassistant", "homeassistant")
 
 
 def build_esphome():
