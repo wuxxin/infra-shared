@@ -10,7 +10,7 @@ usage() {
   cat - <<EOF
 $(basename $0) --yes
 
-creates directories and files needed for a project
+creates directories and minimal files needed for a project
 
 EOF
 }
@@ -20,7 +20,7 @@ create_ifnotexist() { #1 filename relative to ./../
   if test ! -e "$fname"; then
     cat - >"$fname"
   else
-    echo "Warning: not touching existing $fname"
+    echo "Warning: not touching existing file $fname"
     cat - >/dev/null
   fi
 }
