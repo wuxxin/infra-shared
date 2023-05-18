@@ -10,7 +10,7 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def build_this(resource_name, sls_name, config_name):
-    "build an image/os with LocalSaltCall, using defaults.yml, authorized_keys in environment"
+    "build an image/os with LocalSaltCall, put config in pillar and authorized_keys in environment"
     pillar = {"build": config.get_object("build", {config_name: {}})}
     environment = {"authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))}
     resource = LocalSaltCall(

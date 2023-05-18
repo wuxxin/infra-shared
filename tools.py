@@ -2,7 +2,7 @@
 """
 ## Tools 
 
-- Usage as command line utility: `$0 stack library function`
+- Usage as command line utility: `pipenv $0 stack library function`
 
 ### Functions
 - ssh_copy

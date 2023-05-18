@@ -1,5 +1,8 @@
 """
-## FCOS - Fedora-CoreOS -- updating, minimal, monolithic, container-focused operating system
+## FCOS - Fedora-CoreOS
+
+- updating, minimal, monolithic, container-focused operating system
+- available for x86 and arm
 
 ### Components
 

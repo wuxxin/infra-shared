@@ -1,6 +1,8 @@
 {# Homeassistant OS
 
-- Buildroot linux, available for arm,x86-64
+- home automation platform brokering MQTT,ZigBee,Bluetooth,Wifi and other automation network and protocols
+- buildroot linux distribution
+- available for x86,arm
 
 #}
 
