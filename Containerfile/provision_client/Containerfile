@@ -1,6 +1,8 @@
 FROM archlinux:base-devel
-
-# # to update package lists, execute from here:
+#
+# archlinux container -- Full featured Provision Client 
+#
+# to update package lists, execute from here:
 # cat Containerfile | ../../requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
 
 RUN pacman-key --init && pacman -Syu --noconfirm base-devel lsb-release git doas && \

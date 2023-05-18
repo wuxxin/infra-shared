@@ -1,5 +1,7 @@
 FROM fedora:latest
-
+#
+# fedora container -- add raspberry PI related extra files for Fedora CoreOS Boot
+#
 RUN dnf install --repo=fedora -y zip rpm cpio
 
 # This is where the ZIP will be placed
