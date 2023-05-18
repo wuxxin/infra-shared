@@ -6,7 +6,7 @@
 - ButaneTranspiler
 - FcosImageDownloader
 - LibvirtIgniteFcos
-- SaltstackConfigUpdate
+- FcosConfigUpdate
 - TangFingerprint
 - RemoteDownloadIgnitionConfig
 
@@ -424,12 +424,12 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-class ConfigUpdateFcos(pulumi.ComponentResource):
+class FcosConfigUpdate(pulumi.ComponentResource):
     def __init__(self, resource_name, host, salt, pillar={}, opts=None):
         from infra.tools import RemoteSaltCall
 
         super().__init__(
-            "pkg:index:ConfigUpdateFcos",
+            "pkg:index:FcosConfigUpdate",
             "{}_fcos_config_update".format(resource_name),
             None,
             opts,
