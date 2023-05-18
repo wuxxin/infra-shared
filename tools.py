@@ -106,7 +106,7 @@ def jinja_run(template_str, base_dir, environment={}):
 def jinja_run_template(template_filename, base_dir, environment={}):
     """renders a template file available from base_dir with environment
 
-    - custom tag: list_files("sub_dir") returns a list of files in base_dir/sub_dir
+    - for details see `jinja_run`
 
     """
     env = jinja2.Environment(
@@ -503,8 +503,8 @@ class LocalSaltCall(pulumi.ComponentResource):
     - grains from salt_config available
 
     Example:
-        # execute states in projectdir/infra/build/openwrt[/__init__].sls
-        LocalSaltCall("build_openwrt", "state.sls", "infra.build.openwrt",
+        # execute states in projectdir/infra/openwrt[/__init__].sls
+        LocalSaltCall("build_openwrt", "state.sls", "infra.openwrt",
             pillar={}, environment=environment)
 
     """
