@@ -3,9 +3,6 @@ import json
 import hashlib
 import pulumi
 
-# make fcos available for convinience
-import infra.build.fcos as fcos
-
 
 def build_openwrt():
     from infra.authority import config, project_dir, ssh_factory
@@ -17,14 +14,14 @@ def build_openwrt():
     resource = LocalSaltCall(
         resource_name,
         "state.sls",
-        "infra.build.openwrt",
+        "infra.openwrt",
         pillar=pillar,
         environment=environment,
         triggers=[
             # trigger: build:openwrt:* , file:build:defaults.yml
             # changes to environment are triggered automatically
             hashlib.sha256(json.dumps(pillar["build"]["openwrt"]).encode("utf-8")).hexdigest(),
-            sha256sum_file(os.path.join(project_dir, "infra", "build", "defaults.yml")),
+            sha256sum_file(os.path.join(project_dir, "infra", "defaults.yml")),
         ],
         opts=pulumi.ResourceOptions(depends_on=[ssh_factory]),
     )
