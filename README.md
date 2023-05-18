@@ -86,7 +86,7 @@ infra/create_skeleton.sh --yes
 ```
 
 - `infra/create_skeleton.sh` creates the following files in the base dir
-    - README.md, \__main\__.py, pulumi.yaml, Makefile, Pipfile,
+    - README.md, \_\_main\_\_.py, pulumi.yaml, Makefile, Pipfile,
     - config-template.yaml, .gitignore, mkdocs.yml
 
 #### Install build requirements
