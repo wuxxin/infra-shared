@@ -89,9 +89,10 @@ git submodule add https://github.com/wuxxin/infra-shared.git infra
 infra/create_skeleton.sh --yes
 ```
 
-- `create_skeleton.sh` creates the following files in the base dir
-    - README.md, \_\_main\_\_.py, pulumi.yaml, Makefile, Pipfile,
-    - config-template.yaml, .gitignore, mkdocs.yml
+- `create_skeleton.sh` creates the following dirs and files in the project_dir
+    - directories: _docs_, _state_, _target_ with an empty _.gitkeep_ file inside
+    - README.md, \_\_main\_\_.py, Pulumi.yaml, Makefile, Pipfile
+    - config-template.yaml, .gitignore, mkdocs.yml, empty authorized_keys
 
 #### Install build requirements
 
@@ -161,6 +162,11 @@ make sim-up
 
 ### Production
 
+#### Add SSH Keys of GitOps Developer
+```sh
+# eg. add the own ssh public key in project_dir/authorized_keys
+cat ~/.ssh/id_rsa.pub >> authorized_keys
+```
 #### Create stack
 
 ```sh

@@ -45,6 +45,9 @@ for f in __Example.Makefile __Example.Pipfile; do
     create_ifnotexist ${f#__Example.}
 done
 
+# create an empty authorized_keys for appending to it later
+create_ifnotexist authorized_keys </dev/null
+
 # symlink README.md to docs
 ln -s ../README.md ${project_dir}/docs/README.md
 
