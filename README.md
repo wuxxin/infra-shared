@@ -65,11 +65,11 @@ infra/create_skeleton.sh --yes
 make sim-up
 ```
 
-Congratulation!
+**Congratulations!**
 
 You just have created a TLS root authority certificate, a TLS provision certificate and an SSH Keypair in a very fancy way.
 
-To see what else you can do with it:
+To see Examples of what else you can do with it:
 - look at https://github.com/wuxxin/example_infra for usage in an example project
 - also see the [jupter notebooks](https://github.com/wuxxin/example_infra/notebooks) there for interactive pulumi, mqtt and homeassistant examples
 
