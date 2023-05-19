@@ -65,8 +65,13 @@ infra/create_skeleton.sh --yes
 make sim-up
 ```
 
-- see https://github.com/wuxxin/example_infra for usage in an example project
-- see [notebooks](https://github.com/wuxxin/example_infra/notebooks) for jupyter notebooks of interactive pulumi, mqtt and homeassistant pyscript examples
+Congratulation!
+
+You just have created a TLS root authority certificate, a TLS provision certificate and an SSH Keypair in a very fancy way.
+
+To see what else you can do with it:
+- look at https://github.com/wuxxin/example_infra for usage in an example project
+- also see the [jupter notebooks](https://github.com/wuxxin/example_infra/notebooks) there for interactive pulumi, mqtt and homeassistant examples
 
 #### list of available Makefile targets/commands
 
