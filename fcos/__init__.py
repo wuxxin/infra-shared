@@ -36,10 +36,10 @@ class ButaneTranspiler(pulumi.ComponentResource):
     """transpile jinja templated butane files to ignition and a subset to saltstack salt format
 
     - jinja templating of butane files with env variables replacement
-        - butane_input string with butane include:local support from {basedir}
+        - butane_input string with butane contents:local support from {basedir}
         - butane config for ssh keys, tls root_ca, server cert and key
-        - {this_dir}/*.bu with butane include:local support from {this_dir}/..
-        - {basedir}/*.bu with butane include:local support from {baserdir}
+        - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
+        - {basedir}/*.bu with butane contents:local support from {baserdir}
         - {basedir}/*.sls
     - returns
         - butane_config (merged butane yaml)
@@ -158,7 +158,7 @@ storage:
                 self.merge_yaml_struct(args["loaded_yaml"], args["base_yaml"])
             )
         )
-        self.butane_config.apply(log_warn)
+        # self.butane_config.apply(log_warn)
 
         # transpile merged butane yaml to saltstack salt yaml config and append basedir/*.sls to it
         self.jinja_transform = open(os.path.join(this_dir, "butane2salt.jinja"), "r").read()
