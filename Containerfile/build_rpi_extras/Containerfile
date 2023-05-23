@@ -1,4 +1,4 @@
-FROM fedora:latest
+FROM docker.io/fedora:latest
 #
 # fedora container -- add raspberry PI related extra files for Fedora CoreOS Boot
 #

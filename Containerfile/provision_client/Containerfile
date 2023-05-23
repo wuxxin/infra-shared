@@ -1,4 +1,4 @@
-FROM archlinux:base-devel
+FROM docker.io/archlinux:base-devel
 #
 # archlinux container -- Full featured Provision Client 
 #
