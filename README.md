@@ -59,17 +59,19 @@ To see what else you can do with it, continue reading or look at:
 - Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
 
 **Advanced functionality** available with knowledge of:
-- pulumi, butane, saltstack, podman, compose.yml, makefile, more systemd, bash, fcos, mkdocs, mermaid, jupyter notebooks
+- pulumi, butane, fcos, saltstack, podman, compose.yml, makefile, more systemd, bash, mkdocs, mermaid, jupyter notebooks
 
 **Tools** used:
 - `pulumi` - imperativ infrastructure delaration using python
-- `age` - file and pulumi production password encryption supplied using ssh keys
 - `fcos` - Fedora-CoreOS Image with `clevis` (sss,tang,tpm) storage unlock
 - `butane` - define fcos ignition using `jinja` enhanced butane yaml config
+- `systemd` - os configuration using systemd: service, socket, path, timer, nspawn
+- `podman` - container image builds, quadlet systemd container units, container compose socket
 - `saltstack`
     - local build environment and developer related systemd user services
     - remote fcos config update using butane to saltstack translation and execution
 - `tang` - unattended reboot with distributed key shards
+- `age` - file and pulumi production password encryption supplied using ssh keys
 - `mkdocs` - documentation using markdown and mermaid
 
 **Operating Systems / Device Frameworks** used:
@@ -79,7 +81,7 @@ To see what else you can do with it, continue reading or look at:
 - Automation: **Homeassistant** OS -- Open source home automation Control Bridge (Zigbee,BT,Wifi)
 - IOT: **Esphome** - yaml configured **Sensor/Actor** ESP32 like **Devices** on **Arduino** or **ESP-IDF** framework
 
-**CoreOS deployment options** available:
+**Deploy Applications** on CoreOS using:
 - `podman-systemd.unit` -- Podman systemd container units using podman-quadlet
 - `systemd-nspawn` -- Spawn a OS in a light-weight container using systemd
 - `compose.yml` -- Running multi-container applications defined using a Compose file
