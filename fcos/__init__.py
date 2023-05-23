@@ -16,17 +16,18 @@
 """
 
 import os
-import yaml
+import copy
 import json
 import glob
 import hashlib
+import yaml
 
 import pulumi
 import pulumi_command as command
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 
-from ..tools import jinja_run, log_warn
+from ..tools import jinja_run, jinja_run_template, log_warn
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -34,12 +35,11 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 class ButaneTranspiler(pulumi.ComponentResource):
     """transpile jinja templated butane files to ignition and a subset to saltstack salt format
 
-    - jinja2 templating of butane "*.bu" files in basedir with env variables available
-    - configure ssh keys, tls root_ca, server cert and key as files and container secrets
-    - customizable software overlays, add serial tty autlogin on stack "*.sim" for easy debug
-    - template includes
-        - {this_dir}/*.bu
-        - {basedir}/*.bu
+    - jinja templating of butane files with env variables replacement
+        - butane_input string with butane include:local support from {basedir}
+        - butane config for ssh keys, tls root_ca, server cert and key
+        - {this_dir}/*.bu with butane include:local support from {this_dir}/..
+        - {basedir}/*.bu with butane include:local support from {baserdir}
         - {basedir}/*.sls
     - returns
         - butane_config (merged butane yaml)
@@ -56,6 +56,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
         )
         child_opts = pulumi.ResourceOptions(parent=self)
+        this_parent = os.path.abspath(os.path.join(this_dir, ".."))
 
         # configure hostname, ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -122,35 +123,46 @@ storage:
 """,
         )
 
-        # template butane_input and butane_security_keys with jinja and merge together
+        # jinja template butane_input, basedir=basedir
         base_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_input, env=env).apply(
                 lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
+
+        # jina template butane_security_keys, basedir=basedir
         security_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_security_keys, env=env).apply(
                 lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
-        merged_dict = pulumi.Output.all(security_dict, base_dict).apply(
-            lambda args: self.merge_yaml_struct(args[0], args[1])
+
+        # jinja template *.bu yaml from this_dir, basedir=this_parent, inline all local references
+        fcos_dict = pulumi.Output.all(
+            loaded_yaml=self.load_yaml_files(this_parent, env)
+        ).apply(
+            lambda args: yaml.safe_dump(
+                self.inline_local_files(args["loaded_yaml"], this_parent)
+            )
         )
 
-        # jinja template *.bu yaml files from basedir, *.bu yaml from /fcos and merge with base yaml
+        # merge base_dict, security_dict, fcos_dict together
+        merged_dict = pulumi.Output.all(base_dict, security_dict, fcos_dict).apply(
+            lambda args: self.merge_yaml_struct(
+                args[2], self.merge_yaml_struct(args[1], args[0])
+            )
+        )
+
+        # jinja template *.bu yaml files from basedir, merge with merged_dict
         self.butane_config = pulumi.Output.all(
-            loaded_yaml=self.load_yaml_files(
-                basedir,
-                env,
-                additional_files=glob.glob(os.path.join(this_dir, "*.bu")),
-            ),
+            loaded_yaml=self.load_yaml_files(basedir, env),
             base_yaml=merged_dict,
         ).apply(
             lambda args: yaml.safe_dump(
                 self.merge_yaml_struct(args["loaded_yaml"], args["base_yaml"])
             )
         )
-        # self.butane_config.apply(log_warn)
+        self.butane_config.apply(log_warn)
 
         # transpile merged butane yaml to saltstack salt yaml config and append basedir/*.sls to it
         self.jinja_transform = open(os.path.join(this_dir, "butane2salt.jinja"), "r").read()
@@ -180,29 +192,82 @@ storage:
         self.result = self.ignition_config.stdout
         self.register_outputs({})
 
-    def load_yaml_files(self, basedir, env, additional_files=[]):
-        # get a list of all *.bu files from the basedir,
-        # sorted with the files from the basedir first, then all subdirs
+    def inline_local_files(self, yaml_dict, basedir):
+        """inline the contents of butane local references in the yaml for
+        - storage:files:contents:local
+        - systemd:units:contents_local
+        - systemd:units:dropins:contents_local"""
+
+        def read_include(basedir, filename):
+            return open(os.path.join(basedir, filename), "r").read()
+
+        ydict = copy.deepcopy(yaml_dict)
+
+        if "storage" in ydict and "files" in ydict["storage"]:
+            for fnr in range(len(ydict["storage"]["files"])):
+                f = ydict["storage"]["files"][fnr]
+
+                if "contents" in f and "local" in f["contents"]:
+                    fname = f["contents"]["local"]
+                    del ydict["storage"]["files"][fnr]["contents"]["local"]
+                    ydict["storage"]["files"][fnr]["contents"].update(
+                        {"inline": read_include(basedir, fname)}
+                    )
+
+        if "systemd" in ydict and "units" in ydict["systemd"]:
+            for unr in range(len(ydict["systemd"]["units"])):
+                u = ydict["systemd"]["units"][unr]
+
+                if "contents_local" in u:
+                    fname = u["contents_local"]
+                    del ydict["systemd"]["units"][unr]["contents_local"]
+                    ydict["systemd"]["units"][unr].update(
+                        {"contents": read_include(basedir, fname)}
+                    )
+
+                if "dropins" in u:
+                    for dnr in range(len(u["dropins"])):
+                        d = ydict["systemd"]["units"][unr]["dropins"][dnr]
+
+                        if "contents_local" in d:
+                            fname = d["contents_local"]
+                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
+                                "contents_local"
+                            ]
+                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
+                                {"contents": read_include(basedir, fname)}
+                            )
+        return ydict
+
+    def load_yaml_files(self, basedir, env):
+        """get a list of all *.bu files from the basedir,
+        sorted with the files from the basedir first, then all subdirs
+        read the corresponding files with jinja templating, parse as yaml, merge together
+        """
+
         all_files = sorted(
-            glob.glob(os.path.join(basedir, "*.bu"))
-            + glob.glob(os.path.join(basedir, "**", "*.bu"), recursive=True)
-            + additional_files
+            [
+                os.path.relpath(fname, basedir)
+                for fname in glob.glob(os.path.join(basedir, "*.bu"))
+            ]
+            + [
+                os.path.relpath(fname, basedir)
+                for fname in glob.glob(os.path.join(basedir, "**", "*.bu"), recursive=True)
+            ]
         )
 
-        # read the corresponding files as yaml, template with jinja, merge together
         merged_yaml = {}
-        for file in all_files:
-            with open(file, "r") as f:
-                yaml_dict = pulumi.Output.all(yaml_str=f.read(), env=env).apply(
-                    lambda args: yaml.safe_load(
-                        jinja_run(args["yaml_str"], basedir, args["env"])
-                    )
+        for fname in all_files:
+            yaml_dict = pulumi.Output.all(fname=fname, env=env).apply(
+                lambda args: yaml.safe_load(
+                    jinja_run_template(args["fname"], basedir, args["env"])
                 )
-                merged_yaml = pulumi.Output.all(
-                    yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
-                ).apply(
-                    lambda args: self.merge_yaml_struct(args["yaml1_dict"], args["yaml2_dict"])
-                )
+            )
+            merged_yaml = pulumi.Output.all(
+                yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
+            ).apply(
+                lambda args: self.merge_yaml_struct(args["yaml1_dict"], args["yaml2_dict"])
+            )
         return merged_yaml
 
     def merge_yaml_struct(self, yaml1, yaml2):
