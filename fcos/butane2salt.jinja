@@ -7,7 +7,7 @@ eg. from the systemd service "coreos-update.config.service"
 which updates the config to the desired state while keeping changes minimal
 
 - only the currently used subset in *.bu files of the butane spec is supported
-- only storage:directories/links/files/trees and systemd:units are translated
+- only storage:directories/links/files/trees and systemd:units[:dropins] are translated
 - custom filter "subdir"|list_files() returns a newline seperated list of files available in basedir/subdir
 - use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
 
@@ -95,33 +95,27 @@ which updates the config to the desired state while keeping changes minimal
 
 {%- if "systemd" in butane and "units" in butane.systemd %}
   {%- for u in butane.systemd.units %}
-    {%- if u.enabled is defined %}
-{{ u.name }}:
-      {%- if u.enabled %}
-  service.running:
-    - enable: true
-        {%- if u.mask|d(false) %}
-    - unmask: true
-        {%- endif %}
+    {%- if not u.mask|d(false) %}
+      {%- if u.contents is defined or u.contents_local is defined %}
+/etc/systemd/system/{{ u.name }}:
+  file.managed:
+    # XXX do not follow_symlinks, because if masked file is symlinked to /dev/null
+    - follow_symlinks: False
         {%- if u.contents is defined %}
     - contents: |
         {{ u.contents|indent(8) }}
-        {%- endif %}
-        {%- if u.contents_local is defined %}
+        {%- elif u.contents_local is defined %}
           {%- import u.contents_local as contents %}
     - contents: |
         {{ contents|string()|indent(8) }}
         {%- endif %}
-      {%- else %}
-  service.dead:
-    - enable: false
-        {%- if u.mask|d(false) %}
-
-mask_{{ u.name }}:
-  service.masked:
-    - name: {{ u.name }}
-        {%- endif %}
       {%- endif %}
+    {%- else %}
+/etc/systemd/system/{{ u.name }}:
+  file.symlink:
+    # XXX force to replace a normal file, because if real file exists beforehand
+    - force: True
+    - target: /dev/null
     {%- endif %}
 
     {%- if u.dropins is defined %}
