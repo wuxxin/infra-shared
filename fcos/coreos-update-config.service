@@ -2,24 +2,50 @@
 Description=Update Coreos Configuration by applying (transpiled butane) saltstack config
 Wants=containers-build@saltstack.service boot-complete.target
 After=containers-build@saltstack.service boot-complete.target
-ConditionPathExists=/run/user/1000/coreos-update-config/minion
+ConditionPathExists=/run/user/1000/coreos-update-config/sls/main.sls
+
+# Run saltstack by executing salt-call in an alpine container,
+# and mounting /etc,/var,/run from host into container
+# XXX - This means that only /etc,/var,/run is available for changes
 
 [Service]
 Type=oneshot
+
+# roughly equal to tools.py:salt_config
+Environment=project_name="$1"
+Environment=resource_name="$2"
+Environment=stack_name="$3"
+Environment=base_dir=/run/user/1000
+Environment=root_dir=/run/user/1000/coreos-update-config
+Environment=tmp_dir=/run/user/1000/coreos-update-config/tmp
+Environment=sls_dir=/run/user/1000/coreos-update-config/sls
+Environment=pillar_dir=/run/user/1000/coreos-update-config/pillar
+
+# create a minion config and sls/top.sls, pillar/top.sls, pillar/main.sls
+ExecStart=/var/local/bin/coreos-write-update-config.sh \
+    "${project_name}" "${resource_name}" "${stack_name}" \
+    "${base_dir}" "${root_dir}" "${tmp_dir}" "${sls_dir}" "${pillar_dir}"; \
+    printf "base:\n  '*':\n    - main\n" > "${sls_dir}/top.sls"; \
+    printf "base:\n  '*':\n    - main\n" > "${pillar_dir}/top.sls" \
+    printf "\n" > ${pillar_dir}/main.sls"
+
+# make a salt-call test/mock run, to see if it would abort midways
 ExecStart=podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
-    /usr/local/bin/salt-call -c /run/user/1000/coreos-update-config \
-    state.highstate mock=true > /dev/null
+    /usr/local/bin/salt-call -c ${root_dir} state.highstate mock=true > /dev/null
 
+# do actual work
 ExecStart=podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
-    /usr/local/bin/salt-call -c /run/user/1000/coreos-update-config \
-    state.highstate
+    /usr/local/bin/salt-call -c ${root_dir} state.highstate
 
+# reload systemd daemon to resync with state from disk
 ExecStart=systemctl daemon-reload
 
-ExecStart=rm -rf /run/user/1000/coreos-update-config
+# - delete main.sls because its containing secrets and as flag that update is done
+# TODO: clean other runtime files too
+ExecStart=rm ${sls_dir}/main.sls
 
 # XXX have no [Install] section, because this service is only called from external
