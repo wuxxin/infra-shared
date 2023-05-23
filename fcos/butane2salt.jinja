@@ -21,7 +21,7 @@ which updates the config to the desired state while keeping changes minimal
 {%- if o.group.id is defined   %}    - group: {{ o.group.id }}{% endif %}
 {%- if o.group.name is defined %}    - group: {{ o.group.name }}{% endif %}
 {%- endif -%}
-{%- if o.mode is defined %}    - mode: {{ o.mode }}{% endif %}
+{%- if o.mode is defined %}    - mode: {{ "%#o"|format(o.mode) }}{% endif %}
 {%- endmacro -%}
 {#
 
