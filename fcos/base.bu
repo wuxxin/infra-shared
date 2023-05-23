@@ -3,13 +3,17 @@ storage:
     # directory of run once flags for only once services
     - path: /var/local/flags
 
+    # directory where local commandline scripts will be stored
+    - path: /var/local/bin
+
   files:
     # Tell systemd to not use a pager when printing information
-    - path: /etc/profile.d/systemd-pager.sh
-      mode: 0644
-      contents:
-        inline: |
-          export SYSTEMD_PAGER=cat
+    # XXX temporary disabled, to see if migration sls works
+    # - path: /etc/profile.d/systemd-pager.sh
+    #   mode: 0644
+    #   contents:
+    #     inline: |
+    #       export SYSTEMD_PAGER=cat
 
     # Set Keyboard Layout
     - path: /etc/vconsole.conf
