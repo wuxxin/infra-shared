@@ -1,11 +1,11 @@
 storage:
   files:
+    # salt-call container
     - path: /etc/containers/build/saltstack/Containerfile
       contents:
         local: Containerfile/saltstack/Containerfile
 
-systemd:
-  units:
-    - name: coreos-update-config.service
-      enabled: true
-      contents_local: fcos/coreos-update-config.service
+    # oneshot service to reconfigure system
+    - path: /etc/systemd/system/coreos-update-config.service
+      contents:
+        local: fcos/coreos-update-config.service

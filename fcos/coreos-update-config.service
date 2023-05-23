@@ -9,16 +9,15 @@ Type=oneshot
 ExecStart=podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
-    /usr/bin/salt-call -c /run/user/1000/coreos-update-config \
+    /usr/local/bin/salt-call -c /run/user/1000/coreos-update-config \
     state.highstate mock=true > /dev/null
 
 ExecStart=podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
-    /usr/bin/salt-call -c /run/user/1000/coreos-update-config \
+    /usr/local/bin/salt-call -c /run/user/1000/coreos-update-config \
     state.highstate
 
 ExecStart=rm -rf /run/user/1000/coreos-update-config
 
-[Install]
-WantedBy=multi-user.target
+# XXX have no [Install] section, because this service is only called from external
