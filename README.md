@@ -10,6 +10,8 @@ as a **pulumi and core-os** based **gitops** project in **python**.
 
 Inspired and impressed by https://github.com/deuill/coreos-home-server
 
+See https://github.com/wuxxin/example_infra for usage in an example project
+
 ### Quick start
 
 create a base project, lock and install build requirements,
