@@ -8,12 +8,12 @@ systemd:
   units:
     - name: containers-tls-secrets.service
       enabled: true
-      content_inline: fcos/containers-tls-secrets.service
+      contents_local: fcos/containers-tls-secrets.service
 
     - name: containers-build@.path
       enabled: true
-      contents_inline: fcos/containers-build@.path
+      contents_local: fcos/containers-build@.path
 
     - name: containers-build@.service
       enabled: true
-      contents_inline: ontainers-build@.service
+      contents_local: fcos/containers-build@.service
