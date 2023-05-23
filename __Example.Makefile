@@ -34,7 +34,7 @@ export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
 
-.PHONY: container
+.PHONY: provision-container
 container: ## Build provision client container
 	@echo "+ $@"
 	@cd infra/Containerfile/provision_client && $(DOCKER) build $$(pwd)
