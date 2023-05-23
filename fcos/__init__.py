@@ -35,10 +35,11 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 class ButaneTranspiler(pulumi.ComponentResource):
     """transpile jinja templated butane files to ignition and a subset to saltstack salt format
 
-    - jinja templating of butane files with env variables replacement
+    - jinja templating of butane yaml content with environment variables replacement
         - butane_input string with butane contents:local support from {basedir}
         - butane config for ssh keys, tls root_ca, server cert and key
         - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
+        - {this_dir}/coreos-update-config.sls for migration helper from older fcos/*.bu
         - {basedir}/*.bu with butane contents:local support from {baserdir}
         - {basedir}/*.sls
     - returns
@@ -160,7 +161,8 @@ storage:
         )
         # self.butane_config.apply(log_warn)
 
-        # transpile merged butane yaml to saltstack salt yaml config and append basedir/*.sls to it
+        # transpile merged butane yaml to saltstack salt yaml config
+        # append this_dir/coreos-update-config.sls and basedir/*.sls to it
         self.jinja_transform = open(os.path.join(this_dir, "butane2salt.jinja"), "r").read()
         self.jinja_hash = hashlib.sha256(self.jinja_transform.encode("utf-8")).hexdigest()
         self.saltstack_config = pulumi.Output.concat(
@@ -171,7 +173,8 @@ storage:
                     {"butane": yaml.safe_load(args["butane"]), "jinja_hash": self.jinja_hash},
                 )
             ),
-            *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
+            open(os.path.join(this_dir, "coreos-update-config.sls"), "r").read(),
+            *[open(f, "r").read() for f in glob.glob(os.path.join(this_dir, "*.sls"))],
         )
 
         # transpile merged butane yaml to ignition json config
