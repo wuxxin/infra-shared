@@ -1,0 +1,1 @@
+FROM saltstack/salt:3005
