@@ -14,7 +14,8 @@ See https://github.com/wuxxin/example_infra for usage in an example project
 
 ### Architecture
 
-Targets:
+#### Objectives
+
 - **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest
     - use **ssh keys** as root of trust for pulumi **secrets** using **age**
     - store **secrets in repository** using pulumi stack secret
@@ -31,15 +32,15 @@ Targets:
     - help onboarding with **interactive tinkering** using **jupyter notebooks**
     - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
 
-Tools:
+#### Technologies
 
-Need to know technologies (to write Deployment and Docs):
+**Need to know** technologies (to write Deployment and Docs):
 - Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
 
-Advanced functionality available with knowledge of:
+**Advanced functionality** available with knowledge of:
 - pulumi, butane, saltstack, podman, compose.yml, makefile, more systemd, bash, fcos, mkdocs, mermaid, jupyter notebooks
 
-Tools used:
+**Tools** used:
 - `pulumi` - imperativ infrastructure delaration using python
 - `age` - file and pulumi production password encryption supplied using ssh keys
 - `fcos` - Fedora-CoreOS Image with `clevis` (sss,tang,tpm) storage unlock
@@ -50,14 +51,14 @@ Tools used:
 - `tang` - unattended reboot with distributed key shards
 - `mkdocs` - documentation using markdown and mermaid
 
-Operating Systems / Device Frameworks used:
+**Operating Systems / Device Frameworks** used:
 - Provision: **Arch Linux**, **Manjaro Linux** or as **Container Image**
 - Server: **Fedora-CoreOS** -- updating, minimal, monolithic, container-focused operating system
 - Router: **Openwrt** -- Operating system targeting embedded devices
 - Automation: **Homeassistant** OS -- Open source home automation Control Bridge (Zigbee,BT,Wifi)
 - IOT: **Esphome** - yaml configured **Sensor/Actor** ESP32 like **Devices** on **Arduino** or **ESP-IDF** framework
 
-Deployment options available on fcos:
+**CoreOS deployment options** available:
 - `podman-systemd.unit` -- Podman systemd container units using podman-quadlet
 - `systemd-nspawn` -- Spawn a OS in a light-weight container using systemd
 - `compose.yml` -- Running multi-container applications defined using a Compose file
