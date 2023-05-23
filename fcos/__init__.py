@@ -140,11 +140,7 @@ storage:
         # jinja template *.bu yaml from this_dir, basedir=this_parent, inline all local references
         fcos_dict = pulumi.Output.all(
             loaded_yaml=self.load_yaml_files(this_parent, env)
-        ).apply(
-            lambda args: yaml.safe_dump(
-                self.inline_local_files(args["loaded_yaml"], this_parent)
-            )
-        )
+        ).apply(lambda args: self.inline_local_files(args["loaded_yaml"], this_parent))
 
         # merge base_dict, security_dict, fcos_dict together
         merged_dict = pulumi.Output.all(base_dict, security_dict, fcos_dict).apply(
@@ -271,27 +267,30 @@ storage:
         return merged_yaml
 
     def merge_yaml_struct(self, yaml1, yaml2):
+        "merge struct yaml1 and yaml2 together"
+
         def is_dict_like(v):
             return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
 
         def is_list_like(v):
             return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
 
+        ymerge = copy.deepcopy(yaml1)
         if is_dict_like(yaml1) and is_dict_like(yaml2):
             for key in yaml2:
                 if key in yaml1:
                     # if the key is present in both dictionaries, recursively merge the values
-                    yaml1[key] = self.merge_yaml_struct(yaml1[key], yaml2[key])
+                    ymerge[key] = self.merge_yaml_struct(yaml1[key], yaml2[key])
                 else:
-                    yaml1[key] = yaml2[key]
+                    ymerge[key] = yaml2[key]
         elif is_list_like(yaml1) and is_list_like(yaml2):
             for item in yaml2:
                 if item not in yaml1:
-                    yaml1.append(item)
+                    ymerge.append(item)
         else:
             # if neither input is a dictionary or list, the second input overwrites the first input
-            yaml1 = yaml2
-        return yaml1
+            ymerge = yaml2
+        return ymerge
 
 
 class FcosImageDownloader(pulumi.ComponentResource):
