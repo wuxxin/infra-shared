@@ -1,0 +1,11 @@
+storage:
+  files:
+    - path: /etc/containers/build/saltstack/Containerfile
+      contents:
+        local: Containerfile/saltstack/Containerfile
+
+systemd:
+  units:
+    - name: coreos-update-config.service
+      enabled: true
+      contents_local: fcos/coreos-update-config.service

@@ -1,3 +1,30 @@
+storage:
+  directories:
+    # directory of run once flags for only once services
+    - path: /var/local/flags
+
+  files:
+    # Tell systemd to not use a pager when printing information
+    - path: /etc/profile.d/systemd-pager.sh
+      mode: 0644
+      contents:
+        inline: |
+          export SYSTEMD_PAGER=cat
+
+    # Set Keyboard Layout
+    - path: /etc/vconsole.conf
+      mode: 0644
+      contents:
+        inline: KEYMAP={{KEYMAP}}
+
+    - path: /etc/sysctl.d/20-silence-audit.conf
+      mode: 0644
+      contents:
+        inline: |
+          # Raise console message logging level from DEBUG (7) to WARNING (4)
+          # to hide audit messages from the interactive console.
+          kernel.printk=4
+
 systemd:
   units:
     # Opting out of counting telemetry
@@ -38,30 +65,3 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
-
-storage:
-  directories:
-    # directory of run once flags for only once services
-    - path: /var/local/flags
-
-  files:
-    # Tell systemd to not use a pager when printing information
-    - path: /etc/profile.d/systemd-pager.sh
-      mode: 0644
-      contents:
-        inline: |
-          export SYSTEMD_PAGER=cat
-
-    # Set Keyboard Layout
-    - path: /etc/vconsole.conf
-      mode: 0644
-      contents:
-        inline: KEYMAP={{KEYMAP}}
-
-    - path: /etc/sysctl.d/20-silence-audit.conf
-      mode: 0644
-      contents:
-        inline: |
-          # Raise console message logging level from DEBUG (7) to WARNING (4)
-          # to hide audit messages from the interactive console.
-          kernel.printk=4

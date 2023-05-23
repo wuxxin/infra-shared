@@ -1,0 +1,16 @@
+[Unit]
+Description=Build Container for %I
+Wants=network-online.target containers-build@%i.path
+After=network-online.target
+ConditionPathExists=/etc/containers/build/%i/Containerfile
+
+[Service]
+Type=oneshot
+SyslogIdentifier=%N
+Environment=PODMAN_BUILD_OPTIONS=
+ExecStart=/bin/podman build $PODMAN_BUILD_OPTIONS \
+    --file /etc/containers/build/%i/Containerfile \
+    --tag localhost/%i:latest /etc/containers/build/%i
+
+[Install]
+WantedBy=multi-user.target

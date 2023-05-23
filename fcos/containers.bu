@@ -1,0 +1,19 @@
+storage:
+  directories:
+    - path: /etc/containers/environment
+      mode: 0700
+    - path: /etc/containers/build
+
+systemd:
+  units:
+    - name: containers-tls-secrets.service
+      enabled: true
+      content_inline: fcos/containers-tls-secrets.service
+
+    - name: containers-build@.path
+      enabled: true
+      contents_inline: fcos/containers-build@.path
+
+    - name: containers-build@.service
+      enabled: true
+      contents_inline: ontainers-build@.service
