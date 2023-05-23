@@ -18,6 +18,8 @@ ExecStart=podman run --privileged \
     /usr/local/bin/salt-call -c /run/user/1000/coreos-update-config \
     state.highstate
 
+ExecStart=systemctl daemon-reload
+
 ExecStart=rm -rf /run/user/1000/coreos-update-config
 
 # XXX have no [Install] section, because this service is only called from external
