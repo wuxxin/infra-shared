@@ -512,14 +512,14 @@ class LocalSaltCall(pulumi.ComponentResource):
     def __init__(self, resource_name, *args, pillar={}, sls_dir=None, opts=None, **kwargs):
         super().__init__("pkg:index:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
-        config = salt_config(resource_name, stack, project_dir, sls_dir=sls_dir)
+        self.config = salt_config(resource_name, stack, project_dir, sls_dir=sls_dir)
         pillar_dir = self.config["grains"]["pillar_dir"]
 
-        os.makedirs(config["root_dir"], exist_ok=True)
+        os.makedirs(self.config["root_dir"], exist_ok=True)
         os.makedirs(pillar_dir, exist_ok=True)
 
-        with open(config["conf_file"], "w") as m:
-            m.write(yaml.safe_dump(config))
+        with open(self.config["conf_file"], "w") as m:
+            m.write(yaml.safe_dump(self.config))
         with open(os.path.join(pillar_dir, "top.sls"), "w") as m:
             m.write("base:\n  '*':\n    - main\n")
         with open(os.path.join(pillar_dir, "main.sls"), "w") as m:
@@ -528,7 +528,7 @@ class LocalSaltCall(pulumi.ComponentResource):
         self.executed = command.local.Command(
             resource_name,
             create="pipenv run salt-call -c {conf_dir} {args}".format(
-                conf_dir=config["root_dir"],
+                conf_dir=self.config["root_dir"],
                 args=" ".join(args),
             ),
             opts=pulumi.ResourceOptions(parent=self),
