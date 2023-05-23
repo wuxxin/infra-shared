@@ -15,7 +15,7 @@ storage:
     - path: /etc/vconsole.conf
       mode: 0644
       contents:
-        inline: KEYMAP={{KEYMAP}}
+        inline: KEYMAP={{ KEYMAP }}
 
     - path: /etc/sysctl.d/20-silence-audit.conf
       mode: 0644
@@ -45,7 +45,8 @@ systemd:
             ExecStart=-/usr/sbin/agetty --autologin core --noclear %I $TERM
     {% endif %}
 
-    # install pkgs from RPM_OSTREE_INSTALL, will reboot afterwards, but only first time
+    # install pkgs from RPM_OSTREE_INSTALL
+    # XXX reboot currently disabled, will reboot afterwards, but only first time
     - name: rpm-ostree-install-extensions.service
       enabled: true
       contents: |
@@ -60,7 +61,8 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         ExecStart=/usr/bin/rpm-ostree install --assumeyes --idempotent \
-            --reboot --allow-inactive {{RPM_OSTREE_INSTALL}}
+            --allow-inactive {{ RPM_OSTREE_INSTALL }}
+        # --reboot
         ExecStart=/bin/touch /var/local/flags/%N.stamp
 
         [Install]
