@@ -19,6 +19,7 @@ EOF
 create_ifnotexist() { #1 filename relative to ./../
   fname="${project_dir}/$1"
   if test ! -e "$fname"; then
+    echo "Writing file: $fname"
     cat - >"$fname"
   else
     echo "Warning: not touching existing file $fname"
