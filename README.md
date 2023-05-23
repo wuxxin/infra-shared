@@ -10,7 +10,26 @@ as a **pulumi and core-os** based **gitops** project in **python**.
 
 Inspired and impressed by https://github.com/deuill/coreos-home-server
 
-See https://github.com/wuxxin/example_infra for usage in an example project
+### Quick start
+
+create a base project, lock and install build requirements,
+install and configure a simulation of the targets
+
+```sh
+mkdir -p example; cd example; git init
+git submodule add https://github.com/wuxxin/infra-shared.git infra
+infra/create_skeleton.sh --yes
+make sim-up
+```
+
+**Congratulations!**
+
+You have just created two TLS Certificates and an SSH Keypair in a very fancy way!
+
+To see what else you can do with it, continue reading or look at:
+- look at https://github.com/wuxxin/example_infra for usage in an example project
+- also see the [jupter notebooks](https://github.com/wuxxin/example_infra/notebooks) there for interactive pulumi, mqtt and homeassistant examples
+
 
 ### Architecture
 
@@ -65,25 +84,6 @@ See https://github.com/wuxxin/example_infra for usage in an example project
 
 ### Usage
 
-#### Quick start
-
-create a base project, lock and install build requirements,
-install and configure a simulation of the targets
-
-```sh
-mkdir -p example; cd example; git init
-git submodule add https://github.com/wuxxin/infra-shared.git infra
-infra/create_skeleton.sh --yes
-make sim-up
-```
-
-**Congratulations!**
-
-You have just created two TLS Certificates and an SSH Keypair in a very fancy way!
-
-To see what else you can do with it, continue reading or look at:
-- look at https://github.com/wuxxin/example_infra for usage in an example project
-- also see the [jupter notebooks](https://github.com/wuxxin/example_infra/notebooks) there for interactive pulumi, mqtt and homeassistant examples
 
 #### List available Makefile targets/commands
 
