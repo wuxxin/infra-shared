@@ -7,8 +7,3 @@ storage:
     - path: /etc/systemd/system/coreos-update-config.service
       contents:
         local: fcos/coreos-update-config.service
-
-    - path: /var/local/bin/coreos-write-update-config.sh
-      mode: 0755
-      contents:
-        local: fcos/coreos-write-update-config.sh
