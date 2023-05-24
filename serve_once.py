@@ -10,28 +10,50 @@ import os
 import yaml
 
 
+default_config_str = """
+# mandatory: serve_port, cert, key
+request_ip:
+request_path: "/"
+request_type: "GET"
+request_body_to_stdout: true
+serve_ip: 0.0.0.0
+timeout: 30
+ca_cert:
+mtls: false
+mtls_clientid:
+metadata:
+data:
+"""
+
+
 def usage():
     print(
-        """
-https service using stdin for cert, key, data and metadata, to serve on a path once and exit
+        """serve a HTTPS path once, using stdin for configuration and data
 
 + call with: `cat config.yaml | $0 --yes`
 
-+ will exit 0 after one sucessful request, but continue to wait until timeout where it exit 1
-    + invalid or missing client certificates or invalid request paths or methods are ignored,
-        and do not exit the program. only sucessful transmission or timeout will end program.
+will exit 0 after one sucessful request,
+but continue to wait until timeout (specified in seconds), where it will exit 1.
 
-+ if mtls is true, then ca_cert must be set, and a mandatory client certificate is needed to connect
-    + if mtls_clientid is not None, also the correct id of the clientcertificate is needed
+invalid or missing client certificates, invalid request paths or invalid request methods are ignored
+and do not cause exit of the program. only a sucessful transmission or a timeout will end execution.
 
-+ example config.yaml
+if mtls is true, then ca_cert must be set, and a mandatory client certificate is needed to connect.
+if mtls_clientid is not None, the correct id of the clientcertificate is needed to connect.
+
++ config defaults
+```yaml
+"""
+        + default_config
+        + """
+```
+
++ example config
 
 ```yaml
 request_ip: 1.2.3.4
 request_path: "/ignition.ign"
-request_type: "GET"
 request_body_to_stdout: true
-serve_ip: 0.0.0.0
 serve_port: 7443
 timeout: 30
 ca_cert: |
@@ -41,7 +63,6 @@ cert: |
 key: |
   xxxx
 mtls: false
-mtls_clientid:
 metadata:
   x: y
 data: |
@@ -70,7 +91,7 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description="HTTPS Serving a path once")
+parser = argparse.ArgumentParser(description="serving a HTTPS path once")
 parser.add_argument("--yes", action="store_true", help="Confirm execution.")
 args = parser.parse_args()
 if not args.yes:
@@ -79,16 +100,7 @@ if not args.yes:
     sys.exit(1)
 
 # Read YAML defaults and merge with YAML from stdin
-default_config = yaml.safe_load(
-    """
-request_ip:
-request_body_to_stdout: true
-timeout: 30
-serve_ip: 0.0.0.0
-mtls: false
-mtls_clientid:
-"""
-)
+default_config = yaml.safe_load(default_config_str)
 loaded_config = yaml.safe_load(sys.stdin.read())
 config = {**default_config, **loaded_config}
 
