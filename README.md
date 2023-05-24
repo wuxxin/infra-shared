@@ -1,4 +1,5 @@
-# infra-shared - Software Defined Git Operated Infrastructure
+# infra-shared
+## Software Defined Git Operated Infrastructure
 
 Reusables of a **learning project** by rewriting parts of my home infrastructure
 
