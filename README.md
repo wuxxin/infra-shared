@@ -1,16 +1,11 @@
-# infra-shared
+# infra-shared - Software Defined Git Operated Infrastructure
 
-Software Defined Git Operated Infrastructure As Code.
+Reusables of a **learning project** by rewriting parts of my home infrastructure
 
+as a **pulumi** and **core-os** based **gitops** project in **python**.
 
-reusables of a **learning project** by rewriting parts of my home infrastructure
-
-as a **pulumi and core-os** based **gitops** project in **python**.
-
-
-Inspired and impressed by https://github.com/deuill/coreos-home-server
-
-See https://github.com/wuxxin/example_infra for usage in an example project
+- Inspired and impressed by https://github.com/deuill/coreos-home-server
+- See https://github.com/wuxxin/example_infra for usage in an example project
 
 ### Quick start
 
@@ -79,7 +74,7 @@ To see what else you can do with it, continue reading or look at:
 - Server: **Fedora-CoreOS** Linux -- updating, minimal, monolithic, container-focused operating system
 - Router: **Openwrt** Linux -- Operating system targeting network devices
 - Automation: **Homeassistant** OS -- Linux based home automation Control Bridge (Zigbee,BT,Wifi)
-- IOT: **Esphome** - yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
+- IOT: **Esphome** -- yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
 
 #### Features
 
