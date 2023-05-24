@@ -497,7 +497,22 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 
 
 class FcosConfigUpdate(pulumi.ComponentResource):
-    "reconfigure a remote CoreOS System by executing transpiled butane files as saltstack salt"
+    """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
+
+    Modifications to *.bu and from there referenced files will result in a new saltstack config
+
+    - Copies a systemd.service and a main.sls state files to the remote target in a /run directory
+    - overwrite original update service, reload systemd, start service, configures a salt environment
+    - main.sls is executed in an saltstack container where /etc, /var, /run is mounted from the host
+    - only butane sections: storage:[directories,files,links,trees] systemd:unit:[dropins] are translated
+    - additional migration code can be written in basedir/*.sls
+        - add saltstack migration code so you can cleanup on updates, eg. deleting services
+
+    - the approach of service and main.sls transfer and overwrite service, reload, start service
+        - has the advantage that it can update from a broken version of itself
+        - has the advantage compared to only executing shell scriptvia ssh
+            because its a systemd service, it is independent, doesnt die on disconnect, has logs, a.o.
+    """
 
     def __init__(self, resource_name, host, transpiled_butane, opts=None):
         from ..tools import ssh_execute, ssh_deploy, jinja_run_template
