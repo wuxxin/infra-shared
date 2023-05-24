@@ -5,29 +5,57 @@ After=containers-build@saltstack.service boot-complete.target
 ConditionPathExists=/run/user/1000/coreos-update-config/sls/main.sls
 
 # Run saltstack by executing salt-call in an alpine container,
-# and mounting /etc,/var,/run from host into container
+# mounting /etc,/var,/run from host into container
 # XXX - This means that only /etc,/var,/run is available for changes
 
 [Service]
 Type=oneshot
 
 # roughly equal to tools.py:salt_config
-Environment=project_name="{{ PROJECT_NAME }}"
 Environment=resource_name="%n"
-Environment=stack_name="{{ STACK_NAME }}"
 Environment=base_dir=/run/user/1000
 Environment=root_dir=/run/user/1000/coreos-update-config
 Environment=tmp_dir=/run/user/1000/coreos-update-config/tmp
 Environment=sls_dir=/run/user/1000/coreos-update-config/sls
 Environment=pillar_dir=/run/user/1000/coreos-update-config/pillar
 
-# create a minion config and sls/top.sls, pillar/top.sls, pillar/main.sls
-ExecStart=/var/local/bin/coreos-write-update-config.sh \
-    "${project_name}" "${resource_name}" "${stack_name}" \
-    "${base_dir}" "${root_dir}" "${tmp_dir}" "${sls_dir}" "${pillar_dir}"; \
-    printf "base:\n  '*':\n    - main\n" > "${sls_dir}/top.sls"; \
-    printf "base:\n  '*':\n    - main\n" > "${pillar_dir}/top.sls" \
-    printf "\n" > ${pillar_dir}/main.sls"
+# create a minion config
+ExecStart=/usr/bin/bash -c \
+'printf "id: ${resource_name}\
+\nlocal: True\
+\nlog_level_logfile: info\
+\nfile_client: local\
+\nfileserver_backend:\
+\n- roots\
+\nfile_roots:\
+\n  base:\
+\n  - ${sls_dir}\
+\npillar_roots:\
+\n  base:\
+\n  - ${pillar_dir}\
+\ngrains:\
+\n  resource_name: ${resource_name}\
+\n  base_dir: ${base_dir}\
+\n  root_dir: ${root_dir}\
+\n  tmp_dir: ${tmp_dir}\
+\n  sls_dir: ${sls_dir}\
+\n  pillar_dir: ${pillar_dir}\
+\nroot_dir: ${root_dir}\
+\nconf_file: ${root_dir}/minion\
+\npki_dir: ${root_dir}/etc/salt/pki/minion\
+\npidfile: ${root_dir}/var/run/salt-minion.pid\
+\nsock_dir: ${root_dir}/var/run/salt/minion\
+\ncachedir: ${root_dir}/var/cache/salt/minion\
+\nextension_modules: ${root_dir}/var/cache/salt/minion/extmods\
+\nlog_file: ${root_dir}/var/log/salt/minion\
+\n" > ${root_dir}/minion'
+
+# create sls/top.sls, pillar/top.sls, pillar/main.sls
+ExecStart=/usr/bin/bash -c \
+    'mkdir -p "${sls_dir}" "${pillar_dir}"; \
+    printf "base:\n  \'*\':\n    - main\n" > "${sls_dir}/top.sls"; \
+    printf "base:\n  \'*\':\n    - main\n" > "${pillar_dir}/top.sls" \
+    printf "\n" > "${pillar_dir}/main.sls"'
 
 # make a salt-call test/mock run, to see if it would abort midways
 ExecStart=podman run --privileged \
