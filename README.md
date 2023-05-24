@@ -56,10 +56,10 @@ To see what else you can do with it, continue reading or look at:
 #### Technologies
 
 **Need to know** technologies (to write Deployment and Docs):
-- Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
+- Basic Knowledge of Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
 
 **Advanced functionality** available with knowledge of:
-- pulumi, butane, fcos, saltstack, podman, compose.yml, makefile, more systemd, bash, mkdocs, mermaid, jupyter notebooks
+- pulumi, butane, fcos, saltstack, podman, compose.yml, makefile, systemd, bash, mkdocs, mermaid, jupyter notebooks
 
 **Tools** used:
 - `pulumi` - imperativ infrastructure delaration using python
@@ -75,11 +75,11 @@ To see what else you can do with it, continue reading or look at:
 - `mkdocs` - documentation using markdown and mermaid
 
 **Operating Systems / Device Frameworks** used:
-- Provision: **Arch Linux**, **Manjaro Linux** or as **Container Image**
-- Server: **Fedora-CoreOS** -- updating, minimal, monolithic, container-focused operating system
-- Router: **Openwrt** -- Operating system targeting embedded devices
-- Automation: **Homeassistant** OS -- Open source home automation Control Bridge (Zigbee,BT,Wifi)
-- IOT: **Esphome** - yaml configured **Sensor/Actor** ESP32 like **Devices** on **Arduino** or **ESP-IDF** framework
+- Provision: **Arch** Linux, **Manjaro** Linux or as **Container Image**
+- Server: **Fedora-CoreOS** Linux -- updating, minimal, monolithic, container-focused operating system
+- Router: **Openwrt** Linux -- Operating system targeting network devices
+- Automation: **Homeassistant** OS -- Linux based home automation Control Bridge (Zigbee,BT,Wifi)
+- IOT: **Esphome** - yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
 
 #### Features
 
