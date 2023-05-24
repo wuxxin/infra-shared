@@ -81,9 +81,16 @@ To see what else you can do with it, continue reading or look at:
 - Automation: **Homeassistant** OS -- Open source home automation Control Bridge (Zigbee,BT,Wifi)
 - IOT: **Esphome** - yaml configured **Sensor/Actor** ESP32 like **Devices** on **Arduino** or **ESP-IDF** framework
 
-**Deploy Applications** on CoreOS using:
+#### Features
+
+- `authority.py` provides a TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
+- `tools.py` provides SSH copy/deploy/execute function, Jinja Templating, local and remote Salt-Call
+- `build.py` provides building Embedded OS Images like OpenWRT, HomeAssistant
+- `fcos/*` provides setup, install and update of Fedora CoreOS, with Jinja Templating of butane files
+
+**Deploy Applications** on CoreOS using
 - `podman-systemd.unit` -- Podman systemd container units using podman-quadlet
-- `systemd-nspawn` -- Spawn a OS in a light-weight container using systemd
+- `systemd-nspawn` -- Spawn an OS (build by mkosi) in a light-weight container using systemd
 - `compose.yml` -- Running multi-container applications defined using a Compose file
 
 ### Usage
@@ -130,7 +137,7 @@ make install-requirements
 
 ```sh
 make container
-sudo podman run -i -v $(pwd):$(pwd) provision_client /bin/bash -i
+sudo podman run -i -v $(pwd):$(pwd) provision_client /usr/bin/bash -i
 ```
 
 #### Build documentation
