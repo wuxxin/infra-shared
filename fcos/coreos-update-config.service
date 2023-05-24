@@ -12,9 +12,9 @@ ConditionPathExists=/run/user/1000/coreos-update-config/sls/main.sls
 Type=oneshot
 
 # roughly equal to tools.py:salt_config
-Environment=project_name="$1"
-Environment=resource_name="$2"
-Environment=stack_name="$3"
+Environment=project_name="{{ PROJECT_NAME }}"
+Environment=resource_name="%n"
+Environment=stack_name="{{ STACK_NAME }}"
 Environment=base_dir=/run/user/1000
 Environment=root_dir=/run/user/1000/coreos-update-config
 Environment=tmp_dir=/run/user/1000/coreos-update-config/tmp

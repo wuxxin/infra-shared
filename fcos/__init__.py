@@ -36,6 +36,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
     """transpile jinja templated butane files to ignition and a subset to saltstack salt format
 
     - jinja templating of butane yaml content with environment variables replacement
+        - env is prefilled with PROJECT_NAME and STACK_NAME if not defined or None
         - butane_input string with butane contents:local support from {basedir}
         - butane config for ssh keys, tls root_ca, server cert and key
         - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
@@ -56,8 +57,17 @@ class ButaneTranspiler(pulumi.ComponentResource):
         super().__init__(
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
         )
+
         child_opts = pulumi.ResourceOptions(parent=self)
         this_parent = os.path.abspath(os.path.join(this_dir, ".."))
+        stack_name = pulumi.get_stack()
+        project_name = pulumi.get_project()
+
+        this_env = {} if env is None else env
+        if "PROJECT_NAME" not in this_env:
+            this_env["PROJECT_NAME"] = project_name
+        if "STACK_NAME" not in this_env:
+            this_env["STACK_NAME"] = stack_name
 
         # configure hostname, ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -126,21 +136,21 @@ storage:
 
         # jinja template butane_input, basedir=basedir
         base_dict = pulumi.Output.secret(
-            pulumi.Output.all(yaml_str=butane_input, env=env).apply(
+            pulumi.Output.all(yaml_str=butane_input, env=this_env).apply(
                 lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
 
         # jina template butane_security_keys, basedir=basedir
         security_dict = pulumi.Output.secret(
-            pulumi.Output.all(yaml_str=butane_security_keys, env=env).apply(
+            pulumi.Output.all(yaml_str=butane_security_keys, env=this_env).apply(
                 lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
 
         # jinja template *.bu yaml from this_dir, basedir=this_parent, inline all local references
         fcos_dict = pulumi.Output.all(
-            loaded_yaml=self.load_yaml_files(this_parent, env)
+            loaded_yaml=self.load_yaml_files(this_parent, env=this_env)
         ).apply(lambda args: self.inline_local_files(args["loaded_yaml"], this_parent))
 
         # merge base_dict, security_dict, fcos_dict together
@@ -152,7 +162,7 @@ storage:
 
         # jinja template *.bu yaml files from basedir, merge with merged_dict
         self.butane_config = pulumi.Output.all(
-            loaded_yaml=self.load_yaml_files(basedir, env),
+            loaded_yaml=self.load_yaml_files(basedir, env=this_env),
             base_yaml=merged_dict,
         ).apply(
             lambda args: yaml.safe_dump(
@@ -495,8 +505,10 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 
 
 class FcosConfigUpdate(pulumi.ComponentResource):
-    def __init__(self, resource_name, host, salt, pillar={}, opts=None):
-        from ..tools import RemoteSaltCall
+    "reconfigure a remote CoreOS System by using transpiled butane files"
+
+    def __init__(self, resource_name, host, transpiled_butane, opts=None):
+        from ..tools import ssh_execute, ssh_deploy
 
         super().__init__(
             "pkg:index:FcosConfigUpdate",
@@ -505,23 +517,25 @@ class FcosConfigUpdate(pulumi.ComponentResource):
             opts,
         )
         child_opts = pulumi.ResourceOptions(parent=self)
-        base_dir = "/run/user/1000"
-        root_dir = os.path.join(base_dir, "coreos-update-config")
-
-        self.host_update = RemoteSaltCall(
-            "{}_config_update_deploy".format(resource_name),
-            host,
-            "core",
-            base_dir,
-            pillar=pillar,
-            salt=salt,
-            exec="sudo systemctl restart --wait coreos-update-config",
-            root_dir=root_dir,
-            tmp_dir=os.path.join(root_dir, "tmp"),
-            sls_dir=os.path.join(root_dir, "sls"),
-            opts=child_opts,
+        user = "core"
+        sls_dir = "/run/user/1000/coreos-update-config/sls"
+        config_dict = {
+            os.path.join(sls_dir, "main.sls"): pulumi.Output.from_input(
+                transpiled_butane.saltstack_config
+            )
+        }
+        self.config_deployed = ssh_deploy(
+            resource_name, host, user, files=config_dict, simulate=False, opts=child_opts
         )
-        self.result = self.host_update
+        self.coreos_update_config = ssh_execute(
+            resource_name,
+            host,
+            user,
+            cmdline="sudo systemctl restart --wait coreos-update-config",
+            simulate=False,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
+        )
+        self.result = self.fcos_coreos_update_config
         self.register_outputs({})
 
 
