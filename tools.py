@@ -439,12 +439,10 @@ def salt_config(
 
     - sls_dir defaults to base_dir
     - grains available
-      - project_name, resource_name, stack_name
-      - base_dir, root_dir, tmp_dir, sls_dir, pillar_dir
+      - resource_name, base_dir, root_dir, tmp_dir, sls_dir, pillar_dir
 
     """
 
-    project_name = os.path.basename(base_dir)
     root_dir = root_dir or os.path.join(base_dir, "state", "salt", stack_name, resource_name)
     tmp_dir = tmp_dir or os.path.join(base_dir, "state", "tmp", stack_name, resource_name)
     sls_dir = sls_dir if sls_dir else base_dir
@@ -465,9 +463,7 @@ pillar_roots:
   base:
   - {pillar_dir}
 grains:
-  project_name: {project_name}
   resource_name: {resource_name}
-  stack_name: {stack_name}
   base_dir: {base_dir}
   root_dir: {root_dir}
   tmp_dir: {tmp_dir}
@@ -483,9 +479,7 @@ extension_modules: {root_dir}/var/cache/salt/minion/extmods
 log_file: {root_dir}/var/log/salt/minion
 
 """.format(
-            project_name=project_name,
             resource_name=resource_name,
-            stack_name=stack_name,
             base_dir=base_dir,
             root_dir=root_dir,
             tmp_dir=tmp_dir,
