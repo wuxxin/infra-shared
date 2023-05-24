@@ -44,7 +44,7 @@ To see what else you can do with it, continue reading or look at:
     - have the **complete encrypted state** in the **git repository** alongeside the code as **single source of truth**
 - have a **big/full featured provision client** as the center of operation
     - target one **provision os** and a **container** for foreign distros and **continous integration** processes
-    - facilitate a comfortable **simulation environment** that is accurate enough for replication on production
+    - facilitate a comfortable local **simulation environment** that is accurate enough for replication on production
 - **documentation** and **interactive notebooks** alongside code
     - help onboarding with **interactive tinkering** using **jupyter notebooks**
     - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
@@ -57,37 +57,39 @@ To see what else you can do with it, continue reading or look at:
 **Advanced functionality** available with knowledge of:
 - pulumi, butane, fcos, saltstack, podman, compose.yml, makefile, systemd, bash, mkdocs, mermaid, jupyter notebooks
 
-**Tools** used:
+**Tool Stack**:
 - `pulumi` - imperativ infrastructure delaration using python
-- `fcos` - Fedora-CoreOS Image with `clevis` (sss,tang,tpm) storage unlock
-- `butane` - define fcos ignition using `jinja` enhanced butane yaml config
-- `systemd` - os configuration using systemd: service, socket, path, timer, nspawn
-- `podman` - container image builds, quadlet systemd container units, container compose socket
+- `fcos` - Fedora-CoreOS minimal updating OS with `clevis` (sss,tang,tpm) storage unlock
+- `butane` - Define a fcos `ignition` config using `jinja` enhanced butane yaml config
+- `systemd` - Os configuration using systemd: service, socket, path, timer, nspawn
+- `podman` - build Container images, run Container using quadlet systemd container
 - `saltstack`
-    - local build environment and developer related systemd user services
+    - local embedded/iot build environments, local user services
     - remote fcos config update using butane to saltstack translation and execution
-- `tang` - unattended reboot with distributed key shards
-- `age` - file and pulumi production password encryption supplied using ssh keys
+- `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
+- `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
+- `mkosi` - build nspawn OS container images
+- `age` - ssh keys based encryption of production files and pulumi master password
 - `mkdocs` - documentation using markdown and mermaid
 
-**Operating Systems / Device Frameworks** used:
+**Operating Systems / Device Frameworks** facilitated:
 - Provision: **Arch** Linux, **Manjaro** Linux or as **Container Image**
-- Server: **Fedora-CoreOS** Linux -- updating, minimal, monolithic, container-focused operating system
-- Router: **Openwrt** Linux -- Operating system targeting network devices
-- Automation: **Homeassistant** OS -- Linux based home automation Control Bridge (Zigbee,BT,Wifi)
-- IOT: **Esphome** -- yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
+- Server: **Fedora-CoreOS** Linux - updating, minimal, monolithic, container-focused operating system
+- Router: **Openwrt** Linux - Operating system targeting network devices
+- Automation: **Homeassistant** OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)
+- IOT: **Esphome** - yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
 
 #### Features
 
-- `authority.py` -- TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
-- `tools.py` -- SSH copy/deploy/execute function, Jinja Templating, local and remote Salt-Call
-- `build.py` -- building Embedded OS Images like OpenWRT, HomeAssistant
-- `fcos/*` -- setup, install and reconfiguration of Fedora CoreOS, with Jinja templated butane files
+- `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
+- `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
+- `build.py` - build Embedded-OS Images and IOT Images, eg. OpenWRT
+- `fcos/*` - setup, installation and reconfiguration of Fedora CoreOS, with Jinja templated butane files
 
 **Deploy Applications** on CoreOS as
-- Single Container: `podman-systemd.unit` -- Run systemd controlled container units using podman-quadlet
-- Multiple Container: `compose.yml` -- Run multi-container applications defined using a Compose file
-- Operating System: `systemd-nspawn` -- Spawn an OS (build by mkosi) in a light-weight container using nspawn
+- Single Container: `podman-systemd.unit` - Run systemd controlled container units using podman-quadlet
+- Multiple Container: `compose.yml` - Run multi-container applications defined using a Compose file
+- Operating System: `systemd-nspawn` - Run an Linux OS (build by mkosi) in a light-weight container
 
 ### Usage
 
