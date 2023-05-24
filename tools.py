@@ -26,6 +26,7 @@
 
 import os
 import sys
+import stat
 import hashlib
 import random
 import glob
@@ -48,37 +49,84 @@ def log_warn(x):
     )
 
 
-class ListedFileLoader(jinja2.FileSystemLoader):
-    def __init__(self, searchpath):
-        self.basepath = os.path.normpath(searchpath)
+def join_paths(basedir, *filepaths):
+    "combine filepaths with basedir like os.path.join, but remove leading '/' of each filepath"
+    filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
+    return os.path.join(basedir, *filepaths)
+
+
+def sha256sum_file(filename):
+    "sha256sum of file, logically backported from python 3.11"
+
+    h = hashlib.sha256()
+    buf = bytearray(2**18)
+    view = memoryview(buf)
+    with open(filename, "rb", buffering=0) as f:
+        while n := f.readinto(view):
+            h.update(view[:n])
+    return h.hexdigest()
+
+
+class BasePathFileLoader(jinja2.FileSystemLoader):
+    def __init__(self, basepath):
+        self.basepath = os.path.normpath(basepath)
         super().__init__(self.basepath)
 
-    def list_files(self, pattern=""):
-        globpath = os.path.join(self.basepath, pattern, "**")
+
+class FilesExtension(jinja2.ext.Extension):
+    """jinja Extension for list_files, has_executable_bit and get_filemode filter"""
+
+    def __init__(self, environment):
+        super(FilesExtension, self).__init__(environment)
+        self.environment = environment
+        self.environment.filters["list_files"] = self.list_files
+        self.environment.filters["has_executable_bit"] = self.has_executable_bit
+        self.environment.filters["get_filemode"] = self.get_filemode
+
+    def list_files(self, value):
+        "returns available files in basepath/value as string, newline seperated"
+        loader = self.environment.loader
+        globpath = join_paths(loader.basepath, value, "**")
         files = [
-            os.path.relpath(os.path.normpath(file), self.basepath)
+            os.path.relpath(os.path.normpath(file), loader.basepath)
             for file in glob.glob(globpath, recursive=True)
             if os.path.isfile(file)
         ]
-        return files
-
-
-class ListFilesExtension(jinja2.ext.Extension):
-    def __init__(self, environment):
-        super(ListFilesExtension, self).__init__(environment)
-        self.environment = environment
-        self.environment.filters["list_files"] = self.list_files
-
-    def list_files(self, value):
-        loader = self.environment.loader
-        files = loader.list_files(value)
         return "\n".join(files)
+
+    def has_executable_bit(self, value):
+        "return 'True' or 'False' depending if basepath/value file has executable bit set or empty string"
+        loader = self.environment.loader
+        f = join_paths(loader.basepath, value)
+        if not os.path.exists(f):
+            return ""
+        mode = os.stat(f).st_mode
+        if mode & stat.S_IXUSR:
+            return "True"
+        else:
+            return "False"
+
+    def get_filemode(self, value):
+        "return octal filemode as string of file search using basepath/value or empty string"
+        loader = self.environment.loader
+        f = join_paths(loader.basepath, value)
+        if not os.path.exists(f):
+            return ""
+        return oct(stat.S_IMODE(os.stat(f).st_mode))
 
 
 def jinja_run(template_str, base_dir, environment={}):
     """renders a template string with environment, with optional includes from base_dir
 
-    - custom filter "sub_dir"|list_files() returns
+    custom filter available:
+
+    - "sub_dir/filename"|get_file_mode() returns
+        - a string with the octal filemode of the file in base_dir/filename, or "" if not found
+
+    - "sub_dir/filename"|has_executable_bit() returns
+        - a string with either "True" or "False" depending the executable bit, or "" if not found
+
+    - "sub_dir"|list_files() returns
         - a string with a newline seperated list of files in base_dir/sub_dir
         - each of these listed files are available for "import x as y" in jinja
 
@@ -96,9 +144,7 @@ def jinja_run(template_str, base_dir, environment={}):
     ```
 
     """
-    env = jinja2.Environment(
-        loader=ListedFileLoader(base_dir), extensions=[ListFilesExtension]
-    )
+    env = jinja2.Environment(loader=BasePathFileLoader(base_dir), extensions=[FilesExtension])
     template = env.from_string(template_str)
     rendered = template.render(environment)
     return rendered
@@ -110,34 +156,10 @@ def jinja_run_template(template_filename, base_dir, environment={}):
     - for details see `jinja_run`
 
     """
-    env = jinja2.Environment(
-        loader=ListedFileLoader(base_dir), extensions=[ListFilesExtension]
-    )
+    env = jinja2.Environment(loader=BasePathFileLoader(base_dir), extensions=[FilesExtension])
     template = env.get_template(template_filename)
     rendered = template.render(environment)
     return rendered
-
-
-def combine_path(prefix, path):
-    "combine path like os.path.join, but remove first '/' on path if existing and prefix !=''"
-
-    # os.path.join deletes any prefix path component if later component is an absolute path
-    if prefix != "":
-        return os.path.join(prefix, path[1:] if path[0] == "/" else path)
-    else:
-        return path
-
-
-def sha256sum_file(filename):
-    "sha256sum of file, logically backported from python 3.11"
-
-    h = hashlib.sha256()
-    buf = bytearray(2**18)
-    view = memoryview(buf)
-    with open(filename, "rb", buffering=0) as f:
-        while n := f.readinto(view):
-            h.update(view[:n])
-    return h.hexdigest()
 
 
 class SSHCopier(pulumi.ComponentResource):
@@ -154,7 +176,7 @@ class SSHCopier(pulumi.ComponentResource):
     def __transfer(self, name, remote_path, local_path):
         resource_name = "copy_{}".format(remote_path.replace("/", "_"))
         file_hash = pulumi.Output.concat(sha256sum_file(local_path))
-        full_remote_path = combine_path(self.props["remote_prefix"], remote_path)
+        full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
@@ -205,7 +227,7 @@ class SSHDeployer(pulumi.ComponentResource):
             else 'x="{}" && mkdir -p $(dirname "$x") && cat - > "$x"'
         )
         rm_cmd = "rm {} || true" if self.props["delete"] else ""
-        full_remote_path = combine_path(self.props["remote_prefix"], remote_path)
+        full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
         triggers = [0] if not self.props["refresh"] else [random.randrange(65536)]
 
         if self.props["simulate"]:
@@ -358,7 +380,12 @@ def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, opts=None):
 
 
 class DataExport(pulumi.ComponentResource):
-    "optional encrypt and store state data as local files under state/files/"
+    """store state data (with optional encryption) as local files under state/files/
+
+    use with
+        - public_local_export()
+        - encrypted_local_export()
+    """
 
     def __init__(self, prefix, filename, data, key=None, filter="", delete=False, opts=None):
         super().__init__("pkg:index:DataExport", prefix, None, opts)
