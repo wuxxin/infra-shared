@@ -83,15 +83,15 @@ To see what else you can do with it, continue reading or look at:
 
 #### Features
 
-- `authority.py` provides a TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
-- `tools.py` provides SSH copy/deploy/execute function, Jinja Templating, local and remote Salt-Call
-- `build.py` provides building Embedded OS Images like OpenWRT, HomeAssistant
-- `fcos/*` provides setup, install and update of Fedora CoreOS, with Jinja Templating of butane files
+- `authority.py` -- TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
+- `tools.py` -- SSH copy/deploy/execute function, Jinja Templating, local and remote Salt-Call
+- `build.py` -- building Embedded OS Images like OpenWRT, HomeAssistant
+- `fcos/*` -- setup, install and reconfiguration of Fedora CoreOS, with Jinja templated butane files
 
-**Deploy Applications** on CoreOS using
-- `podman-systemd.unit` -- Podman systemd container units using podman-quadlet
-- `systemd-nspawn` -- Spawn an OS (build by mkosi) in a light-weight container using systemd
-- `compose.yml` -- Running multi-container applications defined using a Compose file
+**Deploy Applications** on CoreOS as
+- Single Container: `podman-systemd.unit` -- Run systemd controlled container units using podman-quadlet
+- Multiple Container: `compose.yml` -- Run multi-container applications defined using a Compose file
+- Operating System: `systemd-nspawn` -- Spawn an OS (build by mkosi) in a light-weight container using nspawn
 
 ### Usage
 
