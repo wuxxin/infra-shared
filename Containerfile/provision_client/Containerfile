@@ -30,4 +30,4 @@ RUN HOME=/home/build && \
     rm -rf $HOME/.cargo/registry $HOME/.cache/go-build $HOME/.cache/yay && \
     doas -u root pacman -Scc --noconfirm
 
-CMD ["/bin/bash"]
+CMD ["/usr/bin/bash"]
