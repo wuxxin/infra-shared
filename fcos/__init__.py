@@ -17,6 +17,7 @@
 
 import os
 import copy
+import stat
 import json
 import glob
 import hashlib
@@ -33,11 +34,11 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 class ButaneTranspiler(pulumi.ComponentResource):
-    """transpile jinja templated butane files to ignition and a subset to saltstack salt format
+    """translate jinja templated butane files to ignition and a subset to saltstack salt format
 
     - jinja templating of butane yaml content with environment variables replacement
         - butane_input string with butane contents:local support from {basedir}
-        - butane config for ssh keys, tls root_ca, server cert and key
+        - butane config for hostname, ssh keys, tls root_ca, server cert and key
         - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
         - {this_dir}/coreos-update-config.sls for migration helper from older fcos/*.bu
         - {basedir}/*.bu with butane contents:local support from {baserdir}
@@ -140,12 +141,17 @@ storage:
             )
         )
 
-        # jinja template *.bu yaml from this_dir, basedir=this_parent, inline all local references
+        # jinja template *.bu yaml from this_dir, basedir=this_parent
+        # inline all local references, inline storage:trees as storage:files
         fcos_dict = pulumi.Output.all(
-            loaded_yaml=self.load_yaml_files(this_parent, env=this_env)
-        ).apply(lambda args: self.inline_local_files(args["loaded_yaml"], this_parent))
+            loaded_yaml=self.load_butane_files(this_parent, env=this_env)
+        ).apply(
+            lambda args: self.inline_local_files(
+                args["loaded_yaml"], this_parent, include_trees=True
+            )
+        )
 
-        # merge base_dict, security_dict, fcos_dict together
+        # merge base_dict, security_dict and fcos_dict together
         merged_dict = pulumi.Output.all(base_dict, security_dict, fcos_dict).apply(
             lambda args: self.merge_yaml_struct(
                 args[2], self.merge_yaml_struct(args[1], args[0])
@@ -154,7 +160,7 @@ storage:
 
         # jinja template *.bu yaml files from basedir, merge with merged_dict
         self.butane_config = pulumi.Output.all(
-            loaded_yaml=self.load_yaml_files(basedir, env=this_env),
+            loaded_yaml=self.load_butane_files(basedir, env=this_env),
             base_yaml=merged_dict,
         ).apply(
             lambda args: yaml.safe_dump(
@@ -163,7 +169,7 @@ storage:
         )
         # self.butane_config.apply(log_warn)
 
-        # transpile merged butane yaml to saltstack salt yaml config
+        # translate merged butane yaml to saltstack salt yaml config
         # append this_dir/coreos-update-config.sls and basedir/*.sls to it
         self.jinja_transform = open(os.path.join(this_dir, "butane2salt.jinja"), "r").read()
         self.jinja_hash = hashlib.sha256(self.jinja_transform.encode("utf-8")).hexdigest()
@@ -179,7 +185,7 @@ storage:
             *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
 
-        # transpile merged butane yaml to ignition json config
+        # translate merged butane yaml to ignition json config
         # XXX due to pulumi-command exit 1 on stderr output, we silence stderr,
         #   but output is vital for finding compilation warning and errors, so remove 2>/dev/null on debug
         self.ignition_config = command.local.Command(
@@ -193,16 +199,44 @@ storage:
         self.result = self.ignition_config.stdout
         self.register_outputs({})
 
-    def inline_local_files(self, yaml_dict, basedir):
-        """inline the contents of butane local references in the yaml for
+    def inline_local_files(self, yaml_dict, basedir, include_trees=False):
+        """inline the contents of butane local references
+
         - storage:files:contents:local
         - systemd:units:contents_local
-        - systemd:units:dropins:contents_local"""
+        - systemd:units:dropins:contents_local
+        - storage:trees (if include_trees is True)
 
-        def read_include(basedir, filename):
-            return open(os.path.join(basedir, filename), "r").read()
+        """
+
+        def join_paths(basedir, *filepaths):
+            filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
+            return os.path.join(basedir, *filepaths)
+
+        def read_include(basedir, *filepaths):
+            return open(join_paths(basedir, *filepaths), "r").read()
 
         ydict = copy.deepcopy(yaml_dict)
+
+        if include_trees and "storage" in ydict and "trees" in ydict["storage"]:
+            for tnr in range(len(ydict["storage"]["trees"])):
+                t = ydict["storage"]["trees"][tnr]
+                for f in glob.glob(
+                    "**",
+                    root_dir=join_paths(basedir, t["local"]),
+                    recursive=True,
+                    include_hidden=True,
+                ):
+                    lf = join_paths(basedir, t["local"], f)
+                    rf = join_paths(t["path"] if "path" in t else "/", f)
+                    is_exec = os.stat(lf).st_mode & stat.S_IXUSR
+                    ydict["storage"]["files"].append(
+                        {
+                            "path": rf,
+                            "mode": "0755" if is_exec else "0664",
+                            "contents": {"inline": read_include(lf)},
+                        }
+                    )
 
         if "storage" in ydict and "files" in ydict["storage"]:
             for fnr in range(len(ydict["storage"]["files"])):
@@ -240,11 +274,8 @@ storage:
                             )
         return ydict
 
-    def load_yaml_files(self, basedir, env):
-        """get a list of all *.bu files from the basedir,
-        sorted with the files from the basedir first, then all subdirs
-        read the corresponding files with jinja templating, parse as yaml, merge together
-        """
+    def load_butane_files(self, basedir, env):
+        """read and jinja template all *.bu files from basedir recursive, parse as yaml, merge together"""
 
         all_files = sorted(
             [
@@ -499,19 +530,19 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 class FcosConfigUpdate(pulumi.ComponentResource):
     """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
 
-    Modifications to *.bu and from there referenced files will result in a new saltstack config
+    Modifications to *.bu and from their referenced files will result in a new saltstack config
 
-    - Copies a systemd.service and a main.sls state files to the remote target in a /run directory
+    - Copies a systemd.service and a main.sls state file to the remote target in a /run directory
     - overwrite original update service, reload systemd, start service, configures a salt environment
-    - main.sls is executed in an saltstack container where /etc, /var, /run is mounted from the host
-    - only butane sections: storage:[directories,files,links,trees] systemd:unit:[dropins] are translated
+    - execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
+    - only the butane sections: storage:[directories,files,links,trees] systemd:unit:[dropins] are translated
     - additional migration code can be written in basedir/*.sls
-        - add saltstack migration code so you can cleanup on updates, eg. deleting services
+        - use this for adding saltstack migration code to cleanup after updates, eg. deleting services
 
-    - the approach of service and main.sls transfer and overwrite service, reload, start service
-        - has the advantage that it can update from a broken version of itself
-        - has the advantage compared to only executing shell scriptvia ssh
-            because its a systemd service, it is independent, doesnt die on disconnect, has logs, a.o.
+    - advantages of this approach
+        - it can update from a broken version of itself
+        - compared to executing a shell script via ssh
+            it is independent, doesnt die on disconnect, has logs, a.o., because its a systemd service
     """
 
     def __init__(self, resource_name, host, transpiled_butane, opts=None):
