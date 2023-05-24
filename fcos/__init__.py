@@ -36,7 +36,6 @@ class ButaneTranspiler(pulumi.ComponentResource):
     """transpile jinja templated butane files to ignition and a subset to saltstack salt format
 
     - jinja templating of butane yaml content with environment variables replacement
-        - env is prefilled with PROJECT_NAME and STACK_NAME if not defined or None
         - butane_input string with butane contents:local support from {basedir}
         - butane config for ssh keys, tls root_ca, server cert and key
         - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
@@ -60,14 +59,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
 
         child_opts = pulumi.ResourceOptions(parent=self)
         this_parent = os.path.abspath(os.path.join(this_dir, ".."))
-        stack_name = pulumi.get_stack()
-        project_name = pulumi.get_project()
-
         this_env = {} if env is None else env
-        if "PROJECT_NAME" not in this_env:
-            this_env["PROJECT_NAME"] = project_name
-        if "STACK_NAME" not in this_env:
-            this_env["STACK_NAME"] = stack_name
 
         # configure hostname, ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -184,7 +176,7 @@ storage:
                 )
             ),
             open(os.path.join(this_dir, "coreos-update-config.sls"), "r").read(),
-            *[open(f, "r").read() for f in glob.glob(os.path.join(this_dir, "*.sls"))],
+            *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
 
         # transpile merged butane yaml to ignition json config
@@ -505,10 +497,10 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 
 
 class FcosConfigUpdate(pulumi.ComponentResource):
-    "reconfigure a remote CoreOS System by using transpiled butane files"
+    "reconfigure a remote CoreOS System by executing transpiled butane files as saltstack salt"
 
     def __init__(self, resource_name, host, transpiled_butane, opts=None):
-        from ..tools import ssh_execute, ssh_deploy
+        from ..tools import ssh_execute, ssh_deploy, jinja_run_template
 
         super().__init__(
             "pkg:index:FcosConfigUpdate",
@@ -516,26 +508,45 @@ class FcosConfigUpdate(pulumi.ComponentResource):
             None,
             opts,
         )
+
         child_opts = pulumi.ResourceOptions(parent=self)
         user = "core"
-        sls_dir = "/run/user/1000/coreos-update-config/sls"
+        root_dir = "/run/user/1000/coreos-update-config"
+        sls_dir = os.path.join(root_dir, "sls")
+        update_fname = "coreos-update-config.service"
+        update_str = open(os.path.join(this_dir, update_fname), "r").read()
+
+        # transport update service file and main.sls (transpiled butane) to root_dir and sls_dir
         config_dict = {
+            os.path.join(root_dir, update_fname): pulumi.Output.from_input(update_str),
             os.path.join(sls_dir, "main.sls"): pulumi.Output.from_input(
                 transpiled_butane.saltstack_config
-            )
+            ),
         }
+
+        # copy update service to target location, reload systemd daemon, start update
+        cmdline = (
+            "sudo cp {source} {target} &&".format(
+                source=os.path.join(root_dir, update_fname),
+                target=os.path.join("/etc/systemd/system", update_fname),
+            )
+            + "sudo systemctl daemon-reload && sudo systemctl restart --wait coreos-update-config"
+        )
+
         self.config_deployed = ssh_deploy(
             resource_name, host, user, files=config_dict, simulate=False, opts=child_opts
         )
+
         self.coreos_update_config = ssh_execute(
             resource_name,
             host,
             user,
-            cmdline="sudo systemctl restart --wait coreos-update-config",
+            cmdline=cmdline,
             simulate=False,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
         )
-        self.result = self.fcos_coreos_update_config
+
+        self.result = self.coreos_update_config
         self.register_outputs({})
 
 
