@@ -50,7 +50,7 @@ systemd:
     {% endif %}
 
     # install pkgs from RPM_OSTREE_INSTALL
-    # XXX reboot currently disabled, will reboot afterwards, but only first time
+    # will reboot afterwards, but only first time
     - name: rpm-ostree-install-extensions.service
       enabled: true
       contents: |
@@ -65,8 +65,7 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         ExecStart=/usr/bin/rpm-ostree install --assumeyes --idempotent \
-            --allow-inactive {{ RPM_OSTREE_INSTALL }}
-        # --reboot
+            --allow-inactive --reboot {{ RPM_OSTREE_INSTALL }}
         ExecStart=/bin/touch /var/local/flags/%N.stamp
 
         [Install]
