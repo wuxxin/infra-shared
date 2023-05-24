@@ -21,12 +21,12 @@ def build_this(resource_name, sls_name, config_name):
         environment=environment,
         sls_dir=this_dir,
         triggers=[
-            # trigger on: pillar:build:config_name, file:defaults.yml
+            # trigger on: pillar:build:config_name, file:build_defaults.yml
             # changes to environment are triggered automatically
             hashlib.sha256(
                 json.dumps(pillar["build"][config_name]).encode("utf-8")
             ).hexdigest(),
-            sha256sum_file(os.path.join(this_dir, "defaults.yml")),
+            sha256sum_file(os.path.join(this_dir, "build_defaults.yml")),
         ],
         opts=pulumi.ResourceOptions(depends_on=[ssh_factory]),
     )

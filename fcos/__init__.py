@@ -335,7 +335,9 @@ class FcosImageDownloader(pulumi.ComponentResource):
     def __init__(self, stream=None, architecture=None, platform=None, format=None, opts=None):
         from ..authority import project_dir, stack_name
 
-        defaults = yaml.safe_load(open(os.path.join(this_dir, "..", "defaults.yml"), "r"))
+        defaults = yaml.safe_load(
+            open(os.path.join(this_dir, "..", "build_defaults.yml"), "r")
+        )
 
         if not stream:
             stream = defaults["fcos"]["stream"]
