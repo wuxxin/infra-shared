@@ -21,7 +21,8 @@ usage_str = """serve a HTTPS path once, using stdin for configuration and payloa
 will exit 0 after one sucessful request, but continue to wait until timeout 
     in seconds is reached, where it will exit 1.
 
-uses only buildin python packages except yaml, and cryptography if certificate creation is needed.
+uses only buildin python packages except yaml
+    and cryptography if certificate creation is needed.
 
 invalid request paths, invalid request methods, invalid or missing client certificates
     return an request error, but do not cause the exit of the program. 
@@ -65,14 +66,14 @@ def generate_self_signed_certificate(hostname):
         .issuer_name(issuer)
         .public_key(private_key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.utcnow())
+        .not_valid_before(datetime.datetime.utcnow() - datetime.timedelta(days=1))
         .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=365))
         .add_extension(x509.SubjectAlternativeName([x509.DNSName(hostname)]), critical=False)
         .add_extension(
             x509.ExtendedKeyUsage(
                 [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]
             ),
-            critical=False,
+            critical=True,
         )
         .sign(private_key, hashes.SHA256(), default_backend())
     )
@@ -88,20 +89,10 @@ def generate_self_signed_certificate(hostname):
 
 
 class MyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
-    def setup(self):
-        super().setup()
-        if isinstance(self.connection, socket.socket):
-            self.connection = self.wrap_socket(self.connection)
-
     def verbose_error(self, code: int, message: str | None = None, explain: str | None = None):
         self.send_error(code, message, explain)
         if args.verbose:
             print("{}: {}".format(code, message), file=sys.stderr)
-
-    def wrap_socket(self, sock):
-        ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        ssl_sock = ssl_context.wrap_socket(sock, server_side=True)
-        return ssl_sock
 
     def get_client_cert_common_name(self):
         if "subject" in self.connection.getpeercert():
@@ -164,6 +155,7 @@ request_method: "GET"
 request_body_to_stdout: true
 serve_ip: 0.0.0.0
 serve_port: 8443
+hostname: localhost
 timeout: 30
 cert:
 key:
@@ -207,7 +199,7 @@ config = {**default_config, **loaded_config}
 
 if not config["cert"] or not config["key"]:
     verbose_print("Warning: no cert or key, creating temporary selfsigned certificate")
-    cert_key_dict = generate_self_signed_certificate("localhost")
+    cert_key_dict = generate_self_signed_certificate(config["hostname"])
     config["cert"] = cert_key_dict["cert"]
     config["key"] = cert_key_dict["key"]
 
@@ -227,22 +219,20 @@ try:
     cert_thread.start()
     key_thread.start()
 
-    # Set up SSL context
-    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ssl_ctx.load_cert_chain(certfile=cert_fifo_path, keyfile=key_fifo_path)
-    if config["ca_cert"]:
-        ssl_ctx.load_verify_locations(cadata=config["ca_cert"])
-        if config["mtls"]:
-            ssl_ctx.verify_mode = ssl.CERT_REQUIRED
-
-    # Set up HTTP context, create HTTPS server
-    HandlerClass = MyHTTPRequestHandler
-    HandlerClass.protocol_version = "HTTP/1.1"
-    HandlerClass.ssl_ctx = ssl_ctx
-    httpd = socketserver.TCPServer(
-        (config["serve_ip"], config["serve_port"]), HandlerClass, bind_and_activate=False
+    # create HTTPS server
+    httpd = http.server.HTTPServer(
+        (config["serve_ip"], config["serve_port"]),
+        MyHTTPRequestHandler,
+        bind_and_activate=False,
     )
     httpd.timeout = config["timeout"]
+    httpd.socket = ssl.wrap_socket(
+        httpd.socket, certfile=cert_fifo_path, keyfile=key_fifo_path, server_side=True
+    )
+    # if config["ca_cert"]:
+    #     ssl_ctx.load_verify_locations(cadata=config["ca_cert"])
+    #     if config["mtls"]:
+    #         ssl_ctx.verify_mode = ssl.CERT_REQUIRED
     httpd.server_bind()
     httpd.server_activate()
 
@@ -251,6 +241,7 @@ try:
         r, w, e = select.select([httpd.socket], [], [], httpd.timeout)
         if r:
             httpd.handle_request()
+            # FIXME: only break if request was answered with code 200
             break
         else:
             raise Exception(f"Timeout after {httpd.timeout} seconds.")
