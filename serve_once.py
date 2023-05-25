@@ -21,6 +21,8 @@ usage_str = """serve a HTTPS path once, using stdin for configuration and payloa
 will exit 0 after one sucessful request, but continue to wait until timeout 
     in seconds is reached, where it will exit 1.
 
+uses only buildin python packages except yaml, and cryptography if certificate creation is needed.
+
 invalid request paths, invalid request methods, invalid or missing client certificates
     return an request error, but do not cause the exit of the program. 
     only a sucessful transmission or a timeout will end execution.
@@ -116,23 +118,23 @@ class MyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         - rfile is a file object open for reading positioned at the start of the optional input data part;
         - wfile is a file object open for writing.
         """
-        if config["request_ip"] and self.client_address[0] != config["request_ip"]:
-            self.verbose_error(400, f"Invalid Client IP : {self.client_address[0]}")
-            return
-
-        if self.command != config["request_method"]:
-            self.verbose_error(400, f"Invalid request method: {self.command}")
-            return
-
-        if self.path != config["request_path"]:
-            self.verbose_error(400, f"Invalid request path: {self.path}")
-            return
-
         if config["mtls"] and config["mtls_clientid"]:
             client_cert_cn = self.get_client_cert_common_name()
             if client_cert_cn != config["mtls_clientid"]:
-                self.verbose_error(400, f"Invalid Client certificate CN: {client_cert_cn}")
+                self.verbose_error(401, f"Invalid Client certificate CN: {client_cert_cn}")
                 return
+
+        if config["request_ip"] and self.client_address[0] != config["request_ip"]:
+            self.verbose_error(403, f"Invalid Client IP : {self.client_address[0]}")
+            return
+
+        if self.command != config["request_method"]:
+            self.verbose_error(405, f"Invalid request method: {self.command}")
+            return
+
+        if self.path != config["request_path"]:
+            self.verbose_error(404, f"Invalid request path: {self.path}")
+            return
 
         if config["request_body_to_stdout"]:
             content_length = int(self.headers.get("Content-Length", 0))
@@ -194,7 +196,7 @@ if not sys.argv[1:]:
 args = parser.parse_args()
 stdin_str = sys.stdin.read()
 
-if not stdin_str:
+if not stdin_str.strip():
     verbose_print("Warning: no configuration from stdin, using only defaults!")
     loaded_config = {}
 else:
