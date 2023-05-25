@@ -16,28 +16,6 @@ import ssl
 import yaml
 
 
-default_config_str = """
-request_ip:
-request_path: "/"
-request_method: "GET"
-request_body_to_stdout: true
-serve_ip: 0.0.0.0
-serve_port: 8443
-timeout: 30
-cert:
-key:
-ca_cert:
-mtls: false
-mtls_clientid:
-header:
-  "Content-Type": application/json
-payload: |
-  true
-"""
-default_config = yaml.safe_load(default_config_str)
-default_short = ", ".join(["{}: {}".format(k, v) for k, v in default_config.items()])
-
-
 usage_str = """serve a HTTPS path once, using stdin for configuration and payload
 
 will exit 0 after one sucessful request, but continue to wait until timeout 
@@ -50,12 +28,7 @@ invalid request paths, invalid request methods, invalid or missing client certif
 if key or cert is None, a temporary selfsigned cert will be created
 if mtls is true, a ca_cert must be set, and a mandatory client certificate is needed to connect
 if mtls_clientid is not None, the correct id of the clientcertificate is needed to connect
-
-Defaults:
-  {}
-""".format(
-    default_short
-)
+"""
 
 
 def verbose_print(message):
@@ -181,9 +154,32 @@ class MyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.handle_command()
 
 
+# configure defaults
+default_config_str = """
+request_ip:
+request_path: "/"
+request_method: "GET"
+request_body_to_stdout: true
+serve_ip: 0.0.0.0
+serve_port: 8443
+timeout: 30
+cert:
+key:
+ca_cert:
+mtls: false
+mtls_clientid:
+header:
+  "Content-Type": application/json
+payload: |
+  true
+"""
+default_config = yaml.safe_load(default_config_str)
+default_short = ", ".join(["{}: {}".format(k, v) for k, v in default_config.items()])
+
 # Parse command line arguments
 parser = argparse.ArgumentParser(
-    description=usage_str, formatter_class=argparse.RawTextHelpFormatter
+    description=usage_str + "\ndefaults:\n{}\n".format(default_short),
+    formatter_class=argparse.RawTextHelpFormatter,
 )
 parser.add_argument(
     "--verbose", action="store_true", default=False, help="Log warnings to stderr"
