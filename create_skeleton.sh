@@ -55,7 +55,7 @@ ln -s ../README.md ${project_dir}/docs/README.md
 create_ifnotexist README.md <<EOF
 # ${project_name}
 
-Software Defined Git Operated Infrastructure as Code
+Software Defined Git Operated Infrastructure
 
 EOF
 

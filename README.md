@@ -34,8 +34,8 @@ To see what else you can do with it, continue reading or look at:
 #### Objectives
 
 - **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest
-    - use **ssh keys** as root of trust for pulumi **secrets** using **age**
-    - store **secrets in repository** using pulumi stack secret
+    - use **ssh keys** as root of trust for pulumi **stack secret** using **age**
+    - store **secrets in the repository** using pulumi config secrets
     - per project **tls root-ca, server-certs**, rollout **m-tls** client certificates where possible
     - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
 - create **disposable/immutable-ish** infrastructure, aim for **structural isolation** and reusability
@@ -55,22 +55,23 @@ To see what else you can do with it, continue reading or look at:
 - Basic Knowledge of Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
 
 **Advanced functionality** available with knowledge of:
-- pulumi, butane, fcos, saltstack, podman, compose.yml, makefile, systemd, bash, mkdocs, mermaid, jupyter notebooks
+- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, Bash, Mkdocs, Mermaid, Jupyter Notebooks
 
-**Tool Stack**:
+**Tool Stack used**:
 - `pulumi` - imperativ infrastructure delaration using python
-- `fcos` - Fedora-CoreOS minimal updating OS with `clevis` (sss,tang,tpm) storage unlock
-- `butane` - Define a fcos `ignition` config using `jinja` enhanced butane yaml config
-- `systemd` - Os configuration using systemd: service, socket, path, timer, nspawn
+- `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
+- `butane` - define fcos `ignition` configs using `jinja` enhanced butane yaml
+- `systemd` - configuration using systemd: service, socket, path, timer, nspawn
 - `podman` - build Container images, run Container using quadlet systemd container
 - `saltstack`
     - local embedded/iot build environments, local user services
     - remote fcos config update using butane to saltstack translation and execution
+- `mkdocs` - documentation using markdown and mermaid
 - `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
 - `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
 - `mkosi` - build nspawn OS container images
 - `age` - ssh keys based encryption of production files and pulumi master password
-- `mkdocs` - documentation using markdown and mermaid
+- `pipenv` - virtualenv management using Pipfile and Pipfile.lock
 
 **Operating Systems / Device Frameworks** facilitated:
 - Provision: **Arch** Linux, **Manjaro** Linux or as **Container Image**
