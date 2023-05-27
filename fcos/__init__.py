@@ -4,6 +4,11 @@
 - updating, minimal, monolithic, container-focused operating system
 - available for x86 and arm
 
+### Features
+
+- Deploy Single Container, Compose Container, nSpawn OS-Container
+- FCOS-Configuration Update
+
 ### Components
 
 - ButaneTranspiler
@@ -532,19 +537,20 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 class FcosConfigUpdate(pulumi.ComponentResource):
     """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
 
-    Modifications to *.bu and from their referenced files will result in a new saltstack config
+    Modifications to *.bu and their referenced files will result in a new saltstack config
 
     - Copies a systemd.service and a main.sls state file to the remote target in a /run directory
     - overwrite original update service, reload systemd, start service, configures a salt environment
     - execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
-    - only the butane sections: storage:[directories,files,links,trees] systemd:unit:[dropins] are translated
+    - only the butane sections: storage:[directories,files,links,trees] systemd:unit[:dropins] are translated
     - additional migration code can be written in basedir/*.sls
-        - use this for adding saltstack migration code to cleanup after updates, eg. deleting services
+        - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
 
     - advantages of this approach
         - it can update from a broken version of itself
-        - compared to executing a shell script via ssh
-            it is independent, doesnt die on disconnect, has logs, a.o., because its a systemd service
+        - compared to plain a shell script because its a systemd service
+            - it is independent of the shell, doesn't die on disconnect, has logs
+
     """
 
     def __init__(self, resource_name, host, transpiled_butane, opts=None):
@@ -564,7 +570,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
         update_fname = "coreos-update-config.service"
         update_str = open(os.path.join(this_dir, update_fname), "r").read()
 
-        # transport update service file and main.sls (transpiled butane) to root_dir and sls_dir
+        # transport update service file and main.sls (translated butane) to root_dir and sls_dir
         config_dict = {
             os.path.join(root_dir, update_fname): pulumi.Output.from_input(update_str),
             os.path.join(sls_dir, "main.sls"): pulumi.Output.from_input(

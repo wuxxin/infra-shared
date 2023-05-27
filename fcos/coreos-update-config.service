@@ -5,8 +5,8 @@ After=containers-build@saltstack.service boot-complete.target
 ConditionPathExists=/run/user/1000/coreos-update-config/sls/main.sls
 
 # Run saltstack by executing salt-call in an alpine container,
-# mounting /etc,/var,/run from host into container
-# XXX - This means that only /etc,/var,/run is available for changes
+# mounting /etc, /var, /run from host into container
+# XXX - This means that only /etc, /var, /run is available for changes
 
 [Service]
 Type=oneshot
