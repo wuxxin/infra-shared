@@ -4,10 +4,12 @@ set -eo pipefail
 
 usage() {
   cat <<EOF
-Usage:  <stdin> | $0 --yes | <stdout>
+Usage:  <json-from-stdin> | $0 --yes | <json-to-stdout>
 
-use vault as a commandline tool (non recommended usage) to
-create a root certificate authority and a provision certificate authority.
+use vault as a commandline pipe (non recommended usage),
+  input configuration JSON from STDIN,
+  output a root authority and a provision authority certificate as JSON to STDOUT.
+
 because of vaults excellent pki support, this includes support for permitted_dns_domains.
 
 input
