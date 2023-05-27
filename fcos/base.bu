@@ -19,7 +19,7 @@ storage:
     - path: /etc/vconsole.conf
       mode: 0644
       contents:
-        inline: KEYMAP={{ KEYMAP }}
+        inline: KEYMAP={{ KEYMAP|d(us) }}
 
     - path: /etc/sysctl.d/20-silence-audit.conf
       mode: 0644
