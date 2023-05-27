@@ -86,7 +86,7 @@ To see what else you can do with it, continue reading or look at:
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images, eg. OpenWRT
 - `fcos/*` - setup, installation and reconfiguration of Fedora CoreOS, with Jinja templated butane files
-    - Single Container: `podman-systemd.unit` - Run systemd controlled container units using podman-quadlet
+    - Single Container: `podman-systemd.unit` - Run systemd  container units using podman-quadlet
     - Multiple Container: `compose.yml` - Run multi-container applications defined using a Compose file
     - Operating System: `systemd-nspawn` - Run an Linux OS (build by mkosi) in a light-weight container
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
