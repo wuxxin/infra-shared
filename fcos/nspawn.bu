@@ -1,0 +1,37 @@
+systemd:
+  units:
+    # debian 12 (bookworm) image
+    - name: nspawn-debian-12@.service
+      contents_local: fcos/nspawn-debian-12@.service
+
+storage:
+  directories:
+    # standard *.nspawn directory
+    - path: /etc/systemd/nspawn
+    
+    # standard image base directory
+    - path: /var/lib/machines
+
+    # our nspawn environment directory
+    - path: /etc/nspawn/environment
+      mode: 0700
+
+    # our nspawn build configuration directory
+    - path: /etc/nspawn/build
+    
+    # our mkosi nspawn image configuration directory
+    - path: /etc/nspawn/mkosi
+
+    # our mkosi cache directory
+    - path: /var/cache/mkosi  
+
+  trees:
+    # our mkosi os-image configuration files
+    - path: /etc/nspawn/mkosi
+      local: mkosi
+
+  files:
+    - path: /var/local/bin/nspawn-provision.sh
+      mode: 0755
+      contents:
+        local: nspawn-provision.sh
