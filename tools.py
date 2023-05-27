@@ -33,7 +33,6 @@ import glob
 
 import yaml
 import jinja2
-
 import jinja2.ext
 import pulumi
 import pulumi_command as command
@@ -95,16 +94,16 @@ class FilesExtension(jinja2.ext.Extension):
         return "\n".join(files)
 
     def has_executable_bit(self, value):
-        "return 'True' or 'False' depending if basepath/value file has executable bit set or empty string"
+        "return 'true' or 'false' depending if basepath/value file has executable bit set or empty string"
         loader = self.environment.loader
         f = join_paths(loader.basepath, value)
         if not os.path.exists(f):
             return ""
         mode = os.stat(f).st_mode
         if mode & stat.S_IXUSR:
-            return "True"
+            return "true"
         else:
-            return "False"
+            return "false"
 
     def get_filemode(self, value):
         "return octal filemode as string of file search using basepath/value or empty string"
@@ -124,7 +123,7 @@ def jinja_run(template_str, base_dir, environment={}):
         - a string with the octal filemode of the file in base_dir/filename, or "" if not found
 
     - "sub_dir/filename"|has_executable_bit() returns
-        - a string with either "True" or "False" depending the executable bit, or "" if not found
+        - a string with either "true" or "false" depending the executable bit, or "" if not found
 
     - "sub_dir"|list_files() returns
         - a string with a newline seperated list of files in base_dir/sub_dir
