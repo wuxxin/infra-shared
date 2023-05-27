@@ -1,0 +1,27 @@
+[Distribution]
+Distribution=debian
+Release=bookworm
+
+[Output]
+Format=directory
+Bootable=no
+Hostname=bookworm
+
+[Packages]
+# PostInstallationScript=mkosi.postinst
+# NSpawnSettings=mkosi.nspawn
+Packages=
+  systemd
+  udev
+  dbus
+  lsb-release
+  tzdata
+  iproute2
+  iputils-ping
+  openssh-client
+  openssh-server
+  python3
+
+[Host]
+
+[Validation]
