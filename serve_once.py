@@ -1,35 +1,36 @@
 #!/usr/bin/env python
-"""serve a HTTPS path once, use STDIN for yaml based configuration and payload, STDOUT for request_body
+"""serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
 
-- <yaml-from-STDIN> | $0 --yes | [<request_body-to-STDOUT>]
+- calling usage: <yaml-from-STDIN> | $0 [--verbose] --yes | [<request_body-to-STDOUT>]
+
 - as one time secure data serve for eg. ignition data
-- as webhook on demand where the POST data is send to STDOUT and processed by other tools
+- as webhook on demand where the POST data is send to STDOUT
 
 will wait until timeout in seconds is reached, where it will exit 1
 will exit 0 after one sucessful request
 
 - if key or cert is None, a temporary selfsigned cert will be created
 - if mtls is true, a ca_cert must be set, and a mandatory client certificate is needed to connect
-- if mtls_clientid is not None, the correct id of the client certificate is also needed to connect
-- if port_mapping:natpmp is true, sends a port mapping request to the gateway, to be reachable from outside
+- if mtls_clientid is not None, the client certificate also needs the correct CN name to connect
 - uses buildin python except yaml and cryptography if a temporary certificate needs to be created
 - invalid request paths, invalid request methods, invalid or missing client certificates
     return an request error, but do not cause the exit of the program.
     only a sucessful transmission or a timeout will end execution.
-    TODO: this is currently not true, their are exceptions needed to pass
+    FIXME: this is currently not true, their are exceptions needed to pass
 
 """
 
 import argparse
+import copy
 import datetime
 import http.server
 import os
 import select
 import shutil
-import socket
 import ssl
 import sys
 import tempfile
+import textwrap
 import threading
 
 import yaml
@@ -50,26 +51,31 @@ def write_key(key_fifo_path, key):
         key_fifo.write(key)
 
 
-def gateway_ip():
-    try:
-        gateway_addr = socket.gethostbyname(socket.gethostname())
-        if (
-            not socket.inet_pton(socket.AF_INET, gateway_addr)
-            or gateway_addr.startswith("127.")
-            or gateway_addr.startswith("::1")
-        ):
-            gateway_addr = None
-    except socket.gaierror:
-        gateway_addr = None
-    return gateway_addr
+def merge_dict_struct(self, dict1, dict2):
+    "merge dict struct dict1 and dict2 together"
 
+    def is_dict_like(v):
+        return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
 
-def natpmp_port_mapping(public_port, private_port, gateway_ip, lifetime_sec=3600, retry=9):
-    pass
+    def is_list_like(v):
+        return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
 
-
-def natpmp_delete_mapping(outsideport, gateway_ip):
-    pass
+    dmerge = copy.deepcopy(dict1)
+    if is_dict_like(dict1) and is_dict_like(dict2):
+        for key in dict2:
+            if key in dict1:
+                # if the key is present in both dictionaries, recursively merge the values
+                dmerge[key] = merge_dict_struct(dict1[key], dict2[key])
+            else:
+                dmerge[key] = dict2[key]
+    elif is_list_like(dict1) and is_list_like(dict2):
+        for item in dict2:
+            if item not in dict1:
+                dmerge.append(item)
+    else:
+        # if neither input is a dictionary or list, the second input overwrites the first input
+        dmerge = dict2
+    return dmerge
 
 
 def generate_self_signed_certificate(hostname):
@@ -197,13 +203,6 @@ def serve_once(config):
         cert_thread.start()
         key_thread.start()
 
-        if config["port_mapping"]["natpmp"]:
-            natpmp_port_mapping(
-                public_port=config["port_mapping"]["public_port"],
-                private_port=config["serve_port"],
-                gateway_ip=config["port_mapping"]["gateway_ip"],
-            )
-
         # create HTTPS server
         httpd = http.server.HTTPServer(
             (config["serve_ip"], config["serve_port"]),
@@ -232,16 +231,8 @@ def serve_once(config):
             else:
                 sys.exit(1)
 
-    # delete port mapping, stop threads, remove named pipes and temp_dir
+    # stop threads, remove named pipes and temp_dir
     finally:
-        try:
-            if config["port_mapping"]["natpmp"]:
-                natpmp_delete_mapping(
-                    public_port=config["port_mapping"]["public_port"],
-                    gateway_ip=config["port_mapping"]["gateway_ip"],
-                )
-        except:
-            pass
         try:
             cert_thread.join()
         except:
@@ -269,7 +260,7 @@ default_config_str = """
 request_ip:
 request_path: "/"
 request_method: "GET"
-request_body_to_stdout: false
+request_body_stdout: false
 serve_ip: 0.0.0.0
 serve_port: 8443
 hostname: localhost
@@ -283,14 +274,14 @@ header:
   "Content-Type": application/json
 payload: |
   true
-# port_mapping:.* request a port_mapping to be reachable from outside
-port_mapping:
-  natpmp: false
-  public_port:
-  gateway_ip:
 """
 default_config = yaml.safe_load(default_config_str)
-default_short = ", ".join(["{}: {}".format(k, v) for k, v in default_config.items()])
+default_short = textwrap.fill(
+    ", ".join(["{}: {}".format(k, v) for k, v in default_config.items()]),
+    width=80,
+    initial_indent="  ",
+    subsequent_indent="  ",
+)
 
 
 if __name__ == "__main__":
@@ -324,11 +315,5 @@ if __name__ == "__main__":
         cert_key_dict = generate_self_signed_certificate(config["hostname"])
         config["cert"] = cert_key_dict["cert"]
         config["key"] = cert_key_dict["key"]
-
-    if config["port_mapping"]["natpmp"]:
-        if not config["port_mapping"]["public_port"]:
-            config["port_mapping"]["public_port"] = config["serve_port"]
-        if not config["port_mapping"]["gateway_ip"]:
-            config["port_mapping"]["gateway_ip"] = gateway_ip()
 
     serve_once(config)
