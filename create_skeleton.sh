@@ -81,12 +81,11 @@ create_ifnotexist config-template.yaml <<EOF
 config:
   libvirt:uri: qemu:///system
   ${project_name}:locale:
-    lang_short: de_DE
-    lang: de_DE.UTF-8
-    keymap: de
-    timezone: Europe/Vienna
-    country_code: AT
-    city: Vienna
+    lang_short: en_US
+    lang: en_US.UTF-8
+    keymap: us
+    timezone: UTC
+    country_code: UN
 
 EOF
 
