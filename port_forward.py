@@ -1,24 +1,24 @@
 #!/usr/bin/env python
 """request a port forwarding so that serve-port is reachable on public-port
-  either '--from-stdin' with 'serve_port: <port>' from STDIN
+  either '--from-stdin' with yaml 'serve_port: <port>' from STDIN
   or     '--serve-port <port>' must be set
+
+  outputs resulting configuration yaml to STDOUT, merged from STDIN yaml if '--from-stdin'
 
   can be used in combination with serve_once.py, eg.:
     result="$(printf 'serve_port: 48443\\nrequest_method: POST\\npayload: true\\n
       \\nrequest_body_stdout: true\\n' | port_forward.py --from-stdin | serve_once.py --yes)"
-
-request public ip from gateway, print to STDOUT and exit
-  '--get-public-ip' must be set
-
 """
 
 
 import argparse
 import copy
+import os
 import socket
 import sys
 import textwrap
 
+import natpmp
 import yaml
 
 
@@ -29,7 +29,7 @@ def error_print(message, print_help=False):
     sys.exit(1)
 
 
-def merge_dict_struct(self, dict1, dict2):
+def merge_dict_struct(dict1, dict2):
     "merge and return two dict like structs, dict2 takes precedence over dict1"
 
     def is_dict_like(v):
@@ -56,7 +56,23 @@ def merge_dict_struct(self, dict1, dict2):
     return dmerge
 
 
-def get_gateway_ip():
+def get_default_gateway_ip():
+    if os.path.exists("/proc/net/route"):
+        r_data = open("/proc/net/route", "r").read()
+        for r_line in r_data.splitlines():
+            r_fields = r_line.strip().split("\t")
+            if len(r_fields) >= 3 and r_fields[1] == "00000000":
+                ip_hex = r_fields[2]
+                if sys.byteorder == "little":
+                    ip_bytes = bytes.fromhex(ip_hex)[::-1]
+                else:
+                    ip_bytes = bytes.fromhex(ip_hex)
+                ip_address = socket.inet_ntoa(ip_bytes)
+                return ip_address
+    return None
+
+
+def get_default_host_ip():
     try:
         gateway_addr = socket.gethostbyname(socket.gethostname())
         if (
@@ -72,12 +88,40 @@ def get_gateway_ip():
 
 def get_public_ip(gateway_ip, protocol):
     if protocol == "natpmp":
-        return "1.2.3.4"
+        request = natpmp.PublicAddressRequest()
+        response = natpmp.send_request_with_retry(
+            gateway_ip=gateway_ip,
+            request=request,
+            response_data_class=natpmp.PublicAddressResponse,
+            retry=config["port_forward"]["retry"],
+            response_size=12,
+        )
+        if response.result == 0:
+            return response.ip
+        else:
+            print(natpmp.error_str(response.result), file=sys.stderr)
+            return None
 
 
 def port_forward(serve_port, public_port, gateway_ip, protocol):
     if protocol == "natpmp":
-        return "1.2.3.4", public_port
+        request = natpmp.PortMapRequest(
+            protocol=natpmp.NATPMP_PROTOCOL_TCP,
+            private_port=serve_port,
+            public_port=public_port,
+            lifetime=config["port_forward"]["lifetime"],
+        )
+        response = natpmp.send_request_with_retry(
+            gateway_ip=gateway_ip,
+            request=request,
+            response_data_class=natpmp.PortMapResponse,
+            retry=config["port_forward"]["retry"],
+        )
+        if response.result == 0:
+            return response.public_port
+        else:
+            print(natpmp.error_str(response.result), file=sys.stderr)
+            return None
 
 
 default_config_str = """
@@ -105,18 +149,12 @@ if __name__ == "__main__":
         description=__doc__ + "\ndefaults:\n{}\n".format(default_short),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    public_private_group = parser.add_argument_group("Serving/Public Port Options")
-    public_private_group.add_argument(
-        "--serve-port", type=int, help="internal port to connect to"
-    )
-    public_private_group.add_argument(
-        "--public-port", type=int, help="public port, will be set to serve port if unset"
-    )
-    stdin_group = parser.add_argument_group("STDIN, STDOUT Options")
-    stdin_group.add_argument("--from-stdin", action="store_true", help="Read input from STDIN")
-    get_public_ip_group = parser.add_argument_group("return public IP Options")
-    get_public_ip_group.add_argument(
-        "--get-public-ip", action="store_true", help="get public ip from gateway"
+    parser.add_argument("--from-stdin", action="store_true", help="Read input from STDIN")
+    parser.add_argument("--serve-port", type=int, help="internal port to be forwarded to")
+    parser.add_argument(
+        "--public-port",
+        type=int,
+        help="public port of packets incoming, will be set to serve-port if unset",
     )
     parser.add_argument(
         "--gateway-ip", type=str, help="gateway IP, will be inferred from network if unset"
@@ -129,20 +167,47 @@ if __name__ == "__main__":
         help="port forwarding protocol",
     )
     parser.add_argument("--lifetime", type=int, help="lifetime in seconds")
-    parser.add_argument("--retry", type=int, help="number of retries")
+    parser.add_argument(
+        "--silent", action="store_true", help="don't print configuration YAML to STDOUT"
+    )
+    get_group = parser.add_argument_group("other Functions").add_mutually_exclusive_group()
+    get_group.add_argument(
+        "--get-host-ip", action="store_true", help="print default route host IP"
+    )
+    get_group.add_argument(
+        "--get-gateway-ip", action="store_true", help="print default gateway IP"
+    )
+    get_group.add_argument(
+        "--get-public-ip",
+        action="store_true",
+        help="request the public IP from gateway and print",
+    )
     args = parser.parse_args()
     loaded_config = {"port_forward": {}}
 
-    if not args.from_stdin and not args.serve_port and not args.get_public_ip:
+    if not any(
+        [
+            args.from_stdin,
+            args.serve_port,
+            args.get_public_ip,
+            args.get_gateway_ip,
+            args.get_host_ip,
+        ]
+    ):
         error_print(
-            "Missing args, '--from-stdin', '--serve-port' or '--get-public-ip' must be set",
+            "Need one of '--from-stdin', '--serve-port', '--get-public-ip', '--get-gateway-ip', '--get-host-ip'",
             print_help=True,
         )
 
-    if args.get_public.ip:
-        public_ip = get_public_ip()
-        print(public_ip)
-        sys.exit(0)
+    if args.get_host_ip:
+        host_ip = get_default_host_ip()
+        print(host_ip)
+        sys.exit(0) if host_ip else sys.exit(1)
+
+    if args.get_gateway_ip:
+        gateway_ip = get_default_gateway_ip()
+        print(gateway_ip)
+        sys.exit(0) if gateway_ip else sys.exit(1)
 
     if args.from_stdin:
         stdin_str = sys.stdin.read()
@@ -158,8 +223,8 @@ if __name__ == "__main__":
         loaded_config["serve_port"] = args.serve_port
 
     for i in ["public_port", "gateway_ip", "lifetime", "retry"]:
-        if args[i]:
-            loaded_config["port_forward"][i] = args["i"]
+        if hasattr(args, i):
+            loaded_config["port_forward"][i] = getattr(args, i)
 
     # merge YAML config with defaults
     config = merge_dict_struct(default_config, loaded_config)
@@ -168,16 +233,30 @@ if __name__ == "__main__":
     if not config["port_forward"]["public_port"]:
         config["port_forward"]["public_port"] = config["serve_port"]
     if not config["port_forward"]["gateway_ip"]:
-        config["port_forward"]["gateway_ip"] = get_gateway_ip()
+        config["port_forward"]["gateway_ip"] = get_default_gateway_ip()
 
-    public_ip, public_port = port_forward(
+    public_ip = get_public_ip(
+        config["port_forward"]["gateway_ip"], config["port_forward"]["protocol"]
+    )
+    if not public_ip:
+        sys.exit(1)
+
+    if args.get_public_ip:
+        print(public_ip)
+        sys.exit(0)
+
+    public_port = port_forward(
         serve_port=config["serve_port"],
         public_port=config["port_forward"]["public_port"],
         gateway_ip=config["port_forward"]["gateway_ip"],
         protocol=config["port_forward"]["protocol"],
     )
+    if not public_port:
+        sys.exit(1)
+
     config["port_forward"]["public_ip"] = public_ip
     config["port_forward"]["public_port"] = public_port
 
-    # print update config (with a copy read from STDIN) to STDOUT
-    print(yaml.safe_dump(config))
+    # print updated config to STDOUT if not --silent
+    if not args.silent:
+        print(yaml.safe_dump(config))
