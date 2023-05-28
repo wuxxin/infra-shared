@@ -5,14 +5,14 @@ TMPDIR  := $(shell ls -d /var/tmp/build.???? 2>/dev/null || mktemp -d /var/tmp/b
 # Find and return full path to command by name, or throw error if none can be found in PATH.
 find-cmd = $(or $(firstword $(wildcard $(addsuffix /$(1),$(subst :, ,$(PATH))))),$(error "Command '$(1)' not found in PATH"))
 
-# build-time dependency
+# build-time dependency, abort if not found
 PIPENV ?= $(call find-cmd,pipenv)
 
 # set default target
 .DEFAULT_GOAL := help
 
-# default to use root podman as docker command (-E = pass/keep environment)
-DOCKER := sudo -E podman
+# default to use root podman as docker command
+DOCKER := sudo podman
 
 # skip annoying version information
 PULUMI_SKIP_UPDATE_CHECK=1
@@ -34,8 +34,19 @@ export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
 
+.PHONY: help
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' | sort
+
+.PHONY: submodules
+submodules: ## Pull and update git submodules recursively
+	@echo "+ $@"
+	@git pull --recurse-submodules
+	@git submodule update --init --recursive
+
+
 .PHONY: provision-container
-container: ## Build provision client container
+provision-container: ## Build provision client container
 	@echo "+ $@"
 	@cd infra/Containerfile/provision_client && $(DOCKER) build $$(pwd)
 	# -t provision_client:latest
@@ -76,32 +87,6 @@ build-env-clean: python-clean ## Remove build environment artifacts
 	@rm -f state/venv
 
 
-prod_passphrase.age: build-env
-ifeq ($(shell test -f prod_passphrase.age && echo "ok"), ok)
-	@touch -c prod_passphrase.age
-else
-	@echo "+ $@"
-	@openssl rand --base64 24 | age --encrypt -R $(ROOTDIR)authorized_keys -a > prod_passphrase.age
-endif
-
-Pulumi.prod.yaml: build-env
-ifeq ($(shell test -f Pulumi.prod.yaml && echo "ok"), ok)
-	@touch -c Pulumi.prod.yaml
-else
-	@echo "+ $@"
-	@mkdir -p $(ROOTDIR)state/pulumi
-	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) stack init prod --secrets-provider passphrase
-endif
-
-.PHONY: prod-create
-prod-create: prod_passphrase.age Pulumi.prod.yaml ## Create pulumi "prod" stack
-
-.PHONY: prod__
-prod__: prod-create ## Run pulumi --stack "prod" $(args)
-	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
-	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) --stack prod $(args)
-
 
 Pulumi.sim.yaml: build-env
 ifeq ($(shell test -f Pulumi.sim.yaml && echo "ok"), ok)
@@ -130,7 +115,7 @@ sim-show: ## Run "pulumi stack output --stack=sim --json $(args)"
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack output --json --stack "sim" $(args)
 
 .PHONY: sim__
-sim__: ## Run "pulumi --stack sim $(args)", eg. 'make sim__ "args=config"'
+sim__: ## Run "pulumi --stack sim $(args)"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" $(args)
 
@@ -177,12 +162,29 @@ clean-all: sim-clean build-env-clean python-clean docs-clean ## Remove build, do
 	@rm -rf state/salt
 	@mkdir state/tmp state/salt
 
-.PHONY: submodules
-submodules: ## Pull and update git submodules recursively
-	@echo "+ $@"
-	@git pull --recurse-submodules
-	@git submodule update --init --recursive
 
-.PHONY: help
-help:
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' | sort
+prod_passphrase.age: build-env
+ifeq ($(shell test -f prod_passphrase.age && echo "ok"), ok)
+	@touch -c prod_passphrase.age
+else
+	@echo "+ $@"
+	@openssl rand --base64 24 | age --encrypt -R $(ROOTDIR)authorized_keys -a > prod_passphrase.age
+endif
+
+Pulumi.prod.yaml: build-env
+ifeq ($(shell test -f Pulumi.prod.yaml && echo "ok"), ok)
+	@touch -c Pulumi.prod.yaml
+else
+	@echo "+ $@"
+	@mkdir -p $(ROOTDIR)state/pulumi
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) stack init prod --secrets-provider passphrase
+endif
+
+.PHONY: prod-create
+prod-create: prod_passphrase.age Pulumi.prod.yaml ## Create pulumi "prod" stack
+
+.PHONY: prod__
+prod__: prod-create ## Run pulumi --stack "prod" $(args)
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) --stack prod $(args)
