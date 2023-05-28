@@ -91,7 +91,7 @@ To see what else you can do with it, continue reading or look at:
     - Operating System: `systemd-nspawn` - Run an Linux OS (build by mkosi) in a light-weight container
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
 - `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
-- `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts form stdin
+- `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
 ### Usage
 
