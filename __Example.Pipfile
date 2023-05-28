@@ -52,6 +52,14 @@ ipython = "*"
 # pre commit checks
 pre-commit = "*"
 
+# serve_once.py
+# cryptography - provides cryptographic recipes and primitives in python
+cryptography = "*"
+
+# port_forward.py
+# NAT-PMP - Provides functions to interact with NAT-PMP version 0 draft specification gateways
+NAT-PMP = "*"
+
 ## saltstack - local build dependencies
 # pin pyzmq<20 to workaround pyzmq version resolution error (because of salt) in pipenv
 pyzmq = "<20"
@@ -85,9 +93,6 @@ mkdocs-material-extensions = "*"
 # MkDocs Material additions used for pymdownx
 mkdocs_pymdownx_material_extras = "*"
 
-
-### Examples
-# podman-compose = {git = "https://github.com/containers/podman-compose"}
 
 [dev-packages]
 
