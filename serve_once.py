@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 """serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
+  will wait until timeout in seconds is reached, where it will exit 1
+  will exit 0 after one sucessful request
 
-- calling usage: <yaml-from-STDIN> | $0 [--verbose] --yes | [<request_body-to-STDOUT>]
+can be used
+  as one time secure data serve for eg. ignition data
+  as webhook on demand where the POST data is send to STDOUT
 
-- as one time secure data serve for eg. ignition data
-- as webhook on demand where the POST data is send to STDOUT
+calling usage: <yaml-from-STDIN> | $0 [--verbose] --yes | [<request_body-to-STDOUT>]
 
-will wait until timeout in seconds is reached, where it will exit 1
-will exit 0 after one sucessful request
-
-- if key or cert is None, a temporary selfsigned cert will be created
-- if mtls is true, a ca_cert must be set, and a mandatory client certificate is needed to connect
-- if mtls_clientid is not None, the client certificate also needs the correct CN name to connect
-- uses buildin python except yaml and cryptography if a temporary certificate needs to be created
-- invalid request paths, invalid request methods, invalid or missing client certificates
+notes:
+  if key or cert is None, a temporary selfsigned cert will be created
+  if mtls is true, ca_cert must be set and a mandatory client certificate is needed to connect
+  if mtls_clientid is not None, the client certificate CN name needs to match mtls_clientid
+  uses buildin python except yaml; cryptography if a temporary certificate needs to be created
+  invalid request paths, invalid request methods, invalid or missing client certificates
     return an request error, but do not cause the exit of the program.
     only a sucessful transmission or a timeout will end execution.
     FIXME: this is currently not true, their are exceptions needed to pass
@@ -52,7 +53,7 @@ def write_key(key_fifo_path, key):
 
 
 def merge_dict_struct(self, dict1, dict2):
-    "merge dict struct dict1 and dict2 together"
+    "merge and return two dict like structs, dict2 takes precedence over dict1"
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -308,7 +309,7 @@ if __name__ == "__main__":
         loaded_config = yaml.safe_load(stdin_str)
 
     # merge YAML config from stdin with defaults
-    config = {**default_config, **loaded_config}
+    config = merge_dict_struct(default_config, loaded_config)
 
     if not config["cert"] or not config["key"]:
         verbose_print("Warning: no cert or key set, creating temporary selfsigned certificate")
