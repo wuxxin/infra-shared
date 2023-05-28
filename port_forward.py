@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 """request a port forwarding so that serve-port is reachable on public-port
-  - either '--from-stdin' with 'serve_port: <port>' from STDIN
-  - or     '--serve-port <port>' must be set
+  either '--from-stdin' with 'serve_port: <port>' from STDIN
+  or     '--serve-port <port>' must be set
 
-    can be used in combination with serve_once.py, eg.:
-    result="$(printf 'serve_port: 48443\\nrequest_method: POST\\npayload: true
-      request_body_stdout: true\\n' | port_forward.py --from-stdin | serve_once.py --yes)"
+  can be used in combination with serve_once.py, eg.:
+    result="$(printf 'serve_port: 48443\\nrequest_method: POST\\npayload: true\\n
+      \\nrequest_body_stdout: true\\n' | port_forward.py --from-stdin | serve_once.py --yes)"
 
 request public ip from gateway, print to STDOUT and exit
-  - '--get-public-ip' must be set
+  '--get-public-ip' must be set
 
 """
 
@@ -30,7 +30,7 @@ def error_print(message, print_help=False):
 
 
 def merge_dict_struct(self, dict1, dict2):
-    "merge dict struct dict1 and dict2 together"
+    "merge and return two dict like structs, dict2 takes precedence over dict1"
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         description=__doc__ + "\ndefaults:\n{}\n".format(default_short),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    public_private_group = parser.add_argument_group("Private/Public Port Options")
+    public_private_group = parser.add_argument_group("Serving/Public Port Options")
     public_private_group.add_argument(
         "--serve-port", type=int, help="internal port to connect to"
     )
