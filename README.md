@@ -1,7 +1,7 @@
 # infra-shared
 ## Software Defined Git Operated Infrastructure
 
-Reusables of a **learning project** by rewriting parts of my home infrastructure
+Reusables of a learning project by rewriting parts of my home infrastructure
 
 as a **pulumi** and **core-os** based **gitops** project in **python**.
 
@@ -205,3 +205,7 @@ make prod-create
 make prod__ args=preview
 make prod__ args=up
 ```
+
+### License
+
+All code in this repository is covered by the terms of the Apache 2.0 License, the full text of which can be found in the LICENSE file.
