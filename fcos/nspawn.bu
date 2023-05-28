@@ -1,9 +1,3 @@
-systemd:
-  units:
-    # debian 12 (bookworm) image
-    - name: nspawn-debian-12@.service
-      contents_local: fcos/nspawn-debian-12@.service
-
 storage:
   directories:
     # standard *.nspawn directory
@@ -34,4 +28,9 @@ storage:
     - path: /var/local/bin/nspawn-provision.sh
       mode: 0755
       contents:
-        local: nspawn-provision.sh
+        local: fcos/nspawn-provision.sh
+
+    # debian 12 (bookworm) image
+    - path: /etc/systemd/system/nspawn-debian-12@.service
+      contents:
+        local: fcos/nspawn-debian-12@.service
