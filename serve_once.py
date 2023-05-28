@@ -13,11 +13,9 @@ notes:
   if key or cert is None, a temporary selfsigned cert will be created
   if mtls is true, ca_cert must be set and a mandatory client certificate is needed to connect
   if mtls_clientid is not None, the client certificate CN name needs to match mtls_clientid
-  uses buildin python except yaml; cryptography if a temporary certificate needs to be created
   invalid request paths, invalid request methods, invalid or missing client certificates
     return an request error, but do not cause the exit of the program.
     only a sucessful transmission or a timeout will end execution.
-    FIXME: this is currently not true, their are exceptions needed to pass
 
 """
 
@@ -36,6 +34,8 @@ import threading
 
 import yaml
 
+# generate_self_signed_certificate() uses cryptography
+
 
 def verbose_print(message):
     if args.verbose:
@@ -52,7 +52,7 @@ def write_key(key_fifo_path, key):
         key_fifo.write(key)
 
 
-def merge_dict_struct(self, dict1, dict2):
+def merge_dict_struct(dict1, dict2):
     "merge and return two dict like structs, dict2 takes precedence over dict1"
 
     def is_dict_like(v):
@@ -231,6 +231,8 @@ def serve_once(config):
                     break
             else:
                 sys.exit(1)
+
+    # FIXME: should not abort except on CTRL-C, timeout, sucessful requests
 
     # stop threads, remove named pipes and temp_dir
     finally:
