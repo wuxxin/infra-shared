@@ -1,7 +1,10 @@
 storage:
   directories:
+    # our container environment directory
     - path: /etc/containers/environment
       mode: 0700
+
+    # our container Containerfile directory
     - path: /etc/containers/build
 
 systemd:
