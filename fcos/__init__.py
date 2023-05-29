@@ -1,5 +1,5 @@
 """
-## FCOS - Fedora-CoreOS
+## Pulumi - Fedora CoreOS
 
 - updating, minimal, monolithic, container-focused operating system
 - available for x86 and arm

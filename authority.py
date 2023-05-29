@@ -1,5 +1,5 @@
 """
-## Authority - TLS/X509 Certificates, OpenSSH Keys
+## Pulumi - Authority - TLS/X509 Certificates, OpenSSH Keys
 
 ### Config
 - ca_name

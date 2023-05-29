@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-## Tools 
+## Pulumi - Tools
 
 - Usage as command line utility: `pipenv $0 stack library function`
 
