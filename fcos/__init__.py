@@ -158,8 +158,8 @@ storage:
 
         # merge base_dict, security_dict and fcos_dict together
         merged_dict = pulumi.Output.all(base_dict, security_dict, fcos_dict).apply(
-            lambda args: self.merge_yaml_struct(
-                args[2], self.merge_yaml_struct(args[1], args[0])
+            lambda args: self.merge_dict_struct(
+                args[2], self.merge_dict_struct(args[1], args[0])
             )
         )
 
@@ -169,7 +169,7 @@ storage:
             base_yaml=merged_dict,
         ).apply(
             lambda args: yaml.safe_dump(
-                self.merge_yaml_struct(args["loaded_yaml"], args["base_yaml"])
+                self.merge_dict_struct(args["loaded_yaml"], args["base_yaml"])
             )
         )
         # self.butane_config.apply(log_warn)
@@ -303,12 +303,12 @@ storage:
             merged_yaml = pulumi.Output.all(
                 yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
             ).apply(
-                lambda args: self.merge_yaml_struct(args["yaml1_dict"], args["yaml2_dict"])
+                lambda args: self.merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"])
             )
         return merged_yaml
 
-    def merge_yaml_struct(self, yaml1, yaml2):
-        "merge struct yaml1 and yaml2 together"
+    def merge_dict_struct(self, struct1, struct2):
+        "recursive merge of two dict like structs into one, struct2 takes precedence over struct1"
 
         def is_dict_like(v):
             return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -316,22 +316,22 @@ storage:
         def is_list_like(v):
             return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
 
-        ymerge = copy.deepcopy(yaml1)
-        if is_dict_like(yaml1) and is_dict_like(yaml2):
-            for key in yaml2:
-                if key in yaml1:
+        merged = copy.deepcopy(struct1)
+        if is_dict_like(struct1) and is_dict_like(struct2):
+            for key in struct2:
+                if key in struct1:
                     # if the key is present in both dictionaries, recursively merge the values
-                    ymerge[key] = self.merge_yaml_struct(yaml1[key], yaml2[key])
+                    merged[key] = self.merge_dict_struct(struct1[key], struct2[key])
                 else:
-                    ymerge[key] = yaml2[key]
-        elif is_list_like(yaml1) and is_list_like(yaml2):
-            for item in yaml2:
-                if item not in yaml1:
-                    ymerge.append(item)
+                    merged[key] = struct2[key]
+        elif is_list_like(struct1) and is_list_like(struct2):
+            for item in struct2:
+                if item not in struct1:
+                    merged.append(item)
         else:
             # if neither input is a dictionary or list, the second input overwrites the first input
-            ymerge = yaml2
-        return ymerge
+            merged = struct2
+        return merged
 
 
 class FcosImageDownloader(pulumi.ComponentResource):

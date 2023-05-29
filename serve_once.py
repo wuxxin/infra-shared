@@ -52,8 +52,8 @@ def write_key(key_fifo_path, key):
         key_fifo.write(key)
 
 
-def merge_dict_struct(dict1, dict2):
-    "merge and return two dict like structs, dict2 takes precedence over dict1"
+def merge_dict_struct(struct1, struct2):
+    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1"
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -61,22 +61,22 @@ def merge_dict_struct(dict1, dict2):
     def is_list_like(v):
         return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
 
-    dmerge = copy.deepcopy(dict1)
-    if is_dict_like(dict1) and is_dict_like(dict2):
-        for key in dict2:
-            if key in dict1:
+    merged = copy.deepcopy(struct1)
+    if is_dict_like(struct1) and is_dict_like(struct2):
+        for key in struct2:
+            if key in struct1:
                 # if the key is present in both dictionaries, recursively merge the values
-                dmerge[key] = merge_dict_struct(dict1[key], dict2[key])
+                merged[key] = merge_dict_struct(struct1[key], struct2[key])
             else:
-                dmerge[key] = dict2[key]
-    elif is_list_like(dict1) and is_list_like(dict2):
-        for item in dict2:
-            if item not in dict1:
-                dmerge.append(item)
+                merged[key] = struct2[key]
+    elif is_list_like(struct1) and is_list_like(struct2):
+        for item in struct2:
+            if item not in struct1:
+                merged.append(item)
     else:
         # if neither input is a dictionary or list, the second input overwrites the first input
-        dmerge = dict2
-    return dmerge
+        merged = struct2
+    return merged
 
 
 def generate_self_signed_certificate(hostname):
