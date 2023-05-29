@@ -80,7 +80,7 @@ To see what else you can do with it, continue reading or look at:
 - Automation: **Homeassistant** OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)
 - IOT: **Esphome** - yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
 
-#### Features
+#### Implementation
 
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
@@ -136,8 +136,8 @@ make install-requirements
 + on other linux, use a build container
 
 ```sh
-make container
-sudo podman run -i -v $(pwd):$(pwd) provision_client /usr/bin/bash -i
+make provision-container
+sudo podman run -i -v $(pwd):$(pwd) --rm localhost/provision_client /usr/bin/bash -i
 ```
 
 #### Build documentation
@@ -208,4 +208,5 @@ make prod__ args=up
 
 ### License
 
-All code in this repository is covered by the terms of the Apache 2.0 License, the full text of which can be found in the LICENSE file.
+All code in this repository is covered by the terms of the Apache 2.0 License,
+  the full text of which can be found in the LICENSE file.
