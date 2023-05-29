@@ -17,13 +17,15 @@ if test -d /etc/nspawn/build/${resource}; then
     sleep 1
     echo " is running"
 
-    echo "copy additional configuration and installation files"
-    machinectl copy-to ${resource} /etc/nspawn/build/${resource}/ /tmp/
+    echo "copy additional configuration and installation files to /tmp of machine"
+    for f in /etc/nspawn/build/${resource}/*; do
+        machinectl copy-to $(basename "$f") /etc/nspawn/build/${resource}/ /tmp/
+    done
 
     if test -d /etc/nspawn/build/${resource}/nspawn.postinst.sh; then
         echo "execute nspawn.postinst.sh script in machine with stdin pipe"
         cat - | machinectl shell ${resource} /bin/sh -c \
-            "/bin/chmod +x /tmp/nspawn.postinst.sh; /tmp/nspawn.postinst.sh"
+            "/bin/chmod +x /tmp/nspawn.postinst.sh; /tmp/nspawn.postinst.sh --yes"
     fi
 
     printf "provision done, power off machine ${resource} "
