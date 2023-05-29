@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 """request a port forwarding so that serve-port is reachable on public-port
 
-  either '--from-stdin' with yaml 'serve_port: <port>' from STDIN
+  either '--yaml-from-stdin' with yaml 'serve_port: <port>' from STDIN
   or     '--serve-port <port>' must be set
 
-  outputs resulting configuration yaml to STDOUT, merged from STDIN yaml if '--from-stdin'
+  '--yaml-to-stdout' outputs resulting configuration yaml to STDOUT,
+    merged from STDIN yaml if '--yaml-from-stdin'
 
   can be used in combination with serve_once.py, eg.:
-    result="$(printf 'serve_port: 48443\\nrequest_method: POST\\npayload: true\\n
-      \\nrequest_body_stdout: true\\n' | port_forward.py --from-stdin | serve_once.py --yes)"
+    r="$(printf 'serve_port: 48443\\nrequest_method: POST\\npayload: true\\nrequest_body_stdout: true\\n' \\
+        | port_forward.py --yaml-from-stdin --yaml-to-stdout | serve_once.py --yes)"
 """
 
 
@@ -87,14 +88,17 @@ def get_default_host_ip():
     return gateway_addr
 
 
-def get_public_ip(gateway_ip, protocol):
+def get_public_ip(config):
+    gateway_ip, protocol, retry = (
+        config["port_forward"][c] for c in ["gateway_ip", "protocol", "retry"]
+    )
     if protocol == "natpmp":
         request = natpmp.PublicAddressRequest()
         response = natpmp.send_request_with_retry(
             gateway_ip=gateway_ip,
             request=request,
             response_data_class=natpmp.PublicAddressResponse,
-            retry=config["port_forward"]["retry"],
+            retry=retry,
             response_size=12,
         )
         if response.result == 0:
@@ -104,19 +108,25 @@ def get_public_ip(gateway_ip, protocol):
             return None
 
 
-def port_forward(serve_port, public_port, gateway_ip, protocol):
+def port_forward(config):
+    serve_port = config["serve_port"]
+    public_port, gateway_ip, protocol, lifetime, retry = (
+        config["port_forward"][c]
+        for c in ["public_port", "gateway_ip", "protocol", "lifetime", "retry"]
+    )
+
     if protocol == "natpmp":
         request = natpmp.PortMapRequest(
             protocol=natpmp.NATPMP_PROTOCOL_TCP,
             private_port=serve_port,
             public_port=public_port,
-            lifetime=config["port_forward"]["lifetime"],
+            lifetime=lifetime,
         )
         response = natpmp.send_request_with_retry(
             gateway_ip=gateway_ip,
             request=request,
             response_data_class=natpmp.PortMapResponse,
-            retry=config["port_forward"]["retry"],
+            retry=retry,
         )
         if response.result == 0:
             return response.public_port
@@ -150,7 +160,7 @@ if __name__ == "__main__":
         description=__doc__ + "\ndefaults:\n{}\n".format(default_short),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("--from-stdin", action="store_true", help="Read input from STDIN")
+    parser.add_argument("--yaml-from-stdin", action="store_true", help="Read input from STDIN")
     parser.add_argument("--serve-port", type=int, help="internal port to be forwarded to")
     parser.add_argument(
         "--public-port",
@@ -169,7 +179,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--lifetime", type=int, help="lifetime in seconds")
     parser.add_argument(
-        "--silent", action="store_true", help="don't print configuration YAML to STDOUT"
+        "--yaml-to-stdout",
+        action="store_true",
+        help="print resulting config YAML to STDOUT, include merged YAML from STDIN",
+    )
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        help="dont print anything to STDOUT, just exit 0 on success",
     )
     get_group = parser.add_argument_group("other Functions").add_mutually_exclusive_group()
     get_group.add_argument(
@@ -188,7 +205,7 @@ if __name__ == "__main__":
 
     if not any(
         [
-            args.from_stdin,
+            args.yaml_from_stdin,
             args.serve_port,
             args.get_public_ip,
             args.get_gateway_ip,
@@ -196,7 +213,7 @@ if __name__ == "__main__":
         ]
     ):
         error_print(
-            "Need one of '--from-stdin', '--serve-port', '--get-public-ip', '--get-gateway-ip', '--get-host-ip'",
+            "Need one of '--yaml-from-stdin', '--serve-port', '--get-public-ip', '--get-gateway-ip', '--get-host-ip'",
             print_help=True,
         )
 
@@ -210,13 +227,13 @@ if __name__ == "__main__":
         print(gateway_ip)
         sys.exit(0) if gateway_ip else sys.exit(1)
 
-    if args.from_stdin:
+    if args.yaml_from_stdin:
         stdin_str = sys.stdin.read()
         if not stdin_str.strip():
-            error_print("Error: Arg --from-stdin supplied, but no data from STDIN")
+            error_print("Error: Arg --yaml-from-stdin supplied, but no data from STDIN")
         loaded_config = yaml.safe_load(stdin_str)
         if "serve_port" not in loaded_config:
-            error_print("serve_port: <port> must be part of STDIN if --from-stdin")
+            error_print("serve_port: <port> must be part of STDIN if --yaml-from-stdin")
         if "port_forward" not in loaded_config:
             loaded_config["port_forward"] = {}
 
@@ -236,9 +253,7 @@ if __name__ == "__main__":
     if not config["port_forward"]["gateway_ip"]:
         config["port_forward"]["gateway_ip"] = get_default_gateway_ip()
 
-    public_ip = get_public_ip(
-        config["port_forward"]["gateway_ip"], config["port_forward"]["protocol"]
-    )
+    public_ip = get_public_ip(config)
     if not public_ip:
         sys.exit(1)
 
@@ -246,18 +261,15 @@ if __name__ == "__main__":
         print(public_ip)
         sys.exit(0)
 
-    public_port = port_forward(
-        serve_port=config["serve_port"],
-        public_port=config["port_forward"]["public_port"],
-        gateway_ip=config["port_forward"]["gateway_ip"],
-        protocol=config["port_forward"]["protocol"],
-    )
+    public_port = port_forward(config)
     if not public_port:
         sys.exit(1)
 
     config["port_forward"]["public_ip"] = public_ip
     config["port_forward"]["public_port"] = public_port
 
-    # print updated config to STDOUT if not --silent
-    if not args.silent:
+    # print updated config to STDOUT if --yaml-to-stdout
+    if args.yaml_to_stdout:
         print(yaml.safe_dump(config))
+    elif not args.silent:
+        print("{}:{}".format(public_ip, public_port))
