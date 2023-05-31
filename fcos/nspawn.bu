@@ -32,6 +32,6 @@ storage:
 
 systemd:
   units:
+    # debian 12 (bookworm) image
     - name: nspawn-debian-12@.service
-      # debian 12 (bookworm) image
       contents_local: fcos/nspawn-debian-12@.service
