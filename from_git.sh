@@ -9,8 +9,7 @@ usage() {
 clone and update from a git repository
 
     keys (ssh private key, ssh authorized_keys, ssh known_hosts, gpg key) can come from stdin
-    git-crypt unlock on encrypted repositories,
-    export git checkout and creates git revision files
+    git-crypt unlock on encrypted repositories, export git checkout, creates git revision files
 
 Install Usage: $0 bootstrap
     --url <giturl> --branch <branch>
