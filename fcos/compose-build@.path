@@ -1,0 +1,9 @@
+[Unit]
+Description=Build Compose Images for %I
+
+[Path]
+PathModified=/etc/compose/build/%i/compose.yml
+Unit=compose-build@%i.service
+
+[Install]
+WantedBy=multi-user.target

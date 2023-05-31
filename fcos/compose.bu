@@ -1,5 +1,52 @@
+storage:
+  directories:
+    # our compose environment directory
+    - path: /etc/compose/environment
+      mode: 0700
+
+    # our compose build configuration directory
+    - path: /etc/compose/build
+
 systemd:
   units:
+    - name: compose-build@.path
+      contents_local: fcos/compose-build@.path
+
+    - name: compose-build@.service
+      contents_local: fcos/compose-build@.service
+
+    - name: compose-secrets.service
+      enabled: true
+      contents_local: fcos/compose-secrets.service
+
+    - name: compose@.path
+      contents_local: fcos/compose@.path
+
+    - name: compose@.service
+      contents_local: fcos/compose@.service
+
+    # overwrite docker.service to use podman, so compose will also use podman
+    - name: docker.service
+      contents_local: |
+        [Unit]
+        Description=Podman API Service on docker.socket
+        After=docker.socket network-online.target firewalld.service
+        Requires=docker.socket
+        Wants=network-online.target
+        Documentation=man:podman-system-service(1)
+        StartLimitIntervalSec=0
+
+        [Service]
+        Delegate=true
+        Type=exec
+        KillMode=process
+        Environment=LOGGING="--log-level=info"
+        ExecStart=/usr/bin/podman $LOGGING system service
+
+        [Install]
+        WantedBy=multi-user.target
+
+    # download docker-compose v2 executable from github
     - name: var-local-install@.service
       dropins:
         - name: docker-compose

@@ -1,0 +1,14 @@
+[Unit]
+Description=Run compose up for %I
+Wants=network-online.target compose-build@%i.service
+After=network-online.target compose-build@%i.service
+ConditionPathExists=/etc/compose/build/%i/compose.yml
+ConditionPathExists=/var/local/bin/docker-compose
+
+[Service]
+Type=oneshot
+WorkingDirectory=/etc/compose/build/%i
+ExecStart=/var/local/bin/docker-compose up
+
+[Install]
+WantedBy=multi-user.target
