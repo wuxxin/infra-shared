@@ -8,7 +8,7 @@ ConditionPathExists=/etc/containers/build/%i/Containerfile
 Type=oneshot
 SyslogIdentifier=%N
 Environment=PODMAN_BUILD_OPTIONS=
-ExecStart=/bin/podman build $PODMAN_BUILD_OPTIONS \
+ExecStart=podman build $PODMAN_BUILD_OPTIONS \
     --file /etc/containers/build/%i/Containerfile \
     --tag localhost/%i:latest /etc/containers/build/%i
 
