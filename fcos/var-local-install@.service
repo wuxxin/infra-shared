@@ -1,0 +1,30 @@
+[Unit]
+Description=/var/local installed Extensions - only use if no ostree version is available - this is not the way
+Wants=network-online.target
+After=network-online.target
+Before=zincati.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=FLAG_FILE="/var/local/flags/%N.stamp"
+# template dropin needs: VERSION, FILE_URL, HASH_URL, LOCAL_FILE, SHA256SUM      
+ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
+    if ! test -e "$LOCAL_FILE" || test "$(cat "$FLAG_FILE" 2>/dev/null)" \< "$VERSION"; then \
+        TEMP_DIR="$(mktemp -d)"; \
+        curl -sSL -o "$TEMP_DIR/$(basename $LOCAL_FILE)" "$FILE_URL"; \
+        curl -sSL -o "$TEMP_DIR/$(basename $LOCAL_FILE).hash" "$HASH_URL"; \
+        cd "$TEMP_DIR" && sha256sum -c "$(basename $LOCAL_FILE).hash"; \
+        if [ $? -eq 0 ]; then \
+            mv "$TEMP_DIR/$(basename $LOCAL_FILE)" "$LOCAL_FILE"; \
+            chmod +x "$LOCAL_FILE"; \
+            echo "$VERSION" > "$FLAG_FILE"; \
+        else \
+            echo "Checksum verification failed."; 
+            exit 1; \
+        fi \
+        rm -rf "$TEMP_DIR"; \
+    fi'
+
+[Install]
+WantedBy=multi-user.target

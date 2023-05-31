@@ -1,19 +1,24 @@
 storage:
   directories:
-    # directory of run once flags for only once services
-    - path: /var/local/flags
+    # our environment directory
+    - path: /var/local/environment
+      mode: 0700
 
-    # directory where local commandline scripts will be stored
+    # our flags directory
+    - path: /var/local/flags
+      mode: 0755
+
+    # our directory for local commandline scripts and binaries
     - path: /var/local/bin
+      mode: 0755
 
   files:
     # Tell systemd to not use a pager when printing information
-    # XXX temporary disabled, to see if migration sls works
-    # - path: /etc/profile.d/systemd-pager.sh
-    #   mode: 0644
-    #   contents:
-    #     inline: |
-    #       export SYSTEMD_PAGER=cat
+    - path: /etc/profile.d/systemd-pager.sh
+      mode: 0644
+      contents:
+        inline: |
+          export SYSTEMD_PAGER=cat
 
     # Set Keyboard Layout
     - path: /etc/vconsole.conf
@@ -29,8 +34,21 @@ storage:
           # to hide audit messages from the interactive console.
           kernel.printk=4
 
+    - path: /var/local/environment/rpm-ostree-install-extensions.env
+      contents:
+        inline: |
+          RPM_OSTREE_INSTALL="{{ RPM_OSTREE_INSTALL }}"
+
 systemd:
   units:
+    - name: rpm-ostree-install-extensions.service
+      # install pkgs from RPM_OSTREE_INSTALL, will reboot afterwards, but only first time
+      contents_local: fcos/rpm-ostree-install-extensions.service
+
+    - name: var-local-install@.service
+      # install pkgs from FILE_URL to LOCAL_FILE, check hash
+      contents_local: fcos/var-local-install@.service
+
     # Opting out of counting telemetry
     - name: rpm-ostree-countme.timer
       enabled: false
@@ -49,24 +67,3 @@ systemd:
             ExecStart=-/usr/sbin/agetty --autologin core --noclear %I $TERM
     {% endif %}
 
-    # install pkgs from RPM_OSTREE_INSTALL
-    # will reboot afterwards, but only first time
-    - name: rpm-ostree-install-extensions.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Layer Extensions with rpm-ostree
-        Wants=network-online.target
-        After=network-online.target
-        Before=zincati.service
-        ConditionPathExists=!/var/local/flags/%N.stamp
-
-        [Service]
-        Type=oneshot
-        RemainAfterExit=yes
-        ExecStart=/usr/bin/rpm-ostree install --assumeyes --idempotent \
-            --allow-inactive --reboot {{ RPM_OSTREE_INSTALL }}
-        ExecStart=/bin/touch /var/local/flags/%N.stamp
-
-        [Install]
-        WantedBy=multi-user.target
