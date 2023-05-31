@@ -178,7 +178,6 @@ storage:
                 self.merge_dict_struct(args["loaded_yaml"], args["base_yaml"])
             )
         )
-        # self.butane_config.apply(log_warn)
 
         # translate merged butane yaml to saltstack salt yaml config
         # append this_dir/coreos-update-config.sls and basedir/*.sls to it
@@ -195,6 +194,8 @@ storage:
             open(os.path.join(this_dir, "coreos-update-config.sls"), "r").read(),
             *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
+
+        # self.butane_config.apply(log_warn)
 
         # translate merged butane yaml to ignition json config
         # XXX due to pulumi-command exit 1 on stderr output, we silence stderr,
@@ -236,18 +237,19 @@ storage:
                     "**",
                     root_dir=join_paths(basedir, t["local"]),
                     recursive=True,
-                    include_hidden=True,
                 ):
                     lf = join_paths(basedir, t["local"], f)
-                    rf = join_paths(t["path"] if "path" in t else "/", f)
-                    is_exec = os.stat(lf).st_mode & stat.S_IXUSR
-                    ydict["storage"]["files"].append(
-                        {
-                            "path": rf,
-                            "mode": "0755" if is_exec else "0664",
-                            "contents": {"inline": read_include(lf)},
-                        }
-                    )
+                    if not os.path.isdir(lf):
+                        rf = join_paths(t["path"] if "path" in t else "/", f)
+                        is_exec = os.stat(lf).st_mode & stat.S_IXUSR
+                        ydict["storage"]["files"].append(
+                            {
+                                "path": rf,
+                                "mode": 0o755 if is_exec else 0o664,
+                                "contents": {"inline": read_include(lf)},
+                            }
+                        )
+            del ydict["storage"]["trees"]
 
         if "storage" in ydict and "files" in ydict["storage"]:
             for fnr in range(len(ydict["storage"]["files"])):
