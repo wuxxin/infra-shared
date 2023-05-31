@@ -1,0 +1,11 @@
+systemd:
+  units:
+    - name: var-local-install@.service
+      dropins:
+        - name: docker-compose
+          contents_local: |
+            Environment=VERSION="2.18.1"
+            Environment=SHA256SUM=""
+            Environment=FILE_URL="https://github.com/docker/compose/releases/download/v${VERSION}/docker-compose-linux-x86_64"
+            Environment=HASH_URL="${FILE_URL}.sha256"
+            Environment=LOCAL_FILE="/var/local/bin/docker-compose"
