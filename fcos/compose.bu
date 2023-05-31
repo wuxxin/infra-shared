@@ -15,19 +15,19 @@ systemd:
     - name: compose-build@.service
       contents_local: fcos/compose-build@.service
 
+    - name: compose-up@.path
+      contents_local: fcos/compose-up@.path
+
+    - name: compose-up@.service
+      contents_local: fcos/compose-up@.service
+
     - name: compose-secrets.service
       enabled: true
       contents_local: fcos/compose-secrets.service
 
-    - name: compose@.path
-      contents_local: fcos/compose@.path
-
-    - name: compose@.service
-      contents_local: fcos/compose@.service
-
     # overwrite docker.service to use podman, so compose will also use podman
     - name: docker.service
-      contents_local: |
+      contents: |
         [Unit]
         Description=Podman API Service on docker.socket
         After=docker.socket network-online.target firewalld.service
@@ -47,10 +47,10 @@ systemd:
         WantedBy=multi-user.target
 
     # download docker-compose v2 executable from github
-    - name: var-local-install@.service
+    - name: var-local-install@docker-compose.service
       dropins:
-        - name: docker-compose
-          contents_local: |
+        - name: dropin.conf
+          contents: |
             Environment=VERSION="2.18.1"
             Environment=SHA256SUM=""
             Environment=FILE_URL="https://github.com/docker/compose/releases/download/v${VERSION}/docker-compose-linux-x86_64"
