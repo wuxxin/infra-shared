@@ -138,24 +138,27 @@ make install-requirements
 ```sh
 make provision-container
 
+# add a provision_client() function to running shell
 source /dev/stdin <<'EOF'
 provision_client() {
+  test "${1}" = "" && set -- "/usr/bin/bash" "${@:1}"; \
   sudo podman run -it --rm \
-  --user="$(id -u):$(id -g)" network=host \
+  --user="$(id -u):$(id -g)" --network=host \
   -v "/etc/passwd:/etc/passwd:ro" -v "/etc/group:/etc/group:ro" \
   -v "$HOME:$HOME" -v "$(pwd):$(pwd)" -v "$XDG_RUNTIME_DIR:$XDG_RUNTIME_DIR" \
   -e "HOME=$HOME" -e "PWD=$(pwd)" -e "LANG=$LANG" -e "TERM=$TERM" -e "USER=$USER" \
   -e "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" \
   -w "$(pwd)" \
   localhost/provision_client \
-  ${1:-/usr/bin/bash}
+  "${@:1}"
 }
 EOF
 
+# call provision client (defaults to /usr/bin/bash interactive shell)
 provision_client
 ```
 
-    + add `provision_client() {...}` to .bashrc to have it available every time.
++ add `provision_client() {...}` to .bashrc to have it available every time.
 
 
 #### Build documentation
