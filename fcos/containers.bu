@@ -14,9 +14,7 @@ systemd:
       contents_local: fcos/containers-tls-secrets.service
 
     - name: containers-build@.path
-      enabled: true
       contents_local: fcos/containers-build@.path
 
     - name: containers-build@.service
-      enabled: true
       contents_local: fcos/containers-build@.service
