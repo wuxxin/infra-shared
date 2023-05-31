@@ -7,8 +7,14 @@ Before=zincati.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-Environment=FLAG_FILE="/var/local/flags/%N.stamp"
 # template dropin needs: VERSION, FILE_URL, LOCAL_FILE and either HASH_URL or SHA256SUM
+Environment=VERSION=
+Environment=FILE_URL=
+Environment=LOCAL_FILE=
+Environment=HASH_URL=
+Environment=SHA256SUM=
+Environment=FLAG_FILE="/var/local/flags/%N.stamp"
+
 ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
     BASE_FILE="$(basename $LOCAL_FILE)"; \
     VER_INUSE="$(if test -e "$FLAG_FILE"; then cat "$FLAG_FILE"; else echo "0"; fi)" \
