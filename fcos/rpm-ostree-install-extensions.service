@@ -9,8 +9,7 @@ ConditionPathExists=/var/local/environment/rpm-ostree-install-extensions.env
 Type=oneshot
 RemainAfterExit=yes
 EnvironmentFile=/var/local/environment/rpm-ostree-install-extensions.env
-ExecStart=rpm-ostree install --assumeyes --idempotent \
-    --allow-inactive --reboot ${RPM_OSTREE_INSTALL}
+ExecStart=rpm-ostree install --assumeyes --idempotent --allow-inactive --reboot ${RPM_OSTREE_INSTALL}
 ExecStart=touch /var/local/flags/%N.stamp
 
 [Install]
