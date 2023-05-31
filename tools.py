@@ -187,8 +187,8 @@ class SSHCopier(pulumi.ComponentResource):
                 resource_name,
                 create=copy_cmd.format(local_path, tmpfile),
                 delete=rm_cmd.format(tmpfile),
-                opts=pulumi.ResourceOptions(parent=self),
                 triggers=[file_hash],
+                opts=pulumi.ResourceOptions(parent=self),
             )
         else:
             file_transfered = command.remote.CopyFile(
@@ -201,8 +201,8 @@ class SSHCopier(pulumi.ComponentResource):
                     user=self.props["user"],
                     private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
                 ),
-                opts=pulumi.ResourceOptions(parent=self),
                 triggers=[file_hash],
+                opts=pulumi.ResourceOptions(parent=self),
             )
         return file_transfered
 
@@ -227,7 +227,10 @@ class SSHDeployer(pulumi.ComponentResource):
         )
         rm_cmd = "rm {} || true" if self.props["delete"] else ""
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
-        triggers = [0] if not self.props["refresh"] else [random.randrange(65536)]
+        triggers = [
+            cat_cmd.format(full_remote_path),
+            data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
+        ]
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
@@ -238,8 +241,8 @@ class SSHDeployer(pulumi.ComponentResource):
                 update=cat_cmd.format(tmpfile),
                 delete=rm_cmd.format(tmpfile),
                 stdin=data.apply(lambda x: str(x)),
-                opts=pulumi.ResourceOptions(parent=self),
                 triggers=triggers,
+                opts=pulumi.ResourceOptions(parent=self),
             )
         else:
             value_deployed = command.remote.Command(
@@ -254,8 +257,8 @@ class SSHDeployer(pulumi.ComponentResource):
                 update=cat_cmd.format(full_remote_path),
                 delete=rm_cmd.format(full_remote_path),
                 stdin=data.apply(lambda x: str(x)),
-                opts=pulumi.ResourceOptions(parent=self),
                 triggers=triggers,
+                opts=pulumi.ResourceOptions(parent=self),
             )
         return value_deployed
 
@@ -307,7 +310,6 @@ def ssh_deploy(
     secret=False,
     delete=False,
     remote_prefix="",
-    refresh=False,
     simulate=None,
     opts=None,
 ):
@@ -330,7 +332,6 @@ def ssh_deploy(
         "secret": secret,
         "delete": delete,
         "remote_prefix": remote_prefix,
-        "refresh": refresh,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
     }
@@ -339,7 +340,7 @@ def ssh_deploy(
     return deployed
 
 
-def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, opts=None):
+def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, triggers=None, opts=None):
     """execute a command as user on a ssh target host
 
     if simulate==True: command is not executed but written out to state/tmp/stack_name
@@ -361,6 +362,7 @@ def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, opts=None):
             create="cat - > {}".format(os.path.join(tmpdir, resource_name)),
             delete="rm {} || true".format(os.path.join(tmpdir, resource_name)),
             stdin=cmdline,
+            triggers=triggers,
             opts=opts,
         )
     else:
@@ -373,6 +375,7 @@ def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, opts=None):
                 private_key=ssh_factory.provision_key.private_key_openssh.apply(lambda x: x),
             ),
             create=cmdline,
+            triggers=triggers,
             opts=opts,
         )
     return ssh_executed
