@@ -11,8 +11,7 @@ EnvironmentFile=/etc/nspawn/environment/%I.env
 
 # build and provision step
 # env var named NSPAWN_PROVISION will be pasted to STDIN of provision script
-ExecStartPre=/usr/bin/bash -c '\
-    set -eo pipefail; \
+ExecStartPre=/usr/bin/bash -c 'set -eo pipefail; \
     if test ! -d "/var/lib/machines/%I"; then \
       echo "building machine %I"; \
       mkosi -C /etc/nspawn/mkosi/debian-12 \
@@ -24,7 +23,7 @@ ExecStartPre=/usr/bin/bash -c '\
     fi'
 
 # normal nspawn start
-ExecStart=/usr/bin/systemd-nspawn --quiet --machine=%I --directory=/var/lib/machines/%I
+ExecStart=systemd-nspawn --quiet --machine=%I --directory=/var/lib/machines/%I
 
 # wait until machine is ready
 ExecStartPost=/usr/bin/bash -c '\
@@ -34,7 +33,7 @@ ExecStartPost=/usr/bin/bash -c '\
     sleep 1; echo " is running"'
 
 # call poweroff on service stop
-ExecStop=/usr/bin/machinectl poweroff %I
+ExecStop=machinectl poweroff %I
 
 
 [Install]
