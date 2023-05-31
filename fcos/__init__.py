@@ -6,8 +6,14 @@
 
 ### Features
 
-- Deploy Single Container, Compose Container, nSpawn OS-Container
-- FCOS-Configuration Update
+- Configures
+    - authorized_keys, tls cert, key, ca_cert
+- Deploy
+    - Single Container
+    - Compose Container
+    - nSpawn OS-Container
+- Reconfigure / Update FCOS-Configuration
+
 
 ### Components
 
