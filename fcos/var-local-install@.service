@@ -1,5 +1,5 @@
 [Unit]
-Description=/var/local installed Extensions - only use if no ostree version is available - this is not the way
+Description=/var/local installed Extensions - only use if no ostree version is available
 Wants=network-online.target
 After=network-online.target
 Before=zincati.service
@@ -8,22 +8,31 @@ Before=zincati.service
 Type=oneshot
 RemainAfterExit=yes
 Environment=FLAG_FILE="/var/local/flags/%N.stamp"
-# template dropin needs: VERSION, FILE_URL, HASH_URL, LOCAL_FILE, SHA256SUM      
+# template dropin needs: VERSION, FILE_URL, LOCAL_FILE and either HASH_URL or SHA256SUM
 ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
-    if ! test -e "$LOCAL_FILE" || test "$(cat "$FLAG_FILE" 2>/dev/null)" \< "$VERSION"; then \
-        TEMP_DIR="$(mktemp -d)"; \
-        curl -sSL -o "$TEMP_DIR/$(basename $LOCAL_FILE)" "$FILE_URL"; \
-        curl -sSL -o "$TEMP_DIR/$(basename $LOCAL_FILE).hash" "$HASH_URL"; \
-        cd "$TEMP_DIR" && sha256sum -c "$(basename $LOCAL_FILE).hash"; \
-        if [ $? -eq 0 ]; then \
-            mv "$TEMP_DIR/$(basename $LOCAL_FILE)" "$LOCAL_FILE"; \
-            chmod +x "$LOCAL_FILE"; \
-            echo "$VERSION" > "$FLAG_FILE"; \
-        else \
-            echo "Checksum verification failed."; 
-            exit 1; \
-        fi \
-        rm -rf "$TEMP_DIR"; \
+    BASE_FILE="$(basename $LOCAL_FILE)"; \
+    VER_INUSE="$(if test -e "$FLAG_FILE"; then cat "$FLAG_FILE"; else echo "0"; fi)" \
+    VER_GT="$(printf "%s\n%s\n" "$VERSION" "$VER_INUSE" | sort -Vr | head -n1)"; \
+    if test "$VER_INUSE" != "$VERSION" -o ! -e "$LOCAL_FILE"; then \
+        if test "$VER_GT" = "$VERSION" -o ! -e "$LOCAL_FILE"; then \
+            TEMP_DIR="$(mktemp -d)" && trap "rm -rf $TEMP_DIR" EXIT; \
+            curl -sSL -o "$TEMP_DIR/$BASE_FILE" "$FILE_URL"; \
+            if test "$HASH_URL" != ""; then \
+                curl -sSL -o "$TEMP_DIR/${BASE_FILE}.hash" "$HASH_URL"; \
+                pushd "$TEMP_DIR" && \
+                    cat "$TEMP_DIR/${BASE_FILE}.hash" | \
+                        sed -r "s/^([^ ]+) +(.+)$/\1 *${BASE_FILE}/g" | \
+                        sha256sum -c; \
+                popd; \
+            elif test "$SHA256SUM" != ""; then \
+                pushd "$TEMP_DIR" && printf "%s *%s" "$SHA256SUM" "$BASE_FILE" | sha256sum -c; popd; \
+            else \
+                echo "ERROR: either SHA256SUM or HASH_URL must be set"; exit 1; \
+            fi; \
+        fi; \
+        mv "$TEMP_DIR/$BASE_FILE" "$LOCAL_FILE"; \
+        chmod +x "$LOCAL_FILE"; \
+        echo "$VERSION" > "$FLAG_FILE"; \
     fi'
 
 [Install]
