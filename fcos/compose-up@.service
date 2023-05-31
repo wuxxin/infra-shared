@@ -6,7 +6,6 @@ ConditionPathExists=/etc/compose/build/%i/compose.yml
 ConditionPathExists=/var/local/bin/docker-compose
 
 [Service]
-Type=oneshot
 WorkingDirectory=/etc/compose/build/%i
 ExecStart=/var/local/bin/docker-compose up
 
