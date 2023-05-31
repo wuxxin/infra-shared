@@ -8,7 +8,7 @@ usage() {
     cat <<EOF
 clone and update from a git repository
 
-    keys (ssh private key, ssh known_hosts, gpg key) can come from stdin
+    keys (ssh private key, ssh authorized_keys, ssh known_hosts, gpg key) can come from stdin
     git-crypt unlock on encrypted repositories,
     export git checkout and creates git revision files
 
@@ -20,8 +20,9 @@ Install Usage: $0 bootstrap
 
     expects to be called as root,
     creates user, userhome, git-dir and other dirs,
+    write out user ssh-key, authorized_keys, known_hosts, gpg-key if supplied,
     install locales curl git gnupg git-crypt if missing,
-    config for lang and timezone,
+    config lang and timezone,
     then execute $0 pull
 
 Update Usage: $0 pull
@@ -58,7 +59,10 @@ Optional Parameter:
     with key data coming from stdin.
 
     + openssh private key, can be **rsa** or **ed25519**
-    + known hosts data, must be pre- and post-fixed with
+    + authorized_keys data, must be pre- and post-fixed with
+        + prefix:  "# ---BEGIN OPENSSH AUTHORIZED KEYS---"
+        + postfix: "# ---END OPENSSH AUTHORIZED KEYS---"
+    + known_hosts data, must be pre- and post-fixed with
         + prefix:   "# ---BEGIN OPENSSH KNOWN HOSTS---"
         + postfix:  "# ---END OPENSSH KNOWN HOSTS---"
     + gpg key, needs to be ascii armored
@@ -100,6 +104,14 @@ extract_ssh() {
         if test $? -ne 0; then return 1; fi
         echo "$1" | awk "/$newhead/,/$newbottom/"
     fi
+}
+
+extract_authorized_keys() {
+    local head='# ---BEGIN OPENSSH AUTHORIZED KEYS---'
+    local bottom='# ---END OPENSSH AUTHORIZED KEYS---'
+    echo "$1" | grep -qPz "(?s)$head.*$bottom"
+    if test $? -ne 0; then return 1; fi
+    echo "$1" | awk "/$head/,/$bottom/"
 }
 
 extract_known_hosts() {
@@ -283,6 +295,13 @@ main() {
             fi
         fi
 
+        authorized_keys=$(extract_authorized_keys "$keydata") && result=true || result=false
+        if ! $result; then
+            echo "Warning: no authorized_keys found from input"
+        else
+            echo "Information: authorized_keys found from input"
+        fi
+
         gpgkey=$(extract_gpg "$keydata") && result=true || result=false
         if ! $result; then
             echo "Warning: no gpg key found from input"
@@ -353,7 +372,7 @@ main() {
         echo "recursive change all files in home_dir to user:user"
         chown -R "$user:$user" "$home_dir"
 
-        # install ssh authorized_keys, known_hosts, gnupg gitops keys
+        # install ssh keys, authorized_keys, known_hosts, gnupg gitops keys
         if test "$keys_from_file" != ""; then
             install -o "$user" -g "$user" -m "0700" -d "$home_dir/.ssh"
 
@@ -367,6 +386,11 @@ main() {
                 echo "$known_hosts" >"$home_dir/.ssh/known_hosts"
                 chown "$user:$user" "$home_dir/.ssh/known_hosts"
                 chmod "0600" "$home_dir/.ssh/known_hosts"
+            fi
+            if test "$authorized_keys" != ""; then
+                echo "$authorized_keys" >>"$home_dir/.ssh/authorized_keys"
+                chown "$user:$user" "$home_dir/.ssh/authorized_keys"
+                chmod "0600" "$home_dir/.ssh/authorized_keys"
             fi
             if test "$gpgkey" != ""; then
                 install -o "$user" -g "$user" -m "0700" -d "$home_dir/.gnupg"
