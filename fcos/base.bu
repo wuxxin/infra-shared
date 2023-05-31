@@ -34,19 +34,24 @@ storage:
           # to hide audit messages from the interactive console.
           kernel.printk=4
 
-    - path: /var/local/environment/rpm-ostree-install-extensions.env
+    - path: /var/local/environment/rpm-ostree-install.env
       contents:
         inline: |
           RPM_OSTREE_INSTALL="{{ RPM_OSTREE_INSTALL }}"
 
+    - path: /var/local/environment/secrets_import.env
+      contents:
+        inline: |
+          FILES="/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key"
+
 systemd:
   units:
-    - name: rpm-ostree-install-extensions.service
-      # install pkgs from RPM_OSTREE_INSTALL, will reboot afterwards, but only first time
-      contents_local: fcos/rpm-ostree-install-extensions.service
+    # install pkgs from RPM_OSTREE_INSTALL, will reboot afterwards, but only first time
+    - name: rpm-ostree-install.service
+      contents_local: fcos/rpm-ostree-install.service
 
+    # install pkgs from FILE_URL to LOCAL_FILE, check hash
     - name: var-local-install@.service
-      # install pkgs from FILE_URL to LOCAL_FILE, check hash
       contents_local: fcos/var-local-install@.service
 
     # Opting out of counting telemetry
