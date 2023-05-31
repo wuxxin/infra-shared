@@ -496,7 +496,7 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             "{}_libvirt_ignition".format(resource_name),
             name="ignition",
             content=ignition_config,
-            # XXX ignore changes to ignition_configm, because saltstack is used for configuration updates
+            # XXX ignore changes to ignition_config, because saltstack is used for configuration updates
             opts=pulumi.ResourceOptions(parent=self, ignore_changes=["content"]),
         )
 
