@@ -9,12 +9,12 @@ storage:
 
 systemd:
   units:
-    - name: containers-tls-secrets.service
-      enabled: true
-      contents_local: fcos/containers-tls-secrets.service
-
     - name: containers-build@.path
       contents_local: fcos/containers-build@.path
 
     - name: containers-build@.service
       contents_local: fcos/containers-build@.service
+
+    - name: containers-secrets.service
+      enabled: true
+      contents_local: fcos/containers-secrets.service
