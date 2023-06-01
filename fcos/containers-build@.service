@@ -10,7 +10,7 @@ RemainAfterExit=yes
 SyslogIdentifier=%N
 Environment=PODMAN_BUILD_OPTIONS=
 WorkingDirectory=/etc/containers/build/%i
-ExecStart=podman build $PODMAN_BUILD_OPTIONS --tag localhost/%i:latest .
+ExecStart=/usr/bin/podman build $PODMAN_BUILD_OPTIONS --tag localhost/%i:latest .
 
 [Install]
 WantedBy=multi-user.target

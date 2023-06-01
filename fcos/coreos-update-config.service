@@ -58,19 +58,19 @@ ExecStart=/usr/bin/bash -c \
     printf "\n" > "${pillar_dir}/main.sls"'
 
 # make a salt-call test/mock run, to see if it would abort midways
-ExecStart=podman run --privileged \
+ExecStart=/usr/bin/podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
     /usr/local/bin/salt-call -c ${root_dir} state.highstate mock=true > /dev/null
 
 # do actual work
-ExecStart=podman run --privileged \
+ExecStart=/usr/bin/podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
     /usr/local/bin/salt-call -c ${root_dir} state.highstate
 
 # reload systemd daemon to resync with state from disk
-ExecStart=systemctl daemon-reload
+ExecStart=/usr/bin/systemctl daemon-reload
 
 # - delete main.sls because its containing secrets and as flag that update is done
 # TODO: clean other runtime files too, because they also leak secrets

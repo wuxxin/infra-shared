@@ -23,7 +23,7 @@ ExecStartPre=/usr/bin/bash -c 'set -eo pipefail; \
     fi'
 
 # normal nspawn start
-ExecStart=systemd-nspawn --quiet --machine=%I --directory=/var/lib/machines/%I
+ExecStart=/usr/bin/systemd-nspawn --quiet --machine=%I --directory=/var/lib/machines/%I
 
 # wait until machine is ready
 ExecStartPost=/usr/bin/bash -c '\
@@ -33,7 +33,7 @@ ExecStartPost=/usr/bin/bash -c '\
     sleep 1; echo " is running"'
 
 # call poweroff on service stop
-ExecStop=machinectl poweroff %I
+ExecStop=/usr/bin/machinectl poweroff %I
 
 
 [Install]
