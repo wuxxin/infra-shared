@@ -2,70 +2,30 @@
 ## Pulumi - Authority - TLS/X509 Certificates, OpenSSH Keys
 
 ### Config
-- ca_name
-- ca_org
-- ca_unit
-- ca_locality
-- ca_country
-- ca_dns_names
-- ca_provision_name
-- ca_provision_unit
-- ca_provision_dns_names
-- ca_permitted_domains
-- ca_validity_period_hours
-- ca_max_path_length
-- ca_create_using_vault
-- cert_validity_period_hours
+- ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_dns_names,
+- ca_provision_name, ca_provision_unit, ca_provision_dns_names, ca_permitted_domains
+- ca_validity_period_hours, ca_max_path_length, ca_create_using_vault, cert_validity_period_hours
 - ssh_provision_name
 
-### Available
-
-- config
-- stack_name
-- project_name
-- this_dir
-- project_dir
-
+### Useful
+- config, stack_name, project_name, this_dir, project_dir
 - ca_config
-    - ca_name
-    - ca_org
-    - ca_unit
-    - ca_locality
-    - ca_country
-    - ca_validity_period_hours
-    - ca_max_path_length
-    - ca_dns_names_list
-    - ca_dns_names
-    - ca_provision_name
-    - ca_provision_unit
-    - ca_provision_dns_names_list
-    - ca_provision_dns_names
-    - ca_permitted_domains_list
-    - ca_permitted_domains
-    - cert_validity_period_hours
+    - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_validity_period_hours, ca_max_path_length
+    - ca_dns_names_list,ca_dns_names, ca_provision_name, ca_provision_unit, ca_provision_dns_names_list
+    - ca_provision_dns_names, ca_permitted_domains_list, ca_permitted_domains, cert_validity_period_hours
     - ssh_provision_name
-
 - ca_factory
-    - ca_type
-    - root_key_pem
-    - root_cert_pem
-    - provision_key_pem
-    - provision_request_pem
-    - provision_cert_pem
-
+    - ca_type, root_key_pem, root_cert_pem
+    - provision_key_pem, provision_request_pem, provision_cert_pem
 - ssh_factory
-    - provision_key
-    - provision_publickey
-    - authorized_keys
+    - provision_key, provision_publickey, authorized_keys
 
 ### Functions
-
 - create_host_cert
 - create_client_cert
 - create_selfsigned_cert
 
 ### Components
-
 - SSHFactory
 - CACertFactoryVault
 - CACertFactoryPulumi
