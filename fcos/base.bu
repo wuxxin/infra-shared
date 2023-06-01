@@ -49,6 +49,7 @@ systemd:
     # install pkgs from RPM_OSTREE_INSTALL, will reboot afterwards, but only first time
     - name: rpm-ostree-install.service
       contents_local: fcos/rpm-ostree-install.service
+      enabled: true
 
     # install pkgs from FILE_URL to LOCAL_FILE, check hash
     - name: var-local-install@.service
