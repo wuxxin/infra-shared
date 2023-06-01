@@ -28,7 +28,6 @@ import os
 import sys
 import stat
 import hashlib
-import random
 import glob
 
 import yaml
@@ -117,7 +116,7 @@ class FilesExtension(jinja2.ext.Extension):
 def jinja_run(template_str, base_dir, environment={}):
     """renders a template string with environment, with optional includes from base_dir
 
-    custom filter available:
+    #### custom filter available
 
     - "sub_dir/filename"|get_file_mode() returns
         - a string with the octal filemode of the file in base_dir/filename, or "" if not found
@@ -129,12 +128,12 @@ def jinja_run(template_str, base_dir, environment={}):
         - a string with a newline seperated list of files in base_dir/sub_dir
         - each of these listed files are available for "import x as y" in jinja
 
-    Example:
-        - import files available under subdir "test" and translate into a saltstack state file
+    #### Example
+    import files available under subdir "test" and translate into a saltstack state file
 
     ```jinja
 
-    {% for f in 'test'|list_files().split('\n') %}{% import f as c %}
+    {% for f in 'test'|list_files().split('\\n') %}{% import f as c %}
     {{ f }}:
       file.managed:
         - contents: |
@@ -168,6 +167,7 @@ class SSHCopier(pulumi.ComponentResource):
         super().__init__("pkg:index:SSHCopier", name, None, opts)
 
         self.props = props
+        self.triggers = []
         for key, value in self.props["files"].items():
             setattr(self, key, self.__transfer(name, key, value))
         self.register_outputs({})
@@ -176,6 +176,9 @@ class SSHCopier(pulumi.ComponentResource):
         resource_name = "copy_{}".format(remote_path.replace("/", "_"))
         file_hash = pulumi.Output.concat(sha256sum_file(local_path))
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
+        self.triggers.extend(
+            [hashlib.sha256(full_remote_path.encode("utf-8")).hexdigest(), file_hash]
+        )
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
@@ -214,6 +217,7 @@ class SSHDeployer(pulumi.ComponentResource):
         super().__init__("pkg:index:SSHDeployer", name, None, opts)
 
         self.props = props
+        self.triggers = []
         for key, value in self.props["files"].items():
             setattr(self, key, self.__deploy(name, key, value))
         self.register_outputs({})
@@ -228,9 +232,10 @@ class SSHDeployer(pulumi.ComponentResource):
         rm_cmd = "rm {} || true" if self.props["delete"] else ""
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
         triggers = [
-            cat_cmd.format(full_remote_path),
+            hashlib.sha256(cat_cmd.format(full_remote_path).encode("utf-8")).hexdigest(),
             data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
         ]
+        self.triggers.extend(triggers)
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
@@ -241,7 +246,6 @@ class SSHDeployer(pulumi.ComponentResource):
                 update=cat_cmd.format(tmpfile),
                 delete=rm_cmd.format(tmpfile),
                 stdin=data.apply(lambda x: str(x)),
-                triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -257,7 +261,6 @@ class SSHDeployer(pulumi.ComponentResource):
                 update=cat_cmd.format(full_remote_path),
                 delete=rm_cmd.format(full_remote_path),
                 stdin=data.apply(lambda x: str(x)),
-                triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         return value_deployed
@@ -279,7 +282,20 @@ def ssh_copy(
     if simulate==True: files are not transfered but written out to state/tmp/stack_name
     if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
-    - files: {remotepath: localpath,}
+    files= {remotepath: localpath,}
+
+    #### Returns
+    - [attr(remotepath, remote.CopyFile|local.Command) for remotepath in files]
+    - triggers: list of key and data hashes for every file
+        - can be used for triggering another function if any file changed
+
+    #### Example
+    ```python
+    config_copied = ssh_copy(resource_name, host, user, files=files_dict)
+    config_activated = ssh_execute(resource_name, host, user, cmdline=cmdline,
+        triggers=config_copied.triggers,
+        opts=pulumi.ResourceOptions(depends_on=[config_copied]))
+    ```
     """
 
     from .authority import ssh_factory
@@ -318,7 +334,20 @@ def ssh_deploy(
     if simulate==True: data is not transfered but written out to state/tmp/stack_name
     if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
-    - files: dict= {targetpath: targetdata,}
+    files: {remotepath: data,}
+
+    #### Returns
+    - [attr(remotepath, remote.Command|local.Command) for remotepath in files]
+    - triggers: list of key and data hashes for every file,
+        - can be used for triggering another function if any file changed
+
+    #### Example:
+    ```python
+    config_deployed = ssh_deploy(resource_name, host, user, files=config_dict)
+    config_activated = ssh_execute(resource_name, host, user, cmdline=cmdline,
+        triggers=config_deployed.triggers,
+        opts=pulumi.ResourceOptions(depends_on=[config_deployed]))
+    ```
     """
     from .authority import ssh_factory
 
@@ -526,10 +555,11 @@ class LocalSaltCall(pulumi.ComponentResource):
     - config/run/tmp/cache and other files default to state/salt/stackname
     - grains from salt_config available
 
-    Example: build openwrt image
-        LocalSaltCall("build_openwrt", "state.sls", "build_openwrt",
-            pillar={}, environment={}, sls_dir=this_dir)
-
+    #### Example: build openwrt image
+    ```python
+    LocalSaltCall("build_openwrt", "state.sls", "build_openwrt",
+        pillar={}, environment={}, sls_dir=this_dir)
+    ```
     """
 
     def __init__(self, resource_name, *args, pillar={}, sls_dir=None, opts=None, **kwargs):
