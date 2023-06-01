@@ -3,14 +3,14 @@ Description=Layer Extensions with rpm-ostree
 Wants=network-online.target
 After=network-online.target
 Before=zincati.service
-ConditionPathExists=/var/local/environment/%N.env
+ConditionPathExists=/var/local/environment/rpm-ostree-install.env
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-EnvironmentFile=/var/local/environment/%N.env
-ExecStart=rpm-ostree install --assumeyes --idempotent --allow-inactive --reboot ${RPM_OSTREE_INSTALL}
-ExecStart=touch /var/local/flags/%N.stamp
+EnvironmentFile=/var/local/environment/rpm-ostree-install.env
+ExecStart=/usr/bin/rpm-ostree install --assumeyes --idempotent --allow-inactive --reboot ${RPM_OSTREE_INSTALL}
+ExecStart=/usr/bin/touch /var/local/flags/%N.stamp
 
 [Install]
 WantedBy=multi-user.target
