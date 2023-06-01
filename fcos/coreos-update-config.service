@@ -74,6 +74,8 @@ ExecStart=systemctl daemon-reload
 
 # - delete main.sls because its containing secrets and as flag that update is done
 # TODO: clean other runtime files too, because they also leak secrets
-ExecStart=rm ${sls_dir}/main.sls
+
+# ExecStart=rm ${sls_dir}/main.sls
+
 
 # XXX have no [Install] section, because this service is only called from external
