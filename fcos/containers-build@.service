@@ -6,6 +6,7 @@ ConditionPathExists=/etc/containers/build/%i/Containerfile
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 SyslogIdentifier=%N
 Environment=PODMAN_BUILD_OPTIONS=
 WorkingDirectory=/etc/containers/build/%i
