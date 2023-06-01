@@ -7,6 +7,11 @@ storage:
     # our compose build configuration directory
     - path: /etc/compose/build
 
+  links:
+    # activate install of docker-compose
+    - path: /etc/systemd/system/var-local-install@docker-compose.service
+      target: /etc/systemd/system/var-local-install@.service
+
 systemd:
   units:
     - name: compose-build@.path
