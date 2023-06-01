@@ -71,12 +71,16 @@ class CACertFactoryVault(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(
                 parent=self,
                 additional_secret_outputs=["stdout"],
+                # XXX protect CA Cert because it will always be an error to delete it
                 protect=True,
+                # XXX ignore changes to input of CA creation, because it can not be changed
+                ignore_changes=["stdin"],
                 # XXX make pulumi find legacy name for ca_factory_fault_ca
                 aliases=[Alias(name="vault_ca")] if name == "ca_factory" else [],
             ),
         )
-        ca_secrets = vault_ca.stdout.apply(lambda x: json.loads(x))
+        # XXX use json_loads to workaround https://github.com/pulumi/pulumi-command/issues/166
+        ca_secrets = pulumi.Output.json_loads(vault_ca.stdout)
         ca_root_hash = command.local.Command(
             "{}_root_hash".format(name),
             create="openssl x509 -hash -noout",
