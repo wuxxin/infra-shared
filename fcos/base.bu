@@ -1,8 +1,8 @@
 storage:
   directories:
-    # our environment directory
+    # our environment directory, set files to mode 0600 if they contain secrets
     - path: /var/local/environment
-      mode: 0700
+      mode: 0755
 
     # our flags directory
     - path: /var/local/flags
