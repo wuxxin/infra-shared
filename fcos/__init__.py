@@ -4,16 +4,17 @@
 - updating, minimal, monolithic, container-focused operating system
 - available for x86 and arm
 
-### Features
+### Library Features
 
-- Configures
-    - authorized_keys, tls cert, key, ca_cert
-- Deploy
-    - Single Container
-    - Compose Container
-    - nSpawn OS-Container
-- Reconfigure / Update FCOS-Configuration
-
+- Jinja templating of butane yaml content with environment variables replacement
+- Configuration and Initial Boot
+    - authorized_keys, tls cert, key, ca_cert, loads container secrets
+    - install ostree or var/local/bin extensions
+- Reconfiguration / Update Configuration using translated butane to salt
+- Comfortable Deployment of
+    - Single Container: `podman-systemd.unit` - run systemd container units using podman-quadlet
+    - Compose Container: `compose.yml` - run multi-container applications defined using a compose file
+    - nSpawn OS-Container: `systemd-nspawn` - run an linux OS (build by mkosi) in a light-weight container
 
 ### Components
 
@@ -587,12 +588,10 @@ class FcosConfigUpdate(pulumi.ComponentResource):
         }
 
         # copy update service to target location, reload systemd daemon, start update
-        cmdline = (
-            "sudo cp {source} {target} &&".format(
-                source=os.path.join(root_dir, update_fname),
-                target=os.path.join("/etc/systemd/system", update_fname),
-            )
-            + "sudo systemctl daemon-reload && sudo systemctl restart --wait coreos-update-config"
+        cmdline = """sudo cp {source} {target} && sudo systemctl daemon-reload && \
+                        sudo systemctl restart --wait coreos-update-config""".format(
+            source=os.path.join(root_dir, update_fname),
+            target=os.path.join("/etc/systemd/system", update_fname),
         )
 
         self.config_deployed = ssh_deploy(
@@ -605,6 +604,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
             user,
             cmdline=cmdline,
             simulate=False,
+            triggers=self.config_deployed.triggers,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
         )
 
