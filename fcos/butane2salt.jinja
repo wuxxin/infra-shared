@@ -11,6 +11,8 @@ which updates the config to the desired state while keeping changes minimal
 - custom filter "subdir"|list_files() returns a newline seperated list of files available in basedir/subdir
 - use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
 
+- TODO: implement systemd:unit:enabled=true,false
+
 #}
 {%- macro user_group_mode(o) -%}
 {%- if o.user is defined -%}
