@@ -25,6 +25,7 @@ storage:
       local: mkosi
 
   files:
+    # helper script for nspawn-*@.service
     - path: /var/local/bin/nspawn-provision.sh
       mode: 0755
       contents:

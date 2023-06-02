@@ -1,11 +1,11 @@
 storage:
   directories:
     # our environment directory, set files to mode 0600 if they contain secrets
-    - path: /var/local/environment
+    - path: /etc/local/environment
       mode: 0755
 
     # our flags directory
-    - path: /var/local/flags
+    - path: /etc/local/flags
       mode: 0755
 
     # our directory for local commandline scripts and binaries
@@ -41,13 +41,13 @@ storage:
         local: fcos/var-local-install.sh
 
     # environment for RPM_OSTREE_INSTALL packages
-    - path: /var/local/environment/rpm-ostree-install.env
+    - path: /etc/local/environment/rpm-ostree-install.env
       contents:
         inline: |
           RPM_OSTREE_INSTALL="{{ RPM_OSTREE_INSTALL }}"
 
     # environment for list of files to import as container secrets
-    - path: /var/local/environment/secrets_import.env
+    - path: /etc/local/environment/secrets_import.env
       contents:
         inline: |
           FILES="/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key"
@@ -63,14 +63,14 @@ systemd:
         Wants=network-online.target
         After=network-online.target
         Before=zincati.service
-        ConditionPathExists=/var/local/environment/rpm-ostree-install.env
+        ConditionPathExists=/etc/local/environment/rpm-ostree-install.env
 
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        EnvironmentFile=/var/local/environment/rpm-ostree-install.env
+        EnvironmentFile=/etc/local/environment/rpm-ostree-install.env
         ExecStart=/usr/bin/rpm-ostree install --assumeyes --idempotent --allow-inactive --reboot ${RPM_OSTREE_INSTALL}
-        ExecStart=/usr/bin/touch /var/local/flags/%N.stamp
+        ExecStart=/usr/bin/touch /etc/local/flags/%N.stamp
 
         [Install]
         WantedBy=multi-user.target
@@ -90,8 +90,8 @@ systemd:
         RemainAfterExit=yes
         # dropin must define: VERSION, FILE_URL, LOCAL_FILE and either HASH_URL or SHA256SUM
         # FILE_URL, HASH_URL are searched and replaced for \${VERSION} and \${ARCH}
-        Environment=FLAG_FILE=/var/local/flags/%N.stamp
-        ExecStart=/var/local/bin/fcos-var-local-install.sh --yes \
+        Environment=FLAG_FILE=/etc/local/flags/%N.stamp
+        ExecStart=/var/local/bin/var-local-install.sh --yes \
             "$VERSION" "$FILE_URL" "$LOCAL_FILE" "$HASH_URL" "$SHA256SUM" "$FLAG_FILE" "%a"
 
         [Install]

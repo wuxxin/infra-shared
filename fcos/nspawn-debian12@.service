@@ -2,7 +2,7 @@
 Description=%I - Debian 12 (Bookworm) based Nspawn Image
 Wants=network-online.target
 After=network-online.target
-ConditionPathExists=/var/local/flags/rpm-ostree-install.stamp
+ConditionPathExists=/etc/local/flags/rpm-ostree-install.stamp
 ConditionPathExists=/etc/nspawn/mkosi/debian12/mkosi.default
 ConditionPathExists=/etc/systemd/nspawn/%I.nspawn
 

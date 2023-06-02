@@ -48,4 +48,4 @@ else
     exit 1
 fi
 
-touch /var/local/flags/provision-${resource}.stamp
+touch /etc/local/flags/provision-${resource}.stamp
