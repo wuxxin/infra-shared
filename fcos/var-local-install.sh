@@ -8,6 +8,7 @@ repl_url() {
 if test "$1" != "--yes"; then
     echo "ERROR: missing --yes parameter"
     echo "call with $0 --yes version file_url local_file hash_url sha256sum flag_file architecture"
+    exit 1
 fi
 
 VERSION="$2"
