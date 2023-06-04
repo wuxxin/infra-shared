@@ -250,11 +250,12 @@ class SSHCopier(pulumi.ComponentResource):
 
     def __transfer(self, name, remote_path, local_path):
         resource_name = "copy_{}".format(remote_path.replace("/", "_"))
-        file_hash = pulumi.Output.concat(sha256sum_file(local_path))
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
-        self.triggers.extend(
-            [hashlib.sha256(full_remote_path.encode("utf-8")).hexdigest(), file_hash]
-        )
+        triggers = [
+            hashlib.sha256(full_remote_path.encode("utf-8")).hexdigest(),
+            pulumi.Output.concat(sha256sum_file(local_path)),
+        ]
+        self.triggers.extend(triggers)
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
@@ -266,7 +267,7 @@ class SSHCopier(pulumi.ComponentResource):
                 resource_name,
                 create=copy_cmd.format(local_path, tmpfile),
                 delete=rm_cmd.format(tmpfile),
-                triggers=[file_hash],
+                triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -280,7 +281,7 @@ class SSHCopier(pulumi.ComponentResource):
                     user=self.props["user"],
                     private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
                 ),
-                triggers=[file_hash],
+                triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         return file_transfered
@@ -322,6 +323,7 @@ class SSHDeployer(pulumi.ComponentResource):
                 update=cat_cmd.format(tmpfile),
                 delete=rm_cmd.format(tmpfile),
                 stdin=data.apply(lambda x: str(x)),
+                triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -337,6 +339,7 @@ class SSHDeployer(pulumi.ComponentResource):
                 update=cat_cmd.format(full_remote_path),
                 delete=rm_cmd.format(full_remote_path),
                 stdin=data.apply(lambda x: str(x)),
+                triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         return value_deployed
@@ -449,7 +452,7 @@ def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, triggers=No
     """execute a command as user on a ssh target host
 
     if simulate==True: command is not executed but written out to state/tmp/stack_name
-    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+    if simulate==None: simulate = pulumi.get_stack().endswith("sim")
 
     """
 
