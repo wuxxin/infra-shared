@@ -35,15 +35,15 @@ if test "$VER_INUSE" != "$VERSION" -o ! -e "$LOCAL_FILE"; then
 
         if test "$HASH_URL" != ""; then
             curl -sSL -o "$TEMP_DIR/${BASE_FILE}.hash" "$(repl_url "$HASH_URL")"
-            pushd "$TEMP_DIR" &&
-                cat "$TEMP_DIR/${BASE_FILE}.hash" |
-                sed -r "s/^([^ ]+) +(.+)$/\1 *${BASE_FILE}/g" |
-                    sha256sum -c
+            pushd "$TEMP_DIR"
+            cat "$TEMP_DIR/${BASE_FILE}.hash" |
+                sed -r "s/^([^ ]+) +(.+)$/\1 *${BASE_FILE}/g" | sha256sum -c
             popd
         fi
 
         if test "$SHA256SUM" != ""; then
-            pushd "$TEMP_DIR" && printf "%s *%s" "$SHA256SUM" "$BASE_FILE" | sha256sum -c
+            pushd "$TEMP_DIR"
+            printf "%s *%s" "$SHA256SUM" "$BASE_FILE" | sha256sum -c
             popd
         fi
     fi
