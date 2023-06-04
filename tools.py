@@ -17,6 +17,7 @@
 
 - log_warn
 - sha256sum_file
+- merge_dict_struct
 
 ### Components
 - LocalSaltCall
@@ -24,17 +25,19 @@
 
 """
 
-import os
-import sys
-import stat
-import hashlib
+import copy
 import glob
+import hashlib
+import os
+import re
+import stat
+import sys
 
-import yaml
 import jinja2
 import jinja2.ext
 import pulumi
 import pulumi_command as command
+import yaml
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.abspath(os.path.join(this_dir, ".."))
@@ -65,37 +68,62 @@ def sha256sum_file(filename):
     return h.hexdigest()
 
 
-class BasePathFileLoader(jinja2.FileSystemLoader):
-    def __init__(self, basepath):
-        self.basepath = os.path.normpath(basepath)
-        super().__init__(self.basepath)
+def merge_dict_struct(struct1, struct2):
+    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1"
+
+    def is_dict_like(v):
+        return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
+
+    def is_list_like(v):
+        return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
+
+    merged = copy.deepcopy(struct1)
+    if is_dict_like(struct1) and is_dict_like(struct2):
+        for key in struct2:
+            if key in struct1:
+                # if the key is present in both dictionaries, recursively merge the values
+                merged[key] = merge_dict_struct(struct1[key], struct2[key])
+            else:
+                merged[key] = struct2[key]
+    elif is_list_like(struct1) and is_list_like(struct2):
+        for item in struct2:
+            if item not in struct1:
+                merged.append(item)
+    else:
+        # if neither input is a dictionary or list, the second input overwrites the first input
+        merged = struct2
+    return merged
 
 
-class FilesExtension(jinja2.ext.Extension):
-    """jinja Extension for list_files, has_executable_bit and get_filemode filter"""
+class ToolsExtension(jinja2.ext.Extension):
+    "jinja Extension with custom filter"
 
     def __init__(self, environment):
-        super(FilesExtension, self).__init__(environment)
+        super(ToolsExtension, self).__init__(environment)
         self.environment = environment
         self.environment.filters["list_files"] = self.list_files
         self.environment.filters["has_executable_bit"] = self.has_executable_bit
         self.environment.filters["get_filemode"] = self.get_filemode
+        self.environment.filters["regex_escape"] = self.regex_escape
+        self.environment.filters["regex_search"] = self.regex_search
+        self.environment.filters["regex_match"] = self.regex_match
+        self.environment.filters["regex_replace"] = self.regex_replace
 
     def list_files(self, value):
-        "returns available files in basepath/value as string, newline seperated"
+        "returns available files in searchpath[0]/value as string, newline seperated"
         loader = self.environment.loader
-        globpath = join_paths(loader.basepath, value, "**")
+        globpath = join_paths(loader.searchpath[0], value, "**")
         files = [
-            os.path.relpath(os.path.normpath(file), loader.basepath)
+            os.path.relpath(os.path.normpath(file), loader.searchpath[0])
             for file in glob.glob(globpath, recursive=True)
             if os.path.isfile(file)
         ]
         return "\n".join(files)
 
     def has_executable_bit(self, value):
-        "return 'true' or 'false' depending if basepath/value file has executable bit set or empty string"
+        "return 'true' or 'false' depending if searchpath[0]/value file has executable bit set or empty string"
         loader = self.environment.loader
-        f = join_paths(loader.basepath, value)
+        f = join_paths(loader.searchpath[0], value)
         if not os.path.exists(f):
             return ""
         mode = os.stat(f).st_mode
@@ -105,28 +133,71 @@ class FilesExtension(jinja2.ext.Extension):
             return "false"
 
     def get_filemode(self, value):
-        "return octal filemode as string of file search using basepath/value or empty string"
+        "return octal filemode as string of file search using searchpath[0]/value or empty string"
         loader = self.environment.loader
-        f = join_paths(loader.basepath, value)
+        f = join_paths(loader.searchpath[0], value)
         if not os.path.exists(f):
             return ""
         return oct(stat.S_IMODE(os.stat(f).st_mode))
 
+    def regex_escape(self, value):
+        return re.escape(value)
 
-def jinja_run(template_str, base_dir, environment={}):
-    """renders a template string with environment, with optional includes from base_dir
+    def regex_search(self, value, pattern, ignorecase=False, multiline=False):
+        flags = 0
+        if ignorecase:
+            flags |= re.I
+        if multiline:
+            flags |= re.M
+        obj = re.search(pattern, value, flags)
+        if not obj:
+            return
+        return obj.groups()
 
-    #### custom filter available
+    def regex_match(self, value, pattern, ignorecase=False, multiline=False):
+        flags = 0
+        if ignorecase:
+            flags |= re.I
+        if multiline:
+            flags |= re.M
+        obj = re.match(pattern, value, flags)
+        if not obj:
+            return
+        return obj.groups()
 
-    - "sub_dir/filename"|get_file_mode() returns
-        - a string with the octal filemode of the file in base_dir/filename, or "" if not found
+    def regex_replace(self, value, pattern, replacement, ignorecase=False, multiline=False):
+        flags = 0
+        if ignorecase:
+            flags |= re.I
+        if multiline:
+            flags |= re.M
+        compiled_pattern = re.compile(pattern, flags)
+        return compiled_pattern.sub(replacement, value)
 
-    - "sub_dir/filename"|has_executable_bit() returns
+
+def jinja_run(template_str, searchpath, environment={}):
+    """renders a template string with environment, with optional includes from searchpath
+
+    - searchpath can be string, or list of strings
+
+    #### file related custom filter
+    - "sub_dir/filename"|get_file_mode()
+        - a string with the octal filemode of the file in searchpath[0]/filename, or "" if not found
+    - "sub_dir/filename"|has_executable_bit()
         - a string with either "true" or "false" depending the executable bit, or "" if not found
-
-    - "sub_dir"|list_files() returns
-        - a string with a newline seperated list of files in base_dir/sub_dir
+    - "sub_dir"|list_files()
+        - a string with a newline seperated list of files in searchpath/sub_dir
         - each of these listed files are available for "import x as y" in jinja
+
+    #### regex related custom filter
+    - "text"|regex_escape()
+    - "text"|regex_search(pattern)
+    - "text"|regex_match(pattern)
+    - "text"|regex_replace(pattern, replacement)
+
+    search,match,replace support additional args
+    - ignorecase=True/*False
+    - multiline=True/*False
 
     #### Example
     import files available under subdir "test" and translate into a saltstack state file
@@ -142,19 +213,23 @@ def jinja_run(template_str, base_dir, environment={}):
     ```
 
     """
-    env = jinja2.Environment(loader=BasePathFileLoader(base_dir), extensions=[FilesExtension])
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(searchpath), extensions=[ToolsExtension]
+    )
     template = env.from_string(template_str)
     rendered = template.render(environment)
     return rendered
 
 
-def jinja_run_template(template_filename, base_dir, environment={}):
-    """renders a template file available from base_dir with environment
+def jinja_run_template(template_filename, searchpath, environment={}):
+    """renders a template file available from searchpath with environment
 
     - for details see `jinja_run`
 
     """
-    env = jinja2.Environment(loader=BasePathFileLoader(base_dir), extensions=[FilesExtension])
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(searchpath), extensions=[ToolsExtension]
+    )
     template = env.get_template(template_filename)
     rendered = template.render(environment)
     return rendered
