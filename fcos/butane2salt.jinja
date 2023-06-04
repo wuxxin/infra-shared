@@ -46,7 +46,8 @@ service_enabled_{{ service_path }}:
   file.accumulated:
     - filename: {{ update_dir }}/service_enabled.txt
     - text: {{ service_name }}
-    - onchanges: {{ service_path }}
+    - onchanges:
+      - file: {{ service_path }}
     - require_in:
       - file: service_enabled
 
@@ -77,7 +78,7 @@ write service to service_changed.txt, if target matches regex_list
   {%- set target_ns= namespace(target_name="") -%}
   {%- for service_regex in service_regex_list -%}
     {%- if target|regex_match("^" ~ service_regex~ "$") -%}
-      {%- set target_ns.target_name = target|regex_replace(service_regex, '\1') -%}
+      {%- set target_ns.target_name = target|regex_replace(service_regex, '\\1') -%}
     {%- endif -%}
   {%- endfor -%}
   {%- if target_ns.target_name != "" -%}
@@ -86,7 +87,8 @@ service_changed_{{ target }}:
   file.accumulated:
     - filename: {{ update_dir }}/service_changed.txt
     - text: {{ target_ns.target_name }}
-    - onchanges: {{ target }}
+    - onchanges:
+      - file: {{ target }}
     - require_in:
       - file: service_changed
 
