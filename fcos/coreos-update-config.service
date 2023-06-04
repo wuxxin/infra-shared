@@ -6,7 +6,7 @@ ConditionPathExists=/run/user/1000/coreos-update-config/sls/main.sls
 
 # Run saltstack by executing salt-call in an alpine container,
 # mounting /etc, /var, /run from host into container
-# XXX - This means that only /etc, /var, /run is available for changes
+# XXX - That means only /etc, /var, /run are available for changes
 
 [Service]
 Type=oneshot
@@ -57,13 +57,13 @@ ExecStart=/usr/bin/bash -c \
     printf "base:\n  \'*\':\n    - main\n" > "${pillar_dir}/top.sls" \
     printf "\n" > "${pillar_dir}/main.sls"'
 
-# make a salt-call test/mock run, to see if it would abort midways
+# make a salt-call test/mock run, to see if update would abort midways
 ExecStart=/usr/bin/podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
     /usr/local/bin/salt-call -c ${root_dir} state.highstate mock=true > /dev/null
 
-# do actual work
+# do the actual update work
 ExecStart=/usr/bin/podman run --privileged \
     -v /etc:/etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/saltstack:latest \
@@ -72,8 +72,44 @@ ExecStart=/usr/bin/podman run --privileged \
 # reload systemd daemon to resync with state from disk
 ExecStart=/usr/bin/systemctl daemon-reload
 
-# - delete main.sls because its containing secrets and as flag that update is done
-# TODO: clean other runtime files too, because they also leak secrets
+# enable each service that should be enabled, by list created from butane2salt.jinja
+ExecStart=/usr/bin/bash -c '\
+    if test -e ${root_dir}/service_enabled.txt; then \
+        toenable=$(cat ${root_dir}/service_enabled.txt | \
+            grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
+        if test "$toenable" != ""; then \
+            systemctl enable $toenable; \
+        fi; \
+    fi'
+
+# reset failed units and restart each service that got changed, by list created from butane2salt.jinja
+# dont act on template services, dont act on services without [Install] sections
+ExecStart=/usr/bin/bash -c '\
+    systemctl reset-failed; \
+    if test -e ${root_dir}/service_changed.txt; then \
+        changed=$(cat ${root_dir}/service_changed.txt | \
+            grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
+        if test "$changed" != ""; then \
+            torestart=""; \
+            templates=""; \
+            for i in $changed; do \
+                if test "${i%@" != "${i}"; then \
+                    templates="$templates $i"; \
+                else \
+                    wantedby=$(systemctl show "${i}.service" --property=WantedBy --value); \
+                    if test "$wantedby" != ""; then \
+                        torestart="$torestart $i"; \
+                    fi; \
+                fi; \
+            done; \
+            if test "$torestart" != ""; then \
+                systemctl restart $torestart; \
+            fi; \
+        fi; \
+    fi'
+
+# delete main.sls because its containing secrets and as flag that update is done
+# clean other runtime files too, because they also leak secrets
 
 # ExecStart=rm ${sls_dir}/main.sls
 
