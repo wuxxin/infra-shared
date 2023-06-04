@@ -32,7 +32,6 @@ import copy
 import stat
 import json
 import glob
-import hashlib
 import yaml
 
 import pulumi
@@ -40,7 +39,7 @@ import pulumi_command as command
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 
-from ..tools import jinja_run, jinja_run_template, log_warn
+from ..tools import jinja_run, jinja_run_template, merge_dict_struct, log_warn
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -48,12 +47,19 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 class ButaneTranspiler(pulumi.ComponentResource):
     """translate jinja templated butane files to ignition and a subset to saltstack salt format
 
-    - jinja templating of butane yaml content with environment variables replacement
+    - environment available in jinja with defaults for
+        - Boolean DEBUG
+        - Dict LOCALE: {LANG,KEYMAP,TIMEZONE}
+        - List RPM_OSTREE_INSTALL
+    - jinja butane templating
+        - override order: butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
         - butane_input string with butane contents:local support from {basedir}
-        - butane config for hostname, ssh keys, tls root_ca, server cert and key
+        - butane_security config for hostname, ssh keys, tls root_ca, server cert and key
         - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
+        - {basedir}/*.bu with butane contents:local support from {basedir}
+    - saltstack translation
+        - jinja templating of butane2salt.jinja with butane_config as environment
         - {this_dir}/coreos-update-config.sls for migration helper from older fcos/*.bu
-        - {basedir}/*.bu with butane contents:local support from {baserdir}
         - {basedir}/*.sls
     - returns
         - butane_config (merged butane yaml)
@@ -72,7 +78,19 @@ class ButaneTranspiler(pulumi.ComponentResource):
 
         child_opts = pulumi.ResourceOptions(parent=self)
         this_parent = os.path.abspath(os.path.join(this_dir, ".."))
-        this_env = {} if env is None else env
+
+        default_env_str = """
+DEBUG: false
+RPM_OSTREE_INSTALL:
+  - mkosi
+LOCALE:
+  LANG: en_US.UTF-8
+  KEYMAP: us
+  TIMEZONE: UTC
+  COUNTRY_CODE: UN
+"""
+        default_env = yaml.safe_load(default_env_str)
+        this_env = merge_dict_struct(default_env, {} if env is None else env)
 
         # configure hostname, ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -163,33 +181,33 @@ storage:
             )
         )
 
-        # merge base_dict, security_dict and fcos_dict together
-        merged_dict = pulumi.Output.all(base_dict, security_dict, fcos_dict).apply(
-            lambda args: self.merge_dict_struct(
-                args[2], self.merge_dict_struct(args[1], args[0])
-            )
-        )
-
-        # jinja template *.bu yaml files from basedir, merge with merged_dict
+        # jinja template *.bu yaml files from basedir
+        # merge base_dict -> security_dict > loaded_dict -> fcos_dict
         self.butane_config = pulumi.Output.all(
+            base_dict=base_dict,
+            security_dict=security_dict,
+            fcos_dict=fcos_dict,
             loaded_yaml=self.load_butane_files(basedir, env=this_env),
-            base_yaml=merged_dict,
         ).apply(
             lambda args: yaml.safe_dump(
-                self.merge_dict_struct(args["loaded_yaml"], args["base_yaml"])
+                merge_dict_struct(
+                    args["fcos_dict"],
+                    merge_dict_struct(
+                        args["loaded_yaml"],
+                        merge_dict_struct(args["security_dict"], args["base_dict"]),
+                    ),
+                )
             )
         )
 
         # translate merged butane yaml to saltstack salt yaml config
         # append this_dir/coreos-update-config.sls and basedir/*.sls to it
-        self.jinja_transform = open(os.path.join(this_dir, "butane2salt.jinja"), "r").read()
-        self.jinja_hash = hashlib.sha256(self.jinja_transform.encode("utf-8")).hexdigest()
         self.saltstack_config = pulumi.Output.concat(
             pulumi.Output.all(butane=self.butane_config).apply(
-                lambda args: jinja_run(
-                    self.jinja_transform,
-                    basedir,
-                    {"butane": yaml.safe_load(args["butane"]), "jinja_hash": self.jinja_hash},
+                lambda args: jinja_run_template(
+                    "butane2salt.jinja",
+                    [basedir, this_dir],
+                    {"butane": yaml.safe_load(args["butane"])},
                 )
             ),
             open(os.path.join(this_dir, "coreos-update-config.sls"), "r").read(),
@@ -311,36 +329,8 @@ storage:
             )
             merged_yaml = pulumi.Output.all(
                 yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
-            ).apply(
-                lambda args: self.merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"])
-            )
+            ).apply(lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"]))
         return merged_yaml
-
-    def merge_dict_struct(self, struct1, struct2):
-        "recursive merge of two dict like structs into one, struct2 takes precedence over struct1"
-
-        def is_dict_like(v):
-            return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
-
-        def is_list_like(v):
-            return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
-
-        merged = copy.deepcopy(struct1)
-        if is_dict_like(struct1) and is_dict_like(struct2):
-            for key in struct2:
-                if key in struct1:
-                    # if the key is present in both dictionaries, recursively merge the values
-                    merged[key] = self.merge_dict_struct(struct1[key], struct2[key])
-                else:
-                    merged[key] = struct2[key]
-        elif is_list_like(struct1) and is_list_like(struct2):
-            for item in struct2:
-                if item not in struct1:
-                    merged.append(item)
-        else:
-            # if neither input is a dictionary or list, the second input overwrites the first input
-            merged = struct2
-        return merged
 
 
 class FcosImageDownloader(pulumi.ComponentResource):
@@ -536,7 +526,7 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             qemu_agent=True,
             tpm=libvirt.DomainTpmArgs(backend_version="2.0", backend_persistent_state=True),
             xml=libvirt.DomainXmlArgs(xslt=self.domain_additions_xslt),
-            # XXX ignore changes to ignition_configm, because saltstack is used for configuration updates
+            # XXX ignore changes to ignition_config, because saltstack is used for configuration updates
             opts=pulumi.ResourceOptions(parent=self, ignore_changes=["coreos_ignition"]),
         )
         self.result = self.vm
@@ -563,7 +553,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
     """
 
     def __init__(self, resource_name, host, transpiled_butane, opts=None):
-        from ..tools import ssh_execute, ssh_deploy, jinja_run_template
+        from ..tools import ssh_execute, ssh_deploy
 
         super().__init__(
             "pkg:index:FcosConfigUpdate",
