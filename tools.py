@@ -178,7 +178,7 @@ class ToolsExtension(jinja2.ext.Extension):
 def jinja_run(template_str, searchpath, environment={}):
     """renders a template string with environment, with optional includes from searchpath
 
-    - searchpath can be string, or list of strings
+    - searchpath can be string, or list of strings, file related filter only search searchpath[0]
 
     #### file related custom filter
     - "sub_dir/filename"|get_file_mode()
@@ -224,6 +224,7 @@ def jinja_run(template_str, searchpath, environment={}):
 def jinja_run_template(template_filename, searchpath, environment={}):
     """renders a template file available from searchpath with environment
 
+    - searchpath can be a list of strings, template_filename can be from any searchpath
     - for details see `jinja_run`
 
     """
