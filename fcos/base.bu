@@ -1,30 +1,32 @@
 storage:
   directories:
-    # our environment directory, set files to mode 0600 if they contain secrets
+    # quadlet container/volume/network configuration files
+    # name files {service}[.optional].[container,volume,other]
+    - path: /etc/containers/systemd
+
+    # our environment directory, name files {service}.env
     - path: /etc/local/environment
-      mode: 0755
+      mode: 0700
 
     # our flags directory
     - path: /etc/local/flags
-      mode: 0755
 
     # our directory for local commandline scripts and binaries
     - path: /var/local/bin
-      mode: 0755
 
   files:
-    # Tell systemd to not use a pager when printing information
+    # tell systemd to not use a pager when printing information
     - path: /etc/profile.d/systemd-pager.sh
       mode: 0644
       contents:
         inline: |
           export SYSTEMD_PAGER=cat
 
-    # Set Keyboard Layout
+    # set keyboard layout
     - path: /etc/vconsole.conf
       mode: 0644
       contents:
-        inline: KEYMAP={{ KEYMAP|d(us) }}
+        inline: KEYMAP={{ LOCALE["KEYMAP"] }}
 
     # hide audit messages from the interactive console
     - path: /etc/sysctl.d/20-silence-audit.conf
@@ -44,13 +46,16 @@ storage:
     - path: /etc/local/environment/rpm-ostree-install.env
       contents:
         inline: |
-          RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL }}
+          RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
 
-    # environment for list of files to import as container secrets
-    - path: /etc/local/environment/secrets_import.env
+    # environment for list of files to import as container/compose secrets
+    {%- for i in ["containers-secrets", "compose-secrets"] %}
+    - path: /etc/local/environment/{{ i }}.env
       contents:
         inline: |
           FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
+
+    {% endfor %}
 
 systemd:
   units:
@@ -63,13 +68,16 @@ systemd:
         Wants=network-online.target
         After=network-online.target
         Before=zincati.service
-        ConditionPathExists=/etc/local/environment/rpm-ostree-install.env
+        ConditionPathExists=/etc/local/environment/%N.env
 
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        EnvironmentFile=/etc/local/environment/rpm-ostree-install.env
-        ExecStart=/usr/bin/rpm-ostree install --assumeyes --idempotent --allow-inactive --reboot ${RPM_OSTREE_INSTALL}
+        EnvironmentFile=/etc/local/environment/%N.env
+        # XXX workaround systemd variables counting as one arg if passed directly into a command line
+        ExecStart=/usr/bin/bash -c 'set -e; \
+            /usr/bin/rpm-ostree install \
+              --assumeyes --idempotent --allow-inactive --reboot ${RPM_OSTREE_INSTALL}'
         ExecStart=/usr/bin/touch /etc/local/flags/%N.stamp
 
         [Install]
@@ -91,19 +99,20 @@ systemd:
         # dropin must define: VERSION, FILE_URL, LOCAL_FILE and either HASH_URL or SHA256SUM
         # FILE_URL, HASH_URL are searched and replaced for \${VERSION} and \${ARCH}
         Environment=FLAG_FILE=/etc/local/flags/%N.stamp
-        ExecStart=/var/local/bin/var-local-install.sh --yes \
+        # XXX workaround fcos systemd selinux permissions, by using /usr/bin/bash shellscript args
+        ExecStart=/usr/bin/bash /var/local/bin/var-local-install.sh --yes \
             "$VERSION" "$FILE_URL" "$LOCAL_FILE" "$HASH_URL" "$SHA256SUM" "$FLAG_FILE" "%a"
 
         [Install]
         WantedBy=multi-user.target
 
-    # Opting out of counting telemetry
+    # opt out of counting telemetry
     - name: rpm-ostree-countme.timer
       enabled: false
       mask: true
 
-    {% if DEBUG|d("false") == "true" %}
-    # Debugging: Add autologin on serial console
+    {% if DEBUG %}
+    # debugging: Add autologin on serial console
     - name: serial-getty@ttyS0.service
       dropins:
         - name: autologin-core.conf
