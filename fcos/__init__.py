@@ -214,7 +214,7 @@ storage:
             *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
 
-        # self.butane_config.apply(log_warn)
+        # self.saltstack_config.apply(log_warn)
 
         # translate merged butane yaml to ignition json config
         # XXX due to pulumi-command exit 1 on stderr output, we silence stderr,
@@ -552,7 +552,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
 
     """
 
-    def __init__(self, resource_name, host, transpiled_butane, opts=None):
+    def __init__(self, resource_name, host, compiled_config, opts=None):
         from ..tools import ssh_execute, ssh_deploy
 
         super().__init__(
@@ -565,40 +565,42 @@ class FcosConfigUpdate(pulumi.ComponentResource):
         child_opts = pulumi.ResourceOptions(parent=self)
         user = "core"
         root_dir = "/run/user/1000/coreos-update-config"
-        sls_dir = os.path.join(root_dir, "sls")
         update_fname = "coreos-update-config.service"
         update_str = open(os.path.join(this_dir, update_fname), "r").read()
 
         # transport update service file and main.sls (translated butane) to root_dir and sls_dir
         config_dict = {
-            os.path.join(root_dir, update_fname): pulumi.Output.from_input(update_str),
-            os.path.join(sls_dir, "main.sls"): pulumi.Output.from_input(
-                transpiled_butane.saltstack_config
+            update_fname: pulumi.Output.from_input(update_str),
+            os.path.join("sls", "main.sls"): pulumi.Output.from_input(
+                compiled_config.saltstack_config
             ),
         }
-
-        # copy update service to target location, reload systemd daemon, start update
-        cmdline = """sudo cp {source} {target} && sudo systemctl daemon-reload && \
-                        sudo systemctl restart --wait coreos-update-config""".format(
-            source=os.path.join(root_dir, update_fname),
-            target=os.path.join("/etc/systemd/system", update_fname),
-        )
-
         self.config_deployed = ssh_deploy(
-            resource_name, host, user, files=config_dict, simulate=False, opts=child_opts
-        )
-
-        self.coreos_update_config = ssh_execute(
             resource_name,
             host,
             user,
-            cmdline=cmdline,
+            files=config_dict,
+            remote_prefix=root_dir,
+            simulate=False,
+            opts=child_opts,
+        )
+
+        # copy update service to target location, reload systemd daemon, start update
+        self.config_updated = ssh_execute(
+            resource_name,
+            host,
+            user,
+            cmdline="""sudo cp {source} {target} && sudo systemctl daemon-reload && \
+                        sudo systemctl restart --wait coreos-update-config""".format(
+                source=os.path.join(root_dir, update_fname),
+                target=os.path.join("/etc/systemd/system", update_fname),
+            ),
             simulate=False,
             triggers=self.config_deployed.triggers,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
         )
 
-        self.result = self.coreos_update_config
+        self.result = self.config_updated
         self.register_outputs({})
 
 
