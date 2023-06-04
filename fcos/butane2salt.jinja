@@ -1,17 +1,27 @@
-{#
+{# translates and inlines a subset of butane spec into a one file saltstack salt spec
 
-translates and inlines a restricted subset of butane spec into a one file saltstack salt spec
+to be used from the systemd service "coreos-update-config.service"
+in a saltstack salt-call command, which updates the config to the desired state
+while keeping changes minimal
 
-this is to be used in a saltstack salt-call command, 
-eg. from the systemd service "coreos-update.config.service"
-which updates the config to the desired state while keeping changes minimal
+- additional outputs
+    - {update_dir}/service_changed.txt
+        - with a commented, non uniqe, not sorted list of service names with changed configuration
+        - usage: `systemctl restart $(cat service_changed.txt | grep -v "^#" |  sort | uniq`
+
+    - {update_dir}/service_enabled.txt
 
 - only the currently used subset in *.bu files of the butane spec is supported
-- only storage:directories/links/files/trees and systemd:units[:dropins] are translated
+  - only storage:directories/links/files/trees and systemd:units[:dropins] are translated
+
 - custom filter "subdir"|list_files() returns a newline seperated list of files available in basedir/subdir
 - use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
 
-- TODO: implement systemd:unit:enabled=true,false
+#}
+{% set update_dir= "/run/user/1000/coreos-update-config" %}
+{#
+
+write out user,group,mode if present
 
 #}
 {%- macro user_group_mode(o) -%}
@@ -27,6 +37,101 @@ which updates the config to the desired state while keeping changes minimal
 {%- endmacro -%}
 {#
 
+write service to service_enabled.txt
+
+#}
+{%- macro service_enabled(service_path, service_name) -%}
+
+service_enabled_{{ service_path }}:
+  file.accumulated:
+    - filename: {{ update_dir }}/service_enabled.txt
+    - text: {{ service_name }}
+    - onchanges: {{ service_path }}
+    - require_in:
+      - file: service_enabled
+
+{%- endmacro -%}
+{#
+
+write service to service_changed.txt, if target matches regex_list
+  - any unit in systemd/system/*.*
+  - any dropin in systemd/system/*.d/*.conf
+  - any env in [local,containers,compose]/*.env
+  - any file in [containers,compose]/build/*/*
+  - ignore changes to itself (coreos-update-config service)
+#}
+{%- macro target_changed(target) -%}
+  {%- set service_regex_list = [
+    "/etc/systemd/system/([^/]+)\.[^\.]+",
+    "/etc/systemd/system/([^/]+)\.d/.+\.conf",
+
+    "/etc/local/environment/([^/]+)\.env",
+    "/etc/containers/environment/([^/]+)\.env",
+    "/etc/compose/environment/([^/]+)\.env",
+
+    "/etc/containers/systemd/([^/.]+)\..+",
+
+    "/etc/containers/build/([^/]+)/.+",
+    "/etc/compose/build/([^/]+)/.+",
+  ] -%}
+  {%- set target_ns= namespace(target_name="") -%}
+  {%- for service_regex in service_regex_list -%}
+    {%- if target|regex_match("^" ~ service_regex~ "$") -%}
+      {%- set target_ns.target_name = target|regex_replace(service_regex, '\1') -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if target_ns.target_name != "" -%}
+
+service_changed_{{ target }}:
+  file.accumulated:
+    - filename: {{ update_dir }}/service_changed.txt
+    - text: {{ target_ns.target_name }}
+    - onchanges: {{ target }}
+    - require_in:
+      - file: service_changed
+
+  {%- endif -%}
+{%- endmacro -%}
+{#
+
+Accumulator targets for service_enabled and service_changed
+
+#}
+create_service_enabled:
+  file.managed:
+    - name: {{ update_dir }}/service_enabled.txt
+    - user: 1000
+    - group: 1000
+service_enabled:
+  file.blockreplace:
+    - name: {{ update_dir }}/service_enabled.txt
+    - marker_start: "# START"
+    - marker_end: "# END"
+    - content: ""
+    - append_if_not_found: True
+    - show_changes: True
+    - require:
+      - file: create_service_enabled
+
+create_service_changed:
+  file.managed:
+    - name: {{ update_dir }}/service_changed.txt
+    - user: 1000
+    - group: 1000
+service_changed:
+  file.blockreplace:
+    - name: {{ update_dir }}/service_changed.txt
+    - marker_start: "# START"
+    - marker_end: "# END"
+    - content: ""
+    - append_if_not_found: True
+    - show_changes: True
+    - require:
+      - file: create_service_changed
+{#
+
+Translate directories, links, files, trees, systemd units and dropins
+
 #}
 {%- if "storage" in butane and "directories" in butane.storage %}
   {%- for d in butane.storage.directories %}
@@ -40,6 +145,8 @@ which updates the config to the desired state while keeping changes minimal
 
 {%- if "storage" in butane and "links" in butane.storage %}
   {%- for l in butane.storage.links %}
+
+{{ target_changed(l.path) }}
 {{ l.path }}:
   file.symlink:
     {%- if l.target is defined %}
@@ -56,6 +163,7 @@ which updates the config to the desired state while keeping changes minimal
 {%- if "storage" in butane and "files" in butane.storage %}
   {%- for f in butane.storage.files %}
 
+{{ target_changed(f.path) }}
 {{ f.path }}:
   file.managed:
 {{ user_group_mode(f) }}
@@ -86,7 +194,10 @@ which updates the config to the desired state while keeping changes minimal
     {% set list_str= t.local|list_files() %}
     {%- for f in list_str.split("\n") %}
       {%- import f as contents %}
-{{ path }}/{{ f.replace(t.local ~ '/', '') }}:
+      {%- set fp= path ~ '/'~ f.replace(t.local ~ '/', '') %}
+
+{{ target_changed(fp) }}
+{{ fp }}:
   file.managed:
     - contents: |
         {{ contents|string()|indent(8) }}
@@ -97,9 +208,12 @@ which updates the config to the desired state while keeping changes minimal
 
 {%- if "systemd" in butane and "units" in butane.systemd %}
   {%- for u in butane.systemd.units %}
+    {%- set up= "/etc/systemd/system/" ~ u.name %}
     {%- if not u.mask|d(false) %}
       {%- if u.contents is defined or u.contents_local is defined %}
-/etc/systemd/system/{{ u.name }}:
+
+{{ target_changed(up) }}
+{{ up }}:
   file.managed:
     # XXX do not follow_symlinks, because if masked file is symlinked to /dev/null
     - follow_symlinks: False
@@ -113,7 +227,9 @@ which updates the config to the desired state while keeping changes minimal
         {%- endif %}
       {%- endif %}
     {%- else %}
-/etc/systemd/system/{{ u.name }}:
+
+{{ target_changed(up) }}
+{{ up }}:
   file.symlink:
     # XXX force to replace a normal file, because if real file exists beforehand
     - force: True
@@ -122,7 +238,10 @@ which updates the config to the desired state while keeping changes minimal
 
     {%- if u.dropins is defined %}
       {%- for d in u.dropins %}
-/etc/systemd/system/{{ u.name }}.d/{{ d.name }}:
+        {%- set dp="/etc/systemd/system/" ~ u.name ~ ".d/" ~ d.name %}
+
+{{ target_changed(dp) }}
+{{ dp }}:
   file.managed:
     - makedirs: True
         {%- if d.contents is defined %}
