@@ -1,3 +1,13 @@
+{#
+
+Restrictions:
+
+  podman-systemd, compose.yml and nspawn machines share the same namespace,
+  and must be uniq on a machine level, eg. quadlet container named "test" and
+  a nspawn machine names "test" does not work as expected.
+
+#}
+
 storage:
   directories:
     # quadlet container/volume/network configuration files
