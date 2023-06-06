@@ -224,7 +224,7 @@ storage:
             create="butane -d . -r -p 2>/dev/null",
             stdin=self.butane_config,
             dir=basedir,
-            opts=child_opts,
+            opts=pulumi.ResourceOptions(parent=self, additional_secret_outputs=["stdout"]),
         )
 
         self.result = self.ignition_config.stdout
