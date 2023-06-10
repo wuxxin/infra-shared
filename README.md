@@ -82,13 +82,22 @@ To see what else you can do with it, continue reading or look at:
 
 #### Implementation
 
+- Single Container: `podman-systemd.unit` - run systemd container units using podman-quadlet
+- Compose Container: `compose.yml` - run multi-container applications defined using a compose file
+- nSpawn OS-Container: `systemd-nspawn` - run an linux OS (build by mkosi) in a light-weight container
+
+- ---
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images, eg. OpenWRT
-- `fcos/*` - setup, installation and reconfiguration of Fedora CoreOS, with Jinja templated butane files
-    - Single Container: `podman-systemd.unit` - run systemd container units using podman-quadlet
-    - Compose Container: `compose.yml` - run multi-container applications defined using a compose file
-    - nSpawn OS-Container: `systemd-nspawn` - run an linux OS (build by mkosi) in a light-weight container
+- `fcos/` - setup, installation and reconfiguration of Fedora CoreOS, with Jinja templated butane files
+    - `butane2salt.jinja` - template that parses a butane spec into a saltstack salt spec for config update
+    - base.bu -
+    - containers* -
+    - compose* -
+    - nspawn* -
+    - coreos-update-config* -
+
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
 - `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
