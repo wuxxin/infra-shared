@@ -24,15 +24,75 @@ storage:
     - path: /etc/nspawn/mkosi
       local: mkosi
 
-  files:
-    # helper script for nspawn-*@.service
-    - path: /var/local/bin/nspawn-provision.sh
-      mode: 0755
-      contents:
-        local: fcos/nspawn-provision.sh
-
 systemd:
   units:
-    # debian 12 (bookworm) image
-    - name: nspawn-debian12@.service
-      contents_local: fcos/nspawn-debian12@.service
+    # for each sub directory in mkosi, create a nspawn-<os-short>@.service
+{%- set list_str= "mkosi"|list_dirs() %}
+{%- for d in list_str.split("\n") %}
+  {%- set os_short=d|replace("mkosi/", "") %}
+    # {{ os_short }} nspawn mkosi image
+    - name: nspawn-{{ os_short }}@.service
+      contents: |
+        [Unit]
+        Description=%I - {{ os_short }} based NSpawn Image
+        Wants=network-online.target
+        After=network-online.target
+        ConditionPathExists=/etc/local/flags/rpm-ostree-install.stamp
+        ConditionPathExists=/etc/nspawn/mkosi/{{ os_short }}/mkosi.default
+        ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
+
+        [Service]
+        EnvironmentFile=/etc/nspawn/environment/%i.env
+
+        # build and provision step
+        # env var named NSPAWN_PROVISION will be pasted to STDIN of provision script
+        ExecStartPre=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+            if test ! -d "/var/lib/machines/%i"; then \
+              echo "building machine %i"; \
+              mkosi -C /etc/nspawn/mkosi/{{ os_short }} \
+                -O "/var/lib/machines/%i" --cache=/var/cache/mkosi build; \
+              if test -d /etc/nspawn/build/%i; then \
+                printf "provision start of machine %i "; \
+                systemd-nspawn --quiet --machine=%i --directory=/var/lib/machines/%i; \
+                while ! machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
+                while ! machinectl show %i | grep -q State=running; do echo -n "+"; sleep 1; done; \
+                sleep 1; echo " is running"; \
+                if test -d etc/nspawn/build/%i; then \
+                    echo "copy additional files to /tmp of machine"; \
+                    for f in /etc/nspawn/build/%i/*; do \
+                        machinectl copy-to $(basename "$f") /etc/nspawn/build/%i/ /tmp/; \
+                    done; \
+                    if test -d /etc/nspawn/build/%i/nspawn.postinst.sh; then \
+                        echo "execute nspawn.postinst.sh script in machine with stdin pipe"; \
+                        echo "${NSPAWN_PROVISION}" | machinectl shell %i /bin/sh -c \
+                            "/bin/chmod +x /tmp/nspawn.postinst.sh; /tmp/nspawn.postinst.sh --yes"; \
+                    else \
+                        echo "Warning: build files found, but no nspawn.postinst.sh, skipping postinst step"; \
+                    fi; \
+                fi; \
+                printf "provision done, power off machine %i "; \
+                machinectl poweroff %i; \
+                while machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
+                echo " is stopped"; \
+                touch /etc/local/flags/provision-%i.stamp; \
+              fi; \
+            fi'
+
+        # normal nspawn start
+        ExecStart=/usr/bin/machinectl start %i 
+
+        # wait until machine is ready
+        ExecStartPost=/usr/bin/bash -c '\
+            printf "waiting for machine %i to be started "; \
+            while ! machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
+            while ! machinectl show %i | grep -q State=running; do echo -n "+"; sleep 1; done; \
+            sleep 1; echo " is running"'
+
+        # call poweroff on service stop
+        ExecStop=/usr/bin/machinectl poweroff %i
+
+
+        [Install]
+        WantedBy=multi-user.target
+
+{% endfor %}
