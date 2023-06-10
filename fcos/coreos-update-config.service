@@ -6,7 +6,7 @@ ConditionPathExists=/run/user/1000/coreos-update-config/sls/main.sls
 
 # Run saltstack by executing salt-call in an alpine container,
 # mounting /etc, /var, /run from host into container
-# XXX - That means only /etc, /var, /run are available for changes
+# XXX only /etc, /var, /run are available for changes
 
 [Service]
 Type=oneshot
@@ -78,6 +78,7 @@ ExecStart=/usr/bin/bash -c '\
         toenable=$(cat ${root_dir}/service_enabled.txt | \
             grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
         if test "$toenable" != ""; then \
+            echo "Enabling: $toenable"; \
             systemctl enable $toenable; \
         fi; \
     fi'
@@ -103,13 +104,14 @@ ExecStart=/usr/bin/bash -c '\
                 fi; \
             done; \
             if test "$torestart" != ""; then \
+                echo "Restarting: $torestart"; \
                 systemctl restart $torestart; \
             fi; \
         fi; \
     fi'
 
 # delete main.sls because its containing secrets and as flag that update is done
-# clean other runtime files too, because they also leak secrets
+# clean other runtime files too, because they also may leak secrets
 
 # ExecStart=rm ${sls_dir}/main.sls
 
