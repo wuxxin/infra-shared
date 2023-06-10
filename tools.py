@@ -102,6 +102,7 @@ class ToolsExtension(jinja2.ext.Extension):
         super(ToolsExtension, self).__init__(environment)
         self.environment = environment
         self.environment.filters["list_files"] = self.list_files
+        self.environment.filters["list_dirs"] = self.list_dirs
         self.environment.filters["has_executable_bit"] = self.has_executable_bit
         self.environment.filters["get_filemode"] = self.get_filemode
         self.environment.filters["regex_escape"] = self.regex_escape
@@ -114,11 +115,22 @@ class ToolsExtension(jinja2.ext.Extension):
         loader = self.environment.loader
         globpath = join_paths(loader.searchpath[0], value, "**")
         files = [
-            os.path.relpath(os.path.normpath(file), loader.searchpath[0])
-            for file in glob.glob(globpath, recursive=True)
-            if os.path.isfile(file)
+            os.path.relpath(os.path.normpath(entry), loader.searchpath[0])
+            for entry in glob.glob(globpath, recursive=True)
+            if os.path.isfile(entry)
         ]
         return "\n".join(files)
+
+    def list_dirs(self, value):
+        "returns available directories in searchpath[0]/value as string, newline seperated"
+        loader = self.environment.loader
+        globpath = join_paths(loader.searchpath[0], value, "**")
+        dirs = [
+            os.path.relpath(os.path.normpath(entry), loader.searchpath[0])
+            for entry in glob.glob(globpath, recursive=True)
+            if os.path.isdir(entry)
+        ]
+        return "\n".join(dirs)
 
     def has_executable_bit(self, value):
         "return 'true' or 'false' depending if searchpath[0]/value file has executable bit set or empty string"
@@ -188,6 +200,8 @@ def jinja_run(template_str, searchpath, environment={}):
     - "sub_dir"|list_files()
         - a string with a newline seperated list of files in searchpath/sub_dir
         - each of these listed files are available for "import x as y" in jinja
+    - "sub_dir"|list_dirs()
+        - a string with a newline seperated list of directories in searchpath/sub_dir
 
     #### regex related custom filter
     - "text"|regex_escape()
