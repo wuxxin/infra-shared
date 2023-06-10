@@ -149,6 +149,7 @@ Translate directories, links, files, trees, systemd units and dropins
   {%- for l in butane.storage.links %}
 {{ l.path }}:
   file.symlink:
+    - makedirs: True
     {%- if l.target is defined %}
     - target: {{ l.target }}
     {%- endif %}
@@ -165,6 +166,7 @@ Translate directories, links, files, trees, systemd units and dropins
   {%- for f in butane.storage.files %}
 {{ f.path }}:
   file.managed:
+    - makedirs: True
 {{ user_group_mode(f) }}
     {%- if f.contents is defined %}
       {%- if f.contents.source is defined %}
@@ -197,6 +199,7 @@ Translate directories, links, files, trees, systemd units and dropins
       {%- set fp= path ~ '/'~ f.replace(t.local ~ '/', '') %}
 {{ fp }}:
   file.managed:
+    - makedirs: True
     - contents: |
         {{ contents|string()|indent(8) }}
 {{ target_changed(fp) }}
