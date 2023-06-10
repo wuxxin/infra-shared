@@ -2,6 +2,9 @@ FROM docker.io/fedora:latest
 #
 # fedora container -- add raspberry PI related extra files for Fedora CoreOS Boot
 #
+ARG RELEASE
+ENV RELEASE=${RELEASE:-38}
+
 RUN dnf install --repo=fedora -y zip rpm cpio
 
 # This is where the ZIP will be placed
@@ -12,5 +15,4 @@ WORKDIR /app
 COPY build.sh build.sh
 RUN chmod 700 build.sh
 
-ENV RELEASE=38
 ENTRYPOINT /app/build.sh
