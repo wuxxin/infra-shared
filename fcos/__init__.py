@@ -10,7 +10,7 @@
 - Configuration and Initial Boot
     - authorized_keys, tls cert, key, ca_cert, loads container secrets
     - install extensions using rpm-ostree-install or var-local-install
-- Reconfiguration / Update Configuration using translated butane to salt
+- Reconfiguration / Update Configuration using translated butane to saltstack execution
 - Comfortable Deployment of
     - Single Container: `podman-systemd.unit` - run systemd container units using podman-quadlet
     - Compose Container: `compose.yml` - run multi-container applications defined using a compose file
@@ -71,8 +71,8 @@ class ButaneTranspiler(pulumi.ComponentResource):
         - {basedir}/*.sls
     - returns
         - butane_config (merged butane yaml)
-        - saltstack_config (merged butane transpiled to saltstack yaml with appended {basedir}/*.sls
-        - ignition_config (merged butane to ignition json) -> result
+        - saltstack_config (butane translated to saltstack yaml with appended {basedir}/*.sls
+        - ignition_config (butane translated to ignition json) -> result
     """
 
     def __init__(
