@@ -63,10 +63,10 @@ fcos:
   platform: metal
   format: raw.xz
   rpi_efi_extras: false
-  rpi_release: 37
+  rpi_release: 38
 
 homeassistant:
-  version: "9.0"
+  version: "10.2"
   baseurl: https://github.com/home-assistant/operating-system/releases/download
   target: generic-x86-64
 
@@ -82,7 +82,7 @@ esphome:
 
 truenas:
   version: "13.0"
-  patchlevel: U2
+  patchlevel: U5.1
   baseurl: https://download.freenas.org
   sign:
     id: C8D62DEF767C1DB0DFF4E6EC358EAA9112CF7946
