@@ -9,12 +9,20 @@
 - Jinja templating of butane yaml content with environment variables replacement
 - Configuration and Initial Boot
     - authorized_keys, tls cert, key, ca_cert, loads container secrets
-    - install ostree or var/local/bin extensions
+    - install extensions using rpm-ostree-install or var-local-install
 - Reconfiguration / Update Configuration using translated butane to salt
 - Comfortable Deployment of
     - Single Container: `podman-systemd.unit` - run systemd container units using podman-quadlet
     - Compose Container: `compose.yml` - run multi-container applications defined using a compose file
     - nSpawn OS-Container: `systemd-nspawn` - run an linux OS (build by mkosi) in a light-weight container
+
+#### Restrictions
+
+- for simplicity: `podman-systemd`, `compose.yml` and `nspawn` machines
+    share one namespace, its service name must be uniqe
+
+    - podman-systemd container config support files (beside .container and .volume),
+        should also start with the servicename as part of the filename, to be recognized
 
 ### Components
 
@@ -541,7 +549,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
     - Copies a systemd.service and a main.sls state file to the remote target in a /run directory
     - overwrite original update service, reload systemd, start service, configures a salt environment
     - execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
-    - only the butane sections: storage:[directories,files,links,trees] systemd:unit[:dropins] are translated
+    - only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
     - additional migration code can be written in basedir/*.sls
         - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
 
