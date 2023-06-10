@@ -59,6 +59,6 @@ systemd:
             [Service]
             Environment=VERSION="2.18.1"
             Environment=SHA256SUM=""
-            Environment=FILE_URL="https://github.com/docker/compose/releases/download/v${VERSION}/docker-compose-linux-${ARCH}"
-            Environment=HASH_URL="https://github.com/docker/compose/releases/download/v${VERSION}/docker-compose-linux-${ARCH}.sha256"
+            Environment=FILE_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}"
+            Environment=HASH_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}.sha256"
             Environment=LOCAL_FILE="/var/local/bin/docker-compose"
