@@ -61,8 +61,6 @@ cryptography = "*"
 NAT-PMP = "*"
 
 ## saltstack - local build dependencies
-# pin pyzmq<20 to workaround pyzmq version resolution error (because of salt) in pipenv
-pyzmq = "<20"
 salt = "*"
 
 ## homeassistant kernel
@@ -97,4 +95,4 @@ mkdocs_pymdownx_material_extras = "*"
 [dev-packages]
 
 [requires]
-python_version = "3.10"
+python_version = "3.11"
