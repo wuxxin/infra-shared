@@ -4,18 +4,23 @@ to be used from the systemd service "coreos-update-config.service"
 in a saltstack salt-call command, which updates the config to the desired state
 keeps changes minimal, smart restarts of direct or indirectly changed services
 
+#### Translation
+
+- Only the currently used subset in *.bu files of the butane spec is supported
+  - only storage:directories/links/files/trees and systemd:units[:dropins] are translated
+  - Filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
+
+- Look at tools.jinja_run for custom filter like traverse files or regex_replace
+- use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
+
 #### additional outputs
 - {update_dir}/service_changed.txt
-    - with a commented, non uniqe, not sorted list of service names with changed configuration
-    - usage: cat ${update_dir}/service_changed.txt | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
+    - a commented, non uniqe, not sorted list of service base names with changed configuration
 - {update_dir}/service_enabled.txt
 - {update_dir}/service_disabled.txt
 
-#### translation scope, filter and import functions
-- only the currently used subset in *.bu files of the butane spec is supported
-  - only storage:directories/links/files/trees and systemd:units[:dropins] are translated
-- Look at tools.jinja_run for custom filter like traverse files or regex_replace
-- use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
+usage example:
+    cat ${update_dir}/service_changed.txt | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
 
 #}
 {% set update_dir= "/run/user/1000/coreos-update-config" %}
@@ -37,6 +42,12 @@ write out user,group,mode if present
 {%- endmacro -%}
 {#
 
+replace filename with /host_etc prefix if in hostname, hosts, resolv.conf
+
+#}
+{% macro tr_etc(f) %}{% if f in ["/etc/hostname","/etc/hosts","/etc/resolv.conf"] %}{% set f=f|replace("/etc", "/host_etc") %}{% endif %}{{ f }}{% endmacro %}
+{#
+
 write service to service_enabled.txt
 
 #}
@@ -54,13 +65,33 @@ service_enabled_{{ service_path }}:
 {%- endmacro -%}
 {#
 
-write service to service_changed.txt, if target matches regex_list
+write service to service_changed.txt if target changed
+
+#}
+{%- macro service_changed(service, target, target_type) -%}
+
+service_changed_{{ target }}:
+  file.accumulated:
+    - filename: {{ update_dir }}/service_changed.txt
+    - text: {{ service }}
+    - onchanges:
+      - {{ target_type }}: {{ target }}
+    - require_in:
+      - file: service_changed
+
+{%- endmacro -%}
+{#
+
+if target matches regex_list , call service_changed(service, target)
+
+regex_list:
   - any unit in systemd/system/*.*
   - any dropin in systemd/system/*.d/*.conf
   - any env in [local,containers,compose]/*.env
   - any file in [containers,compose]/build/*/*
+
 #}
-{%- macro target_changed(target) -%}
+{%- macro target_changed(target, target_type="file") -%}
   {%- set service_regex_list = [
     "/etc/systemd/system/([^/]+)\.[^\.]+",
     "/etc/systemd/system/([^/]+)\.[^\.]+\.d/.+\.conf",
@@ -74,22 +105,14 @@ write service to service_changed.txt, if target matches regex_list
     "/etc/containers/build/([^/]+)/.+",
     "/etc/compose/build/([^/]+)/.+",
   ] -%}
-  {%- set target_ns= namespace(target_name="") -%}
+  {%- set target_ns= namespace(service_name="") -%}
   {%- for service_regex in service_regex_list -%}
     {%- if target|regex_match("^" ~ service_regex~ "$") -%}
-      {%- set target_ns.target_name = target|regex_replace(service_regex, '\\1') -%}
+      {%- set target_ns.service_name = target|regex_replace(service_regex, '\\1') -%}
     {%- endif -%}
   {%- endfor -%}
-  {%- if target_ns.target_name != "" -%}
-service_changed_{{ target }}:
-  file.accumulated:
-    - filename: {{ update_dir }}/service_changed.txt
-    - text: {{ target_ns.target_name }}
-    - onchanges:
-      - file: {{ target }}
-    - require_in:
-      - file: service_changed
-
+  {%- if target_ns.service_name != "" -%}
+{{ service_changed(target_ns.service_name, target, target_type) }}
   {%- endif -%}
 {%- endmacro -%}
 {#
@@ -164,13 +187,25 @@ Translate directories, links, files, trees, systemd units and dropins
 
 {%- if "storage" in butane and "files" in butane.storage %}
   {%- for f in butane.storage.files %}
-{{ f.path }}:
+    {%- set target_type="file" %}
+{{ tr_etc(f.path) }}:
   file.managed:
     - makedirs: True
 {{ user_group_mode(f) }}
     {%- if f.contents is defined %}
       {%- if f.contents.source is defined %}
+        {%- if f.contents.source.startswith("data:") %}
+          {%- set target_type="cmd" %}
+  cmd.run:
+    - name: |
+        cat <<"EOF" | base64 -d > {{ tr_etc(f.path) }}
+        {{ f.contents.source|indent(8) }}
+        EOF
+    - onlyif: base64 -d < {{ tr_etc(f.path) }} | cmp -s - /dev/stdin
+    - creates: {{ tr_etc(f.path) }}
+        {%- else %}
     - source: {{ f.contents.source }}
+        {%- endif %}
       {%- endif %}
       {%- if f.verification is defined %}
     - source_hash: {{ f.verification[7:] }}
@@ -178,14 +213,16 @@ Translate directories, links, files, trees, systemd units and dropins
       {%- if f.contents.inline is defined %}
     - contents: |
         {{ f.contents.inline|indent(8) }}
+
       {%- endif %}
       {%- if f.contents.local is defined %}
         {%- import f.contents.local as contents %}
     - contents: |
         {{ contents|string()|indent(8) }}
+
       {%- endif %}
     {%- endif %}
-{{ target_changed(f.path) }}
+{{ target_changed(tr_etc(f.path), target_type) }}
   {% endfor %}
 {%- endif %}
 
@@ -197,12 +234,13 @@ Translate directories, links, files, trees, systemd units and dropins
     {%- for f in list_str.split("\n") %}
       {%- import f as contents %}
       {%- set fp= path ~ '/'~ f.replace(t.local ~ '/', '') %}
-{{ fp }}:
+{{ tr_etc(fp) }}:
   file.managed:
     - makedirs: True
     - contents: |
         {{ contents|string()|indent(8) }}
-{{ target_changed(fp) }}
+
+{{ target_changed(tr_etc(fp)) }}
     {% endfor %}
   {% endfor %}
 {%- endif %}
@@ -220,10 +258,12 @@ Translate directories, links, files, trees, systemd units and dropins
         {%- if u.contents is defined %}
     - contents: |
         {{ u.contents|indent(8) }}
+
         {%- elif u.contents_local is defined %}
           {%- import u.contents_local as contents %}
     - contents: |
         {{ contents|string()|indent(8) }}
+
         {%- endif %}
 {{ target_changed(up) }}
       {%- endif %}
@@ -245,11 +285,13 @@ Translate directories, links, files, trees, systemd units and dropins
         {%- if d.contents is defined %}
     - contents: |
         {{ d.contents|indent(8) }}
+
         {%- endif %}
         {%- if d.contents_local is defined %}
           {%- import d.contents_local as contents %}
     - contents: |
         {{ contents|string()|indent(8) }}
+
         {%- endif %}
 {{ target_changed(dp) }}
       {% endfor %}
