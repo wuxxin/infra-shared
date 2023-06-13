@@ -1,7 +1,7 @@
 [Unit]
 Description=Build Compose Images for %I
-Wants=network-online.target var-local-install@docker-compose.service compose-build@%i.path
-After=network-online.target var-local-install@docker-compose.service
+Wants=podman.service compose-build@%i.path
+After=podman.service
 ConditionPathExists=/etc/compose/build/%i/compose.yml
 
 [Service]
