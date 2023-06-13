@@ -14,13 +14,14 @@ keeps changes minimal, smart restarts of direct or indirectly changed services
 - use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
 
 #### additional outputs if {UPDATE_SERVICE_STATUS} == true
-- {UPDATE_DIR}/service_changed.txt
-    - a commented, non uniqe, not sorted list of service base names with changed configuration
-- {UPDATE_DIR}/service_enabled.txt
-- {UPDATE_DIR}/service_disabled.txt
 
-usage example:
-    cat ${UPDATE_DIR}/service_changed.txt | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
+- creates a commented, non uniqe, not sorted list of service base names
+  - {UPDATE_DIR}/service_changed.txt for changed configuration
+  - {UPDATE_DIR}/service_enabled.txt for services to be enabled
+  - {UPDATE_DIR}/service_disabled.txt for services to be disabled
+
+- usage example:
+  - cat ${UPDATE_DIR}/service_changed.txt | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
 
 #}
 {% set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
@@ -43,38 +44,34 @@ write out user,group,mode if present
 {%- endmacro -%}
 {#
 
-replace filename with /host_etc prefix if in hostname, hosts, resolv.conf
+replace filename with /host_etc prefix if in /etc/hostname, /etc/hosts, /etc/resolv.conf
 
 #}
 {% macro tr_etc(f) %}{% if f in ["/etc/hostname","/etc/hosts","/etc/resolv.conf"] %}{% set f=f|replace("/etc", "/host_etc") %}{% endif %}{{ f }}{% endmacro %}
-
-{%- if not UPDATE_SERVICE_STATUS %}
-
-{%- macro service_enabled(service_path, service_name) -%}
-{%- endmacro -%}
-{%- macro service_changed(service, target, target_type) -%}
-{%- endmacro -%}
-{%- macro target_changed(target, target_type="file") -%}
-{%- endmacro -%}
-
-{%- else %}
 {#
 
-write service to service_enabled.txt
+create service change/enable/disable macros and accumulator targets
 
 #}
-{%- macro service_enabled(service_path, service_name) -%}
+{% if UPDATE_SERVICE_STATUS %}
+{#
 
-service_enabled_{{ service_path }}:
+write service to service_enabled/disabled.txt
+
+#}
+{%- macro service_status(service_path, service_name, enabled) -%}
+{%- set status="enabled" if enabled else "disabled" %}
+
+service_{{ status }}_{{ service_path }}:
   file.accumulated:
-    - filename: {{ UPDATE_DIR }}/service_enabled.txt
+    - filename: {{ UPDATE_DIR }}/service_{{ status }}.txt
     - text: {{ service_name }}
-    - onchanges:
-      - file: {{ service_path }}
     - require_in:
-      - file: service_enabled
+      - file: service_{{ status }}
 
 {%- endmacro -%}
+{% macro service_enabled(p, n) %}{{ service_status(p, n, true) }}{% endmacro %}
+{% macro service_disabled(p, n) %}{{ service_status(p, n, false) }}{% endmacro %}
 {#
 
 write service to service_changed.txt if target changed
@@ -129,47 +126,49 @@ regex_list:
 {%- endmacro -%}
 {#
 
-Accumulator targets for service_enabled and service_changed
+Accumulator targets for service_ enabled, disabled, changed
 
 #}
-create_service_enabled:
+  {% for s in ["enabled", "disabled", "changed"] %}
+create_service_{{ s }}:
   file.managed:
-    - name: {{ UPDATE_DIR }}/service_enabled.txt
+    - name: {{ UPDATE_DIR }}/service_{{ s }}.txt
     - user: 1000
     - group: 1000
 
-service_enabled:
+service_{{ s }}:
   file.blockreplace:
-    - name: {{ UPDATE_DIR }}/service_enabled.txt
+    - name: {{ UPDATE_DIR }}/service_{{ s }}.txt
     - marker_start: "# START"
     - marker_end: "# END"
     - content: ""
     - append_if_not_found: True
     - show_changes: True
     - require:
-      - file: create_service_enabled
+      - file: create_service_{{ s }}
+  {% endfor %}
 
-create_service_changed:
-  file.managed:
-    - name: {{ UPDATE_DIR }}/service_changed.txt
-    - user: 1000
-    - group: 1000
-
-service_changed:
-  file.blockreplace:
-    - name: {{ UPDATE_DIR }}/service_changed.txt
-    - marker_start: "# START"
-    - marker_end: "# END"
-    - content: ""
-    - append_if_not_found: True
-    - show_changes: True
-    - require:
-      - file: create_service_changed
-
-{%- endif %}
+{% else %}
 {#
 
-Translate directories, links, files, trees, systemd units and dropins
+mask service change/enable/disable macros
+
+#}
+{%- macro service_status(service_path, service_name, enabled) -%}
+{%- endmacro -%}
+{%- macro service_enabled(service_path, service_name) -%}
+{%- endmacro -%}
+{%- macro service_disabled(service_path, service_name) -%}
+{%- endmacro -%}
+{%- macro service_changed(service, target, target_type) -%}
+{%- endmacro -%}
+{%- macro target_changed(target, target_type="file") -%}
+{%- endmacro -%}
+
+{% endif %}
+{#
+
+Main Translation of storage:directories, links, files, trees, systemd units and dropins
 
 #}
 {%- if "storage" in butane and "directories" in butane.storage %}
@@ -263,6 +262,9 @@ Translate directories, links, files, trees, systemd units and dropins
 {%- if "systemd" in butane and "units" in butane.systemd %}
   {%- for u in butane.systemd.units %}
     {%- set up= "/etc/systemd/system/" ~ u.name %}
+    {%- if u.enabled is defined %}
+{{ service_status(up, u.name, u.enabled) }}
+    {%- endif %}
     {%- if not u.mask|d(false) %}
       {%- if u.contents is defined or u.contents_local is defined %}
 {{ up }}:
