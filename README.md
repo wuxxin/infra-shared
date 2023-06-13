@@ -145,10 +145,10 @@ make install-requirements
 + on other linux, use a build container
 
 ```sh
-# build container using sudo podman build
+# Either: build container using sudo podman build
 make provision-container
 
-# build container using any other container tool
+# Or: build container using any other container tool
 # - replace "docker" with your container build call
 cd infra/Containerfile/provision_client && docker build -t provision_client:latest $(pwd)
 
