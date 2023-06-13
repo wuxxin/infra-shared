@@ -53,6 +53,22 @@ from ..tools import jinja_run, jinja_run_template, join_paths, log_warn, merge_d
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
+# this environment is used, if nothing else is defined
+
+default_env_str = """
+DEBUG: false
+UPDATE_SERVICE_STATUS: true
+RPM_OSTREE_INSTALL:
+  - mkosi
+  - apt
+  - docker-compose
+LOCALE:
+  LANG: en_US.UTF-8
+  KEYMAP: us
+  TIMEZONE: UTC
+  COUNTRY_CODE: UN
+"""
+
 
 def compile_selinux_module(content):
     timeout_seconds = 10
@@ -127,21 +143,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
         )
 
-        child_opts = pulumi.ResourceOptions(parent=self)
         this_parent = os.path.abspath(os.path.join(this_dir, ".."))
-
-        default_env_str = """
-DEBUG: false
-UPDATE_SERVICE_STATUS: true
-RPM_OSTREE_INSTALL:
-  - mkosi
-  - docker-compose
-LOCALE:
-  LANG: en_US.UTF-8
-  KEYMAP: us
-  TIMEZONE: UTC
-  COUNTRY_CODE: UN
-"""
         default_env = yaml.safe_load(default_env_str)
         this_env = merge_dict_struct(default_env, {} if environment is None else environment)
 
