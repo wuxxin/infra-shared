@@ -3,14 +3,13 @@ Description=Build Compose Images for %I
 Wants=network-online.target var-local-install@docker-compose.service compose-build@%i.path
 After=network-online.target var-local-install@docker-compose.service
 ConditionPathExists=/etc/compose/build/%i/compose.yml
-ConditionPathExists=/var/local/bin/docker-compose
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 Environment=COMPOSE_BUILD_OPTIONS=
 WorkingDirectory=/etc/compose/build/%i
-ExecStart=/var/local/bin/docker-compose build $COMPOSE_BUILD_OPTIONS
+ExecStart=/usr/bin/docker-compose -f compose.yml build $COMPOSE_BUILD_OPTIONS
 
 [Install]
 WantedBy=multi-user.target

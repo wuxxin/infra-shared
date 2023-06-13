@@ -3,11 +3,10 @@ Description=Run compose up for %I
 Wants=network-online.target compose-build@%i.service
 After=network-online.target compose-build@%i.service
 ConditionPathExists=/etc/compose/build/%i/compose.yml
-ConditionPathExists=/var/local/bin/docker-compose
 
 [Service]
 WorkingDirectory=/etc/compose/build/%i
-ExecStart=/var/local/bin/docker-compose up
+ExecStart=/usr/bin/docker-compose -f compose.yml up
 
 [Install]
 WantedBy=multi-user.target
