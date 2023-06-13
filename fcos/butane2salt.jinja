@@ -13,17 +13,18 @@ keeps changes minimal, smart restarts of direct or indirectly changed services
 - Look at tools.jinja_run for custom filter like traverse files or regex_replace
 - use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
 
-#### additional outputs
-- {update_dir}/service_changed.txt
+#### additional outputs if {UPDATE_SERVICE_STATUS} == true
+- {UPDATE_DIR}/service_changed.txt
     - a commented, non uniqe, not sorted list of service base names with changed configuration
-- {update_dir}/service_enabled.txt
-- {update_dir}/service_disabled.txt
+- {UPDATE_DIR}/service_enabled.txt
+- {UPDATE_DIR}/service_disabled.txt
 
 usage example:
-    cat ${update_dir}/service_changed.txt | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
+    cat ${UPDATE_DIR}/service_changed.txt | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
 
 #}
-{% set update_dir= "/run/user/1000/coreos-update-config" %}
+{% set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
+{% set UPDATE_SERVICE_STATUS=UPDATE_SERVICE_STATUS|d(true)%}
 {#
 
 write out user,group,mode if present
@@ -46,6 +47,17 @@ replace filename with /host_etc prefix if in hostname, hosts, resolv.conf
 
 #}
 {% macro tr_etc(f) %}{% if f in ["/etc/hostname","/etc/hosts","/etc/resolv.conf"] %}{% set f=f|replace("/etc", "/host_etc") %}{% endif %}{{ f }}{% endmacro %}
+
+{%- if not UPDATE_SERVICE_STATUS %}
+
+{%- macro service_enabled(service_path, service_name) -%}
+{%- endmacro -%}
+{%- macro service_changed(service, target, target_type) -%}
+{%- endmacro -%}
+{%- macro target_changed(target, target_type="file") -%}
+{%- endmacro -%}
+
+{%- else %}
 {#
 
 write service to service_enabled.txt
@@ -55,7 +67,7 @@ write service to service_enabled.txt
 
 service_enabled_{{ service_path }}:
   file.accumulated:
-    - filename: {{ update_dir }}/service_enabled.txt
+    - filename: {{ UPDATE_DIR }}/service_enabled.txt
     - text: {{ service_name }}
     - onchanges:
       - file: {{ service_path }}
@@ -72,7 +84,7 @@ write service to service_changed.txt if target changed
 
 service_changed_{{ target }}:
   file.accumulated:
-    - filename: {{ update_dir }}/service_changed.txt
+    - filename: {{ UPDATE_DIR }}/service_changed.txt
     - text: {{ service }}
     - onchanges:
       - {{ target_type }}: {{ target }}
@@ -122,13 +134,13 @@ Accumulator targets for service_enabled and service_changed
 #}
 create_service_enabled:
   file.managed:
-    - name: {{ update_dir }}/service_enabled.txt
+    - name: {{ UPDATE_DIR }}/service_enabled.txt
     - user: 1000
     - group: 1000
 
 service_enabled:
   file.blockreplace:
-    - name: {{ update_dir }}/service_enabled.txt
+    - name: {{ UPDATE_DIR }}/service_enabled.txt
     - marker_start: "# START"
     - marker_end: "# END"
     - content: ""
@@ -139,13 +151,13 @@ service_enabled:
 
 create_service_changed:
   file.managed:
-    - name: {{ update_dir }}/service_changed.txt
+    - name: {{ UPDATE_DIR }}/service_changed.txt
     - user: 1000
     - group: 1000
 
 service_changed:
   file.blockreplace:
-    - name: {{ update_dir }}/service_changed.txt
+    - name: {{ UPDATE_DIR }}/service_changed.txt
     - marker_start: "# START"
     - marker_end: "# END"
     - content: ""
@@ -153,6 +165,8 @@ service_changed:
     - show_changes: True
     - require:
       - file: create_service_changed
+
+{%- endif %}
 {#
 
 Translate directories, links, files, trees, systemd units and dropins
