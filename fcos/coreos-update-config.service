@@ -61,13 +61,13 @@ ExecStart=/usr/bin/bash -c \
 
 # XXX use logdriver=none, to prevent duplicate logging in journald
 # make a salt-call test/mock run, to see if update would abort midways
-ExecStart=/usr/bin/podman run --privileged --log-driver=none \
+ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/%N:latest \
     /usr/local/bin/salt-call -c ${root_dir} state.highstate mock=true
 
 # do the actual update work
-ExecStart=/usr/bin/podman run --privileged --log-driver=none \
+ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
     localhost/%N:latest \
     /usr/local/bin/salt-call -c ${root_dir} state.highstate
