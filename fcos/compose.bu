@@ -7,30 +7,18 @@ storage:
     # our compose build configuration directory
     - path: /etc/compose/build
 
-    # our custom selinux configuration directory
-    - path: /etc/selinux/custom
-
-  links:
-    # activate install of docker-compose
-    - path: /etc/systemd/system/var-local-install@docker-compose.service
-      target: /etc/systemd/system/var-local-install@.service
+  # links:
+  #   # activate install of docker-compose
+  #   - path: /etc/systemd/system/var-local-install@docker-compose.service
+  #     target: /etc/systemd/system/var-local-install@.service
 
   files:
-    # write a custom docker socket selinux policy, template: selinux will compile it
-    - path: /etc/selinux/custom/dockersock.pp
+    - path: /etc/tmpfiles.d/podman-docker.conf
       contents:
-        template: selinux
         inline: |
-          module dockersock 1.0;
-          require {
-            type docker_var_run_t;
-            type docker_t;
-            type svirt_lxc_net_t;
-            class sock_file write;
-            class unix_stream_socket connectto;
-          }
-          allow svirt_lxc_net_t docker_t:unix_stream_socket connectto;
-          allow svirt_lxc_net_t docker_var_run_t:sock_file write;
+          # symlink /run/docker.sock to /run/podman/podman.sock, so compose will also use podman
+          # L /symlink/to/create  - - - - symlink/target/path
+          L   /run/docker.sock    - - - - /run/podman/podman.sock
 
 systemd:
   units:
@@ -50,14 +38,20 @@ systemd:
       enabled: true
       contents_local: fcos/compose-secrets.service
 
-    # overwrite docker.service to use podman, so compose will also use podman
+    # mask docker.service/socket, because we will use podman to service the /run/docker.sock
     - name: docker.service
+      mask: true
+
+    - name: docker.socket
+      mask: true
+
+    - name: podman.service
+      enabled: true
       contents: |
         [Unit]
-        Description=Podman API Service on docker.socket
-        After=docker.socket network-online.target firewalld.service
-        Requires=docker.socket
+        Description=Podman API Service
         Wants=network-online.target
+        After=network-online.target
         Documentation=man:podman-system-service(1)
         StartLimitIntervalSec=0
 
@@ -66,7 +60,7 @@ systemd:
         Type=exec
         KillMode=process
         Environment=LOGGING="--log-level=info"
-        ExecStart=/usr/bin/podman $LOGGING system service
+        ExecStart=/usr/bin/podman $LOGGING system service --time 0 unix:///run/podman/podman.sock
 
         [Install]
         WantedBy=multi-user.target
