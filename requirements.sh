@@ -79,6 +79,14 @@ butane
 # coreos-installer - Installer for CoreOS disk images
 coreos-installer
 
+# SELinux module tools
+# CHECK: semodule_package checkmodule
+# KEY-OWNER: Jason Zaman <perfinion@gentoo.org>
+# PACKAGE-KEY: selinux 63191CE94183098689CAB8DB7EF137EC935B0EAF 80862ce3e3de1cffa8f0a966c84a8f57296b1609f92d5696405bd2dcf038b819
+libsepol
+semodule-utils
+checkpolicy
+
 # # esphome build
 # CHECK: esphome
 # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
@@ -94,6 +102,16 @@ gosu() { # $1=user , $@=param
     else
         home="$(getent passwd "$user" | cut -d: -f6)"
         setpriv --reuid=$user --regid=$user --init-groups env HOME=$home $@
+    fi
+}
+
+package_key() {
+    local name="$1" keyid="$2" hash="$3" target="/etc/pacman.d/$1-key.gpg"
+    if test ! -e "$target"; then
+        curl -sSL -o "${target}" "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${keyid}"
+        echo "${hash} *${target}" | sha256sum -c
+        pacman-key --add "${target}"
+        pacman-key --lsign-key "${keyid}"
     fi
 }
 
