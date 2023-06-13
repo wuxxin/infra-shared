@@ -140,16 +140,16 @@ class ToolsExtension(jinja2.ext.Extension):
         return "\n".join(dirs)
 
     def has_executable_bit(self, value):
-        "return 'true' or 'false' depending if searchpath[0]/value file has executable bit set or empty string"
+        "return boolean True if searchpath[0]/value file exists and has executable bit set, else False"
         loader = self.environment.loader
         f = join_paths(loader.searchpath[0], value)
         if not os.path.exists(f):
-            return ""
+            return False
         mode = os.stat(f).st_mode
         if mode & stat.S_IXUSR:
-            return "true"
+            return True
         else:
-            return "false"
+            return False
 
     def get_filemode(self, value):
         "return octal filemode as string of file search using searchpath[0]/value or empty string"
