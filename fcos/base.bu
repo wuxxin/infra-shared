@@ -14,27 +14,30 @@ storage:
     # our directory for local commandline scripts and binaries
     - path: /var/local/bin
 
-  files:
-    # tell systemd to not use a pager when printing information
-    - path: /etc/profile.d/systemd-pager.sh
-      mode: 0644
-      contents:
-        inline: |
-          export SYSTEMD_PAGER=cat
+    # our custom selinux configuration directory
+    - path: /etc/selinux/custom
 
+  files:
     # set keyboard layout
     - path: /etc/vconsole.conf
       mode: 0644
       contents:
         inline: KEYMAP={{ LOCALE["KEYMAP"] }}
 
+    # tell systemd to not use a pager when printing information
+    # - path: /etc/profile.d/systemd-pager.sh
+    #   mode: 0644
+    #   contents:
+    #     inline: |
+    #       export SYSTEMD_PAGER=cat
+
     # hide audit messages from the interactive console
-    - path: /etc/sysctl.d/20-silence-audit.conf
-      mode: 0644
-      contents:
-        inline: |
-          # Raise console message logging level from DEBUG (7) to WARNING (4)
-          kernel.printk=4
+    # - path: /etc/sysctl.d/20-silence-audit.conf
+    #   mode: 0644
+    #   contents:
+    #     inline: |
+    #       # Raise console message logging level from DEBUG (7) to WARNING (4)
+    #       kernel.printk=4
 
     # environment for RPM_OSTREE_INSTALL packages
     - path: /etc/local/environment/rpm-ostree-install.env
