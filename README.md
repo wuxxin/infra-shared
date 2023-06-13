@@ -82,19 +82,15 @@ To see what else you can do with it, continue reading or look at:
 
 #### Features
 
-Fedora CoreOS - setup, installation and reconfiguration of CoreOS, with Jinja templated butane files
-
-- Reconfiguration: `coreos-update-config*`
-    - reconfigure fedora CoreOS based on `butane2salt.jinja` translation
-- Single Container: `podman-systemd.unit`
-    - `containers*` - run systemd container units using podman-quadlet
-- Compose Container: `compose.yml`
-    - `compose*` - run multi-container applications defined using a compose file
-- nSpawn OS-Container: `systemd-nspawn`
-    - `nspawn*` - run an linux OS (build by mkosi) in a light-weight container
-
----
-
+- Fedora CoreOS - setup, installation and reconfiguration of CoreOS, with Jinja templated butane files
+    - Reconfiguration: `coreos-update-config*`
+        - reconfigure fedora CoreOS based on `butane2salt.jinja` translation
+    - Single Container: `podman-systemd.unit`
+        - `containers*` - run systemd container units using podman-quadlet
+    - Compose Container: `compose.yml`
+        - `compose*` - run multi-container applications defined using a compose file
+    - nSpawn OS-Container: `systemd-nspawn`
+        - `nspawn*` - run an linux OS (build by mkosi) in a light-weight container
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images, eg. OpenWRT
