@@ -145,9 +145,15 @@ make install-requirements
 + on other linux, use a build container
 
 ```sh
+# build container using sudo podman build
 make provision-container
 
+# build container using any other container tool
+# - replace "docker" with your container build call
+cd infra/Containerfile/provision_client && docker build -t provision_client:latest $(pwd)
+
 # add a provision_client() function to running shell
+# - replace "sudo podman" to match your local container software
 source /dev/stdin <<'EOF'
 provision_client() {
   test "${1}" = "" && set -- "/usr/bin/bash" "${@:1}"; \
@@ -165,9 +171,9 @@ EOF
 
 # call provision client (defaults to /usr/bin/bash interactive shell)
 provision_client
-```
 
-+ add `provision_client() {...}` to .bashrc to have it available every time.
+# add `provision_client() {...}` to .bashrc to have it available every time.
+```
 
 
 #### Build documentation
@@ -238,5 +244,7 @@ make prod__ args=up
 
 ### License
 
+```
 All code in this repository is covered by the terms of the Apache 2.0 License,
-  the full text of which can be found in the LICENSE file.
+the full text of which can be found in the LICENSE file.
+```
