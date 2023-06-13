@@ -84,10 +84,8 @@ To see what else you can do with it, continue reading or look at:
 
 Fedora CoreOS - setup, installation and reconfiguration of CoreOS, with Jinja templated butane files
 
-- `coreos-update-config*` - reconfigure fedora CoreOS based on butane2salt.jinja translation
-- `butane2salt.jinja` - template that parses a butane spec into a saltstack salt spec for config update
-
-
+- Reconfiguration: `coreos-update-config*`
+    - reconfigure fedora CoreOS based on `butane2salt.jinja` translation
 - Single Container: `podman-systemd.unit`
     - `containers*` - run systemd container units using podman-quadlet
 - Compose Container: `compose.yml`
