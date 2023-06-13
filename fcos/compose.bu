@@ -7,10 +7,30 @@ storage:
     # our compose build configuration directory
     - path: /etc/compose/build
 
+    # our custom selinux configuration directory
+    - path: /etc/selinux/custom
+
   links:
     # activate install of docker-compose
     - path: /etc/systemd/system/var-local-install@docker-compose.service
       target: /etc/systemd/system/var-local-install@.service
+
+  files:
+    # write a custom docker socket selinux policy, template: selinux will compile it
+    - path: /etc/selinux/custom/dockersock.pp
+      contents:
+        template: selinux
+        inline: |
+          module dockersock 1.0;
+          require {
+            type docker_var_run_t;
+            type docker_t;
+            type svirt_lxc_net_t;
+            class sock_file write;
+            class unix_stream_socket connectto;
+          }
+          allow svirt_lxc_net_t docker_t:unix_stream_socket connectto;
+          allow svirt_lxc_net_t docker_var_run_t:sock_file write;
 
 systemd:
   units:
