@@ -80,7 +80,7 @@ To see what else you can do with it, continue reading or look at:
 - Automation: **Homeassistant** OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)
 - IOT: **Esphome** - yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
 
-#### Features
+### Features
 
 - Fedora CoreOS - setup, installation and reconfiguration of CoreOS, with Jinja templated butane files
     - Reconfiguration: `coreos-update-config*`
