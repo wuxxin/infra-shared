@@ -7,11 +7,6 @@ storage:
     # our compose build configuration directory
     - path: /etc/compose/build
 
-  # links:
-  #   # activate install of docker-compose
-  #   - path: /etc/systemd/system/var-local-install@docker-compose.service
-  #     target: /etc/systemd/system/var-local-install@.service
-
   files:
     - path: /etc/tmpfiles.d/podman-docker.conf
       contents:
@@ -66,13 +61,14 @@ systemd:
         WantedBy=multi-user.target
 
     # download docker-compose v2 executable from github
-    - name: var-local-install@docker-compose.service
-      dropins:
-        - name: dropin.conf
-          contents: |
-            [Service]
-            Environment=VERSION="2.18.1"
-            Environment=SHA256SUM=""
-            Environment=FILE_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}"
-            Environment=HASH_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}.sha256"
-            Environment=LOCAL_FILE="/var/local/bin/docker-compose"
+    # - name: var-local-install@docker-compose.service
+    #   enabled: true
+    #   dropins:
+    #     - name: dropin.conf
+    #       contents: |
+    #         [Service]
+    #         Environment=VERSION="2.18.1"
+    #         Environment=SHA256SUM=""
+    #         Environment=FILE_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}"
+    #         Environment=HASH_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}.sha256"
+    #         Environment=LOCAL_FILE="/var/local/bin/docker-compose"
