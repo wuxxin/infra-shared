@@ -3,6 +3,7 @@ storage:
     - path: /etc/systemd/system/coreos-update-config.service
       contents:
         local: fcos/coreos-update-config.service
+
   trees:
     - path: /etc/containers/build/coreos-update-config
       local: Containerfile/coreos-update-config
