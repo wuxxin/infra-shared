@@ -32,7 +32,7 @@ def error_print(message, print_help=False):
 
 
 def merge_dict_struct(struct1, struct2):
-    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1"
+    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1 if entry not None"
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -52,8 +52,14 @@ def merge_dict_struct(struct1, struct2):
         for item in struct2:
             if item not in struct1:
                 merged.append(item)
+    elif is_dict_like(struct1) and struct2 is None:
+        # do nothing if first is dict, but second is None
+        pass
+    elif is_list_like(struct1) and struct2 is None:
+        # do nothing if first is list, but second is None
+        pass
     else:
-        # if neither input is a dictionary or list, the second input overwrites the first input
+        # the second input overwrites the first input
         merged = struct2
     return merged
 
