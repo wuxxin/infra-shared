@@ -17,6 +17,7 @@
 
 - log_warn
 - sha256sum_file
+- join_paths
 - merge_dict_struct
 
 ### Components
@@ -69,7 +70,7 @@ def sha256sum_file(filename):
 
 
 def merge_dict_struct(struct1, struct2):
-    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1"
+    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1 if entry not None"
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -89,8 +90,14 @@ def merge_dict_struct(struct1, struct2):
         for item in struct2:
             if item not in struct1:
                 merged.append(item)
+    elif is_dict_like(struct1) and struct2 is None:
+        # do nothing if first is dict, but second is None
+        pass
+    elif is_list_like(struct1) and struct2 is None:
+        # do nothing if first is list, but second is None
+        pass
     else:
-        # if neither input is a dictionary or list, the second input overwrites the first input
+        # the second input overwrites the first input
         merged = struct2
     return merged
 
@@ -462,7 +469,17 @@ def ssh_deploy(
     return deployed
 
 
-def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, triggers=None, opts=None):
+def ssh_execute(
+    prefix,
+    host,
+    user,
+    cmdline,
+    port=22,
+    simulate=None,
+    triggers=None,
+    environment={},
+    opts=None,
+):
     """execute a command as user on a ssh target host
 
     if simulate==True: command is not executed but written out to state/tmp/stack_name
@@ -479,6 +496,13 @@ def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, triggers=No
     if simulate:
         tmpdir = os.path.join(project_dir, "state", "tmp", stack_name)
         os.makedirs(tmpdir, exist_ok=True)
+        # XXX write out environment if not empty on simulate, so we can look what env was set
+        if environment != {}:
+            cmdline = (
+                "\n".join(["{k}={v}".format(k=k, v=v) for k, v in environment.items()])
+                + "\n"
+                + cmdline
+            )
         ssh_executed = command.local.Command(
             resource_name,
             create="cat - > {}".format(os.path.join(tmpdir, resource_name)),
@@ -498,6 +522,7 @@ def ssh_execute(prefix, host, user, cmdline, port=22, simulate=None, triggers=No
             ),
             create=cmdline,
             triggers=triggers,
+            environment=environment,
             opts=opts,
         )
     return ssh_executed
@@ -655,7 +680,16 @@ class LocalSaltCall(pulumi.ComponentResource):
     ```
     """
 
-    def __init__(self, resource_name, *args, pillar={}, sls_dir=None, opts=None, **kwargs):
+    def __init__(
+        self,
+        resource_name,
+        *args,
+        pillar={},
+        environment={},
+        sls_dir=None,
+        opts=None,
+        **kwargs,
+    ):
         super().__init__("pkg:index:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
         self.config = salt_config(resource_name, stack, project_dir, sls_dir=sls_dir)
@@ -677,6 +711,7 @@ class LocalSaltCall(pulumi.ComponentResource):
                 conf_dir=self.config["root_dir"],
                 args=" ".join(args),
             ),
+            environment=environment,
             opts=pulumi.ResourceOptions(parent=self),
             **kwargs,
         )
@@ -702,6 +737,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
         *args,
         pillar={},
         salt="",
+        environment={},
         root_dir=None,
         tmp_dir=None,
         sls_dir=None,
