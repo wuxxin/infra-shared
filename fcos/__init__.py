@@ -88,10 +88,10 @@ class ButaneTranspiler(pulumi.ComponentResource):
         - Dict LOCALE: {LANG,KEYMAP,TIMEZONE}
         - List RPM_OSTREE_INSTALL
 
-    - butane extension syntax on storage:files[].contents.template="jinja","selinux"
-        - "jinja" template contents:local through jinja
-        - "selinux" compile contents:local|inline as selinux text configuration
-            to binary as contents:source:data url
+    - butane syntax extension for storage:files[].contents.template="jinja","selinux"
+        - template=jinja: template contents:local through jinja
+        - template=selinux: compile contents:local|inline as selinux text configuration
+            to binary selinux package to contents:source:data url
 
     - jinja butane templating
         - override order: butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
@@ -107,12 +107,19 @@ class ButaneTranspiler(pulumi.ComponentResource):
 
     - returns
         - butane_config (merged butane yaml)
-        - saltstack_config (butane translated to saltstack yaml with appended {basedir}/*.sls
+        - saltstack_config (butane translated to inlined saltstack yaml with customizations
         - ignition_config (butane translated to ignition json) -> result
     """
 
     def __init__(
-        self, resource_name, hostname, hostcert, butane_input, basedir, env=None, opts=None
+        self,
+        resource_name,
+        hostname,
+        hostcert,
+        butane_input,
+        basedir,
+        environment=None,
+        opts=None,
     ):
         from ..authority import ca_factory, ssh_factory
 
@@ -125,8 +132,10 @@ class ButaneTranspiler(pulumi.ComponentResource):
 
         default_env_str = """
 DEBUG: false
+UPDATE_SERVICE_STATUS: true
 RPM_OSTREE_INSTALL:
   - mkosi
+  - docker-compose
 LOCALE:
   LANG: en_US.UTF-8
   KEYMAP: us
@@ -134,7 +143,7 @@ LOCALE:
   COUNTRY_CODE: UN
 """
         default_env = yaml.safe_load(default_env_str)
-        this_env = merge_dict_struct(default_env, {} if env is None else env)
+        this_env = merge_dict_struct(default_env, {} if environment is None else environment)
 
         # configure hostname, ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -218,7 +227,7 @@ storage:
         # jinja template *.bu yaml from this_dir, basedir=this_parent
         # inline all local references including storage:trees as storage:files
         fcos_dict = pulumi.Output.all(
-            loaded_dict=self.load_butane_files(this_parent, env=this_env)
+            loaded_dict=self.load_butane_files(this_parent, this_env)
         ).apply(lambda args: self.inline_local_files(args["loaded_dict"], this_parent))
 
         # jinja template *.bu yaml files from basedir
@@ -227,7 +236,7 @@ storage:
             base_dict=base_dict,
             security_dict=security_dict,
             fcos_dict=fcos_dict,
-            loaded_dict=self.load_butane_files(basedir, env=this_env),
+            loaded_dict=self.load_butane_files(basedir, this_env),
         ).apply(
             lambda args: merge_dict_struct(
                 args["fcos_dict"],
@@ -241,7 +250,7 @@ storage:
         # apply template filters if storage:files:[].contents.template != None
         self.butane_config = pulumi.Output.all(merged_dict=merged_dict).apply(
             lambda args: yaml.safe_dump(
-                self.template_files(args["merged_dict"], this_parent, env=this_env)
+                self.template_files(args["merged_dict"], this_parent, this_env)
             )
         )
 
@@ -252,7 +261,7 @@ storage:
                 lambda args: jinja_run_template(
                     "butane2salt.jinja",
                     [basedir, this_dir],
-                    {"butane": yaml.safe_load(args["butane"])},
+                    {**this_env, "butane": yaml.safe_load(args["butane"])},
                 )
             ),
             open(os.path.join(this_dir, "coreos-update-config.sls"), "r").read(),
@@ -275,7 +284,7 @@ storage:
         self.result = self.ignition_config.stdout
         self.register_outputs({})
 
-    def load_butane_files(self, basedir, env):
+    def load_butane_files(self, basedir, environment):
         "read and jinja template all *.bu files from basedir recursive, parse as yaml, merge together"
 
         all_files = sorted(
@@ -291,7 +300,7 @@ storage:
 
         merged_yaml = {}
         for fname in all_files:
-            yaml_dict = pulumi.Output.all(fname=fname, env=env).apply(
+            yaml_dict = pulumi.Output.all(fname=fname, env=environment).apply(
                 lambda args: yaml.safe_load(
                     jinja_run_template(args["fname"], basedir, args["env"])
                 )
@@ -301,8 +310,8 @@ storage:
             ).apply(lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"]))
         return merged_yaml
 
-    def template_files(self, yaml_dict, basedir, env):
-        """for any storage:files[].contents.template != None run source through additional translation
+    def template_files(self, yaml_dict, basedir, environment):
+        """for any file where storage:files[].contents.template != None run source through additional translation
 
         - template= "jinja"
             - template the source through jinja
@@ -334,7 +343,7 @@ storage:
                             "Invalid option, contents must be one of 'local' or 'inline' if template != None"
                         )
                     if f["contents"]["template"] == "jinja":
-                        data = jinja_run(f["contents"]["inline"], basedir, env)
+                        data = jinja_run(f["contents"]["inline"], basedir, environment)
                         ydict["storage"]["files"][fnr]["contents"].update({"inline": data})
                     elif f["contents"]["template"] == "selinux":
                         data = "data:;base64," + base64.b64encode(
@@ -349,9 +358,9 @@ storage:
         """inline the contents of butane local references
 
         - storage:files:contents:local
+        - storage:trees
         - systemd:units:contents_local
         - systemd:units:dropins:contents_local
-        - storage:trees
 
         """
 
