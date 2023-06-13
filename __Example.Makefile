@@ -48,14 +48,13 @@ submodules: ## Pull and update git submodules recursively
 .PHONY: provision-container
 provision-container: ## Build provision client container
 	@echo "+ $@"
-	@cd infra/Containerfile/provision_client && $(DOCKER) build $$(pwd)
-	# -t provision_client:latest
+	@cd infra/Containerfile/provision_client && $(DOCKER) build -t provision_client:latest $$(pwd)
 
 .PHONY: install-requirements
-install-requirements: ## Install tools used for devop tasks (uses sudo for install)
+install-requirements: ## Install tools used for devop tasks
 	@echo "+ $@"
-	@sudo -E $$(pwd)/infra/requirements.sh --install
-	@sudo -E $$(pwd)/infra/requirements.sh --install-aur
+	@./infra/requirements.sh --install
+	@./infra/requirements.sh --install-aur
 
 Pipfile.lock: Pipfile
 	@echo "+ $@"
@@ -163,7 +162,11 @@ clean-all: sim-clean build-env-clean python-clean docs-clean ## Remove build, do
 	@mkdir state/tmp state/salt
 
 
-prod_passphrase.age: build-env
+.PHONY: check_authorized_keys
+check_authorized_keys:
+	@if test ! -s $(ROOTDIR)authorized_keys; then echo "ERROR: 'authorized_keys' is empty."; exit 1; fi
+
+prod_passphrase.age: build-env check_authorized_keys
 ifeq ($(shell test -f prod_passphrase.age && echo "ok"), ok)
 	@touch -c prod_passphrase.age
 else
@@ -171,7 +174,7 @@ else
 	@openssl rand --base64 24 | age --encrypt -R $(ROOTDIR)authorized_keys -a > prod_passphrase.age
 endif
 
-Pulumi.prod.yaml: build-env
+Pulumi.prod.yaml: build-env check_authorized_keys
 ifeq ($(shell test -f Pulumi.prod.yaml && echo "ok"), ok)
 	@touch -c Pulumi.prod.yaml
 else
