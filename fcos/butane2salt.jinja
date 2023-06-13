@@ -250,6 +250,9 @@ Main Translation of storage:directories, links, files, trees, systemd units and 
 {{ tr_etc(fp) }}:
   file.managed:
     - makedirs: True
+      {%- if f|has_executable_bit() %}
+    - mode: 0o755
+      {%- endif %}
     - contents: |
         {{ contents|string()|indent(8) }}
 
