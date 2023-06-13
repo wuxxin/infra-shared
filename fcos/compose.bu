@@ -8,10 +8,10 @@ storage:
     - path: /etc/compose/build
 
   files:
+    # symlink /run/docker.sock to /run/podman/podman.sock, so compose will also use podman
     - path: /etc/tmpfiles.d/podman-docker.conf
       contents:
         inline: |
-          # symlink /run/docker.sock to /run/podman/podman.sock, so compose will also use podman
           # L /symlink/to/create  - - - - symlink/target/path
           L   /run/docker.sock    - - - - /run/podman/podman.sock
 
@@ -40,6 +40,7 @@ systemd:
     - name: docker.socket
       mask: true
 
+    # overwrite podman.service: set explicit socket, dont exit on timeout, always enabled
     - name: podman.service
       enabled: true
       contents: |
