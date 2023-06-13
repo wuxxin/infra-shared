@@ -35,21 +35,49 @@
 
 """
 
-import os
+import base64
 import copy
-import stat
-import json
 import glob
-import yaml
+import json
+import os
+import stat
+import subprocess
 
 import pulumi
 import pulumi_command as command
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
+import yaml
 
-from ..tools import jinja_run, jinja_run_template, merge_dict_struct, log_warn
+from ..tools import jinja_run, jinja_run_template, join_paths, log_warn, merge_dict_struct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+def compile_selinux_module(content):
+    timeout_seconds = 10
+    chk_process = subprocess.Popen(
+        ["checkmodule", "-M", "-m", "-o", "/dev/stdout", "/dev/stdin"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    chk_output, chk_error = chk_process.communicate(input=content, timeout=timeout_seconds)
+    if chk_process.returncode != 0:
+        raise Exception("checkmodule failed:\n{}".format(chk_error))
+    pkg_process = subprocess.Popen(
+        ["semodule_package", "-o", "/dev/stdout", "-m", "/dev/stdin"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    pkg_output, pkg_error = pkg_process.communicate(input=chk_output, timeout=timeout_seconds)
+    if pkg_process.returncode != 0:
+        raise Exception("semodule_package failed:\n{}".format(pkg_error))
+
+    return pkg_output
 
 
 class ButaneTranspiler(pulumi.ComponentResource):
@@ -59,16 +87,24 @@ class ButaneTranspiler(pulumi.ComponentResource):
         - Boolean DEBUG
         - Dict LOCALE: {LANG,KEYMAP,TIMEZONE}
         - List RPM_OSTREE_INSTALL
+
+    - butane extension syntax on storage:files[].contents.template="jinja","selinux"
+        - "jinja" template contents:local through jinja
+        - "selinux" compile contents:local|inline as selinux text configuration
+            to binary as contents:source:data url
+
     - jinja butane templating
         - override order: butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
         - butane_input string with butane contents:local support from {basedir}
         - butane_security config for hostname, ssh keys, tls root_ca, server cert and key
         - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
         - {basedir}/*.bu with butane contents:local support from {basedir}
+
     - saltstack translation
         - jinja templating of butane2salt.jinja with butane_config as environment
         - {this_dir}/coreos-update-config.sls for migration helper from older fcos/*.bu
         - {basedir}/*.sls
+
     - returns
         - butane_config (merged butane yaml)
         - saltstack_config (butane translated to saltstack yaml with appended {basedir}/*.sls
@@ -78,7 +114,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
     def __init__(
         self, resource_name, hostname, hostcert, butane_input, basedir, env=None, opts=None
     ):
-        from ..authority import ssh_factory, ca_factory
+        from ..authority import ca_factory, ssh_factory
 
         super().__init__(
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
@@ -180,31 +216,32 @@ storage:
         )
 
         # jinja template *.bu yaml from this_dir, basedir=this_parent
-        # inline all local references, inline storage:trees as storage:files
+        # inline all local references including storage:trees as storage:files
         fcos_dict = pulumi.Output.all(
-            loaded_yaml=self.load_butane_files(this_parent, env=this_env)
-        ).apply(
-            lambda args: self.inline_local_files(
-                args["loaded_yaml"], this_parent, include_trees=True
-            )
-        )
+            loaded_dict=self.load_butane_files(this_parent, env=this_env)
+        ).apply(lambda args: self.inline_local_files(args["loaded_dict"], this_parent))
 
         # jinja template *.bu yaml files from basedir
-        # merge base_dict -> security_dict > loaded_dict -> fcos_dict
-        self.butane_config = pulumi.Output.all(
+        # merged_dict= base_dict -> security_dict > loaded_dict -> fcos_dict
+        merged_dict = pulumi.Output.all(
             base_dict=base_dict,
             security_dict=security_dict,
             fcos_dict=fcos_dict,
-            loaded_yaml=self.load_butane_files(basedir, env=this_env),
+            loaded_dict=self.load_butane_files(basedir, env=this_env),
         ).apply(
-            lambda args: yaml.safe_dump(
+            lambda args: merge_dict_struct(
+                args["fcos_dict"],
                 merge_dict_struct(
-                    args["fcos_dict"],
-                    merge_dict_struct(
-                        args["loaded_yaml"],
-                        merge_dict_struct(args["security_dict"], args["base_dict"]),
-                    ),
-                )
+                    args["loaded_dict"],
+                    merge_dict_struct(args["security_dict"], args["base_dict"]),
+                ),
+            )
+        )
+
+        # apply template filters if storage:files:[].contents.template != None
+        self.butane_config = pulumi.Output.all(merged_dict=merged_dict).apply(
+            lambda args: yaml.safe_dump(
+                self.template_files(args["merged_dict"], this_parent, env=this_env)
             )
         )
 
@@ -238,26 +275,92 @@ storage:
         self.result = self.ignition_config.stdout
         self.register_outputs({})
 
-    def inline_local_files(self, yaml_dict, basedir, include_trees=False):
+    def load_butane_files(self, basedir, env):
+        "read and jinja template all *.bu files from basedir recursive, parse as yaml, merge together"
+
+        all_files = sorted(
+            [
+                os.path.relpath(fname, basedir)
+                for fname in glob.glob(os.path.join(basedir, "*.bu"))
+            ]
+            + [
+                os.path.relpath(fname, basedir)
+                for fname in glob.glob(os.path.join(basedir, "**", "*.bu"), recursive=True)
+            ]
+        )
+
+        merged_yaml = {}
+        for fname in all_files:
+            yaml_dict = pulumi.Output.all(fname=fname, env=env).apply(
+                lambda args: yaml.safe_load(
+                    jinja_run_template(args["fname"], basedir, args["env"])
+                )
+            )
+            merged_yaml = pulumi.Output.all(
+                yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
+            ).apply(lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"]))
+        return merged_yaml
+
+    def template_files(self, yaml_dict, basedir, env):
+        """for any storage:files[].contents.template != None run source through additional translation
+
+        - template= "jinja"
+            - template the source through jinja
+        - template= "selinux"
+            - compile source selinux text configuration to binary as contents:source:data url
+
+        """
+
+        ydict = copy.deepcopy(yaml_dict)
+
+        if "storage" in ydict and "files" in ydict["storage"]:
+            for fnr in range(len(ydict["storage"]["files"])):
+                f = ydict["storage"]["files"][fnr]
+
+                if "contents" in f and "template" in f["contents"]:
+                    if f["contents"]["template"] not in ["jinja", "selinux"]:
+                        raise ValueError(
+                            "Invalid option, template must be one of: jinja, selinux"
+                        )
+                    if "local" in f["contents"]:
+                        fname = f["contents"]["local"]
+                        del ydict["storage"]["files"][fnr]["contents"]["local"]
+                        ydict["storage"]["files"][fnr]["contents"].update(
+                            {"inline": open(join_paths(basedir, fname), "r").read()}
+                        )
+                        f = ydict["storage"]["files"][fnr]
+                    if "inline" not in f["contents"]:
+                        raise ValueError(
+                            "Invalid option, contents must be one of 'local' or 'inline' if template != None"
+                        )
+                    if f["contents"]["template"] == "jinja":
+                        data = jinja_run(f["contents"]["inline"], basedir, env)
+                        ydict["storage"]["files"][fnr]["contents"].update({"inline": data})
+                    elif f["contents"]["template"] == "selinux":
+                        data = "data:;base64," + base64.b64encode(
+                            compile_selinux_module(f["contents"]["inline"])
+                        ).decode("utf-8")
+                        del ydict["storage"]["files"][fnr]["contents"]["inline"]
+                        ydict["storage"]["files"][fnr]["contents"].update({"source": data})
+
+        return ydict
+
+    def inline_local_files(self, yaml_dict, basedir):
         """inline the contents of butane local references
 
         - storage:files:contents:local
         - systemd:units:contents_local
         - systemd:units:dropins:contents_local
-        - storage:trees (if include_trees is True)
+        - storage:trees
 
         """
-
-        def join_paths(basedir, *filepaths):
-            filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
-            return os.path.join(basedir, *filepaths)
 
         def read_include(basedir, *filepaths):
             return open(join_paths(basedir, *filepaths), "r").read()
 
         ydict = copy.deepcopy(yaml_dict)
 
-        if include_trees and "storage" in ydict and "trees" in ydict["storage"]:
+        if "storage" in ydict and "trees" in ydict["storage"]:
             for tnr in range(len(ydict["storage"]["trees"])):
                 t = ydict["storage"]["trees"][tnr]
                 for f in glob.glob(
@@ -313,32 +416,6 @@ storage:
                                 {"contents": read_include(basedir, fname)}
                             )
         return ydict
-
-    def load_butane_files(self, basedir, env):
-        """read and jinja template all *.bu files from basedir recursive, parse as yaml, merge together"""
-
-        all_files = sorted(
-            [
-                os.path.relpath(fname, basedir)
-                for fname in glob.glob(os.path.join(basedir, "*.bu"))
-            ]
-            + [
-                os.path.relpath(fname, basedir)
-                for fname in glob.glob(os.path.join(basedir, "**", "*.bu"), recursive=True)
-            ]
-        )
-
-        merged_yaml = {}
-        for fname in all_files:
-            yaml_dict = pulumi.Output.all(fname=fname, env=env).apply(
-                lambda args: yaml.safe_load(
-                    jinja_run_template(args["fname"], basedir, args["env"])
-                )
-            )
-            merged_yaml = pulumi.Output.all(
-                yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
-            ).apply(lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"]))
-        return merged_yaml
 
 
 class FcosImageDownloader(pulumi.ComponentResource):
@@ -561,7 +638,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
     """
 
     def __init__(self, resource_name, host, compiled_config, opts=None):
-        from ..tools import ssh_execute, ssh_deploy
+        from ..tools import ssh_deploy, ssh_execute
 
         super().__init__(
             "pkg:index:FcosConfigUpdate",
@@ -598,7 +675,8 @@ class FcosConfigUpdate(pulumi.ComponentResource):
             resource_name,
             host,
             user,
-            cmdline="""sudo cp {source} {target} && sudo systemctl daemon-reload && \
+            cmdline="""if test -f {source}; then sudo cp {source} {target}; fi && \
+                        sudo systemctl daemon-reload && \
                         sudo systemctl restart --wait coreos-update-config""".format(
                 source=os.path.join(root_dir, update_fname),
                 target=os.path.join("/etc/systemd/system", update_fname),
