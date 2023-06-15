@@ -1,0 +1,34 @@
+FROM docker.io/haproxy:2.8-alpine
+# based on https://github.com/Tecnativa/docker-socket-proxy
+# default is to only allow readonly access (API_POST=0)
+# default accessable API's are API_events, API_ping and API_version
+ENV API_SOCKET=/var/run/docker.sock \
+    API_PORT=2375 \
+    API_LOG_LEVEL=info \
+    API_EVENTS=1 \
+    API_PING=1 \
+    API_VERSION=1 \
+    API_POST=0 \
+    API_ALLOW_RESTARTS=0 \
+    API_AUTH=0 \
+    API_BUILD=0 \
+    API_COMMIT=0 \
+    API_CONFIGS=0 \
+    API_CONTAINERS=0 \
+    API_DISTRIBUTION=0 \
+    API_EXEC=0 \
+    API_GRPC=0 \
+    API_IMAGES=0 \
+    API_INFO=0 \
+    API_NETWORKS=0 \
+    API_NODES=0 \
+    API_PLUGINS=0 \
+    API_SECRETS=0 \
+    API_SERVICES=0 \
+    API_SESSION=0 \
+    API_SWARM=0 \
+    API_SYSTEM=0 \
+    API_TASKS=0 \
+    API_VOLUMES=0
+
+EXPOSE 2375
