@@ -29,10 +29,6 @@ systemd:
     - name: compose-up@.service
       contents_local: fcos/compose-up@.service
 
-    - name: compose-secrets.service
-      enabled: true
-      contents_local: fcos/compose-secrets.service
-
     # mask docker.service/socket, because we will use podman to service the /run/docker.sock
     - name: docker.service
       mask: true
