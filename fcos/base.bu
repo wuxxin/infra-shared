@@ -1,14 +1,10 @@
 storage:
   directories:
-    # quadlet container/volume/network configuration files
-    # name files {service}[.optional].[container,volume,other]
-    - path: /etc/containers/systemd
-
-    # our environment directory, name files {service}.env
+    # our system environment directory, name files {service}.env
     - path: /etc/local/environment
       mode: 0700
 
-    # our flags directory
+    # our system flags directory
     - path: /etc/local/flags
 
     # our directory for local commandline scripts and binaries
@@ -44,15 +40,6 @@ storage:
       contents:
         inline: |
           RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
-
-    # environment for list of files to import as container/compose secrets
-    {%- for i in ["containers-secrets", "compose-secrets"] %}
-    - path: /etc/local/environment/{{ i }}.env
-      contents:
-        inline: |
-          FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
-
-    {% endfor %}
 
 systemd:
   units:
