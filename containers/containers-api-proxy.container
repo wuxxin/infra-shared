@@ -1,0 +1,23 @@
+[Unit]
+Description=Container API Proxy (unix socket to tcp port) based on Haproxy
+Wants=containers-secrets.service containers-build@%N.service
+After=containers-secrets.service containers-build@%N.service
+
+[Container]
+Image=localhost/%N:latest
+
+EnvironmentFile=/etc/containers/environment/%N.env
+# XXX Enable API_CONTAINERS, so traefik can get labels for frontend router configuration
+Environment=API_CONTAINERS=1
+Environment=API_PORT=2375
+
+# XXX --privileged is needed for selinux to allow access to /run/podman/podman.sock
+PodmanArgs=--privileged
+Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
+Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

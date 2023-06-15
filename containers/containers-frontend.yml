@@ -1,0 +1,41 @@
+# traefik.yml
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+tls:
+  options:
+    default:
+      sniStrict: true
+  certificates:
+    - certFile: /run/secrets/server.crt
+      keyFile: /run/secrets/server.key
+
+providers:
+  docker:
+    # XXX endpoint is set as environment variable
+    watch: true
+    exposedbydefault: false
+  file:
+    directory: /etc/traefik/include
+    watch: true
+
+entryPoints:
+  http:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: https
+          scheme: https
+  https:
+    address: ":443"
+
+http:
+  middlewares:
+
+    ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50
+

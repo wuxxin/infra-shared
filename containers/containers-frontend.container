@@ -1,0 +1,28 @@
+[Unit]
+Description=Traefik Edge Router that uses (container) labels for configuration discovery
+Wants=containers-secrets.service containers-build@%N.service containers-api-proxy.service
+After=containers-secrets.service containers-build@%N.service containers-api-proxy.service
+
+[Container]
+Image=localhost/%N:latest
+# XXX use the proxy endpoint, which limits access to readonly container information for traefik labels
+Environment=TRAEFIK_PROVIDERS_DOCKER_ENDPOINT=tcp://containers-api-proxy:2375
+EnvironmentFile=-/etc/containers/environment/%N.env
+
+# allow ports < 1024
+PodmanArgs=--sysctl=net.ipv4.ip_unprivileged_port_start=0
+
+Secret=root_ca.crt,mode=0640
+Secret=server.crt,mode=0640
+Secret=server.key,mode=0640
+
+Volume=/etc/containers/systemd/%N.yml:/etc/traefik/traefik.yml:ro
+Volume=/etc/containers/frontend:/etc/traefik/include:ro
+# Save eg. letsencrypt state in /traefik/something
+Volume=containers-frontend.volume:/traefik
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
