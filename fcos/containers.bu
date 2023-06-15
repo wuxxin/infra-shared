@@ -19,12 +19,13 @@ storage:
           FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
 
 {% if CONTAINERS_FRONTEND|d(false) %}
-  {% set list_str= "containers/containers-"|list_files() %}
+  {%- set frontend_list=["containers-api-proxy.container", "containers-api-proxy.cfg",
+      "containers-frontend.container", "containers-frontend.volume", "containers-frontend.yml"] %}
     # copy containers-api-proxy and containers-frontend configuration
-  {%- for f in list_str.split("\n") %}
-    - path: /etc/containers/systemd/{{ f|replace("containers/", """) }}
+  {%- for f in frontend_list %}
+    - path: /etc/containers/systemd/{{ f }}
       contents:
-        local: {{ f }}
+        local: containers/{{ f }}
   {% endfor %}
 {% endif %}
 
