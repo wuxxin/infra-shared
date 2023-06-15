@@ -146,12 +146,12 @@ make provision-container
 
 # Or: build container using any other container tool
 # - replace "docker" with your container build call
-cd infra/Containerfile/provision_client && docker build -t provision_client:latest $(pwd)
+cd infra/Containerfile/provision-client && docker build -t provision-client:latest $(pwd)
 
-# add a provision_client() function to running shell
+# add a provision-client() function to running shell
 # - replace "sudo podman" to match your local container software
 source /dev/stdin <<'EOF'
-provision_client() {
+provision-client() {
   test "${1}" = "" && set -- "/usr/bin/bash" "${@:1}"; \
   sudo podman run -it --rm \
   --user="$(id -u):$(id -g)" --network=host \
@@ -160,15 +160,15 @@ provision_client() {
   -e "HOME=$HOME" -e "PWD=$(pwd)" -e "LANG=$LANG" -e "TERM=$TERM" -e "USER=$USER" \
   -e "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" \
   -w "$(pwd)" \
-  localhost/provision_client \
+  localhost/provision-client \
   "${@:1}"
 }
 EOF
 
 # call provision client (defaults to /usr/bin/bash interactive shell)
-provision_client
+provision-client
 
-# add `provision_client() {...}` to .bashrc to have it available every time.
+# add `provision-client() {...}` to .bashrc to have it available every time.
 ```
 
 
