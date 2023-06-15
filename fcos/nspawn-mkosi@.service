@@ -1,0 +1,16 @@
+[Unit]
+Description=Build nspawn image %I using mkosi
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/nspawn/mkosi/%i/mkosi.conf
+ConditionPathExists=/usr/bin/mkosi
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/etc/nspawn/mkosi/%i
+ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+    if test ! -d "/var/lib/mkosi/%i"; then \
+        echo "building machine %i"; \
+        mkosi -C /etc/nspawn/mkosi/%i -O /var/lib/mkosi --cache=/var/cache/mkosi build; \
+    fi'

@@ -1,0 +1,44 @@
+[Unit]
+Description=Provision Nspawn Image %I
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
+ConditionPathExists=/etc/nspawn/environment/%i.env
+ConditionPathExists=/etc/nspawn/build/%i/nspawn.postinst.sh
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/nspawn/environment/%i.env
+# NSPAWN_OSNAME must be set
+# NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
+# nspawn.postinst.sh and additional files from build/%i will be copied to /tmp of machine
+ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+    if test ! -d "/var/lib/machines/%i"; then \
+      if test ! -d "/var/lib/mkosi/$NSPAWN_OSNAME"; \
+        echo "Error: base image dependency $NSPAWN_OSNAME not found"; \
+        exit 1; \
+      fi; \
+      echo "Import machine %i from $NSPAWN_OSNAME"; \
+      machinectl import-fs /var/lib/mkosi/$NSPAWN_OSNAME %i; \
+      printf "Provision machine %i"; \
+      systemd-nspawn --quiet --machine=%i --directory=/var/lib/machines/%i; \
+      while ! machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
+      while ! machinectl show %i | grep -q State=running; do echo -n "+"; sleep 1; done; \
+      sleep 1; echo " is running"; \
+      echo "copy additional files to /tmp of machine"; \
+      for f in /etc/nspawn/build/%i/*; do machinectl copy-to %i "$f" /tmp/; done; \
+      echo "execute nspawn.postinst.sh script in machine with stdin pipe"; \
+      echo "${NSPAWN_PROVISION}" | machinectl shell %i /bin/sh -c \
+          "/bin/chmod +x /tmp/nspawn.postinst.sh; /tmp/nspawn.postinst.sh --yes"; \
+      printf "provision done, power off machine %i "; \
+      machinectl poweroff %i; \
+      while machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
+      echo " is stopped"; \
+      touch /etc/local/flags/provision-%i.stamp; \
+    else \
+      echo "Machine %i already provisioned, skipping provision"; \
+    fi'
+
+[Install]
+WantedBy=multi-user.target
