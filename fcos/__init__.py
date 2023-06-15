@@ -58,6 +58,7 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 default_env_str = """
 DEBUG: false
 UPDATE_SERVICE_STATUS: true
+CONTAINERS_FRONTEND: true
 RPM_OSTREE_INSTALL:
   - mkosi
   - apt
@@ -99,27 +100,27 @@ def compile_selinux_module(content):
 class ButaneTranspiler(pulumi.ComponentResource):
     """translate jinja templated butane files to ignition and a subset to saltstack salt format
 
-    - environment available in jinja with defaults for
+    - environment defaults available in jinja
         - Boolean DEBUG
-        - Dict LOCALE: {LANG,KEYMAP,TIMEZONE}
+        - Boolean UPDATE_SERVICE_STATUS
+        - Dict LOCALE: {LANG,KEYMAP,TIMEZONE, COUNTRY_CODE}
         - List RPM_OSTREE_INSTALL
 
-    - butane syntax extension for storage:files[].contents.template="jinja","selinux"
-        - template=jinja: template contents:local through jinja
-        - template=selinux: compile contents:local|inline as selinux text configuration
-            to binary selinux package to contents:source:data url
-
-    - jinja butane templating
-        - override order: butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
-        - butane_input string with butane contents:local support from {basedir}
-        - butane_security config for hostname, ssh keys, tls root_ca, server cert and key
-        - {this_dir}/*.bu with **inlined** butane contents:local support from {this_dir}/..
-        - {basedir}/*.bu with butane contents:local support from {basedir}
-
-    - saltstack translation
-        - jinja templating of butane2salt.jinja with butane_config as environment
-        - {this_dir}/coreos-update-config.sls for migration helper from older fcos/*.bu
-        - {basedir}/*.sls
+    - butane jinja templating
+        - 1. jinja template butane_input, basedir=basedir
+        - 2. jinja template butane_security_keys, basedir=basedir
+        - 3. jinja template *.bu yaml from this_dir, basedir=this_parent
+            - inline all local references including storage:trees as storage:files
+        - 4. jinja template *.bu yaml files from basedir
+            - merge order= butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
+        - 5. apply additional filters where butane extension template != None
+            - template=jinja: template through jinja
+            - storage:files[].contents.template,
+            - systemd:units[].template, systemd:units[].dropins[].template
+        - 6. translate merged butane yaml to saltstack salt yaml config
+            - jinja templating of butane2salt.jinja with butane_config as additional environment
+            - append this_dir/coreos-update-config.sls and basedir/*.sls to it
+        - 7. translate merged butane yaml to ignition json config
 
     - returns
         - butane_config (merged butane yaml)
@@ -212,27 +213,27 @@ storage:
 """,
         )
 
-        # jinja template butane_input, basedir=basedir
+        # 1. jinja template butane_input, basedir=basedir
         base_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_input, env=this_env).apply(
                 lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
 
-        # jina template butane_security_keys, basedir=basedir
+        # 2. jina template butane_security_keys, basedir=basedir
         security_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_security_keys, env=this_env).apply(
                 lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
 
-        # jinja template *.bu yaml from this_dir, basedir=this_parent
+        # 3. jinja template *.bu yaml from this_dir, basedir=this_parent
         # inline all local references including storage:trees as storage:files
         fcos_dict = pulumi.Output.all(
             loaded_dict=self.load_butane_files(this_parent, this_env)
         ).apply(lambda args: self.inline_local_files(args["loaded_dict"], this_parent))
 
-        # jinja template *.bu yaml files from basedir
+        # 4. jinja template *.bu yaml files from basedir
         # merged_dict= base_dict -> security_dict > loaded_dict -> fcos_dict
         merged_dict = pulumi.Output.all(
             base_dict=base_dict,
@@ -249,14 +250,14 @@ storage:
             )
         )
 
-        # apply template filters if storage:files:[].contents.template != None
+        # 5. apply additional template filters
         self.butane_config = pulumi.Output.all(merged_dict=merged_dict).apply(
             lambda args: yaml.safe_dump(
                 self.template_files(args["merged_dict"], this_parent, this_env)
             )
         )
 
-        # translate merged butane yaml to saltstack salt yaml config
+        # 6. translate merged butane yaml to saltstack salt yaml config
         # append this_dir/coreos-update-config.sls and basedir/*.sls to it
         self.saltstack_config = pulumi.Output.concat(
             pulumi.Output.all(butane=self.butane_config).apply(
@@ -272,7 +273,7 @@ storage:
 
         # self.saltstack_config.apply(log_warn)
 
-        # translate merged butane yaml to ignition json config
+        # 7. translate merged butane yaml to ignition json config
         # XXX due to pulumi-command exit 1 on stderr output, we silence stderr,
         #   but output is vital for finding compilation warning and errors, so remove 2>/dev/null on debug
         self.ignition_config = command.local.Command(
@@ -313,12 +314,18 @@ storage:
         return merged_yaml
 
     def template_files(self, yaml_dict, basedir, environment):
-        """for any file where storage:files[].contents.template != None run source through additional translation
+        """additional template translation of contents from butane local references where template =! None
+
+        - storage:files[].contents.template
+        - systemd:units[].template
+        - systemd:units[].dropins[].template
 
         - template= "jinja"
             - template the source through jinja
+
         - template= "selinux"
-            - compile source selinux text configuration to binary as contents:source:data url
+            - compile source selinux text configuration to binary as file:contents.source:data url
+            - available for storage.files only
 
         """
 
@@ -354,15 +361,48 @@ storage:
                         del ydict["storage"]["files"][fnr]["contents"]["inline"]
                         ydict["storage"]["files"][fnr]["contents"].update({"source": data})
 
+        if "systemd" in ydict and "units" in ydict["systemd"]:
+            for unr in range(len(ydict["systemd"]["units"])):
+                u = ydict["systemd"]["units"][unr]
+                if "template" in u and u["template"] not in ["jinja"]:
+                    raise ValueError("Invalid option, template must be one of: jinja")
+                if "contents_local" in u and "template" in u:
+                    fname = u["contents_local"]
+                    del ydict["systemd"]["units"][unr]["contents_local"]
+                    ydict["systemd"]["units"][unr].update(
+                        {"contents": open(join_paths(basedir, fname), "r").read()}
+                    )
+                    u = ydict["systemd"]["units"][unr]
+                if "contents" in u and "template" in u:
+                    data = jinja_run(u["contents"], basedir, environment)
+                    ydict["systemd"]["units"][unr].update({"contents": data})
+
+                if "dropins" in u:
+                    for dnr in range(len(u["dropins"])):
+                        d = ydict["systemd"]["units"][unr]["dropins"][dnr]
+                        if "contents_local" in d and "template" in d:
+                            fname = d["contents_local"]
+                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
+                                "contents_local"
+                            ]
+                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
+                                {"contents": open(join_paths(basedir, fname), "r").read()}
+                            )
+                            d = ydict["systemd"]["units"][unr]["dropins"][dnr]
+                        if "contents" in d and "template" in d:
+                            data = jinja_run(d["contents"], basedir, environment)
+                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
+                                {"contents": data}
+                            )
         return ydict
 
     def inline_local_files(self, yaml_dict, basedir):
         """inline the contents of butane local references
 
-        - storage:files:contents:local
-        - storage:trees
-        - systemd:units:contents_local
-        - systemd:units:dropins:contents_local
+        - storage:trees:[]:local -> files:[]:contents:inline
+        - storage:files:[]:contents:local -> []:contents:inline
+        - systemd:units:[]:contents_local -> []:contents
+        - systemd:units:[]:dropins:[]:contents_local -> []:contents
 
         """
 
