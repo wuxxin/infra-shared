@@ -1,11 +1,32 @@
 storage:
   directories:
+    # standard podman quadlet container/volume/network configuration directory
+    #   automatic service recognition if: {service}[.*].{container,volume,*}
+    - path: /etc/containers/systemd
+
     # our container environment directory
     - path: /etc/containers/environment
       mode: 0700
 
     # our container Containerfile directory
     - path: /etc/containers/build
+
+  files:
+    # environment for list of files to import as containers secrets
+    - path: /etc/containers/environment/containers-secrets.env
+      contents:
+        inline: |
+          FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
+
+{% if CONTAINERS_FRONTEND|d(false) %}
+  {% set list_str= "containers/containers-"|list_files() %}
+    # copy containers-api-proxy and containers-frontend configuration
+  {%- for f in list_str.split("\n") %}
+    - path: /etc/containers/systemd/{{ f|replace("containers/", """) }}
+      contents:
+        local: {{ f }}
+  {% endfor %}
+{% endif %}
 
 systemd:
   units:
