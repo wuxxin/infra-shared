@@ -6,7 +6,7 @@ After=containers-secrets.service containers-build@%N.service
 [Container]
 Image=localhost/%N:latest
 
-EnvironmentFile=/etc/containers/environment/%N.env
+EnvironmentFile=-/etc/containers/environment/%N.env
 # XXX Enable API_CONTAINERS, so traefik can get labels for frontend router configuration
 Environment=API_CONTAINERS=1
 Environment=API_PORT=2375
