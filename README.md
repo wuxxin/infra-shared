@@ -31,28 +31,37 @@ To see what else you can do with it, continue reading or look at:
 
 ### Features
 
-- Fedora CoreOS - setup, installation and reconfiguration of CoreOS, with Jinja templated butane files
+Pulumi Components for
+
+- Fedora-CoreOS Linux - updating, minimal, monolithic, container-focused operating system
+    - Setup, Bootstrap and Reconfiguration of CoreOS with Jinja templated butane files
     - Reconfiguration: `coreos-update-config*`
-        - reconfigure fedora CoreOS based on `butane2salt.jinja` translation
-    - Single Container: `podman-systemd.unit`
+        - Fast (~4s) reconfiguration based on `butane2salt.jinja` translation
+    - **Single Container**: `podman-systemd.unit`
         - `containers*` - run systemd container units using podman-quadlet
-    - Compose Container: `compose.yml`
+    - **Compose Container**: `compose.yml`
         - `compose*` - run multi-container applications defined using a compose file
-    - nSpawn OS-Container: `systemd-nspawn`
+    - **nSpawn OS-Container**: `systemd-nspawn`
         - `nspawn*` - run an linux OS (build by mkosi) in a light-weight container
+
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
-- `build.py` - build Embedded-OS Images and IOT Images, eg. OpenWRT
+- `build.py` - build Embedded-OS Images and IOT Images
+    - **Openwrt** Linux - Network Device Distribution for Router and other network devices
+    - **Homeassistant** OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)
+    - **Esphome** - yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
 - `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
-**Operating Systems / Device Frameworks** facilitated:
-- Provision: **Arch** Linux, **Manjaro** Linux or as **Container Image**
-- Server: **Fedora-CoreOS** Linux - updating, minimal, monolithic, container-focused operating system
-- Router: **Openwrt** Linux - Operating system targeting network devices
-- Automation: **Homeassistant** OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)
-- IOT: **Esphome** - yaml configured **Sensor/Actor** for ESP32 **Devices** on **Arduino** or **ESP-IDF** framework
+
+Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
+
+**Need to know** technologies (to write Deployment and Docs):
+- Basic Knowledge of Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
+
+**Advanced functionality** available with knowledge of:
+- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Jupyter Notebooks
 
 ### Usage
 
@@ -216,17 +225,10 @@ make prod__ args=up
 
 #### Technologies
 
-**Need to know** technologies (to write Deployment and Docs):
-- Basic Knowledge of Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
-
-**Advanced functionality** available with knowledge of:
-- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, Bash, Mkdocs, Mermaid, Jupyter Notebooks
-
-**Tool Stack used**:
 - `pulumi` - imperativ infrastructure delaration using python
 - `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
-- `butane` - define fcos `ignition` configs using `jinja` enhanced butane yaml
-- `systemd` - configuration using systemd: service, socket, path, timer, nspawn
+- `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
+- `systemd` - service, socker, path, timer, nspawn machine container
 - `podman` - build Container images, run Container using quadlet systemd container
 - `saltstack`
     - local embedded/iot build environments, local user services
