@@ -4,7 +4,7 @@ Wants=network-online.target
 After=network-online.target
 ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
 ConditionPathExists=/etc/nspawn/environment/%i.env
-ConditionPathExists=/etc/nspawn/build/%i/nspawn.postinst.sh
+ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
 
 [Service]
 Type=oneshot
@@ -12,12 +12,15 @@ RemainAfterExit=yes
 EnvironmentFile=/etc/nspawn/environment/%i.env
 # NSPAWN_OSNAME must be set
 # NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
-# nspawn.postinst.sh and additional files from build/%i will be copied to /tmp of machine
+# nspawn.provision.sh and additional files from build/%i will be copied to /tmp of machine
 ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
     if test ! -d "/var/lib/machines/%i"; then \
-      if test ! -d "/var/lib/mkosi/$NSPAWN_OSNAME"; \
-        echo "Error: base image dependency $NSPAWN_OSNAME not found"; \
-        exit 1; \
+      if test ! -d "/var/lib/mkosi/$NSPAWN_OSNAME"; then \
+        systemctl start --wait nspawn-mkosi@$NSPAWN_OSNAME; \
+        if test ! -d "/var/lib/mkosi/$NSPAWN_OSNAME"; then \
+          echo "Error: base image dependency $NSPAWN_OSNAME not found"; \
+          exit 1; \
+        fi; \
       fi; \
       echo "Import machine %i from $NSPAWN_OSNAME"; \
       machinectl import-fs /var/lib/mkosi/$NSPAWN_OSNAME %i; \
@@ -28,9 +31,9 @@ ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
       sleep 1; echo " is running"; \
       echo "copy additional files to /tmp of machine"; \
       for f in /etc/nspawn/build/%i/*; do machinectl copy-to %i "$f" /tmp/; done; \
-      echo "execute nspawn.postinst.sh script in machine with stdin pipe"; \
+      echo "execute nspawn.provision.sh script in machine with stdin pipe"; \
       echo "${NSPAWN_PROVISION}" | machinectl shell %i /bin/sh -c \
-          "/bin/chmod +x /tmp/nspawn.postinst.sh; /tmp/nspawn.postinst.sh --yes"; \
+          "/bin/chmod +x /tmp/nspawn.provision.sh; /tmp/nspawn.provision.sh --yes"; \
       printf "provision done, power off machine %i "; \
       machinectl poweroff %i; \
       while machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
