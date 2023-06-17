@@ -5,8 +5,9 @@ After=podman.service compose-build@%i.service
 ConditionPathExists=/etc/compose/build/%i/compose.yml
 
 [Service]
+Environment=DOCKER_HOST=unix:///run/podman/podman.sock
 WorkingDirectory=/etc/compose/build/%i
-ExecStart=/usr/bin/docker-compose -f compose.yml up
+ExecStart=/usr/bin/docker-compose -f compose.yml --env-file /etc/compose/environment/%i.env up
 
 [Install]
 WantedBy=multi-user.target
