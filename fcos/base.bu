@@ -7,6 +7,9 @@ storage:
     # our system flags directory
     - path: /etc/local/flags
 
+    # our local frontend (traefik) configuration directory
+    - path: /etc/local/frontend
+
     # our directory for local commandline scripts and binaries
     - path: /var/local/bin
 
