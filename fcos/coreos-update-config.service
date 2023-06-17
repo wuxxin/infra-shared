@@ -75,23 +75,25 @@ ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
 # reload systemd daemon to resync with state from disk
 ExecStart=/usr/bin/systemctl daemon-reload
 
-# enable each service that should be enabled, by list created from butane2salt.jinja
+# enable and disable each service that should be enabled/disabled, by list created from butane2salt.jinja
 ExecStart=/usr/bin/bash -c '\
-    if test -e ${root_dir}/service_enabled.txt; then \
-        toenable=$(cat ${root_dir}/service_enabled.txt | \
-            grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
-        if test "$toenable" != ""; then \
-            echo "Enabling: $toenable"; \
-            systemctl enable $toenable; \
+    for status in enable disable; do \
+        if test -e ${root_dir}/service_${status}.req; then \
+            service_list=$(cat ${root_dir}/service_${status}.req | \
+                grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
+            if test "$service_list" != ""; then \
+                echo "systemctl $status $service_list"; \
+                systemctl $status $service_list; \
+            fi; \
         fi; \
-    fi'
+    done'
 
 # reset failed units and restart each service that got changed, by list created from butane2salt.jinja
 # dont act on template services, dont act on services without [Install] sections
 ExecStart=/usr/bin/bash -c '\
     systemctl reset-failed; \
-    if test -e ${root_dir}/service_changed.txt; then \
-        changed=$(cat ${root_dir}/service_changed.txt | \
+    if test -e ${root_dir}/service_changed.req; then \
+        changed=$(cat ${root_dir}/service_changed.req | \
             grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
         if test "$changed" != ""; then \
             torestart=""; \
@@ -109,6 +111,9 @@ ExecStart=/usr/bin/bash -c '\
             if test "$torestart" != ""; then \
                 echo "Restarting: $torestart"; \
                 systemctl restart $torestart; \
+            fi; \
+            if test "$templates" != ""; then \
+                echo "Information: Templates changed: $templates"; \
             fi; \
         fi; \
     fi'

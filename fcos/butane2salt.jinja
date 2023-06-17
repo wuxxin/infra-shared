@@ -16,12 +16,12 @@ keeps changes minimal, smart restarts of direct or indirectly changed services
 #### additional outputs if {UPDATE_SERVICE_STATUS} == true
 
 - creates a commented, non uniqe, not sorted list of service base names
-  - {UPDATE_DIR}/service_changed.txt for changed configuration
-  - {UPDATE_DIR}/service_enabled.txt for services to be enabled
-  - {UPDATE_DIR}/service_disabled.txt for services to be disabled
+  - {UPDATE_DIR}/service_changed.req for services with changed configuration
+  - {UPDATE_DIR}/service_enable.req for services to be enabled
+  - {UPDATE_DIR}/service_disable.req for services to be disabled
 
 - usage example:
-  - cat ${UPDATE_DIR}/service_changed.txt | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
+  - cat ${UPDATE_DIR}/service_changed.req | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
 
 #}
 {% set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
@@ -56,7 +56,7 @@ create service change/enable/disable macros and accumulator targets
 {% if UPDATE_SERVICE_STATUS %}
 {#
 
-write service to service_enabled/disabled.txt
+write service to service_enable.req/service_disable.req
 
 #}
 {%- macro service_status(service_path, service_name, enabled) -%}
@@ -70,18 +70,18 @@ service_{{ status }}_{{ service_path }}:
       - file: service_{{ status }}
 
 {%- endmacro -%}
-{% macro service_enabled(p, n) %}{{ service_status(p, n, true) }}{% endmacro %}
-{% macro service_disabled(p, n) %}{{ service_status(p, n, false) }}{% endmacro %}
+{% macro service_enable(p, n) %}{{ service_status(p, n, true) }}{% endmacro %}
+{% macro service_disable(p, n) %}{{ service_status(p, n, false) }}{% endmacro %}
 {#
 
-write service to service_changed.txt if target changed
+write service to service_changed.req if target changed
 
 #}
 {%- macro service_changed(service, target, target_type) -%}
 
 service_changed_{{ target }}:
   file.accumulated:
-    - filename: {{ UPDATE_DIR }}/service_changed.txt
+    - filename: {{ UPDATE_DIR }}/service_changed.req
     - text: {{ service }}
     - onchanges:
       - {{ target_type }}: {{ target }}
@@ -156,9 +156,9 @@ mask service change/enable/disable macros
 #}
 {%- macro service_status(service_path, service_name, enabled) -%}
 {%- endmacro -%}
-{%- macro service_enabled(service_path, service_name) -%}
+{%- macro service_enable(service_path, service_name) -%}
 {%- endmacro -%}
-{%- macro service_disabled(service_path, service_name) -%}
+{%- macro service_disable(service_path, service_name) -%}
 {%- endmacro -%}
 {%- macro service_changed(service, target, target_type) -%}
 {%- endmacro -%}
