@@ -29,6 +29,12 @@ storage:
 
 systemd:
   units:
+    - name: nspawn-mkosi@.service
+      contents_local: fcos/nspawn-mkosi@.service
+
+    - name: nspawn-provision@.service
+      contents_local: fcos/nspawn-provision@.service
+
     # for each sub directory in mkosi, create a nspawn-mkosi@<distro_release>.service
 {%- set list_str= "mkosi"|list_dirs() %}
 {%- for d in list_str.split("\n") %}
@@ -37,11 +43,32 @@ systemd:
     - name: nspawn-mkosi@{{ distro_release }}.service
  {% endfor %}
 
-    # add: provision dependency
     - name: systemd-nspawn@.service
       dropins:
+        # add provision dependency
         - name: provision.conf
           contents: |
             [Unit]
             After=nspawn-provision@%i.service
-            Wants=nspawn-provision@%i.service
+            Requires=nspawn-provision@%i.service
+
+        # add traefik service discovery: create post start, remove post stop
+        - name: traefik.conf
+          contents: |
+            [Service]
+            # wait until ready, get and save ip, replace ##IPADDR## in NSPAWN_TRAEFIK, post to traefik
+            ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+              if test -e /etc/nspawn/environment/%i.env; then \
+                while ! machinectl status "%i" | grep -q "State: running"; do sleep 1; done; \
+                IPADDR=$(machinectl show "%i" --property=IPAddress --value); \
+                echo "$IPADDR" > /etc/local/flags/%i.ipaddr; \
+                . /etc/nspawn/environment/%i.env; \
+                TRAEFIK_YML="$(echo $$NSPAWN_TRAEFIK | sed -r "s/##IPADDR##/${IPADDR}/g")"; \
+                if test "$TRAEFIK_YML" != "$(cat /etc/local/frontend/%i.yml)"; then \
+                    echo "$TRAEFIK_YML" > /etc/local/frontend/%i.yml; \
+                    echo "$TRAEFIK_YML" | machinectl cp - %i:/traefik/discovery/%i.yml; \
+                fi; \
+              fi'
+            # post emptry string to discoveryfile so service is seen as removed by traefik
+            ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+              printf "" | machinectl cp - %i:/traefik/discovery/%i.yml'
