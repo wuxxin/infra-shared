@@ -7,14 +7,6 @@ storage:
     # our compose build configuration directory
     - path: /etc/compose/build
 
-  files:
-    # symlink /run/docker.sock to /run/podman/podman.sock, so compose will also use podman
-    - path: /etc/tmpfiles.d/podman-docker.conf
-      contents:
-        inline: |
-          # L /symlink/to/create  - - - - symlink/target/path
-          L   /run/docker.sock    - - - - /run/podman/podman.sock
-
 systemd:
   units:
     - name: compose-build@.path
@@ -23,49 +15,5 @@ systemd:
     - name: compose-build@.service
       contents_local: fcos/compose-build@.service
 
-    - name: compose-up@.path
-      contents_local: fcos/compose-up@.path
-
     - name: compose-up@.service
       contents_local: fcos/compose-up@.service
-
-    # mask docker.service/socket, because we will use podman to service the /run/docker.sock
-    - name: docker.service
-      mask: true
-
-    - name: docker.socket
-      mask: true
-
-    # overwrite podman.service: set explicit socket, dont exit on timeout, always enabled
-    - name: podman.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Podman API Service
-        Wants=network-online.target
-        After=network-online.target
-        Documentation=man:podman-system-service(1)
-        StartLimitIntervalSec=0
-
-        [Service]
-        Delegate=true
-        Type=exec
-        KillMode=process
-        Environment=LOGGING="--log-level=info"
-        ExecStart=/usr/bin/podman $LOGGING system service --time 0 unix:///run/podman/podman.sock
-
-        [Install]
-        WantedBy=multi-user.target
-
-    # download docker-compose v2 executable from github
-    # - name: var-local-install@docker-compose.service
-    #   enabled: true
-    #   dropins:
-    #     - name: dropin.conf
-    #       contents: |
-    #         [Service]
-    #         Environment=VERSION="2.18.1"
-    #         Environment=SHA256SUM=""
-    #         Environment=FILE_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}"
-    #         Environment=HASH_URL="https://github.com/docker/compose/releases/download/v{VERSION}/docker-compose-linux-{ARCH}.sha256"
-    #         Environment=LOCAL_FILE="/var/local/bin/docker-compose"

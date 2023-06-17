@@ -4,14 +4,22 @@ storage:
     #   automatic service recognition if: {service}[.*].{container,volume,*}
     - path: /etc/containers/systemd
 
-    # our container environment directory
+    # our containers environment directory
     - path: /etc/containers/environment
       mode: 0700
 
-    # our container Containerfile directory
+    # our containers Containerfile directory
     - path: /etc/containers/build
 
   files:
+    # symlink /run/docker.sock to /run/podman/podman.sock, so compose will also use podman
+    - path: /etc/tmpfiles.d/podman-docker.conf
+      contents:
+        inline: |
+          # L /symlink/to/create  -     -     -     - symlink/target/path
+          L   /run/docker.sock    -     -     -     - /run/podman/podman.sock
+          D!  /run/podman         0700  root  root
+
     # environment for list of files to import as containers secrets
     - path: /etc/containers/environment/containers-secrets.env
       contents:
@@ -19,18 +27,58 @@ storage:
           FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
 
 {% if CONTAINERS_FRONTEND|d(false) %}
+    # copy api-proxy and frontend configuration
   {%- set frontend_list=["containers-api-proxy.container", "containers-api-proxy.cfg",
       "containers-frontend.container", "containers-frontend.volume", "containers-frontend.yml"] %}
-    # copy containers-api-proxy and containers-frontend configuration
   {%- for f in frontend_list %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: containers/{{ f }}
   {% endfor %}
+
+  trees:
+    # copy Containerfile for api-proxy and frontend
+  {%- for f in ["containers-api-proxy", "containers-frontend"] %}
+    - path: /etc/containers/build/{{ f }}
+      local: Containerfile/{{ f }}
+  {% endfor %}
 {% endif %}
 
 systemd:
   units:
+    # mask docker.service/socket, because we will use podman to service the /run/docker.sock
+    - name: docker.service
+      mask: true
+
+    - name: docker.socket
+      mask: true
+
+    # mask podman.socket, because we unconditional start podman
+    - name: podman.socket
+      mask: true
+
+    # overwrite podman.service: set explicit socket, dont exit on timeout, always enabled
+    - name: podman.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Podman API Service
+        Wants=network-online.target
+        After=network-online.target
+        Documentation=man:podman-system-service(1)
+        StartLimitIntervalSec=0
+
+        [Service]
+        Delegate=true
+        Type=exec
+        KillMode=process
+        Environment=LOGGING="--log-level=info"
+        ExecStartPre=/usr/bin/bash -c "if test ! -d /run/podman; then mkdir -m 0700 /run/podman; fi"
+        ExecStart=/usr/bin/podman $LOGGING system service --time 0 unix:///run/podman/podman.sock
+
+        [Install]
+        WantedBy=multi-user.target
+
     - name: containers-build@.path
       contents_local: fcos/containers-build@.path
 
