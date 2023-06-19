@@ -23,7 +23,7 @@ Exec=--providers.docker.endpoint=tcp://systemd-api-proxy:2375
 
 # Publich http and https
 PublishPort=443:443
-PublicPort=80:80
+PublishPort=80:80
 
 [Service]
 Restart=always
