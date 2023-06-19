@@ -11,13 +11,19 @@ tls:
     - certFile: /run/secrets/server.crt
       keyFile: /run/secrets/server.key
 
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      storage: /traefik/letsencrypt.json
+      tlsChallenge: {}
+
 providers:
   docker:
     # XXX endpoint is set as environment variable
     watch: true
     exposedbydefault: false
   file:
-    directory: /etc/traefik/include
+    directory: /traefik
     watch: true
 
 entryPoints:
