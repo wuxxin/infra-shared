@@ -10,11 +10,17 @@ Image=localhost/%N:latest
 # XXX Enable API_CONTAINERS, so traefik can get labels for frontend router configuration
 Environment=API_CONTAINERS=1
 Environment=API_PORT=2375
+# avoid legacy docker.sock
+Environment=API_SOCKET=/run/podman/podman.sock
 
 # XXX --privileged is needed for selinux to allow access to /run/podman/podman.sock
 PodmanArgs=--privileged
-Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
+Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro
 Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+# publish filtered api
+# [hostip:]hostPort:containerPort
+PublishPort=localhost:2375:2375
 
 [Service]
 Restart=always
