@@ -18,11 +18,21 @@
 
 #### Restrictions
 
-- for simplicity: `podman-systemd`, `compose.yml` and `nspawn` machines
-    share one namespace, its service name must be uniqe
+binary content:
+- does not work on inlining
+- does not work in trees for coreos-update-config
 
-    - podman-systemd container config support files (beside .container and .volume),
-        should also start with the servicename as part of the filename, to be recognized
+`podman-systemd`, `compose.yml` and `nspawn` container:
+- share the same namespace for service recognition, and should therefore not share the same name
+- podman-systemd container config support files (beside .container and .volume),
+    should also start with the servicename as part of the filename, to be recognized
+
+##### Customization
+
+overwriting buildins butane config or files:
+
+- if it is a systemd service, consider a dropin,
+- in other cases, simple redefine setting/file, it will overwrite any buildin file/config
 
 ### Components
 
@@ -103,6 +113,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
     - environment defaults available in jinja
         - Boolean DEBUG
         - Boolean UPDATE_SERVICE_STATUS
+        - Boolean CONTAINERS_FRONTEND
         - Dict LOCALE: {LANG,KEYMAP,TIMEZONE, COUNTRY_CODE}
         - List RPM_OSTREE_INSTALL
 
