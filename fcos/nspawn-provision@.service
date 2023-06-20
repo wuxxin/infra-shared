@@ -23,9 +23,9 @@ ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
         fi; \
       fi; \
       echo "Import machine %i from $NSPAWN_OSNAME"; \
-      machinectl import-fs /var/lib/mkosi/$NSPAWN_OSNAME %i; \
+      cp -a /var/lib/mkosi/$NSPAWN_OSNAME/image/ /var/lib/machines/%i; \
       printf "Provision machine %i"; \
-      systemd-nspawn --quiet --machine=%i --directory=/var/lib/machines/%i; \
+      machinectl start %i; \
       while ! machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
       while ! machinectl show %i | grep -q State=running; do echo -n "+"; sleep 1; done; \
       sleep 1; echo " is running"; \
