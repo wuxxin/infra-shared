@@ -120,10 +120,11 @@ class ToolsExtension(jinja2.ext.Extension):
     def list_files(self, value):
         "returns available files in searchpath[0]/value as string, newline seperated"
         loader = self.environment.loader
-        globpath = join_paths(loader.searchpath[0], value, "**")
         files = [
             os.path.relpath(os.path.normpath(entry), loader.searchpath[0])
-            for entry in glob.glob(globpath, recursive=True)
+            for entry in glob.glob(
+                join_paths(loader.searchpath[0], value, "**"), recursive=True
+            )
             if os.path.isfile(entry)
         ]
         return "\n".join(files)
@@ -131,10 +132,12 @@ class ToolsExtension(jinja2.ext.Extension):
     def list_dirs(self, value):
         "returns available directories in searchpath[0]/value as string, newline seperated"
         loader = self.environment.loader
-        globpath = join_paths(loader.searchpath[0], value, "**")
+
         dirs = [
             os.path.relpath(os.path.normpath(entry), loader.searchpath[0])
-            for entry in glob.glob(globpath, recursive=True)
+            for entry in glob.glob(
+                join_paths(loader.searchpath[0], value, "**"), recursive=True
+            )
             if os.path.isdir(entry)
         ]
         return "\n".join(dirs)
