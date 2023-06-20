@@ -304,10 +304,6 @@ storage:
         all_files = sorted(
             [
                 os.path.relpath(fname, basedir)
-                for fname in glob.glob(os.path.join(basedir, "*.bu"))
-            ]
-            + [
-                os.path.relpath(fname, basedir)
                 for fname in glob.glob(os.path.join(basedir, "**", "*.bu"), recursive=True)
             ]
         )
@@ -425,14 +421,12 @@ storage:
         if "storage" in ydict and "trees" in ydict["storage"]:
             for tnr in range(len(ydict["storage"]["trees"])):
                 t = ydict["storage"]["trees"][tnr]
-                for f in glob.glob(
-                    "**",
-                    root_dir=join_paths(basedir, t["local"]),
-                    recursive=True,
-                ):
-                    lf = join_paths(basedir, t["local"], f)
-                    if not os.path.isdir(lf):
-                        rf = join_paths(t["path"] if "path" in t else "/", f)
+                for lf in glob.glob(join_paths(basedir, t["local"], "**"), recursive=True):
+                    if os.path.isfile(lf):
+                        rf = join_paths(
+                            t["path"] if "path" in t else "/",
+                            os.path.relpath(lf, join_paths(basedir, t["local"])),
+                        )
                         is_exec = os.stat(lf).st_mode & stat.S_IXUSR
                         ydict["storage"]["files"].append(
                             {
