@@ -19,9 +19,10 @@ Volume=/etc/containers/systemd/%N.yml:/etc/traefik/traefik.yml:ro
 Volume=frontend.volume:/traefik
 
 # XXX use the proxy endpoint, which limits access to readonly container information for traefik labels
-Exec=--providers.docker.endpoint=tcp://systemd-api-proxy:2375
+Exec=--providers.docker.endpoint=tcp://127.0.0.1:2375
 
 # Publich http and https
+# [hostip:]hostPort:containerPort
 PublishPort=443:443
 PublishPort=80:80
 
