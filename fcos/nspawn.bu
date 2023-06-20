@@ -14,7 +14,7 @@ storage:
     - path: /etc/nspawn/build
 
     # our mkosi nspawn image configuration directory
-    - path: /etc/nspawn/mkosi
+    - path: /etc/mkosi
 
     # our mkosi image output directory
     - path: /var/lib/mkosi
@@ -24,7 +24,7 @@ storage:
 
   trees:
     # our mkosi os-image configuration files
-    - path: /etc/nspawn/mkosi
+    - path: /etc/mkosi
       local: mkosi
 
 systemd:
@@ -52,7 +52,7 @@ systemd:
             After=nspawn-provision@%i.service
             Requires=nspawn-provision@%i.service
 
-        # add traefik service discovery: create post start, remove post stop
+        # add traefik service discovery: create on post start, remove on post stop
         - name: traefik.conf
           contents: |
             [Service]
