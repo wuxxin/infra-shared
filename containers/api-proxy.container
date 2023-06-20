@@ -15,12 +15,13 @@ Environment=API_SOCKET=/run/podman/podman.sock
 
 # XXX --privileged is needed for selinux to allow access to /run/podman/podman.sock
 PodmanArgs=--privileged
-Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro
+Volume=/run/podman/podman.sock:/run/podman/podman.sock
 Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
 # publish filtered api
 # [hostip:]hostPort:containerPort
-PublishPort=localhost:2375:2375
+# FIXME replace hardcoded ip of podman host bridge ip with something dynamic
+PublishPort=10.88.0.1:2375:2375
 
 [Service]
 Restart=always

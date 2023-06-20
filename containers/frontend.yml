@@ -19,7 +19,8 @@ certificatesResolvers:
 
 providers:
   docker:
-    # XXX endpoint is set as environment variable
+    # FIXME replace hardcoded ip of podman host bridge ip with something dynamic
+    endpoint: tcp://10.88.0.1:2375
     watch: true
     exposedbydefault: false
   file:
