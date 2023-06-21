@@ -13,8 +13,8 @@ Environment=API_PORT=2375
 # avoid legacy docker.sock
 Environment=API_SOCKET=/run/podman/podman.sock
 
-# XXX --privileged is needed for selinux to allow access to /run/podman/podman.sock
-PodmanArgs=--privileged
+# XXX disable selinux labels for accessing podman.sock
+PodmanArgs=--security-opt label=disable
 Volume=/run/podman/podman.sock:/run/podman/podman.sock
 Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
