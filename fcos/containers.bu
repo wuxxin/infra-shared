@@ -18,7 +18,7 @@ storage:
         inline: |
           # L /symlink/to/create  -     -     -     - symlink/target/path
           L   /run/docker.sock    -     -     -     - /run/podman/podman.sock
-          D!  /run/podman         0700  root  root
+          D!  /run/podman         0750  root  root
 
     # environment for list of files to import as containers secrets
     - path: /etc/containers/environment/containers-secrets.env
@@ -29,7 +29,7 @@ storage:
 {% if CONTAINERS_FRONTEND|d(false) %}
     # copy api-proxy and frontend configuration
   {%- for f in ["api-proxy.container", "api-proxy.cfg",
-      "frontend.container", "frontend.volume", "frontend.yml"] %}
+      "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: containers/{{ f }}
@@ -72,7 +72,7 @@ systemd:
         Type=exec
         KillMode=process
         Environment=LOGGING="--log-level=info"
-        ExecStartPre=/usr/bin/bash -c "if test ! -d /run/podman; then mkdir -m 0700 /run/podman; fi"
+        ExecStartPre=/usr/bin/bash -c "if test ! -d /run/podman; then mkdir -m 0750 /run/podman; fi"
         ExecStart=/usr/bin/podman $LOGGING system service --time 0 unix:///run/podman/podman.sock
 
         [Install]
