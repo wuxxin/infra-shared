@@ -14,8 +14,9 @@ Secret=root_ca.crt,mode=0640
 Secret=server.crt,mode=0640
 Secret=server.key,mode=0640
 
-Volume=/etc/containers/systemd/%N.yml:/etc/traefik/traefik.yml:ro
-# used for directory service discovery on /traefik and for letsencrypt state in /traefik/letsencrypt.json
+Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
+Volume=/etc/containers/systemd/%N.dynamic.yml:/traefik/frontend.dynamic.yml:ro
+# use directory for service discovery and for letsencrypt state in /traefik/letsencrypt.json
 Volume=frontend.volume:/traefik
 
 # Publich http and https

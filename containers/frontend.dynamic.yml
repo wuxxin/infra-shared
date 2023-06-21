@@ -1,0 +1,19 @@
+tls:
+  certificates:
+    - certFile: /run/secrets/server.crt
+      keyFile: /run/secrets/server.key
+      stores:
+        - default
+
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /run/secrets/server.crt
+        keyFile: /run/secrets/server.key
+
+http:
+ routers:
+    dashboard:
+      rule: Host(`traefik.safe.lan`)
+      service: api@internal
+      entrypoints: https
