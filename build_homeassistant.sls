@@ -2,7 +2,7 @@
 
 - home automation platform brokering MQTT,ZigBee,Bluetooth,Wifi and other automation network and protocols
 - buildroot linux distribution
-- available for x86,arm
+- available for x86, arm
 
 #}
 
