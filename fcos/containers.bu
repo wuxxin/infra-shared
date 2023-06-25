@@ -45,7 +45,7 @@ storage:
 
 systemd:
   units:
-    # mask docker.service/socket, because we will use podman to service the /run/docker.sock
+    # mask docker.service/socket, because we will use podman only
     - name: docker.service
       mask: true
 
