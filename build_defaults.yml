@@ -62,8 +62,24 @@ fcos:
   architecture: x86_64
   platform: metal
   format: raw.xz
-  rpi_efi_extras: false
-  rpi_release: 38
+
+raspberry:
+  eeprom_rpi4:
+    version: 2023.01.11-138c0
+    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v{VERSION}/rpi-boot-eeprom-recovery-2023-01-11-vl805-000138c0-sd.zip
+    sha256sum: e53a915ada0e2e9eb3e995e8e50176eff4e1a2daea9d717d0f0aa30c5f9fd04d
+  uboot:
+    version: 2023.04-1.fc38
+    fileurl: https://kojipkgs.fedoraproject.org//packages/uboot-tools/2023.04/1.fc38/noarch/uboot-images-armv8-{VERSION}.noarch.rpm
+    sha256sum: f5288755b42abd9dd546ddae8bb7aed33e6a5e4a19f98c2f0535ac66cf1220a2
+  uefi_rpi3:
+    version: "1.39"
+    fileurl: https://github.com/pftf/RPi3/releases/download/v{VERSION}/RPi3_UEFI_Firmware_v{VERSION}.zip
+    sha256sum: 9d2bae7868027997c59663d2a29c5a5573c4a846d67d0cd42cdddb5280ee22d8
+  uefi_rpi4:
+    version: "1.35"
+    fileurl: https://github.com/pftf/RPi4/releases/download/v{VERSION}/RPi4_UEFI_Firmware_v{VERSION}.zip
+    sha256sum: 3ea16d6bc4f8f122527ad6a84c0fe84ad80d85fd43a868d99c360ad9e93d3f6e
 
 homeassistant:
   version: "10.2"
