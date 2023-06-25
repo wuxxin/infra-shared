@@ -1,7 +1,7 @@
 {# OpenWRT OS
 
 - linux distribution for embedded devices (router,switches,a.o.)
-- available for x86,arm,mips,power
+- available for x86, arm, mips, power
 
 #}
 
