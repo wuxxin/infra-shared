@@ -1,38 +1,48 @@
 """
-## Pulumi - Build Embedded-OS Images and IOT Images
+## Pulumi - Build Embedded-OS Images, IOT Images, Image Addons
 """
 
-import os
-import json
 import hashlib
-import pulumi
+import json
+import os
 
-from .authority import config, ssh_factory
-from .tools import sha256sum_file, LocalSaltCall
+import pulumi
+import yaml
+
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-def build_this(resource_name, sls_name, config_name):
-    "build an image/os with LocalSaltCall, put config in pillar and authorized_keys in environment"
-    pillar = {"build": config.get_object("build", {config_name: {}})}
-    environment = {"authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))}
+def build_this(resource_name, sls_name, config_name, environment={}, opts=None):
+    "build an image/os as running user with LocalSaltCall, trigger on config change, pass config as pillar, pass environment"
+
+    from .tools import LocalSaltCall
+
+    config = pulumi.Config("")
+    def_pillar = {
+        "build": yaml.safe_load(open(os.path.join(this_dir, "build_defaults.yml"), "r"))
+    }
+    pulumi_pillar = {"build": config.get_object("build", {config_name: {}})}
+    if config_name not in def_pillar["build"]:
+        def_pillar["build"].update({config_name: {}})
+    if config_name not in pulumi_pillar["build"]:
+        pulumi_pillar["build"].update({config_name: {}})
+    def_pillar_hash = hashlib.sha256(
+        json.dumps(def_pillar["build"][config_name]).encode("utf-8")
+    ).hexdigest()
+    pulumi_pillar_hash = hashlib.sha256(
+        json.dumps(pulumi_pillar["build"][config_name]).encode("utf-8")
+    ).hexdigest()
+
     resource = LocalSaltCall(
         resource_name,
         "state.sls",
         sls_name,
-        pillar=pillar,
+        pillar=pulumi_pillar,
         environment=environment,
         sls_dir=this_dir,
-        triggers=[
-            # trigger on: pillar:build:config_name, file:build_defaults.yml
-            # changes to environment are triggered automatically
-            hashlib.sha256(
-                json.dumps(pillar["build"][config_name]).encode("utf-8")
-            ).hexdigest(),
-            sha256sum_file(os.path.join(this_dir, "build_defaults.yml")),
-        ],
-        opts=pulumi.ResourceOptions(depends_on=[ssh_factory]),
+        triggers=[def_pillar_hash, pulumi_pillar_hash],
+        opts=opts,
     )
     pulumi.export(resource_name, resource)
     return resource
@@ -40,7 +50,17 @@ def build_this(resource_name, sls_name, config_name):
 
 def build_openwrt():
     "build an openwrt image"
-    return build_this("build_openwrt", "build_openwrt", "openwrt")
+
+    from .authority import ssh_factory
+
+    environment = {"authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))}
+    opts = pulumi.ResourceOptions(depends_on=[ssh_factory])
+    return build_this("build_openwrt", "build_openwrt", "openwrt", environment, opts=opts)
+
+
+def build_raspberry():
+    "build raspberry 3/4 extra boot files"
+    return build_this("build_raspberry", "build_raspberry", "raspberry")
 
 
 def build_homeassistant():
