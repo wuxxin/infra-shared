@@ -809,32 +809,57 @@ class RemoteSaltCall(pulumi.ComponentResource):
 if __name__ == "__main__":
     import argparse
     import importlib
+    import inspect
 
     # add base of project to begin of python import path list
     sys.path.insert(0, project_dir)
 
     parser = argparse.ArgumentParser(
         description="""
-Equivalent to `pulumi up` on the selected library.function import on the selected stack.
-eg. `pipenv run {this_dir_short}/tools.py sim {this_dir_short}.build build_openwrt`""".format(
+Equivalent to calling `pulumi up` on the selected library.function on the selected stack.
+useful for oneshots like image building or transfer. calling example:
+`pipenv run {this_dir_short}/tools.py sim {this_dir_short}.build build_openwrt`""".format(
             this_dir_short=os.path.basename(this_dir)
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("stack", type=str, help="Name of the stack", default="sim")
     parser.add_argument("library", type=str, help="Name of the library")
-    parser.add_argument("function", type=str, help="Name of the function")
+    parser.add_argument("function", type=str, nargs="?", help="Name of the function")
+    parser.add_argument(
+        "args",
+        type=str,
+        nargs="*",
+        help="optional args for function, only strings allowed",
+        default=[],
+    )
     args = parser.parse_args()
 
-    target_library = importlib.import_module(args.library)
-    target_function = getattr(target_library, args.function)
+    library = importlib.import_module(args.library)
+
+    if not args.function:
+        print("Available functions in library {}:".format(args.library))
+        function_list = [
+            name
+            for name in dir(library)
+            if callable(getattr(library, name)) and not name.startswith("__")
+        ]
+        for function_name in function_list:
+            function = getattr(library, function_name)
+            signature = inspect.signature(function)
+            parameters = signature.parameters
+            parameter_list = ", ".join(parameters.keys())
+            print("{}({})".format(function_name, parameter_list))
+        sys.exit()
+
+    target_function = getattr(library, args.function)
     project_name = os.path.basename(project_dir)
     os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
 
     stack = pulumi.automation.select_stack(
         stack_name=args.stack,
         project_name=project_name,
-        program=target_function,
+        program=lambda: target_function(*args.args),
         work_dir=project_dir,
         opts=pulumi.automation.LocalWorkspaceOptions(work_dir=project_dir),
     )
