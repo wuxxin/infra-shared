@@ -1,5 +1,5 @@
 [Unit]
-Description=Traefik Edge Router that uses (container) labels for configuration discovery
+Description=Traefik Edge Router that uses container labels and yaml files for service discovery
 Wants=containers-secrets.service containers-build@%N.service api-proxy.service
 After=containers-secrets.service containers-build@%N.service api-proxy.service
 
@@ -14,10 +14,12 @@ Secret=root_ca.crt,mode=0640
 Secret=server.crt,mode=0640
 Secret=server.key,mode=0640
 
+# traefik static configuration
 Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
-Volume=/etc/containers/systemd/%N.dynamic.yml:/traefik/frontend.dynamic.yml:ro
-# use directory for service discovery and for letsencrypt state in /traefik/letsencrypt.json
+# use /traefik directory for service discovery and for letsencrypt state in /traefik/letsencrypt.json
 Volume=frontend.volume:/traefik
+# add "dynamic" config to /traefik, so file service discovery will find it
+Volume=/etc/containers/systemd/%N.dynamic.yml:/traefik/frontend.dynamic.yml:ro
 
 # Publich http and https
 # [hostip:]hostPort:containerPort

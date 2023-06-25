@@ -1,3 +1,4 @@
+# part of traefik "dynamic" config
 tls:
   certificates:
     - certFile: /run/secrets/server.crt

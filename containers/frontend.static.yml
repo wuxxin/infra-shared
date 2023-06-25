@@ -1,4 +1,4 @@
-# traefik.yml
+# static traefik config
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
