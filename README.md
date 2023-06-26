@@ -43,7 +43,6 @@ Components for
         - `compose*` - run multi-container applications defined using a compose file
     - **nSpawn OS-Container**: `systemd-nspawn`
         - `nspawn*` - run an linux OS (build by mkosi) in a light-weight container
-
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images
