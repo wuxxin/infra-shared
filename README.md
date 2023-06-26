@@ -1,9 +1,9 @@
 # infra-shared
 ## Software Defined Git Operated Infrastructure
 
-Reusables of a learning project by rewriting parts of my home infrastructure
+Reusables of a learning project by rewriting parts of my home infrastructure as
 
-as a **pulumi** and **core-os** based **gitops** project in **python**.
+a **pulumi** and **core-os** based **gitops** project in **python**.
 
 - Inspired and impressed by https://github.com/deuill/coreos-home-server
 - See https://github.com/wuxxin/example_infra for usage in an example project
@@ -31,11 +31,11 @@ To see what else you can do with it, continue reading or look at:
 
 ### Features
 
-Pulumi Components for
+Components for
 
 - Fedora-CoreOS Linux - updating, minimal, monolithic, container-focused operating system
     - Setup, Bootstrap and Reconfiguration of CoreOS with Jinja templated butane files
-    - Reconfiguration: `coreos-update-config*`
+    - **Reconfiguration**: `coreos-update-config*`
         - Fast (~4s) reconfiguration based on `butane2salt.jinja` translation
     - **Single Container**: `podman-systemd.unit`
         - `containers*` - run systemd container units using podman-quadlet
@@ -48,6 +48,7 @@ Pulumi Components for
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images
     - **Openwrt** Linux - Network Device Distribution for Router and other network devices
+    - **Raspberry** Extras - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
     - **Homeassistant** OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)
     - **Esphome** - yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
@@ -55,13 +56,13 @@ Pulumi Components for
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
 
-Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
-
 **Need to know** technologies (to write Deployment and Docs):
 - Basic Knowledge of Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
 
 **Advanced functionality** available with knowledge of:
 - Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Jupyter Notebooks
+
+Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
 
 ### Usage
 
