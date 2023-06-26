@@ -51,6 +51,15 @@ jq
 # compression
 xz
 
+# # raspberry build
+# CHECK: bsdtar mkfs.vfat udisksctl
+# libarchive - Multi-format archive and compression library
+libarchive
+# dosfstools - DOS filesystem utilities
+dosfstools
+# udisks2 - Disk Management Service, version 2
+udisks2
+
 # # openwrt build
 # CHECK: zip awk git openssl wget unzip python
 zip gawk git openssl wget unzip python ncurses zlib gettext libxslt
