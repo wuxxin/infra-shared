@@ -16,7 +16,7 @@
     - Compose Container: `compose.yml` - run multi-container applications defined using a compose file
     - nSpawn OS-Container: `systemd-nspawn` - run an linux OS (build by mkosi) in a light-weight container
 
-#### Restrictions
+#### Current Restrictions/Limitations
 
 binary content:
 - does not work on inlining
@@ -50,8 +50,11 @@ import copy
 import glob
 import json
 import os
+import re
 import stat
 import subprocess
+
+from typing import Literal
 
 import pulumi
 import pulumi_command as command
@@ -477,7 +480,9 @@ storage:
 class FcosImageDownloader(pulumi.ComponentResource):
     "download a version of fedora-coreos to local path, decompress, return filename"
 
-    def __init__(self, stream=None, architecture=None, platform=None, format=None, opts=None):
+    def __init__(
+        self, stream=None, architecture=None, platform=None, image_format=None, opts=None
+    ):
         from ..authority import project_dir, stack_name
 
         defaults = yaml.safe_load(
@@ -490,11 +495,11 @@ class FcosImageDownloader(pulumi.ComponentResource):
             architecture = defaults["fcos"]["architecture"]
         if not platform:
             platform = defaults["fcos"]["platform"]
-        if not format:
-            format = defaults["fcos"]["format"]
+        if not image_format:
+            image_format = defaults["fcos"]["format"]
 
         resource_name = "fcos_{s}_{a}_{p}_{f}".format(
-            s=stream, a=architecture, p=platform, f=format
+            s=stream, a=architecture, p=platform, f=image_format
         )
 
         super().__init__("pkg:index:FcosImageDownloader", resource_name, None, opts)
@@ -506,7 +511,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
         self.downloaded_image = command.local.Command(
             "download_{}".format(resource_name),
             create="coreos-installer download -s {s} -a {a} -p {p} -f {f} -C {w} 2>/dev/null".format(
-                s=stream, a=architecture, p=platform, f=format, w=workdir
+                s=stream, a=architecture, p=platform, f=image_format, w=workdir
             ),
             dir=workdir,
             opts=child_opts,
@@ -521,6 +526,13 @@ class FcosImageDownloader(pulumi.ComponentResource):
             dir=workdir,
             opts=child_opts,
         )
+
+        self.fedora_version = self.downloaded_image.stdout.apply(
+            lambda x: re.search(r"fedora-coreos-(\d+)\.", x).group(1)
+            if re.search(r"fedora-coreos-(\d+)\.", x)
+            else None
+        )
+
         self.imagepath = self.downloaded_image.stdout.apply(lambda x: os.path.splitext(x)[0])
         self.result = self.imagepath
         self.register_outputs({})
@@ -634,7 +646,7 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 
         # download qemu base image
         self.baseimage = FcosImageDownloader(
-            platform="qemu", format="qcow2.xz", opts=child_opts
+            platform="qemu", image_format="qcow2.xz", opts=child_opts
         )
 
         # create volumes, pass size if not boot vol, pass source if boot vol
@@ -679,17 +691,16 @@ class FcosConfigUpdate(pulumi.ComponentResource):
 
     Modifications to *.bu and their referenced files will result in a new saltstack config
 
-    - Copies a systemd.service and a main.sls state file to the remote target in a /run directory
-    - overwrite original update service, reload systemd, start service, configures a salt environment
+    - Copies two (systemd.service and a main.sls) in combination self sufficent files to the remote target
+    - overwrite original update service, reload systemd, start service, configure a salt environment
     - execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
     - only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
     - additional migration code can be written in basedir/*.sls
         - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
-
     - advantages of this approach
         - it can update from a broken version of itself
-        - compared to plain a shell script because its a systemd service
-            - it is independent of the shell, doesn't die on disconnect, has logs
+        - calling a systemd service instead of calling a plain shell script for update
+            - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
 
     """
 
