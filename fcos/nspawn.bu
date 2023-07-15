@@ -6,6 +6,9 @@ storage:
     # standard image base directory
     - path: /var/lib/machines
 
+    # standard systemd credentials directory
+    - path: /etc/credstore
+
     # our nspawn environment directory
     - path: /etc/nspawn/environment
       mode: 0700
@@ -26,6 +29,15 @@ storage:
     # our mkosi os-image configuration files
     - path: /etc/mkosi
       local: mkosi
+
+  links:
+    # symlink root_ca,server.crt,server.key as systemd credentials
+    - path: /etc/credstore/root_ca.crt
+      target: /etc/ssl/certs/root_ca.crt
+    - path: /etc/credstore/server.crt
+      target: /etc/ssl/certs/server.crt
+    - path: /etc/credstore/server.key
+      target: /etc/ssl/private/server.key
 
 systemd:
   units:
@@ -50,7 +62,7 @@ systemd:
             # add network-zone to default parameter
             [Service]
             ExecStart=
-            ExecStart=systemd-nspawn --quiet --register=yes --keep-unit --boot --link-journal=try-guest \
+            ExecStart=systemd-nspawn --quiet --keep-unit --boot --register=yes --link-journal=try-guest \
               --network-veth --network-zone=nspawn -U --settings=override --machine=%i
 
         # add provision dependency
@@ -82,7 +94,7 @@ systemd:
                 fi; \
               fi'
 
-            # post emptry string to discoveryfile so service is seen as removed by traefik
+            # post empty string to discoveryfile so service is seen as removed by traefik
             ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
               printf "" > /etc/local/frontend/%i.yml; \
               podman cp /etc/local/frontend/%i.yml "systemd-frontend:/traefik/%i.yml"'
