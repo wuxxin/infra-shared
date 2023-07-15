@@ -44,7 +44,7 @@ import pulumi_command as command
 
 from pulumi import Output, Alias
 
-from .tools import public_local_export
+from .tools import public_local_export, get_default_host_ip
 
 
 config = pulumi.Config("")
@@ -498,6 +498,20 @@ pulumi.export("ca_factory", ca_factory)
 # write out public part of ca cert for usage as file
 exported_ca_factory = public_local_export(
     "ca_factory", "ca_cert.pem", ca_factory.root_cert_pem
+)
+
+# provision host cert for use in servce_once.py
+provision_host_names = [
+    "provision_host.{}".format(domain) for domain in ca_config["ca_permitted_domains_list"]
+]
+provision_ip_addresses = config.get(
+    "{}_ip_addresses".format("provision_host"), [get_default_host_ip()]
+)
+provision_host_tls = create_host_cert(
+    provision_host_names[0],
+    provision_host_names[0],
+    provision_host_names,
+    ip_addresses=provision_ip_addresses,
 )
 
 
