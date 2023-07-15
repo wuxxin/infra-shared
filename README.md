@@ -46,14 +46,29 @@ Components for
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images
-    - **Openwrt** Linux - Network Device Distribution for Router and other network devices
-    - **Raspberry** Extras - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
-    - **Homeassistant** OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)
-    - **Esphome** - yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF
+    - Raspberry Extras - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
+    - Openwrt Linux - Network Device Distribution for Router and other network devices
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
 - `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
+
+#### Technologies
+
+- `pulumi` - imperativ infrastructure delaration using python
+- `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
+- `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
+- `systemd` - service, socker, path, timer, nspawn machine container
+- `podman` - build Container images, run Container using quadlet systemd container
+- `saltstack`
+    - additional local embedded/iot build environments
+    - remote fcos config update using butane to saltstack translation and execution
+- `mkdocs` - documentation using markdown and mermaid
+- `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
+- `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
+- `mkosi` - build nspawn OS container images
+- `age` - ssh keys based encryption of production files and pulumi master password
+- `pipenv` - virtualenv management using Pipfile and Pipfile.lock
 
 **Need to know** technologies (to write Deployment and Docs):
 - Basic Knowledge of Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
@@ -177,7 +192,10 @@ make sim-create
 
 #### Manual execution of the openwrt image build by calling a function
 ```sh
-pipenv run infra/tools.py sim infra.build build_openwrt
+make sim-tool args="infra.build build_openwrt"
+# is a shortcut equal to
+PULUMI_CONFIG_PASSPHRASE=sim pipenv run infra/tools.py sim infra.build build_openwrt
+
 # show recorded image build salt-call stdout log output
 make sim-show | jq .build_openwrt.result.stdout -r
 ```
@@ -205,6 +223,7 @@ make prod__ args=up
 
 ### Architecture
 
+
 #### Objectives
 
 - **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest
@@ -213,8 +232,7 @@ make prod__ args=up
     - per project **tls root-ca, server-certs**, rollout **m-tls** client certificates where possible
     - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
 - create **disposable/immutable-ish** infrastructure, aim for **structural isolation** and reusability
-- treat **state as code**
-    - favor **state reconcilation**- and other highlevel- tools
+- treat **state as code**, favor **state reconcilation** tools
     - have the **complete encrypted state** in the **git repository** as **single source of truth**
 - have a **big/full featured provision client** as the center of operation
     - target one **provision os** and a **container** for foreign distros and **continous integration** processes
@@ -223,22 +241,6 @@ make prod__ args=up
     - help onboarding with **interactive tinkering** using **jupyter notebooks**
     - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
 
-#### Technologies
-
-- `pulumi` - imperativ infrastructure delaration using python
-- `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
-- `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
-- `systemd` - service, socker, path, timer, nspawn machine container
-- `podman` - build Container images, run Container using quadlet systemd container
-- `saltstack`
-    - local embedded/iot build environments, local user services
-    - remote fcos config update using butane to saltstack translation and execution
-- `mkdocs` - documentation using markdown and mermaid
-- `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
-- `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
-- `mkosi` - build nspawn OS container images
-- `age` - ssh keys based encryption of production files and pulumi master password
-- `pipenv` - virtualenv management using Pipfile and Pipfile.lock
 
 ### License
 
