@@ -10,8 +10,14 @@ ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
 Type=oneshot
 RemainAfterExit=yes
 EnvironmentFile=/etc/nspawn/environment/%i.env
-# NSPAWN_OSNAME must be set
-# NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
+# Environment NSPAWN_OSNAME must be set
+# Environment NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
+
+# firstboot defaults, picked up by systemd.firstboot can be overwritten via drop.in
+SetCredential=firstboot.locale:en_US.UTF-8
+SetCredential=firstboot.keymap:us
+SetCredential=firstboot.timezone:UTC
+
 # nspawn.provision.sh and additional files from build/%i will be copied to /tmp of machine
 ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
     if test ! -d "/var/lib/machines/%i"; then \
@@ -25,7 +31,9 @@ ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
       echo "Import machine %i from $NSPAWN_OSNAME"; \
       cp -a /var/lib/mkosi/$NSPAWN_OSNAME/image/ /var/lib/machines/%i; \
       printf "Provision machine %i"; \
-      machinectl start %i; \
+      systemd-nspawn --boot --link-journal=try-guest --network-veth --network-zone=nspawn \
+          -U --settings=override --machine=%i --load-credential=firstboot.locale \
+          --load-credential=firstboot.keymap  --load-credential=firstboot.timezone;\
       while ! machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
       while ! machinectl show %i | grep -q State=running; do echo -n "+"; sleep 1; done; \
       sleep 1; echo " is running"; \
