@@ -21,6 +21,7 @@
 - merge_dict_struct
 
 ### Components
+- ServeOnce
 - LocalSaltCall
 - RemoteSaltCall
 
@@ -31,6 +32,7 @@ import glob
 import hashlib
 import os
 import re
+import socket
 import stat
 import sys
 
@@ -67,6 +69,21 @@ def sha256sum_file(filename):
         while n := f.readinto(view):
             h.update(view[:n])
     return h.hexdigest()
+
+
+def get_default_host_ip():
+    "return ip of host connected to the outside, or None if not found"
+    try:
+        gateway_addr = socket.gethostbyname(socket.gethostname())
+        if (
+            not socket.inet_pton(socket.AF_INET, gateway_addr)
+            or gateway_addr.startswith("127.")
+            or gateway_addr.startswith("::1")
+        ):
+            gateway_addr = None
+    except socket.gaierror:
+        gateway_addr = None
+    return gateway_addr
 
 
 def merge_dict_struct(struct1, struct2):
@@ -806,6 +823,26 @@ class RemoteSaltCall(pulumi.ComponentResource):
         self.register_outputs({})
 
 
+class ServeOnce(pulumi.ComponentResource):
+    """one time secure data serve for eg. ignition data, or one time webhook with retrieved POST data"""
+
+    def __init__(self, resource_name, config={}, port_forward=False, opts=None):
+        super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
+
+        port_forward = ""
+        config_data = yaml.safe_dump(config)
+        self.executed = command.local.Command(
+            resource_name,
+            create="{}serve_once.py --yes".format(port_forward),
+            stdin=config_data,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        self.result = None
+        if config.get("request_body_stdout", False):
+            self.result = self.executed.stdout
+
+
 if __name__ == "__main__":
     import argparse
     import importlib
@@ -839,28 +876,30 @@ useful for oneshots like image building or transfer. calling example:
 
     if not args.function:
         print("Available functions in library {}:".format(args.library))
-        function_list = [
-            name
-            for name in dir(library)
-            if callable(getattr(library, name)) and not name.startswith("__")
-        ]
-        for function_name in function_list:
-            function = getattr(library, function_name)
-            signature = inspect.signature(function)
-            parameters = signature.parameters
-            parameter_list = ", ".join(parameters.keys())
-            print("{}({})".format(function_name, parameter_list))
+        for name in dir(library):
+            if callable(getattr(library, name)) and not name.startswith("__"):
+                func = getattr(library, name)
+                sig = inspect.signature(func)
+                doc = "" if func.__doc__ is None else func.__doc__
+                params = sig.parameters
+                param_list = ", ".join(params.keys())
+                print("{}({})  {}".format(name, param_list, doc))
         sys.exit()
 
+    os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
     target_function = getattr(library, args.function)
     project_name = os.path.basename(project_dir)
-    os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
+    target_res = target_function(*args.args)
 
     stack = pulumi.automation.select_stack(
         stack_name=args.stack,
         project_name=project_name,
-        program=lambda: target_function(*args.args),
+        program=target_res,
         work_dir=project_dir,
         opts=pulumi.automation.LocalWorkspaceOptions(work_dir=project_dir),
     )
+    # stack = pulumi.automation.select_stack(stack_name=args.stack, work_dir=project_dir)
+
+    ref_res = stack.refresh(on_output=print)
     up_res = stack.up(log_to_std_err=True, on_output=print)
+    print(target_res)
