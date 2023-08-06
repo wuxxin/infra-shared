@@ -843,6 +843,22 @@ class ServeOnce(pulumi.ComponentResource):
             self.result = self.executed.stdout
 
 
+def serve_once(resource_name, payload, local_port, timeout=45, opts=None):
+    from .authority import provision_host_tls, ca_factory
+
+    serve_config = {
+        "serve_port": local_port,
+        "timeout": timeout,
+        "cert": provision_host_tls.chain,
+        "key": provision_host_tls.key.private_key_pem,
+        "ca_cert": ca_factory.root_cert_pem,
+        "mtls": True,
+        "payload": playload,
+    }
+    serve_result = ServeOnce("serve_once_{}".format(resource_name), serve_config, opts=opts)
+    return serve_result
+
+
 if __name__ == "__main__":
     import argparse
     import importlib
