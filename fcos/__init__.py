@@ -71,7 +71,7 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 default_env_str = """
 DEBUG: false
 UPDATE_SERVICE_STATUS: true
-CONTAINERS_FRONTEND: true
+CONTAINER_FRONTEND: true
 RPM_OSTREE_INSTALL:
   - mkosi
   - apt
@@ -116,7 +116,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
     - environment defaults available in jinja
         - Boolean DEBUG
         - Boolean UPDATE_SERVICE_STATUS
-        - Boolean CONTAINERS_FRONTEND
+        - Boolean CONTAINER_FRONTEND
         - Dict LOCALE: {LANG,KEYMAP,TIMEZONE, COUNTRY_CODE}
         - List RPM_OSTREE_INSTALL
 

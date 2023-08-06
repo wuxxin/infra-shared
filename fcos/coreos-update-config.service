@@ -1,7 +1,7 @@
 [Unit]
 Description=Update Coreos Configuration by applying (transpiled butane) saltstack config
-Wants=containers-build@%N.service boot-complete.target
-After=containers-build@%N.service boot-complete.target
+Wants=container-build@%N.service boot-complete.target
+After=container-build@%N.service boot-complete.target
 ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
 # Run saltstack by executing salt-call in an alpine container,

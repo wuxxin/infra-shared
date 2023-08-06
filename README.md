@@ -38,7 +38,7 @@ Components for
     - **Reconfiguration**: `coreos-update-config*`
         - Fast (~4s) reconfiguration based on `butane2salt.jinja` translation
     - **Single Container**: `podman-systemd.unit`
-        - `containers*` - run systemd container units using podman-quadlet
+        - `container*` - run systemd container units using podman-quadlet
     - **Compose Container**: `compose.yml`
         - `compose*` - run multi-container applications defined using a compose file
     - **nSpawn OS-Container**: `systemd-nspawn`

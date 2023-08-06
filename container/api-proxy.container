@@ -1,7 +1,7 @@
 [Unit]
 Description=Container API Proxy (unix socket to tcp port) based on Haproxy
-Wants=containers-secrets.service containers-build@%N.service
-After=containers-secrets.service containers-build@%N.service
+Wants=container-secrets.service container-build@%N.service
+After=container-secrets.service container-build@%N.service
 
 [Container]
 Image=localhost/%N:latest

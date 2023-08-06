@@ -3,7 +3,7 @@ Description=Build Container for %I
 
 [Path]
 PathModified=/etc/containers/build/%i/Containerfile
-Unit=containers-build@%i.service
+Unit=container-build@%i.service
 
 [Install]
 WantedBy=multi-user.target
