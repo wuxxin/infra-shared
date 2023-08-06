@@ -64,8 +64,7 @@ def build_raspberry():
 
 
 def build_homeassistant():
-    "build an homeassistant image"
-    return build_this("build_homeassistant", "build_homeassistant", "homeassistant")
+    pass
 
 
 def build_esphome():
