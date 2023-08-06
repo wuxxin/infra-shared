@@ -1,16 +1,19 @@
 #!/bin/sh
-codename=$(lsb_release -c -s)
-distribution="$(lsb_release -i -s)"
 
 # make sure systemd-networkd and systemd-resolved are running
 systemctl enable systemd-networkd
 systemctl enable systemd-resolved
 
-# delete openssh-server keys, will be regenerated on app.postinst
-rm /etc/ssh/ssh_host*
-
 # # symlink /run/systemd/resolve/stub-resolv.conf to /etc/resolv.conf, otherwise network will fail
 # ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+# do not prompt interactive on firstboot
+mkdir -p /etc/systemd/system/systemd-firstboot.service.d
+cat >/etc/systemd/system/systemd-firstboot.service.d/unattended.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=systemd-firstboot
+EOF
 
 # # unlock root account
 passwd -u root
