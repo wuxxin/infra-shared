@@ -1,0 +1,21 @@
+storage:
+  trees:
+    # podman build Containerfile
+    - path: /etc/containers/build
+      local: Containerfile
+
+    # quadlet container/volume/network configuration files
+    - path: /etc/containers/systemd
+      local: container
+
+    # compose build compose.yml files
+    - path: /etc/compose/build
+      local: compose
+
+  files:
+    # hello-compose environment
+    - path: /etc/compose/environment/hello-compose.env
+      mode: 0600
+      contents:
+        inline: |
+          HOSTNAME=hello-compose.{{ HOSTNAME }}

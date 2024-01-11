@@ -1,0 +1,57 @@
+boot_device:
+  luks:
+    threshold: 1
+{%- if tang_url is none or DEBUG %}
+    tpm2: true
+{%- endif %}
+{%- if tang_url %}
+    tang:
+      - url: {{ tang_url }}
+        thumbprint: {{ tang_fingerprint }}
+{%- endif %}
+
+storage:/
+  disks:
+    - device: {{ boot_device }}
+    - device: {{ usb1_device }}
+      partitions:
+        - label: var1
+    - device: {{ usb2_device }}
+      partitions:
+        - label: var2
+  raid:
+    - name: mdvar
+      level: raid1
+      devices:
+        - /dev/disk/by-partlabel/var1
+        - /dev/disk/by-partlabel/var2
+  luks:
+    - name: root
+      label: root
+      device: /dev/disk/by-partlabel/root
+      wipe_volume: true
+      discard: true
+      key_file:
+        inline: {{ luks_root_passphrase }}
+    - name: var
+      label: var
+      device: /dev/md/mdvar
+      discard: true
+      clevis:
+        threshold: 1
+{%- if tang_url is none or DEBUG %}
+        tpm2: true
+{%- endif %}
+{%- if tang_url %}
+        tang:
+          - url: {{ tang_url }}
+            thumbprint: {{ tang_fingerprint }}
+{%- endif %}
+      key_file:
+        inline: {{ luks_var_passphrase }}
+  filesystems:
+    - device: /dev/mapper/var
+      path: /var
+      # format: xfs
+      wipe_filesystem: true
+      with_mount_unit: true

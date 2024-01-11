@@ -1,0 +1,31 @@
+[Unit]
+Description=Postgresql Server
+Wants=container-secrets.service container-build@%N.service
+After=container-secrets.service container-build@%N.service
+
+[Container]
+Image=localhost/%N:latest
+EnvironmentFile=/etc/containers/environment/%N.env
+
+PodmanArgs=--shm-size=256MB
+
+# container wants gid 999 as group for secrets access
+Secret=root_ca.crt,mode=0640,gid=999
+Secret=server.crt,mode=0640,gid=999
+Secret=server.key,mode=0640,gid=999
+
+Exec=docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf
+# HealthCmd=/usr/bin/bash -c \
+#     "pg_isready -h /var/run/postgresql && psql -h /var/run/postgresql -d template0 -c \"SELECT 1\" >/dev/null 2>&1"
+
+Volume=postgresql.volume:/var/lib/postgresql/data
+Volume=/etc/containers/systemd/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+# postgresql.bootstrap.sh is part of ../postgresql.bu
+Volume=/etc/containers/systemd/postgresql.bootstrap.sh:/docker-entrypoint-initdb.d/postgresql.bootstrap.sh:ro
+PublishPort=5432:5432
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

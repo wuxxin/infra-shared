@@ -1,0 +1,9 @@
+FROM golang:1.18 AS build
+
+WORKDIR /compose/hello-container
+COPY main.go main.go
+RUN CGO_ENABLED=0 go build -o backend main.go
+
+FROM scratch
+COPY --from=build /compose/hello-container/backend /usr/local/bin/backend
+CMD ["/usr/local/bin/backend"]

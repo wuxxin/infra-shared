@@ -39,11 +39,11 @@ for d in docs state target; do
 done
 
 # copy and rename examples: Makefile, Pipfile
-for f in __Example.Makefile __Example.Pipfile; do
+for f in Makefile Pipfile; do
   # replace hardcoded instances of infra/ to support different submodule naming
-  cat ${this_dir}/${f} |
+  cat ${this_dir}/examples/${f} |
     sed -r "s#infra/#${this_dir_short}/#g" |
-    create_ifnotexist ${f#__Example.}
+    create_ifnotexist ${f}
 done
 
 # create an empty authorized_keys for appending to it later

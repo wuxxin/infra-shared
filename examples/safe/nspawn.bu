@@ -1,0 +1,54 @@
+systemd:
+  units:
+    # enable nspawn hello-nspawn service
+    - name: systemd-nspawn@hello-nspawn.service
+      enabled: true
+      dropins:
+        # load ca cert as credential into machine as showcase
+        - name: loadcreds.conf
+          contents: |
+            [Service]
+            LoadCredential=root_ca.crt
+
+storage:
+  files:
+    # nspawn machine execution settings
+    - path: /etc/systemd/nspawn/hello-nspawn.nspawn
+      contents:
+        inline: |
+          [Exec]
+          Environment=TEST=true
+
+    # nspawn machine provision script
+    - path: /etc/nspawn/build/hello-nspawn/nspawn.provision.sh
+      mode: 0755
+      contents:
+        local: nspawn/hello-nspawn/nspawn.provision.sh
+
+    # nspawn provision environment
+    - path: /etc/nspawn/environment/hello-nspawn.env
+      mode: 0600
+      contents:
+        inline: |
+          # NSPAWN_OSNAME, NSPAWN_PROVISION are used by nspawn-provision@.service
+          # NSPAWN_TRAEFIK is used by systemd-nspawn@.d/traefik.conf
+          # NSPAWN_PROVISION is pasted as STDIN to nspawn.provision.sh
+          # ##NSPAWN_IPADDR## is replaced inside NSPAWN_TRAEFIK with the current machine ip
+          NSPAWN_OSNAME=debian-bookworm
+          NSPAWN_PROVISION="
+          # ---BEGIN OPENSSH AUTHORIZED KEYS---
+          {{ AUTHORIZED_KEYS|indent(10) }}
+          # ---END OPENSSH AUTHORIZED KEYS---
+          "
+          NSPAWN_TRAEFIK="
+          http:
+            routers:
+              hello-nspawn:
+                rule: Host(\`hello-nspawn.{{ HOSTNAME }}\`)
+                entrypoints: https
+            services:
+              hello-nspawn:
+                loadBalancer:
+                  servers:
+                    - url: http://##NSPAWN_IPADDR##:80/
+          "

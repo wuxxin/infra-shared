@@ -1,0 +1,4 @@
+FROM docker.io/postgres:15
+ARG DEFAULTLANG
+ENV LANG=${DEFAULTLANG:-en_US.UTF-8}
+RUN localedef -i ${LANG%.UTF-8} -c -f UTF-8 -A /usr/share/locale/locale.alias ${LANG}
