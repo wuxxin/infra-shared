@@ -1,0 +1,19 @@
+[Unit]
+Description=Unbound DNS-Resolver
+Wants=container-secrets.service container-build@%N.service
+After=container-secrets.service container-build@%N.service
+
+[Container]
+Image=localhost/%N:latest
+EnvironmentFile=/etc/containers/environment/%N.env
+
+Volume=dnsresolver.volume:/var/lib/unbound
+Volume=/etc/containers/systemd/%N.conf:/var/lib/unbound/unbound.conf:ro
+Volume=/etc/containers/systemd/%N_ext.conf:/var/lib/unbound/unbound_ext.conf:ro
+Volume=/etc/containers/systemd/%N_srv.conf:/var/lib/unbound/unbound_srv.conf:ro
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
