@@ -44,8 +44,8 @@ def get_removeable_drive(serial_number, udisks_interface):
     return None  # Device not found
 
 
-def write_to_device(device, image_file, mount_interface):
-    if not device:
+def write_to_device(device_name, image_file, mount_interface):
+    if not device_name:
         print("No serial number matching USB device found or device not removeable")
         return 2
 
@@ -57,8 +57,8 @@ def write_to_device(device, image_file, mount_interface):
     mount_interface.Mount(mount_options)
 
     with open(image_file, "rb") as image:
-        with open("/mnt/" + device, "wb") as destination:
-            for chunk in iter(lambda: image.read(4096), b""):
+        with open("/mnt/" + device_name, "wb") as destination:
+            for chunk in iter(lambda: image.read(2**18), b""):
                 destination.write(chunk)
 
     mount_interface.Unmount()
@@ -78,14 +78,14 @@ def main():
     list_drives(udisks_interface)
     sys.exit()
 
-    device = get_removeable_drive(args.serial_number)
-    if not device:
+    device_name = get_removeable_drive(args.serial_number)
+    if not device_name:
         result = 2
         print("Device not found", file=sys.stderr)
     else:
-        mount = bus.get_object("org.freedesktop.udisks2", device, introspect=False)
+        mount = bus.get_object("org.freedesktop.udisks2", device_name, introspect=False)
         mount_interface = dbus.Interface(mount, "org.freedesktop.udisks2.Mount")
-        result = write_to_device(device, args.image_path, mount_interface)
+        result = write_to_device(device_name, args.image_path, mount_interface)
         if result != 0:
             print("Error {} occurred".format(result), file=sys.stderr)
 
