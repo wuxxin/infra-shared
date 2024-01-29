@@ -29,13 +29,7 @@ import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 import yaml
 
-from ..tools import (
-    jinja_run,
-    jinja_run_template,
-    join_paths,
-    log_warn,
-    merge_dict_struct,
-)
+from ..template import jinja_run, jinja_run_template, join_paths, merge_dict_struct
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
