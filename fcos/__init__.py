@@ -1,39 +1,6 @@
 """
 ## Pulumi - Fedora CoreOS
 
-- updating, minimal, monolithic, container-focused operating system
-- available for x86 and arm
-
-### Library Features
-
-- Jinja templating of butane yaml content with environment variables replacement
-- Configuration and Initial Boot
-    - authorized_keys, tls cert, key, ca_cert, loads container secrets
-    - install extensions using rpm-ostree-install or var-local-install
-- Reconfiguration / Update Configuration using translated butane to saltstack execution
-- Comfortable Deployment of
-    - Single Container: `podman-systemd.unit` - run systemd container units using podman-quadlet
-    - Compose Container: `compose.yml` - run multi-container applications defined using a compose file
-    - nSpawn OS-Container: `systemd-nspawn` - run an linux OS (build by mkosi) in a light-weight container
-
-#### Current Restrictions/Limitations
-
-binary content:
-- does not work on inlining
-- does not work in trees for coreos-update-config
-
-`podman-systemd`, `compose.yml` and `nspawn` container:
-- share the same namespace for service recognition, and should therefore not share the same name
-- podman-systemd container config support files (beside .container and .volume),
-    should also start with the servicename as part of the filename, to be recognized
-
-##### Customization
-
-overwriting buildins butane config or files:
-
-- if it is a systemd service, consider a dropin,
-- in other cases, simple redefine setting/file, it will overwrite any buildin file/config
-
 ### Components
 
 - ButaneTranspiler
@@ -43,18 +10,18 @@ overwriting buildins butane config or files:
 - TangFingerprint
 - RemoteDownloadIgnitionConfig
 
+### Python Functions
+- compile_selinux_module
+
 """
 
 import base64
 import copy
 import glob
-import json
 import os
 import re
 import stat
 import subprocess
-
-from typing import Literal
 
 import pulumi
 import pulumi_command as command
@@ -62,17 +29,26 @@ import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 import yaml
 
-from ..tools import jinja_run, jinja_run_template, join_paths, log_warn, merge_dict_struct
+from ..tools import (
+    jinja_run,
+    jinja_run_template,
+    join_paths,
+    log_warn,
+    merge_dict_struct,
+)
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
+subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
 
-# this environment is used, if nothing else is defined
-
-default_env_str = """
+# default template environment, if nothing else is defined
+DEFAULT_ENV_STR = """
 DEBUG: false
 UPDATE_SERVICE_STATUS: true
 CONTAINER_FRONTEND: true
+DNS_RESOLVER: true
+RESIDENT_CIDR: 10.140.250.1/24
 RPM_OSTREE_INSTALL:
+  - systemd-networkd
   - mkosi
   - apt
   - docker-compose
@@ -84,58 +60,10 @@ LOCALE:
 """
 
 
-def compile_selinux_module(content):
-    timeout_seconds = 10
-    chk_process = subprocess.Popen(
-        ["checkmodule", "-M", "-m", "-o", "/dev/stdout", "/dev/stdin"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    chk_output, chk_error = chk_process.communicate(input=content, timeout=timeout_seconds)
-    if chk_process.returncode != 0:
-        raise Exception("checkmodule failed:\n{}".format(chk_error))
-    pkg_process = subprocess.Popen(
-        ["semodule_package", "-o", "/dev/stdout", "-m", "/dev/stdin"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    pkg_output, pkg_error = pkg_process.communicate(input=chk_output, timeout=timeout_seconds)
-    if pkg_process.returncode != 0:
-        raise Exception("semodule_package failed:\n{}".format(pkg_error))
-
-    return pkg_output
-
-
 class ButaneTranspiler(pulumi.ComponentResource):
     """translate jinja templated butane files to ignition and a subset to saltstack salt format
 
-    - environment defaults available in jinja
-        - Boolean DEBUG
-        - Boolean UPDATE_SERVICE_STATUS
-        - Boolean CONTAINER_FRONTEND
-        - Dict LOCALE: {LANG,KEYMAP,TIMEZONE, COUNTRY_CODE}
-        - List RPM_OSTREE_INSTALL
-
-    - butane jinja templating
-        - 1. jinja template butane_input, basedir=basedir
-        - 2. jinja template butane_security_keys, basedir=basedir
-        - 3. jinja template *.bu yaml from this_dir, basedir=this_parent
-            - inline all local references including storage:trees as storage:files
-        - 4. jinja template *.bu yaml files from basedir
-            - merge order= butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
-        - 5. apply additional filters where butane extension template != None
-            - template=jinja: template through jinja
-            - storage:files[].contents.template,
-            - systemd:units[].template, systemd:units[].dropins[].template
-        - 6. translate merged butane yaml to saltstack salt yaml config
-            - jinja templating of butane2salt.jinja with butane_config as additional environment
-            - append this_dir/coreos-update-config.sls and basedir/*.sls to it
-        - 7. translate merged butane yaml to ignition json config
-
+    - see DEFAULT_ENV_STR for environment defaults available in jinja
     - returns
         - butane_config (merged butane yaml)
         - saltstack_config (butane translated to inlined saltstack yaml with customizations
@@ -158,9 +86,10 @@ class ButaneTranspiler(pulumi.ComponentResource):
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
         )
 
-        this_parent = os.path.abspath(os.path.join(this_dir, ".."))
-        default_env = yaml.safe_load(default_env_str)
-        this_env = merge_dict_struct(default_env, {} if environment is None else environment)
+        default_env = yaml.safe_load(DEFAULT_ENV_STR)
+        this_env = merge_dict_struct(
+            default_env, {} if environment is None else environment
+        )
 
         # configure hostname, ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -173,7 +102,7 @@ passwd:
       ssh_authorized_keys:
 """,
             ssh_factory.authorized_keys.apply(
-                lambda x: "\n".join(["        - " + l for l in x.splitlines()])
+                lambda x: "\n".join(["        - " + line for line in x.splitlines()])
             ),
             """
 security:
@@ -182,7 +111,7 @@ security:
       - inline: |    
 """,
             ca_factory.root_cert_pem.apply(
-                lambda x: "\n".join(["          " + l for l in x.splitlines()])
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
 storage:
@@ -200,7 +129,7 @@ storage:
         inline: |        
 """,
             ca_factory.root_cert_pem.apply(
-                lambda x: "\n".join(["          " + l for l in x.splitlines()])
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """          
     - path: /etc/ssl/certs/server.crt
@@ -210,7 +139,7 @@ storage:
         inline: |
 """,
             hostcert.chain.apply(
-                lambda x: "\n".join(["          " + l for l in x.splitlines()])
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """          
     - path: /etc/ssl/private/server.key
@@ -220,7 +149,7 @@ storage:
         inline: |
 """,
             hostcert.key.private_key_pem.apply(
-                lambda x: "\n".join(["          " + l for l in x.splitlines()])
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
 
@@ -230,24 +159,29 @@ storage:
         # 1. jinja template butane_input, basedir=basedir
         base_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_input, env=this_env).apply(
-                lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
+                lambda args: yaml.safe_load(
+                    jinja_run(args["yaml_str"], basedir, args["env"])
+                )
             )
         )
 
         # 2. jina template butane_security_keys, basedir=basedir
         security_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_security_keys, env=this_env).apply(
-                lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
+                lambda args: yaml.safe_load(
+                    jinja_run(args["yaml_str"], basedir, args["env"])
+                )
             )
         )
 
-        # 3. jinja template *.bu yaml from this_dir, basedir=this_parent
-        # inline all local references including storage:trees as storage:files
+        # 3. jinja template *.bu yaml from subproject_dir and inline all local references
         fcos_dict = pulumi.Output.all(
-            loaded_dict=self.load_butane_files(this_parent, this_env)
-        ).apply(lambda args: self.inline_local_files(args["loaded_dict"], this_parent))
+            loaded_dict=self.load_butane_files(subproject_dir, this_env, subdir="fcos")
+        ).apply(
+            lambda args: self.inline_local_files(subproject_dir, args["loaded_dict"])
+        )
 
-        # 4. jinja template *.bu yaml files from basedir
+        # 4. jinja template *.bu yaml files from basedir and inline all local references
         # merged_dict= base_dict -> security_dict > loaded_dict -> fcos_dict
         merged_dict = pulumi.Output.all(
             base_dict=base_dict,
@@ -267,7 +201,7 @@ storage:
         # 5. apply additional template filters
         self.butane_config = pulumi.Output.all(merged_dict=merged_dict).apply(
             lambda args: yaml.safe_dump(
-                self.template_files(args["merged_dict"], this_parent, this_env)
+                self.template_files(args["merged_dict"], this_dir, this_env)
             )
         )
 
@@ -290,24 +224,29 @@ storage:
         # 7. translate merged butane yaml to ignition json config
         # XXX due to pulumi-command exit 1 on stderr output, we silence stderr,
         #   but output is vital for finding compilation warning and errors, so remove 2>/dev/null on debug
+        # XXX v0.19.0 Add -c/--check option to check config without producing output
         self.ignition_config = command.local.Command(
             "{}_ignition_config".format(resource_name),
-            create="butane -d . -r -p 2>/dev/null",
+            create="butane -d . -r -p",
             stdin=self.butane_config,
             dir=basedir,
-            opts=pulumi.ResourceOptions(parent=self, additional_secret_outputs=["stdout"]),
+            opts=pulumi.ResourceOptions(
+                parent=self, additional_secret_outputs=["stdout"]
+            ),
         )
 
         self.result = self.ignition_config.stdout
         self.register_outputs({})
 
-    def load_butane_files(self, basedir, environment):
-        "read and jinja template all *.bu files from basedir recursive, parse as yaml, merge together"
+    def load_butane_files(self, basedir, environment, subdir=""):
+        "read and jinja template all basedir/*.bu files from basedir recursive, parse as yaml, merge together"
 
         all_files = sorted(
             [
-                os.path.relpath(fname, basedir)
-                for fname in glob.glob(os.path.join(basedir, "**", "*.bu"), recursive=True)
+                fname
+                for fname in glob.glob(
+                    os.path.join(subdir, "**", "*.bu"), recursive=True, root_dir=basedir
+                )
             ]
         )
 
@@ -320,7 +259,10 @@ storage:
             )
             merged_yaml = pulumi.Output.all(
                 yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
-            ).apply(lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"]))
+            ).apply(
+                lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"])
+            )
+
         return merged_yaml
 
     def template_files(self, yaml_dict, basedir, environment):
@@ -363,13 +305,17 @@ storage:
                         )
                     if f["contents"]["template"] == "jinja":
                         data = jinja_run(f["contents"]["inline"], basedir, environment)
-                        ydict["storage"]["files"][fnr]["contents"].update({"inline": data})
+                        ydict["storage"]["files"][fnr]["contents"].update(
+                            {"inline": data}
+                        )
                     elif f["contents"]["template"] == "selinux":
                         data = "data:;base64," + base64.b64encode(
                             compile_selinux_module(f["contents"]["inline"])
                         ).decode("utf-8")
                         del ydict["storage"]["files"][fnr]["contents"]["inline"]
-                        ydict["storage"]["files"][fnr]["contents"].update({"source": data})
+                        ydict["storage"]["files"][fnr]["contents"].update(
+                            {"source": data}
+                        )
 
         if "systemd" in ydict and "units" in ydict["systemd"]:
             for unr in range(len(ydict["systemd"]["units"])):
@@ -396,7 +342,11 @@ storage:
                                 "contents_local"
                             ]
                             ydict["systemd"]["units"][unr]["dropins"][dnr].update(
-                                {"contents": open(join_paths(basedir, fname), "r").read()}
+                                {
+                                    "contents": open(
+                                        join_paths(basedir, fname), "r"
+                                    ).read()
+                                }
                             )
                             d = ydict["systemd"]["units"][unr]["dropins"][dnr]
                         if "contents" in d and "template" in d:
@@ -406,7 +356,7 @@ storage:
                             )
         return ydict
 
-    def inline_local_files(self, yaml_dict, basedir):
+    def inline_local_files(self, basedir, yaml_dict):
         """inline the contents of butane local references
 
         - storage:trees:[]:local -> files:[]:contents:inline
@@ -424,7 +374,9 @@ storage:
         if "storage" in ydict and "trees" in ydict["storage"]:
             for tnr in range(len(ydict["storage"]["trees"])):
                 t = ydict["storage"]["trees"][tnr]
-                for lf in glob.glob(join_paths(basedir, t["local"], "**"), recursive=True):
+                for lf in glob.glob(
+                    join_paths(basedir, t["local"], "**"), recursive=True
+                ):
                     if os.path.isfile(lf):
                         rf = join_paths(
                             t["path"] if "path" in t else "/",
@@ -481,7 +433,12 @@ class FcosImageDownloader(pulumi.ComponentResource):
     "download a version of fedora-coreos to local path, decompress, return filename"
 
     def __init__(
-        self, stream=None, architecture=None, platform=None, image_format=None, opts=None
+        self,
+        stream=None,
+        architecture=None,
+        platform=None,
+        image_format=None,
+        opts=None,
     ):
         from ..authority import project_dir, stack_name
 
@@ -533,7 +490,9 @@ class FcosImageDownloader(pulumi.ComponentResource):
             else None
         )
 
-        self.imagepath = self.downloaded_image.stdout.apply(lambda x: os.path.splitext(x)[0])
+        self.imagepath = self.downloaded_image.stdout.apply(
+            lambda x: os.path.splitext(x)[0]
+        )
         self.result = self.imagepath
         self.register_outputs({})
 
@@ -565,7 +524,7 @@ ignition:
         - inline: |        
 """,
             ca_factory.root_cert_pem.apply(
-                lambda x: "\n".join(["            " + l for l in x.splitlines()])
+                lambda x: "\n".join(["            " + line for line in x.splitlines()])
             ),
             """
 """,
@@ -575,7 +534,9 @@ ignition:
             "{}_ignition_remote_config".format(hostname),
             create="butane -d . -r -p",
             stdin=butane_remote_config,
-            opts=pulumi.ResourceOptions(additional_secret_outputs=["stdout"], parent=self),
+            opts=pulumi.ResourceOptions(
+                additional_secret_outputs=["stdout"], parent=self
+            ),
         )
 
         self.result = ignition_remote_config.stdout
@@ -614,9 +575,7 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
     </xsl:copy>
   </xsl:template>
 </xsl:stylesheet>
-""".format(
-        serial_tty_addon
-    )
+""".format(serial_tty_addon)
 
     def __init__(
         self,
@@ -672,37 +631,30 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             memory=memory,
             vcpu=vcpu,
             coreos_ignition=self.ignition,
-            disks=[libvirt.DomainDiskArgs(volume_id=vm_vol.id) for vm_vol in self.volumes],
+            disks=[
+                libvirt.DomainDiskArgs(volume_id=vm_vol.id) for vm_vol in self.volumes
+            ],
             network_interfaces=[
-                libvirt.DomainNetworkInterfaceArgs(network_name="default", wait_for_lease=True)
+                libvirt.DomainNetworkInterfaceArgs(
+                    network_name="default", wait_for_lease=True
+                )
             ],
             qemu_agent=True,
-            tpm=libvirt.DomainTpmArgs(backend_version="2.0", backend_persistent_state=True),
+            tpm=libvirt.DomainTpmArgs(
+                backend_version="2.0", backend_persistent_state=True
+            ),
             xml=libvirt.DomainXmlArgs(xslt=self.domain_additions_xslt),
             # XXX ignore changes to ignition_config, because saltstack is used for configuration updates
-            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["coreos_ignition"]),
+            opts=pulumi.ResourceOptions(
+                parent=self, ignore_changes=["coreos_ignition"]
+            ),
         )
         self.result = self.vm
         self.register_outputs({})
 
 
 class FcosConfigUpdate(pulumi.ComponentResource):
-    """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
-
-    Modifications to *.bu and their referenced files will result in a new saltstack config
-
-    - Copies two (systemd.service and a main.sls) in combination self sufficent files to the remote target
-    - overwrite original update service, reload systemd, start service, configure a salt environment
-    - execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
-    - only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
-    - additional migration code can be written in basedir/*.sls
-        - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
-    - advantages of this approach
-        - it can update from a broken version of itself
-        - calling a systemd service instead of calling a plain shell script for update
-            - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
-
-    """
+    """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config"""
 
     def __init__(self, resource_name, host, compiled_config, opts=None):
         from ..tools import ssh_deploy, ssh_execute
@@ -783,3 +735,33 @@ class TangFingerprint(pulumi.ComponentResource):
 
         self.result = self.fingerprint.stdout
         self.register_outputs({})
+
+
+def compile_selinux_module(content):
+    timeout_seconds = 10
+    chk_process = subprocess.Popen(
+        ["checkmodule", "-M", "-m", "-o", "/dev/stdout", "/dev/stdin"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    chk_output, chk_error = chk_process.communicate(
+        input=content, timeout=timeout_seconds
+    )
+    if chk_process.returncode != 0:
+        raise Exception("checkmodule failed:\n{}".format(chk_error))
+    pkg_process = subprocess.Popen(
+        ["semodule_package", "-o", "/dev/stdout", "-m", "/dev/stdin"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    pkg_output, pkg_error = pkg_process.communicate(
+        input=chk_output, timeout=timeout_seconds
+    )
+    if pkg_process.returncode != 0:
+        raise Exception("semodule_package failed:\n{}".format(pkg_error))
+
+    return pkg_output
