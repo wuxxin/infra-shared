@@ -54,8 +54,8 @@ provision-container: ## Build provision client container
 .PHONY: install-requirements
 install-requirements: ## Install tools used for devop tasks
 	@echo "+ $@"
-	@./infra/requirements.sh --install
-	@./infra/requirements.sh --install-aur
+	@./infra/scripts/requirements.sh --install
+	@./infra/scripts/requirements.sh --install-aur
 
 Pipfile.lock: Pipfile
 	@echo "+ $@"
@@ -63,7 +63,7 @@ Pipfile.lock: Pipfile
 
 state/venv: Pipfile.lock
 	@echo "+ $@"
-	@./infra/requirements.sh --check
+	@./infra/scripts/requirements.sh --check
 	@$(PIPENV) sync
 	# register environment with local ipykernel environment
 	@$(PIPENV) run python -m ipykernel install --user --name=$$(basename $(ROOTDIR))
