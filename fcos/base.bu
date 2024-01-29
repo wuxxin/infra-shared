@@ -10,18 +10,48 @@ storage:
     # our local frontend (traefik) configuration directory
     - path: /etc/local/frontend
 
-    # our directory for local commandline scripts and binaries
-    - path: /var/local/bin
-
     # our custom selinux configuration directory
     - path: /etc/selinux/custom
 
+    # our directory for local commandline scripts and binaries
+    - path: /var/local/bin
+
   files:
+    # our resident bridge
+    - path: /etc/systemd/network/10-resident.netdev
+      mode: 420
+      contents:
+        inline: |
+          [NetDev]
+          Name=resident
+          Kind=bridge
+
+          [Bridge]
+          STP=false
+
+    - path: /etc/systemd/network/10-resident.network
+      mode: 420
+      contents:
+        inline: |
+          [Match]
+          Name=resident
+
+          [Network]
+          LinkLocalAddressing=ipv6
+          Address={{ RESIDENT_CIDR }}
+          ConfigureWithoutCarrier=yes
+
     # set keyboard layout
     - path: /etc/vconsole.conf
       mode: 0644
       contents:
         inline: KEYMAP={{ LOCALE["KEYMAP"] }}
+
+    # environment for RPM_OSTREE_INSTALL packages
+    - path: /etc/local/environment/rpm-ostree-install.env
+      contents:
+        inline: |
+          RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
 
     # tell systemd to not use a pager when printing information
     # - path: /etc/profile.d/systemd-pager.sh
@@ -38,14 +68,12 @@ storage:
     #       # Raise console message logging level from DEBUG (7) to WARNING (4)
     #       kernel.printk=4
 
-    # environment for RPM_OSTREE_INSTALL packages
-    - path: /etc/local/environment/rpm-ostree-install.env
-      contents:
-        inline: |
-          RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
-
 systemd:
   units:
+    # in addition to nm, run systemd-networkd
+    - name: systemd-networkd.service
+      enabled: true
+
     # opt out of counting telemetry
     - name: rpm-ostree-countme.timer
       enabled: false
