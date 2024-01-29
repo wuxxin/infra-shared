@@ -53,24 +53,7 @@ butane jinja templating:
     - append this_dir/coreos-update-config.sls and basedir/*.sls to it
 7. translate merged butane yaml to ignition json config
 
-### FcosConfigUpdate
-
-reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
-
-Modifications to *.bu and their referenced files will result in a new saltstack config
-
-- Copies two (systemd.service and a main.sls) in combination self sufficent files to the remote target
-- overwrite original update service, reload systemd, start service, configure a salt environment
-- execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
-- only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
-- additional migration code can be written in basedir/*.sls
-    - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
-- advantages of this approach
-    - it can update from a broken version of itself
-    - calling a systemd service instead of calling a plain shell script for update
-        - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
-
-#### butane2salt Translation
+#### butane to salt translation
 
 translates and inlines a subset of butane spec into a one file saltstack salt spec
 
@@ -90,3 +73,21 @@ additional outputs if {UPDATE_SERVICE_STATUS} == true:
 
 - usage example:
   - cat ${UPDATE_DIR}/service_changed.req | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
+
+### FcosConfigUpdate
+
+reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
+
+Modifications to *.bu and their referenced files will result in a new saltstack config
+
+- Copies two (systemd.service and a main.sls) in combination self sufficent files to the remote target
+- overwrite original update service, reload systemd, start service, configure a salt environment
+- execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
+- only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
+- additional migration code can be written in basedir/*.sls
+    - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
+- advantages of this approach
+    - it can update from a broken version of itself
+    - calling a systemd service instead of calling a plain shell script for update
+        - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
+
