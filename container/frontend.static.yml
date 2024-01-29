@@ -3,8 +3,10 @@ global:
   checkNewVersion: false
   sendAnonymousUsage: false
 
+{% if FRONTEND_DASHBOARD is defined %}
 api:
   dashboard: true
+{% endif %}
 
 entryPoints:
   http:
@@ -20,10 +22,11 @@ entryPoints:
       # always use tls for :443
       tls: true
 
+{% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+
 providers:
   docker:
-    # FIXME replace hardcoded ip of podman host bridge ip with something dynamic
-    endpoint: tcp://10.88.0.1:2375
+    endpoint: tcp://{{ cidr2ip(RESIDENT_CIDR) }}:2375
     watch: true
     exposedbydefault: false
 

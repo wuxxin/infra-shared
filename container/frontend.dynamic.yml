@@ -12,9 +12,11 @@ tls:
         certFile: /run/secrets/server.crt
         keyFile: /run/secrets/server.key
 
+{% if FRONTEND_DASHBOARD is defined %}
 http:
  routers:
     dashboard:
-      rule: Host(`traefik.safe.lan`)
+      rule: Host(`{{ FRONTEND_DASHBOARD }}]]`)
       service: api@internal
       entrypoints: https
+{% endif %}
