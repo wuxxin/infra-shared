@@ -4,25 +4,6 @@ to be used from the systemd service "coreos-update-config.service"
 in a saltstack salt-call command, which updates the config to the desired state
 keeps changes minimal, smart restarts of direct or indirectly changed services
 
-#### Translation
-
-- Only the currently used subset in *.bu files of the butane spec is supported
-  - only storage:directories/links/files/trees and systemd:units[:dropins] are translated
-  - Filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
-
-- Look at tools.jinja_run for custom filter like traverse files or regex_replace
-- use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
-
-#### additional outputs if {UPDATE_SERVICE_STATUS} == true
-
-- creates a commented, non uniqe, not sorted list of service base names
-  - {UPDATE_DIR}/service_changed.req for services with changed configuration
-  - {UPDATE_DIR}/service_enable.req for services to be enabled
-  - {UPDATE_DIR}/service_disable.req for services to be disabled
-
-- usage example:
-  - cat ${UPDATE_DIR}/service_changed.req | grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq
-
 #}
 {% set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
 {% set UPDATE_SERVICE_STATUS=UPDATE_SERVICE_STATUS|d(true)%}
