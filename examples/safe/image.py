@@ -1,34 +1,39 @@
-def provision_image(resource_name):
-    "prepare an image for transfer to sdcard / usbstick"
-    import infra.fcos
-    from target.safe import shortname, hostname
-    from infra.tools import serve_prepare, public_local_export
+def prepare_serve_secure_ignition(resource_name):
+    from infra.tools import serve_prepare
 
     serve_config = serve_prepare(resource_name)
+    return serve_config
+
+
+def make_image(resource_name):
+    "prepare target image"
+    import infra.fcos
+    from target.safe import shortname, hostname
+    from infra.tools import public_local_export
+    from infra.build import finalize_raspberry_image
+
+    serve_config = prepare_serve_secure_ignition(resource_name)
     config = serve_config.config
     remote_url = config.config["remote_url"]
     public_ign = infra.fcos.RemoteDownloadIgnitionConfig(
         "{}_public_ignition".format(shortname), hostname, remote_url
     )
 
-    # data to copy on sdcard
-    provision = {
-        "extras": infra.build.build_raspberry(),
-        "image": infra.fcos.FcosImageDownloader(
+    return finalize_raspberry_image(
+        image=infra.fcos.FcosImageDownloader(
             architecture="aarch64", platform="metal", image_format="raw.xz"
         ),
-        "config": public_local_export(
+        config=public_local_export(
             shortname, "{}_public.ign".format(shortname), public_ign.result
         ),
-    }
-    copied_image = TransferToMedium(provision)
+    )
 
 
-def prepare_serve_secure_ignition(resource_name):
-    from infra.tools import serve_prepare
+def provision_image(resource_name, image_resource, serial_number):
+    "transfer prepared image to an sdcard / usbstick"
+    from infra.tools import write_removeable
 
-    serve_config = serve_prepare(resource_name)
-    return serve_config
+    return write_removeable(resource_name, image_resource, serial_number)
 
 
 def serve_secure_ignition(resource_name):

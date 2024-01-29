@@ -41,7 +41,7 @@ done
 # copy and rename examples: Makefile, Pipfile
 for f in Makefile Pipfile; do
   # replace hardcoded instances of infra/ to support different submodule naming
-  cat ${this_dir}/examples/${f} |
+  cat ${this_dir}/examples/skeleton/${f} |
     sed -r "s#infra/#${this_dir_short}/#g" |
     create_ifnotexist ${f}
 done

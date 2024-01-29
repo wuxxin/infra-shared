@@ -2,8 +2,7 @@
 
 - Minimum Viable Function
     - encrypted storage at rest
-    - unattended update/boot
-        - unattended clevis luks storage unlock via tangd (and tpm2 on libvirt sim)
+    - unattended boot using clevis luks storage unlock via tangd (and tpm2 on libvirt sim)
     - lan available ssl secured postgresql database available for storing data
 
 - Hardware: Raspberry Pi4

@@ -10,7 +10,7 @@ boot_device:
         thumbprint: {{ tang_fingerprint }}
 {%- endif %}
 
-storage:/
+storage:
   disks:
     - device: {{ boot_device }}
     - device: {{ usb1_device }}
@@ -52,6 +52,6 @@ storage:/
   filesystems:
     - device: /dev/mapper/var
       path: /var
-      # format: xfs
+      format: xfs
       wipe_filesystem: true
       with_mount_unit: true

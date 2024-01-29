@@ -1,4 +1,5 @@
 """
+## Safe - Fedora-CoreOS on Raspberry
 
 ### config
 - safe_dns_names
@@ -29,7 +30,6 @@ from infra.authority import (
     ca_config,
     create_client_cert,
     create_host_cert,
-    create_selfsigned_cert,
     exported_ca_factory,
     ssh_factory,
 )
@@ -98,9 +98,7 @@ storage:
   - name: usb2
     device: /dev/vdc
     size: {size_4g}
-""".format(
-            size_4g=4 * pow(2, 30), size_8g=8 * pow(2, 30)
-        )
+""".format(size_4g=4 * pow(2, 30), size_8g=8 * pow(2, 30))
     )
 else:
     luks_root_passphrase = pulumi_random.RandomPassword(
