@@ -19,7 +19,7 @@ PULUMI_SKIP_UPDATE_CHECK=1
 export PULUMI_SKIP_UPDATE_CHECK
 
 # add some default arguments to pulumi
-PULUMI := pulumi --logtostderr --logflow 
+PULUMI := pulumi --logtostderr --logflow --non-interactive
 
 # define a browser open function
 define BROWSER_PYSCRIPT
@@ -106,7 +106,13 @@ sim-create: Pulumi.sim.yaml ## Create pulumi "sim" stack
 sim-up: sim-create ## Run "pulumi up --stack=sim $(args)
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --yes $(args)
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" $(args)
+
+.PHONY: sim-tool
+sim-tool: sim-create ## Run "infra/tools.py --stack sim $(args)"
+	@echo "+ $@"
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
+	@PULUMI_CONFIG_PASSPHRASE="sim" pipenv run ./infra/tools.py --stack sim $(args)
 
 .PHONY: sim-show
 sim-show: ## Run "pulumi stack output --stack=sim --json $(args)"
@@ -186,6 +192,12 @@ endif
 
 .PHONY: prod-create
 prod-create: prod_passphrase.age Pulumi.prod.yaml ## Create pulumi "prod" stack
+
+.PHONY: prod-tool
+prod-tool: prod-create ## Run "infra/tools.py --stack prod $(args)"
+	@echo "+ $@"
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" pipenv run ./infra/tools.py --stack prod $(args)
 
 .PHONY: prod__
 prod__: prod-create ## Run pulumi --stack "prod" $(args)
