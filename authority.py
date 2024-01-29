@@ -1,13 +1,13 @@
 """
 ## Pulumi - Authority - TLS/X509 Certificates, OpenSSH Keys
 
-### Config
+### Config Values
 - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_dns_names,
 - ca_provision_name, ca_provision_unit, ca_provision_dns_names, ca_permitted_domains
 - ca_validity_period_hours, ca_max_path_length, ca_create_using_vault, cert_validity_period_hours
 - ssh_provision_name
 
-### Useful
+### useful resources
 - config, stack_name, project_name, this_dir, project_dir
 - ca_config
     - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_validity_period_hours, ca_max_path_length
@@ -94,7 +94,9 @@ class CACertFactoryVault(pulumi.ComponentResource):
         # asure that permitted_domains is set to empty list and empty string, if not configured
         vault_config = copy.deepcopy(ca_config)
         if vault_config.get("ca_permitted_domains", None) is None:
-            vault_config.update({"ca_permitted_domains_list": [], "ca_permitted_domains": ""})
+            vault_config.update(
+                {"ca_permitted_domains_list": [], "ca_permitted_domains": ""}
+            )
 
         vault_ca = command.local.Command(
             "{}_vault_ca".format(name),
@@ -131,7 +133,9 @@ class CACertFactoryVault(pulumi.ComponentResource):
         self.root_cert_pem = Output.unsecret(ca_secrets["ca_root_cert_pem"])
         self.root_hash_id = ca_root_hash.stdout
         self.provision_key_pem = Output.secret(ca_secrets["ca_provision_key_pem"])
-        self.provision_request_pem = Output.unsecret(ca_secrets["ca_provision_request_pem"])
+        self.provision_request_pem = Output.unsecret(
+            ca_secrets["ca_provision_request_pem"]
+        )
         self.provision_cert_pem = Output.unsecret(ca_secrets["ca_provision_cert_pem"])
         self.register_outputs({})
 
@@ -141,7 +145,9 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
         super().__init__("pkg:index:CACertFactoryPulumi", name, None, opts)
 
         if ca_config.get("ca_max_path_length", None) is not None:
-            raise ValueError("'ca_max_path_length' is unsupported. use CACertFactoryVault")
+            raise ValueError(
+                "'ca_max_path_length' is unsupported. use CACertFactoryVault"
+            )
 
         ca_uses = ["cert_signing", "crl_signing"]
         ca_root_key = tls.PrivateKey(
@@ -293,7 +299,9 @@ class CASignedCert(pulumi.ComponentResource):
 
 class SelfSignedCert(pulumi.ComponentResource):
     def __init__(self, name, cert_config, opts=None):
-        super().__init__("pkg:index:SelfSignedCert", "{}_sscert".format(name), None, opts)
+        super().__init__(
+            "pkg:index:SelfSignedCert", "{}_sscert".format(name), None, opts
+        )
 
         common_name = cert_config["common_name"]
         dns_names = cert_config["dns_names"]
@@ -468,7 +476,9 @@ ca_config = {
     "ca_unit": config.get("ca_unit", "Certificate Authority"),
     "ca_locality": config.get("ca_locality", "World"),
     "ca_country": config.get("ca_country", "UN"),
-    "ca_validity_period_hours": config.get_int("ca_validity_period_hours", default_hours_ca),
+    "ca_validity_period_hours": config.get_int(
+        "ca_validity_period_hours", default_hours_ca
+    ),
     "ca_dns_names_list": __ca_dns_list,
     "ca_dns_names": ",".join(__ca_dns_list),
     "ca_provision_name": config.get(
@@ -502,7 +512,8 @@ exported_ca_factory = public_local_export(
 
 # provision host cert for use in servce_once.py
 provision_host_names = [
-    "provision_host.{}".format(domain) for domain in ca_config["ca_permitted_domains_list"]
+    "provision_host.{}".format(domain)
+    for domain in ca_config["ca_permitted_domains_list"]
 ]
 provision_ip_addresses = config.get(
     "{}_ip_addresses".format("provision_host"), [get_default_host_ip()]
