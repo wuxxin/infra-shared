@@ -52,7 +52,7 @@ Components for
     - **Raspberry Extras** - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
     - **Openwrt Linux** - Network Device Distribution for Router and other network devices
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
-- `write_removeable.py` - use UDISKS2 to write image to a removable storage device specified serial_number
+- `write_removeable.py` - write image to removable storage specified by serial_number
 - `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
