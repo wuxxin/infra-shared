@@ -16,7 +16,7 @@ install and configure a simulation of the targets
 ```sh
 mkdir -p example; cd example; git init
 git submodule add https://github.com/wuxxin/infra-shared.git infra
-infra/create_skeleton.sh --yes
+infra/scripts/create_skeleton.sh --yes
 make sim-up
 ```
 

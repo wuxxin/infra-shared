@@ -4,7 +4,11 @@ set -eo pipefail
 
 this_dir=$(dirname "$(readlink -e "$0")")
 this_dir_short=$(basename "${this_dir}")
-project_dir=$(readlink -f ${this_dir}/..)
+
+shared_dir=$(readlink -f ${this_dir}/..)
+shared_name=$(basename "${shared_dir}")
+
+project_dir=$(readlink -f ${this_dir}/../..)
 project_name=$(basename "${project_dir}")
 
 usage() {
@@ -41,8 +45,8 @@ done
 # copy and rename examples: Makefile, Pipfile
 for f in Makefile Pipfile; do
   # replace hardcoded instances of infra/ to support different submodule naming
-  cat ${this_dir}/examples/skeleton/${f} |
-    sed -r "s#infra/#${this_dir_short}/#g" |
+  cat ${shared_dir}/examples/skeleton/${f} |
+    sed -r "s#infra/#${shared_dir_short}/#g" |
     create_ifnotexist ${f}
 done
 
@@ -63,7 +67,7 @@ create_ifnotexist __main__.py <<EOF
 """A Python Pulumi program"""
 
 
-import ${this_dir_short}.authority
+import ${shared_dir_short}.authority
 
 EOF
 

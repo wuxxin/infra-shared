@@ -790,7 +790,7 @@ class ServePrepare(pulumi.ComponentResource):
             self.config["port_forward"].update(forward_config)
             self.forward = command.local.Command(
                 resource_name + "_forward",
-                create="port_forward.py --yaml-from-stdin --yaml-to-stdout",
+                create="scripts/port_forward.py --yaml-from-stdin --yaml-to-stdout",
                 stdin=self.config,
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -818,7 +818,7 @@ class ServeOnce(pulumi.ComponentResource):
 
         self.executed = command.local.Command(
             resource_name,
-            create="serve_once.py --yes",
+            create="scripts/serve_once.py --yes",
             stdin=yaml.safe_dump(config),
             depends_on=config,
             opts=pulumi.ResourceOptions(parent=self),
@@ -835,7 +835,9 @@ class WriteRemoveable(pulumi.ComponentResource):
 
         self.executed = command.local.Command(
             resource_name,
-            create="write_removeable.py --yes {} {}".format(image_path, serial_number),
+            create="scripts/write_removeable.py --yes {} {}".format(
+                image_path, serial_number
+            ),
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.result = self.executed.returncode
@@ -886,7 +888,7 @@ def main():
         description="""
 Equivalent to calling `pulumi up` on the selected library.function on the selected stack.
 useful for oneshots like image building or transfer. calling example:
-`pipenv run {this_dir_short}/tools.py sim {this_dir_short}.build build_openwrt`""".format(
+`pipenv run {this_dir_short}/tools.py --stack sim {this_dir_short}.build build_openwrt`""".format(
             this_dir_short=os.path.basename(this_dir)
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
