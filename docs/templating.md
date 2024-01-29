@@ -2,8 +2,10 @@
 
 ### jinja
 
-jinja_run: renders a template string with environment, with optional includes from searchpath
-jinja_run_template: renders a template file available from searchpath with environment
+- jinja_run
+    - renders a template string with environment, with optional includes from searchpath
+- jinja_run_template
+    - renders a template file available from searchpath with environment
 
 #### file related custom filter
 
