@@ -24,6 +24,26 @@ import natpmp
 import yaml
 
 
+DEFAULT_CONFIG_STR = """
+serve_port:
+port_forward:
+  protocol: "natpmp"
+  gateway_ip:
+  public_ip:
+  public_port:
+  lifetime_sec: 3600
+  retry: 9
+"""
+
+DEFAULT_CONFIG = yaml.safe_load(DEFAULT_CONFIG_STR)
+DEFAULT_SHORT = textwrap.fill(
+    ", ".join(["{}: {}".format(k, v) for k, v in DEFAULT_CONFIG.items()]),
+    width=80,
+    initial_indent="  ",
+    subsequent_indent="  ",
+)
+
+
 def error_print(message, print_help=False):
     print("Error:  {}".format(message), file=sys.stderr)
     if print_help:
@@ -32,7 +52,7 @@ def error_print(message, print_help=False):
 
 
 def merge_dict_struct(struct1, struct2):
-    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1 if entry not None"
+    "recursive merge of two dict like structs into one, struct2 over struct1 if entry not None"
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -116,9 +136,9 @@ def get_public_ip(config):
 
 def port_forward(config):
     serve_port = config["serve_port"]
-    public_port, gateway_ip, protocol, lifetime, retry = (
+    public_port, gateway_ip, protocol, lifetime_sec, retry = (
         config["port_forward"][c]
-        for c in ["public_port", "gateway_ip", "protocol", "lifetime", "retry"]
+        for c in ["public_port", "gateway_ip", "protocol", "lifetime_sec", "retry"]
     )
 
     if protocol == "natpmp":
@@ -126,7 +146,7 @@ def port_forward(config):
             protocol=natpmp.NATPMP_PROTOCOL_TCP,
             private_port=serve_port,
             public_port=public_port,
-            lifetime=lifetime,
+            lifetime=lifetime_sec,
         )
         response = natpmp.send_request_with_retry(
             gateway_ip=gateway_ip,
@@ -141,40 +161,26 @@ def port_forward(config):
             return None
 
 
-default_config_str = """
-serve_port:
-port_forward:
-  protocol: "natpmp"
-  gateway_ip:
-  public_ip:
-  public_port:
-  lifetime: 3600
-  retry: 9
-"""
-
-default_config = yaml.safe_load(default_config_str)
-default_short = textwrap.fill(
-    ", ".join(["{}: {}".format(k, v) for k, v in default_config.items()]),
-    width=80,
-    initial_indent="  ",
-    subsequent_indent="  ",
-)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=__doc__ + "\ndefaults:\n{}\n".format(default_short),
+        description=__doc__ + "\ndefaults:\n{}\n".format(DEFAULT_SHORT),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("--yaml-from-stdin", action="store_true", help="Read input from STDIN")
-    parser.add_argument("--serve-port", type=int, help="internal port to be forwarded to")
+    parser.add_argument(
+        "--yaml-from-stdin", action="store_true", help="Read input from STDIN"
+    )
+    parser.add_argument(
+        "--serve-port", type=int, help="internal port to be forwarded to"
+    )
     parser.add_argument(
         "--public-port",
         type=int,
         help="public port of packets incoming, will be set to serve-port if unset",
     )
     parser.add_argument(
-        "--gateway-ip", type=str, help="gateway IP, will be inferred from network if unset"
+        "--gateway-ip",
+        type=str,
+        help="gateway IP, will be inferred from network if unset",
     )
     parser.add_argument(
         "--protocol",
@@ -183,7 +189,7 @@ if __name__ == "__main__":
         choices=["natpmp"],
         help="port forwarding protocol",
     )
-    parser.add_argument("--lifetime", type=int, help="lifetime in seconds")
+    parser.add_argument("--lifetime-sec", type=int, help="lifetime in seconds")
     parser.add_argument(
         "--yaml-to-stdout",
         action="store_true",
@@ -194,7 +200,9 @@ if __name__ == "__main__":
         action="store_true",
         help="dont print anything to STDOUT, just exit 0 on success",
     )
-    get_group = parser.add_argument_group("other Functions").add_mutually_exclusive_group()
+    get_group = parser.add_argument_group(
+        "other Functions"
+    ).add_mutually_exclusive_group()
     get_group.add_argument(
         "--get-host-ip", action="store_true", help="print default route host IP"
     )
@@ -224,14 +232,18 @@ if __name__ == "__main__":
         )
 
     if args.get_host_ip:
-        host_ip = get_default_host_ip()
-        print(host_ip)
-        sys.exit(0) if host_ip else sys.exit(1)
+        this_host_ip = get_default_host_ip()
+        print(this_host_ip)
+        if not this_host_ip:
+            sys.exit(1)
+        sys.exit(0)
 
     if args.get_gateway_ip:
-        gateway_ip = get_default_gateway_ip()
-        print(gateway_ip)
-        sys.exit(0) if gateway_ip else sys.exit(1)
+        this_gateway_ip = get_default_gateway_ip()
+        print(this_gateway_ip)
+        if not this_gateway_ip:
+            sys.exit(1)
+        sys.exit(0)
 
     if args.yaml_from_stdin:
         stdin_str = sys.stdin.read()
@@ -246,12 +258,12 @@ if __name__ == "__main__":
     if args.serve_port:
         loaded_config["serve_port"] = args.serve_port
 
-    for i in ["public_port", "gateway_ip", "lifetime", "retry"]:
+    for i in ["public_port", "gateway_ip", "lifetime_sec", "retry"]:
         if hasattr(args, i):
             loaded_config["port_forward"][i] = getattr(args, i)
 
     # merge YAML config with defaults
-    config = merge_dict_struct(default_config, loaded_config)
+    config = merge_dict_struct(DEFAULT_CONFIG, loaded_config)
 
     # if still missing, fill in public_port and gateway_ip
     if not config["port_forward"]["public_port"]:
@@ -259,23 +271,23 @@ if __name__ == "__main__":
     if not config["port_forward"]["gateway_ip"]:
         config["port_forward"]["gateway_ip"] = get_default_gateway_ip()
 
-    public_ip = get_public_ip(config)
-    if not public_ip:
+    this_public_ip = get_public_ip(config)
+    if not this_public_ip:
         sys.exit(1)
 
     if args.get_public_ip:
-        print(public_ip)
+        print(this_public_ip)
         sys.exit(0)
 
-    public_port = port_forward(config)
-    if not public_port:
+    this_public_port = port_forward(config)
+    if not this_public_port:
         sys.exit(1)
 
-    config["port_forward"]["public_ip"] = public_ip
-    config["port_forward"]["public_port"] = public_port
+    config["port_forward"]["public_ip"] = this_public_ip
+    config["port_forward"]["public_port"] = this_public_port
 
     # print updated config to STDOUT if --yaml-to-stdout
     if args.yaml_to_stdout:
         print(yaml.safe_dump(config))
     elif not args.silent:
-        print("{}:{}".format(public_ip, public_port))
+        print("{}:{}".format(this_public_ip, this_public_port))
