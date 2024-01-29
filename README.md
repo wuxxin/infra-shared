@@ -5,8 +5,8 @@ Reusables of a learning project by rewriting parts of my home infrastructure as
 
 a **pulumi** and **core-os** based **gitops** project in **python**.
 
+- See [safe](examples/safe) for usage in an example project
 - Inspired and impressed by https://github.com/deuill/coreos-home-server
-- See https://github.com/wuxxin/example_infra for usage in an example project
 
 ### Quick start
 
@@ -24,17 +24,16 @@ make sim-up
 
 You have just created two TLS Certificates and an SSH Keypair in a very fancy way!
 
-To see what else you can do with it, continue reading or look at:
-- look at https://github.com/wuxxin/example_infra for usage in an example project
-- also see the [jupter notebooks](https://github.com/wuxxin/example_infra/notebooks) there for interactive pulumi, mqtt and homeassistant examples
+To see what else you can do with it, continue reading or look at [examples](examples/)
+- also see the [jupyter notebooks](examples/notebooks/) for interactive pulumi, mqtt and homeassistant examples
 
 
 ### Features
 
 Components for
 
-- Fedora-CoreOS Linux - updating, minimal, monolithic, container-focused operating system
-    - Setup, Bootstrap and Reconfiguration of CoreOS with Jinja templated butane files
+- **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
+    - Setup, Bootstrap and Reconfiguration of CoreOS with **Jinja templated butane** files
     - **Reconfiguration**: `coreos-update-config*`
         - Fast (~4s) reconfiguration based on `butane2salt.jinja` translation
     - **Single Container**: `podman-systemd.unit`
@@ -43,12 +42,17 @@ Components for
         - `compose*` - run multi-container applications defined using a compose file
     - **nSpawn OS-Container**: `systemd-nspawn`
         - `nspawn*` - run an linux OS (build by mkosi) in a light-weight container
+    - **tls/http FrontEnd**: `traefik`
+        - using container and nspawn labels for dynamic configuration
+    - **DNS Resolver**: `unbound`
+        - using container for local DNSSEC capable recursive DNS-Resolver
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images
-    - Raspberry Extras - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
-    - Openwrt Linux - Network Device Distribution for Router and other network devices
+    - **Raspberry Extras** - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
+    - **Openwrt Linux** - Network Device Distribution for Router and other network devices
 - `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
+- `write_removeable.py` - use UDISKS2 to write image to a removable storage device specified serial_number
 - `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
@@ -61,7 +65,7 @@ Components for
 - `systemd` - service, socker, path, timer, nspawn machine container
 - `podman` - build Container images, run Container using quadlet systemd container
 - `saltstack`
-    - additional local embedded/iot build environments
+    - local build environments and local services
     - remote fcos config update using butane to saltstack translation and execution
 - `mkdocs` - documentation using markdown and mermaid
 - `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
@@ -71,7 +75,7 @@ Components for
 - `pipenv` - virtualenv management using Pipfile and Pipfile.lock
 
 **Need to know** technologies (to write Deployment and Docs):
-- Basic Knowledge of Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown
+- Basic Knowledge of `Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown`
 
 **Advanced functionality** available with knowledge of:
 - Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Jupyter Notebooks
@@ -126,7 +130,8 @@ make provision-container
 
 # Or: build container using any other container tool
 # - replace "docker" with your container build call
-cd infra/Containerfile/provision-client && docker build -t provision-client:latest $(pwd)
+cd infra/Containerfile/provision-client && \
+    docker build -t provision-client:latest $(pwd)
 
 # add a provision-client() function to running shell
 # - replace "sudo podman" to match your local container software
@@ -194,7 +199,7 @@ make sim-create
 ```sh
 make sim-tool args="infra.build build_openwrt"
 # is a shortcut equal to
-PULUMI_CONFIG_PASSPHRASE=sim pipenv run infra/tools.py sim infra.build build_openwrt
+PULUMI_CONFIG_PASSPHRASE=sim pipenv run infra/tools.py --stack sim infra.build build_openwrt
 
 # show recorded image build salt-call stdout log output
 make sim-show | jq .build_openwrt.result.stdout -r
