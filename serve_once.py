@@ -1,22 +1,21 @@
 #!/usr/bin/env python
 """serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
   will wait until timeout in seconds is reached, where it will exit 1
-  will exit 0 after one sucessful request
+  will exit 0 after one successful request
 
 can be used
-  as one time secure data serve for eg. ignition data
-  as webhook on demand where the POST data is send to STDOUT
+  as one-time secure data serve for eg. ignition data
+  as a webhook on demand where the POST data is sent to STDOUT
 
 calling usage: <yaml-from-STDIN> | $0 [--verbose] --yes | [<request_body-to-STDOUT>]
 
 notes:
-  if key or cert is None, a temporary selfsigned cert will be created
-  if mtls is true, ca_cert must be set and a mandatory client certificate is needed to connect
-  if mtls_clientid is not None, the client certificate CN name needs to match mtls_clientid
-  invalid request paths, invalid request methods, invalid or missing client certificates
-    return an request error, but do not cause the exit of the program.
-    only a sucessful transmission or a timeout will end execution.
-
+- if key or cert is None, a temporary self-signed cert will be created
+- if mtls is true, ca_cert must be set, and a mandatory client certificate is needed to connect
+- if mtls_clientid is not None, the client certificate CN name needs to match mtls_clientid
+- invalid request paths, invalid request methods, invalid or missing client certificates
+    return a request error but do not cause the exit of the program.
+    only a successful transmission or a timeout will end execution.
 """
 
 import argparse
@@ -37,6 +36,35 @@ import yaml
 # generate_self_signed_certificate() uses cryptography
 
 
+# configure defaults
+DEFAULT_CONFIG_STR = """
+request_ip:
+request_path: "/"
+request_method: "GET"
+request_body_stdout: false
+serve_ip: 0.0.0.0
+serve_port: 8443
+hostname: localhost
+timeout: 30
+cert:
+key:
+ca_cert:
+mtls: false
+mtls_clientid:
+header:
+  "Content-Type": application/json
+payload: |
+  true
+"""
+DEFAULT_CONFIG = yaml.safe_load(DEFAULT_CONFIG_STR)
+DEFAULT_SHORT = textwrap.fill(
+    ", ".join(["{}: {}".format(k, v) for k, v in DEFAULT_CONFIG.items()]),
+    width=80,
+    initial_indent="  ",
+    subsequent_indent="  ",
+)
+
+
 def verbose_print(message):
     if args.verbose:
         print(message, file=sys.stderr)
@@ -53,7 +81,7 @@ def write_key(key_fifo_path, key):
 
 
 def merge_dict_struct(struct1, struct2):
-    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1 if entry not None"
+    "recursive merge of two dict like structs into one, struct2 over struct1 if entry not None"
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -104,7 +132,9 @@ def generate_self_signed_certificate(hostname):
         .serial_number(x509.random_serial_number())
         .not_valid_before(datetime.datetime.utcnow() - datetime.timedelta(days=1))
         .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=365))
-        .add_extension(x509.SubjectAlternativeName([x509.DNSName(hostname)]), critical=False)
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName(hostname)]), critical=False
+        )
         .add_extension(
             x509.ExtendedKeyUsage(
                 [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]
@@ -127,13 +157,15 @@ def generate_self_signed_certificate(hostname):
 class ServeOneRequestHandler(http.server.BaseHTTPRequestHandler):
     """requesthandler that only answers to one specific request with conditions configured in config[]"""
 
-    def verbose_error(self, code: int, message: str | None = None, explain: str | None = None):
+    def verbose_error(
+        self, code: int, message: str | None = None, explain: str | None = None
+    ):
         self.send_error(code, message, explain)
         if args.verbose:
             print("{}: {}".format(code, message), file=sys.stderr)
 
     def log_message(self, format, *args):
-        if args.verbose:
+        if "verbose" in args and args.verbose:
             # only call the original method if verbose
             super().log_message(format, *args)
 
@@ -155,7 +187,9 @@ class ServeOneRequestHandler(http.server.BaseHTTPRequestHandler):
         if config["mtls"] and config["mtls_clientid"]:
             client_cert_cn = self.get_client_cert_common_name()
             if client_cert_cn != config["mtls_clientid"]:
-                self.verbose_error(401, f"Invalid Client certificate CN: {client_cert_cn}")
+                self.verbose_error(
+                    401, f"Invalid Client certificate CN: {client_cert_cn}"
+                )
                 return
 
         if config["request_ip"] and self.client_address[0] != config["request_ip"]:
@@ -176,7 +210,8 @@ class ServeOneRequestHandler(http.server.BaseHTTPRequestHandler):
             print(request_body.decode("utf-8"))
 
         self.send_response(200)
-        [self.send_header(key, value) for key, value in config["header"].items()]
+        for key, value in config["header"].items():
+            self.send_header(key, value)
         self.end_headers()
         self.wfile.write(config["payload"].encode("utf-8"))
 
@@ -206,9 +241,21 @@ def serve_once(config):
         cert_thread = threading.Thread(
             target=write_cert, args=(cert_fifo_path, config["cert"])
         )
-        key_thread = threading.Thread(target=write_key, args=(key_fifo_path, config["key"]))
+        key_thread = threading.Thread(
+            target=write_key, args=(key_fifo_path, config["key"])
+        )
         cert_thread.start()
         key_thread.start()
+
+        # create SSL context
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=cert_fifo_path, keyfile=key_fifo_path)
+
+        # if ca_cert is set, load it into the context
+        if config["ca_cert"]:
+            context.load_verify_locations(cadata=config["ca_cert"])
+            if config["mtls"]:
+                context.verify_mode = ssl.CERT_REQUIRED
 
         # create HTTPS server
         httpd = http.server.HTTPServer(
@@ -217,14 +264,8 @@ def serve_once(config):
             bind_and_activate=False,
         )
         httpd.timeout = config["timeout"]
-        httpd.socket = ssl.wrap_socket(
-            httpd.socket, certfile=cert_fifo_path, keyfile=key_fifo_path, server_side=True
-        )
-        if config["ca_cert"]:
-            #     ssl_ctx.load_verify_locations(cadata=config["ca_cert"])
-            #     if config["mtls"]:
-            #         ssl_ctx.verify_mode = ssl.CERT_REQUIRED
-            pass
+        httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+
         httpd.server_bind()
         httpd.server_activate()
 
@@ -237,8 +278,6 @@ def serve_once(config):
                     break
             else:
                 sys.exit(1)
-
-    # FIXME: should not abort except on CTRL-C, timeout, sucessful requests
 
     # stop threads, remove named pipes and temp_dir
     finally:
@@ -264,44 +303,20 @@ def serve_once(config):
             pass
 
 
-# configure defaults
-default_config_str = """
-request_ip:
-request_path: "/"
-request_method: "GET"
-request_body_stdout: false
-serve_ip: 0.0.0.0
-serve_port: 8443
-hostname: localhost
-timeout: 30
-cert:
-key:
-ca_cert:
-mtls: false
-mtls_clientid:
-header:
-  "Content-Type": application/json
-payload: |
-  true
-"""
-default_config = yaml.safe_load(default_config_str)
-default_short = textwrap.fill(
-    ", ".join(["{}: {}".format(k, v) for k, v in default_config.items()]),
-    width=80,
-    initial_indent="  ",
-    subsequent_indent="  ",
-)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=__doc__ + "\ndefaults:\n{}\n".format(default_short),
+        description=__doc__ + "\ndefaults:\n{}\n".format(DEFAULT_SHORT),
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
-        "--verbose", action="store_true", default=False, help="Log and Warnings to stderr"
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Log and Warnings to stderr",
     )
-    parser.add_argument("--yes", action="store_true", required=True, help="Confirm execution")
+    parser.add_argument(
+        "--yes", action="store_true", required=True, help="Confirm execution"
+    )
 
     if not sys.argv[1:]:  # print help and exit if called without parameter
         parser.print_help()
@@ -317,10 +332,12 @@ if __name__ == "__main__":
         loaded_config = yaml.safe_load(stdin_str)
 
     # merge YAML config from stdin with defaults
-    config = merge_dict_struct(default_config, loaded_config)
+    config = merge_dict_struct(DEFAULT_CONFIG, loaded_config)
 
     if not config["cert"] or not config["key"]:
-        verbose_print("Warning: no cert or key set, creating temporary selfsigned certificate")
+        verbose_print(
+            "Warning: no cert or key set, creating temporary selfsigned certificate"
+        )
         cert_key_dict = generate_self_signed_certificate(config["hostname"])
         config["cert"] = cert_key_dict["cert"]
         config["key"] = cert_key_dict["key"]
