@@ -2,28 +2,38 @@
 """
 ## Pulumi - Tools
 
-- Usage as command line utility: `pipenv $0 stack library function`
+- pulumi tools library, can also be used as command line utility:
+    - `pipenv $0 [--stack sim] library function *stringargs`
 
-### Functions
+### Pulumi Functions
+- serve_prepare
+- serve_once
+- serve_simple
+
 - ssh_copy
 - ssh_deploy
 - ssh_execute
 
+- write_removeable
 - encrypted_local_export
 - public_local_export
 
-- jinja_run
-- jinja_run_template
-
 - log_warn
-- sha256sum_file
-- join_paths
-- merge_dict_struct
 
-### Components
-- ServeOnce
+### Pulumi Components
 - LocalSaltCall
 - RemoteSaltCall
+
+### Pulumi Resources
+- TimedResource
+
+### Python
+- jinja_run
+- jinja_run_template
+- ToolsExtension(jinja2.ext.Extension)
+- join_paths
+- sha256sum_file
+- merge_dict_struct
 
 """
 
@@ -31,16 +41,21 @@ import copy
 import glob
 import hashlib
 import os
+import random
 import re
 import socket
 import stat
 import sys
+import time
 
 import jinja2
 import jinja2.ext
 import pulumi
 import pulumi_command as command
 import yaml
+
+from pulumi.dynamic import Resource, ResourceProvider, CreateResult, UpdateResult
+
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.abspath(os.path.join(this_dir, ".."))
@@ -49,7 +64,12 @@ project_dir = os.path.abspath(os.path.join(this_dir, ".."))
 def log_warn(x):
     "write str(var) to pulumi.log.warn with line numbering, to be used as var.apply(log_warn)"
     pulumi.log.warn(
-        "\n".join(["{}:{}".format(n + 1, l) for n, l in enumerate(str(x).splitlines())])
+        "\n".join(
+            [
+                "{}:{}".format(nr + 1, line)
+                for nr, line in enumerate(str(x).splitlines())
+            ]
+        )
     )
 
 
@@ -147,7 +167,7 @@ class ToolsExtension(jinja2.ext.Extension):
         return "\n".join(files)
 
     def list_dirs(self, value):
-        "returns available directories in searchpath[0]/value as string, newline seperated"
+        "returns available directories in searchpath[0]/dir as string, newline seperated"
         loader = self.environment.loader
 
         dirs = [
@@ -160,7 +180,7 @@ class ToolsExtension(jinja2.ext.Extension):
         return "\n".join(dirs)
 
     def has_executable_bit(self, value):
-        "return boolean True if searchpath[0]/value file exists and has executable bit set, else False"
+        "return boolean True if searchpath[0]/file exists and has executable bit set, else False"
         loader = self.environment.loader
         f = join_paths(loader.searchpath[0], value)
         if not os.path.exists(f):
@@ -172,7 +192,7 @@ class ToolsExtension(jinja2.ext.Extension):
             return False
 
     def get_filemode(self, value):
-        "return octal filemode as string of file search using searchpath[0]/value or empty string"
+        "return octal filemode as string of file in searchpath[0]/file or empty string"
         loader = self.environment.loader
         f = join_paths(loader.searchpath[0], value)
         if not os.path.exists(f):
@@ -180,9 +200,14 @@ class ToolsExtension(jinja2.ext.Extension):
         return oct(stat.S_IMODE(os.stat(f).st_mode))
 
     def regex_escape(self, value):
+        """escapes special characters in a string for use in a regular expression"""
         return re.escape(value)
 
     def regex_search(self, value, pattern, ignorecase=False, multiline=False):
+        """searches the string for a match to the regular expression
+
+        Returns: a tuple containing the groups captured in the match, or None
+        """
         flags = 0
         if ignorecase:
             flags |= re.I
@@ -194,6 +219,10 @@ class ToolsExtension(jinja2.ext.Extension):
         return obj.groups()
 
     def regex_match(self, value, pattern, ignorecase=False, multiline=False):
+        """tries to apply the regular expression at the start of the string
+
+        Returns: a tuple containing the groups captured in the match, or None
+        """
         flags = 0
         if ignorecase:
             flags |= re.I
@@ -204,7 +233,10 @@ class ToolsExtension(jinja2.ext.Extension):
             return
         return obj.groups()
 
-    def regex_replace(self, value, pattern, replacement, ignorecase=False, multiline=False):
+    def regex_replace(
+        self, value, pattern, replacement, ignorecase=False, multiline=False
+    ):
+        """replaces occurrences of the regular expression with another string"""
         flags = 0
         if ignorecase:
             flags |= re.I
@@ -217,41 +249,7 @@ class ToolsExtension(jinja2.ext.Extension):
 def jinja_run(template_str, searchpath, environment={}):
     """renders a template string with environment, with optional includes from searchpath
 
-    - searchpath can be string, or list of strings, file related filter only search searchpath[0]
-
-    #### file related custom filter
-    - "sub_dir/filename"|get_file_mode()
-        - a string with the octal filemode of the file in searchpath[0]/filename, or "" if not found
-    - "sub_dir/filename"|has_executable_bit()
-        - a string with either "true" or "false" depending the executable bit, or "" if not found
-    - "sub_dir"|list_files()
-        - a string with a newline seperated list of files in searchpath/sub_dir
-        - each of these listed files are available for "import x as y" in jinja
-    - "sub_dir"|list_dirs()
-        - a string with a newline seperated list of directories in searchpath/sub_dir
-
-    #### regex related custom filter
-    - "text"|regex_escape()
-    - "text"|regex_search(pattern)
-    - "text"|regex_match(pattern)
-    - "text"|regex_replace(pattern, replacement)
-
-    search,match,replace support additional args
-    - ignorecase=True/*False
-    - multiline=True/*False
-
-    #### Example
-    import files available under subdir "test" and translate into a saltstack state file
-
-    ```jinja
-
-    {% for f in 'test'|list_files().split('\\n') %}{% import f as c %}
-    {{ f }}:
-      file.managed:
-        - contents: |
-            {{ c|string()|indent(8) }}
-    {% endfor %}
-    ```
+    - searchpath can be string, or list of strings, file related filter only search searchpath
 
     """
     env = jinja2.Environment(
@@ -320,7 +318,9 @@ class SSHCopier(pulumi.ComponentResource):
                     host=self.props["host"],
                     port=self.props["port"],
                     user=self.props["user"],
-                    private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
+                    private_key=self.props["sshkey"].private_key_openssh.apply(
+                        lambda x: x
+                    ),
                 ),
                 triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
@@ -350,7 +350,9 @@ class SSHDeployer(pulumi.ComponentResource):
         rm_cmd = "rm {} || true" if self.props["delete"] else ""
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
         triggers = [
-            hashlib.sha256(cat_cmd.format(full_remote_path).encode("utf-8")).hexdigest(),
+            hashlib.sha256(
+                cat_cmd.format(full_remote_path).encode("utf-8")
+            ).hexdigest(),
             data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
         ]
         self.triggers.extend(triggers)
@@ -374,7 +376,9 @@ class SSHDeployer(pulumi.ComponentResource):
                     host=self.props["host"],
                     port=self.props["port"],
                     user=self.props["user"],
-                    private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
+                    private_key=self.props["sshkey"].private_key_openssh.apply(
+                        lambda x: x
+                    ),
                 ),
                 create=cat_cmd.format(full_remote_path),
                 update=cat_cmd.format(full_remote_path),
@@ -538,7 +542,9 @@ def ssh_execute(
                 host=host,
                 port=port,
                 user=user,
-                private_key=ssh_factory.provision_key.private_key_openssh.apply(lambda x: x),
+                private_key=ssh_factory.provision_key.private_key_openssh.apply(
+                    lambda x: x
+                ),
             ),
             create=cmdline,
             triggers=triggers,
@@ -556,7 +562,9 @@ class DataExport(pulumi.ComponentResource):
         - encrypted_local_export()
     """
 
-    def __init__(self, prefix, filename, data, key=None, filter="", delete=False, opts=None):
+    def __init__(
+        self, prefix, filename, data, key=None, filter="", delete=False, opts=None
+    ):
         super().__init__("pkg:index:DataExport", prefix, None, opts)
 
         stack_name = pulumi.get_stack()
@@ -564,7 +572,12 @@ class DataExport(pulumi.ComponentResource):
 
         if key:
             self.filename = os.path.join(
-                project_dir, "state", "files", stack_name, prefix, "{}.age".format(filename)
+                project_dir,
+                "state",
+                "files",
+                stack_name,
+                prefix,
+                "{}.age".format(filename),
             )
             create_cmd = pulumi.Output.concat(
                 filter,
@@ -600,7 +613,9 @@ class DataExport(pulumi.ComponentResource):
             opts=opts,
             dir=project_dir,
             triggers=[
-                data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
+                data.apply(
+                    lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()
+                ),
             ],
         )
         self.register_outputs({})
@@ -639,8 +654,12 @@ def salt_config(
 
     """
 
-    root_dir = root_dir or os.path.join(base_dir, "state", "salt", stack_name, resource_name)
-    tmp_dir = tmp_dir or os.path.join(base_dir, "state", "tmp", stack_name, resource_name)
+    root_dir = root_dir or os.path.join(
+        base_dir, "state", "salt", stack_name, resource_name
+    )
+    tmp_dir = tmp_dir or os.path.join(
+        base_dir, "state", "tmp", stack_name, resource_name
+    )
     sls_dir = sls_dir if sls_dir else base_dir
     pillar_dir = os.path.join(root_dir, "pillar")
 
@@ -774,7 +793,12 @@ class RemoteSaltCall(pulumi.ComponentResource):
 
         stack = pulumi.get_stack()
         self.config = salt_config(
-            resource_name, stack, base_dir, root_dir=root_dir, tmp_dir=tmp_dir, sls_dir=sls_dir
+            resource_name,
+            stack,
+            base_dir,
+            root_dir=root_dir,
+            tmp_dir=tmp_dir,
+            sls_dir=sls_dir,
         )
         pillar_dir = self.config["grains"]["pillar_dir"]
         sls_dir = self.config["grains"]["sls_dir"]
@@ -782,9 +806,9 @@ class RemoteSaltCall(pulumi.ComponentResource):
         rel_sls_dir = os.path.relpath(sls_dir, base_dir)
 
         self.config_dict = {
-            os.path.relpath(self.config["conf_file"], base_dir): pulumi.Output.from_input(
-                yaml.safe_dump(self.config)
-            ),
+            os.path.relpath(
+                self.config["conf_file"], base_dir
+            ): pulumi.Output.from_input(yaml.safe_dump(self.config)),
             os.path.join(rel_sls_dir, "top.sls"): pulumi.Output.from_input(
                 "base:\n  '*':\n    - main\n"
             ),
@@ -823,43 +847,211 @@ class RemoteSaltCall(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-class ServeOnce(pulumi.ComponentResource):
-    """one time secure data serve for eg. ignition data, or one time webhook with retrieved POST data"""
+class TimedResourceProvider(ResourceProvider):
+    """resource provider for TimedResource"""
 
-    def __init__(self, resource_name, config={}, port_forward=False, opts=None):
-        super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
-
-        port_forward = ""
-        config_data = yaml.safe_dump(config)
-        self.executed = command.local.Command(
-            resource_name,
-            create="{}serve_once.py --yes".format(port_forward),
-            stdin=config_data,
-            opts=pulumi.ResourceOptions(parent=self),
+    def create(self, props):
+        # Call the user-defined creation function to get a new value
+        new_value = props["creation_fn"]()
+        # Capture the current timestamp
+        current_time = int(time.time())
+        # The unique ID for the resource is just its timestamp for simplicity
+        return CreateResult(
+            current_time, {"value": new_value, "timestamp": current_time}
         )
 
-        self.result = None
-        if config.get("request_body_stdout", False):
-            self.result = self.executed.stdout
+    def update(self, id, _olds, _news):
+        # Recompute the current timestamp and check against the specified timeout
+        current_time = int(time.time())
+        if current_time - _olds["timestamp"] > _news["timeout_sec"]:
+            # If the timeout has passed, call the creation function again
+            new_value = _news["creation_fn"]()
+            return UpdateResult({"value": new_value, "timestamp": current_time})
+        return None  # No changes if the timeout has not passed
+
+    def diff(self, id, _olds, _news):
+        # Determine if an update is needed based on the timeout
+        current_time = int(time.time())
+        if current_time - _olds["timestamp"] > _news["timeout_sec"]:
+            # If the timeout has passed, signal that an update is needed
+            return pulumi.DiffResult(changes=True)
+        # Otherwise, no update is needed
+        return pulumi.DiffResult(changes=False)
 
 
-def serve_once(resource_name, payload, local_port, timeout=45, opts=None):
-    from .authority import provision_host_tls, ca_factory
+class TimedResource(Resource):
+    """A custom resource that regenerates a value based on the provided function if timeout passed
 
-    serve_config = {
-        "serve_port": local_port,
-        "timeout": timeout,
-        "cert": provision_host_tls.chain,
-        "key": provision_host_tls.key.private_key_pem,
-        "ca_cert": ca_factory.root_cert_pem,
-        "mtls": True,
-        "payload": playload,
-    }
-    serve_result = ServeOnce("serve_once_{}".format(resource_name), serve_config, opts=opts)
-    return serve_result
+    :param str name: Name of the resource.
+    :param function creation_fn: A function that regenerates a new value string
+    :param int timeout_sec: Timeout in seconds to trigger regeneration
+
+    Usage:
+    ```python
+    my_res = TimedResource("my-random-number", timeout_sec=10,
+        creation_fn=lambda x: str(random.randint(30000,32000))
+    )
+    current_number= my_res.output["value"].apply(lambda v: int(v))
+    ```
+    """
+
+    def __init__(self, name, creation_fn, timeout_sec, opts=None):
+        super().__init__(
+            TimedResourceProvider(),
+            name,
+            {
+                "value": None,
+                "timestamp": None,
+                "creation_fn": creation_fn,
+                "timeout_sec": timeout_sec,
+            },
+            opts,
+        )
 
 
-if __name__ == "__main__":
+class ServePrepare(pulumi.ComponentResource):
+    """a serve-prepare component to configure a future available web resource
+
+    :param str config_input: yaml input added on top of the default resource config
+    :param int timeout_sec: timeout in seconds the service will be available
+    :param int port_base: base port number of the web resource
+    :param int port_range: range of ports for the web resource
+
+    It creates a `TimedResource` object to manage the local port configuration
+        and initializes port forwarding to the local port if requested.
+    """
+
+    def __init__(
+        self,
+        resource_name: str,
+        config_input: str = "",
+        timeout_sec: int = 45,
+        port_base: int = 47000,
+        port_range: int = 3000,
+        opts: pulumi.Input[object] = None,
+    ) -> None:
+        from .authority import config, ca_factory, provision_host_tls
+
+        super().__init__("pkg:index:ServeConfigure", resource_name, None, opts)
+
+        forward_config = config.get_object("port_forward", {"enabled": False})
+
+        self.local_port_config = TimedResource(
+            "local-port-config",
+            creation_fn=lambda: str(random.randint(port_base, port_base + port_range)),
+            timeout_sec=timeout_sec,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        serve_port = self.local_port_config.output["value"].apply(lambda v: int(v))
+
+        self.config = {
+            "serve_port": serve_port,
+            "timeout": timeout_sec,
+            "cert": provision_host_tls.chain,
+            "key": provision_host_tls.key.private_key_pem,
+            "ca_cert": ca_factory.root_cert_pem,
+            "mtls": True,
+            "payload": None,
+            "remote_url": "https://{ip}:{port}/".format(
+                ip=get_default_host_ip(),
+                port=serve_port,
+            ),
+            "port_forward": {"lifetime_sec": timeout_sec},
+            # short lifetime of forward for fast reuse
+        }
+
+        if config_input:
+            self.config.update(yaml.safe_load(config_input))
+
+        if forward_config.enabled:
+            self.config["port_forward"].update(forward_config)
+            self.forward = command.local.Command(
+                resource_name + "_forward",
+                create="port_forward.py --yaml-from-stdin --yaml-to-stdout",
+                stdin=self.config,
+                opts=pulumi.ResourceOptions(parent=self),
+            )
+            self.config = yaml.safe_load(self.forward.stdout.yaml)
+            self.config.update(
+                {
+                    "remote_url": "https://{ip}:{port}/".format(
+                        ip=self.config["port_forward"]["public_ip"],
+                        port=self.config["port_forward"]["public_port"],
+                    ),
+                }
+            )
+            self.result = self.forward.stdout
+        else:
+            self.result = yaml.safe_dump(self.config)
+
+        self.register_outputs({})
+
+
+class ServeOnce(pulumi.ComponentResource):
+    """one time secure web data serve for eg. ignition data, or one time webhook with retrieved POST data"""
+
+    def __init__(self, resource_name, config, opts=None):
+        super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
+
+        self.executed = command.local.Command(
+            resource_name,
+            create="serve_once.py --yes",
+            stdin=yaml.safe_dump(config),
+            depends_on=config,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        self.result = self.executed.stdout
+        self.register_outputs({})
+
+
+class WriteRemoveable(pulumi.ComponentResource):
+    """Writes image from given image_path to specified serial_numbered removable storage device"""
+
+    def __init__(self, resource_name, image_path, serial_number, opts=None):
+        super().__init__("pkg:index:WriteRemoveable", resource_name, None, opts)
+
+        self.executed = command.local.Command(
+            resource_name,
+            create="write_removeable.py --yes {} {}".format(image_path, serial_number),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        self.result = self.executed.returncode
+        self.register_outputs({})
+
+
+def serve_prepare(resource_name, config_input="", timeout_sec=45, opts=None):
+    return ServePrepare(
+        "serve_prepare_{}".format(resource_name),
+        config_input=config_input,
+        timeout_sec=timeout_sec,
+        opts=opts,
+    )
+
+
+def serve_once(resource_name, payload, config, opts=None):
+    this_config = copy.deepcopy(config)
+    this_config.update({"payload": payload})
+    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
+
+
+def serve_simple(resource_name, yaml_str, opts=None):
+    this_config = ServePrepare(
+        "serve_prepare_{}".format(resource_name),
+        config_input=yaml.safe_load(yaml_str),
+    )
+    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
+
+
+def write_removeable(resource_name, image_path, serial_number, opts=None):
+    return WriteRemoveable(
+        "write_removeable_{}".format(resource_name),
+        image_path=image_path,
+        serial_number=serial_number,
+        opts=opts,
+    )
+
+
+def main():
     import argparse
     import importlib
     import inspect
@@ -876,18 +1068,23 @@ useful for oneshots like image building or transfer. calling example:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("stack", type=str, help="Name of the stack", default="sim")
+    parser.add_argument("--stack", type=str, help="Name of the stack", default="sim")
     parser.add_argument("library", type=str, help="Name of the library")
-    parser.add_argument("function", type=str, nargs="?", help="Name of the function")
+    parser.add_argument(
+        "function",
+        type=str,
+        nargs="?",
+        help="function name, will list all functions of library if empty",
+    )
     parser.add_argument(
         "args",
         type=str,
         nargs="*",
-        help="optional args for function, only strings allowed",
+        help="optional string args for function",
         default=[],
     )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     library = importlib.import_module(args.library)
 
     if not args.function:
@@ -904,18 +1101,14 @@ useful for oneshots like image building or transfer. calling example:
 
     os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
     target_function = getattr(library, args.function)
-    project_name = os.path.basename(project_dir)
+    workspace = pulumi.automation.LocalWorkspace(work_dir=project_dir)
+    stack = pulumi.automation.Stack.select(args.stack, workspace)
+
+    stack.refresh(on_output=print)
     target_res = target_function(*args.args)
-
-    stack = pulumi.automation.select_stack(
-        stack_name=args.stack,
-        project_name=project_name,
-        program=target_res,
-        work_dir=project_dir,
-        opts=pulumi.automation.LocalWorkspaceOptions(work_dir=project_dir),
-    )
-    # stack = pulumi.automation.select_stack(stack_name=args.stack, work_dir=project_dir)
-
-    ref_res = stack.refresh(on_output=print)
-    up_res = stack.up(log_to_std_err=True, on_output=print)
+    stack.up(log_to_std_err=True, on_output=print)
     print(target_res)
+
+
+if __name__ == "__main__":
+    main()
