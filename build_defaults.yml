@@ -1,5 +1,5 @@
 openwrt:
-  version: "22.03.5"
+  version: "23.05.2"
   target: x86-64
   model: generic
   baseurl: https://downloads.openwrt.org/releases
@@ -65,13 +65,13 @@ fcos:
 
 raspberry:
   eeprom_rpi4:
-    version: 2023.01.11-138c0
-    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v{VERSION}/rpi-boot-eeprom-recovery-2023-01-11-vl805-000138c0-sd.zip
-    sha256sum: e53a915ada0e2e9eb3e995e8e50176eff4e1a2daea9d717d0f0aa30c5f9fd04d
+    version: 2023.12.06-2712
+    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v2023.12.06-2712/rpi-boot-eeprom-recovery-2023-12-06-2712-sd.zip
+    sha256sum: 156ee1657f9b744e3794ef3d3d97394c07d296c87e568f88297ed97358535a64
   uboot:
-    version: 2023.04-1.fc38
-    fileurl: https://kojipkgs.fedoraproject.org//packages/uboot-tools/2023.04/1.fc38/noarch/uboot-images-armv8-{VERSION}.noarch.rpm
-    sha256sum: f5288755b42abd9dd546ddae8bb7aed33e6a5e4a19f98c2f0535ac66cf1220a2
+    version: 2023.07-3.fc39
+    fileurl: https://kojipkgs.fedoraproject.org/packages/uboot-tools/2023.07/3.fc39/noarch/uboot-images-armv8-{VERSION}.noarch.rpm
+    sha256sum: 8d6ab27c73f05364edce170f44bca478fea593ccff1f3d63f1aef44726910956
   uefi_rpi3:
     version: "1.39"
     fileurl: https://github.com/pftf/RPi3/releases/download/v{VERSION}/RPi3_UEFI_Firmware_v{VERSION}.zip
@@ -82,7 +82,7 @@ raspberry:
     sha256sum: 3ea16d6bc4f8f122527ad6a84c0fe84ad80d85fd43a868d99c360ad9e93d3f6e
 
 homeassistant:
-  version: "10.2"
+  version: "11.2"
   baseurl: https://github.com/home-assistant/operating-system/releases/download
   target: generic-x86-64
 
@@ -96,19 +96,39 @@ esphome:
       sdkconfig_options:
         # CONFIG_MBEDTLS_DEBUG: y
 
-truenas:
-  version: "13.0"
-  patchlevel: U5.1
-  baseurl: https://download.freenas.org
-  sign:
-    id: C8D62DEF767C1DB0DFF4E6EC358EAA9112CF7946
-    keyfile: salt://build/truenas.asc
-
 android:
-  - type: mobile_phone
+  - type: generic
+    repositories: []
+      # fdroid repositories
     packages:
-      []
-      # fdroid repositories and packages
-  - type: wifi_tablet
-  - type: wifi_phone
-  - type: wifi_appliance
+      fdroid:
+        # fdroid packages
+        - com.jens.automation2
+        - com.atharok.barcodescanner
+        - org.briarproject.briar.android
+        - at.bitfire.davdroid
+        - eu.depau.etchdroid
+        - org.mozilla.fennec_fdroid
+        - com.michaeltroger.gruenerpass
+        - ch.rmy.android.http_shortcuts
+        - com.fsck.k9
+        - org.kde.kdeconnect_tp
+        - ca.cmetcalfe.locationshare
+        - org.isoron.uhabits
+        - com.artifex.mupdf.viewer.app
+        - org.schabi.newpipe
+        - org.gateshipone.odyssey
+        - org.sufficientlysecure.keychain
+        - de.dennisguse.opentracks
+        - app.organicmaps
+        - com.wesaphzt.privatelocation
+        - org.secuso.privacyfriendlyactivitytracker
+        - com.jarsilio.android.scrambledeggsif
+        - net.typeblog.shelter
+        - org.ligi.survivalmanual
+        - com.github.catfriend1.syncthingandroid
+        - org.andstatus.todoagenda
+        - org.videolan.vlc
+        - com.vrem.wifianalyzer
+        - com.wireguard.android
+        - de.schildbach.oeffi
