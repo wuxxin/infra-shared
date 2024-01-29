@@ -53,19 +53,29 @@ def build_openwrt():
 
     from .authority import ssh_factory
 
-    environment = {"authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))}
+    environment = {
+        "authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))
+    }
     opts = pulumi.ResourceOptions(depends_on=[ssh_factory])
-    return build_this("build_openwrt", "build_openwrt", "openwrt", environment, opts=opts)
+    return build_this(
+        "build_openwrt", "build_openwrt", "openwrt", environment, opts=opts
+    )
 
 
-def build_raspberry():
+def build_raspberry_extras():
     "build raspberry 3/4 extra boot files"
-    return build_this("build_raspberry", "build_raspberry", "raspberry")
+    return build_this("build_raspberry_extras", "build_raspberry_extras", "raspberry")
+
+
+def finalize_raspberry_image(fcos_image, fcos_config, extras="pi4-uboot"):
+    build_raspberry_extras()
 
 
 def build_homeassistant():
+    "build Homeassistant OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)"
     pass
 
 
 def build_esphome():
+    "build yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF"
     pass
