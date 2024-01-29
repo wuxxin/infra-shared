@@ -20,6 +20,7 @@ export PULUMI_SKIP_UPDATE_CHECK
 
 # add some default arguments to pulumi
 PULUMI := pulumi --logtostderr --logflow --non-interactive
+PULUMI_INTERACTIVE := := pulumi --logtostderr --logflow
 
 # define a browser open function
 define BROWSER_PYSCRIPT
@@ -106,7 +107,7 @@ sim-create: Pulumi.sim.yaml ## Create pulumi "sim" stack
 sim-up: sim-create ## Run "pulumi up --stack=sim $(args)
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" $(args)
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --yes $(args)
 
 .PHONY: sim-tool
 sim-tool: sim-create ## Run "infra/tools.py --stack sim $(args)"
@@ -122,7 +123,7 @@ sim-show: ## Run "pulumi stack output --stack=sim --json $(args)"
 .PHONY: sim__
 sim__: ## Run "pulumi --stack sim $(args)"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" $(args)
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI_INTERACTIVE) --stack "sim" $(args)
 
 .PHONY: sim-clean
 sim-clean: ## Remove/Destroy "sim" stack
@@ -135,9 +136,10 @@ ifeq ($(shell test -f Pulumi.sim.yaml && echo "ok"), ok)
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::ca_factory_root_key' || true
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::fake_ca_factory_root_cert' || true
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::fake_ca_factory_root_key' || true
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) destroy --stack "sim" --yes
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --yes
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) destroy --stack "sim" --yes || true
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --yes  || true
 	@rm -rf state/pulumi/.pulumi/backups/sim state/pulumi/.pulumi/history/sim
+	@rm Pulumi.sim.yaml
 endif
 
 
@@ -202,4 +204,4 @@ prod-tool: prod-create ## Run "infra/tools.py --stack prod $(args)"
 .PHONY: prod__
 prod__: prod-create ## Run pulumi --stack "prod" $(args)
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
-	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) --stack prod $(args)
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI_INTERACTIVE) --stack prod $(args)
