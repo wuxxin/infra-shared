@@ -184,7 +184,6 @@ def jinja_run_template(template_filename, searchpath, environment={}):
     """renders a template file available from searchpath with environment
 
     - searchpath can be a list of strings, template_filename can be from any searchpath
-    - for details see `jinja_run`
 
     """
     env = jinja2.Environment(
