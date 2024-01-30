@@ -199,7 +199,7 @@ make sim-create
 ```sh
 make sim-tool args="infra.build build_openwrt"
 # is a shortcut equal to
-PULUMI_CONFIG_PASSPHRASE=sim pipenv run infra/tools.py --stack sim infra.build build_openwrt
+PULUMI_CONFIG_PASSPHRASE=sim pipenv run infra/scripts/resource_call.py --stack sim infra.build build_openwrt
 
 # show recorded image build salt-call stdout log output
 make sim-show | jq .build_openwrt.result.stdout -r
