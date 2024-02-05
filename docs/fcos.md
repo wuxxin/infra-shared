@@ -46,8 +46,9 @@ butane jinja templating:
     - merge order= butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
 5. apply additional filters where butane extension template != None
     - template=jinja: template through jinja
-    - storage:files[].contents.template,
-    - systemd:units[].template, systemd:units[].dropins[].template
+    - storage:files[].contents.template
+    - systemd:units[].template
+    - systemd:units[].dropins[].template
 6. translate merged butane yaml to saltstack salt yaml config
     - jinja templating of butane2salt.jinja with butane_config as additional environment
     - append this_dir/coreos-update-config.sls and basedir/*.sls to it
