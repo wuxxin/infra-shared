@@ -1,8 +1,9 @@
 {# translates and inlines a subset of butane spec into a one file saltstack salt spec
 
-to be used from the systemd service "coreos-update-config.service"
-in a saltstack salt-call command, which updates the config to the desired state
-keeps changes minimal, smart restarts of direct or indirectly changed services
+to be used in a saltstack salt-call command,
+from the systemd service "coreos-update-config.service",
+this updates the config of the machine to the desired state and keeps changes minimal,
+smart restarts of direct or indirectly changed services if name begins with servicename.
 
 #}
 {% set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
