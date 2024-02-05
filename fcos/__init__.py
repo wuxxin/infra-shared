@@ -168,7 +168,7 @@ storage:
             )
         )
 
-        # 3. jinja template *.bu yaml from subproject_dir and inline all local references
+        # 3. jinja template *.bu yaml from fcosdir and inline all local references
         fcos_dict = pulumi.Output.all(
             loaded_dict=self.load_butane_files(subproject_dir, this_env, subdir="fcos")
         ).apply(
