@@ -10,6 +10,7 @@ Image=localhost/%N:latest
 # allow ports < 1024
 PodmanArgs=--sysctl=net.ipv4.ip_unprivileged_port_start=0
 
+# configure access to tls secrets
 Secret=root_ca.crt,mode=0640
 Secret=server.crt,mode=0640
 Secret=server.key,mode=0640
