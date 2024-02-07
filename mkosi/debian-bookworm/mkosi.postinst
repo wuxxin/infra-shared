@@ -8,12 +8,12 @@ systemctl enable systemd-resolved
 # ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 # do not prompt interactive on firstboot
-mkdir -p /etc/systemd/system/systemd-firstboot.service.d
-cat >/etc/systemd/system/systemd-firstboot.service.d/unattended.conf <<EOF
-[Service]
-ExecStart=
-ExecStart=systemd-firstboot
-EOF
+# mkdir -p /etc/systemd/system/systemd-firstboot.service.d
+# cat >/etc/systemd/system/systemd-firstboot.service.d/unattended.conf <<EOF
+# [Service]
+# ExecStart=
+# ExecStart=true
+# EOF
 
 # # unlock root account
 passwd -u root
