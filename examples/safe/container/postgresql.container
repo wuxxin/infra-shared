@@ -1,7 +1,7 @@
 [Unit]
 Description=Postgresql Server
-Wants=container-secrets.service container-build@%N.service
-After=container-secrets.service container-build@%N.service
+Wants=network-online.target container-build@%N.service container-secrets.service
+After=network-online.target container-build@%N.service container-secrets.service
 
 [Container]
 Image=localhost/%N:latest
