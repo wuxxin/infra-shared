@@ -633,14 +633,17 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
                     network_name="default", wait_for_lease=True
                 )
             ],
-            qemu_agent=True,
+            qemu_agent=False,
             tpm=libvirt.DomainTpmArgs(
                 backend_version="2.0", backend_persistent_state=True
             ),
             xml=libvirt.DomainXmlArgs(xslt=self.domain_additions_xslt),
-            # XXX ignore changes to ignition_config, because saltstack is used for configuration updates
             opts=pulumi.ResourceOptions(
-                parent=self, ignore_changes=["coreos_ignition"]
+                parent=self,
+                # ignore changes to ignition_config, because saltstack is used for configuration updates
+                ignore_changes=["coreos_ignition"],
+                # let creation take up to 5 minutes so coreos can update filetree to include guest agent for ip
+                custom_timeouts=pulumi.CustomTimeouts(create="5m"),
             ),
         )
         self.result = self.vm
