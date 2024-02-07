@@ -6,9 +6,6 @@ storage:
     # standard image base directory
     - path: /var/lib/machines
 
-    # standard systemd credentials directory
-    - path: /etc/credstore
-
     # our nspawn environment directory
     - path: /etc/nspawn/environment
       mode: 0700
@@ -29,17 +26,6 @@ storage:
     # our mkosi os-image configuration files
     - path: /etc/mkosi
       local: mkosi
-
-  links:
-    # symlink root_ca,server.crt,server.key as systemd credentials
-    - path: /etc/credstore/root_ca.crt
-      target: /etc/ssl/certs/root_ca.crt
-
-    - path: /etc/credstore/server.crt
-      target: /etc/ssl/certs/server.crt
-
-    - path: /etc/credstore/server.key
-      target: /etc/ssl/private/server.key
 
 systemd:
   units:

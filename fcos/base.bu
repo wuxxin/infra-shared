@@ -1,5 +1,8 @@
 storage:
   directories:
+    # standard systemd credentials directory
+    - path: /etc/credstore
+
     # our system environment directory, name files {service}.env
     - path: /etc/local/environment
       mode: 0700
@@ -69,6 +72,16 @@ storage:
     #       kernel.printk=4
 
   links:
+    # symlink root_ca,server.crt,server.key as systemd credentials
+    - path: /etc/credstore/root_ca.crt
+      target: /etc/ssl/certs/root_ca.crt
+
+    - path: /etc/credstore/server.crt
+      target: /etc/ssl/certs/server.crt
+
+    - path: /etc/credstore/server.key
+      target: /etc/ssl/private/server.key
+
     # also run systemd-networkd additional to the default nm(network manager)
     - path: /etc/systemd/system/dbus-org.freedesktop.network1.service
       target: /usr/lib/systemd/system/systemd-networkd.service
