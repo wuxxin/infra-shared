@@ -32,6 +32,9 @@ useful for oneshots like image building or transfer. calling example:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--stack", type=str, help="Name of the stack", default="sim")
+    parser.add_argument(
+        "--preview", action="store_true", help="preview only", default=False
+    )
     parser.add_argument("library", type=str, help="Name of the library")
     parser.add_argument(
         "function",
@@ -66,20 +69,21 @@ useful for oneshots like image building or transfer. calling example:
     target_function = getattr(library, args.function)
 
     def target_prog():
-        main_library = importlib.import_module("__main__")
-        print(main_library)
         target_function(*args.args)
 
     from pulumi.automation import LocalWorkspaceOptions, select_stack
 
+    workspace_opts = LocalWorkspaceOptions(work_dir=project_dir)
     stack = select_stack(
         stack_name=args.stack,
         project_name="{}-{}-{}".format(project_name, library, args.function),
         program=target_prog,
-        opts=LocalWorkspaceOptions(work_dir=project_dir),
+        opts=workspace_opts,
     )
-
-    stack.up(log_to_std_err=True, on_output=print)
+    if args.preview:
+        stack.preview(log_to_std_err=True, on_output=print)
+    else:
+        stack.up(log_to_std_err=True, on_output=print)
 
 
 if __name__ == "__main__":
