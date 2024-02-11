@@ -20,7 +20,25 @@ export PULUMI_SKIP_UPDATE_CHECK
 
 # add some default arguments to pulumi
 PULUMI := pulumi --logtostderr --logflow --non-interactive
-PULUMI_INTERACTIVE := := pulumi --logtostderr --logflow
+PULUMI_INTERACTIVE := pulumi --logtostderr --logflow
+
+# translate json to list of json keys in yaml
+define json2keylist_python
+import json
+import sys
+def itd(d,lvl=0,max_lvl=0):
+  for k,v in d.items():
+    if(isinstance(v,dict)):
+      if max_lvl == 0 or lvl < max_lvl:
+        print(" "*lvl*2, "-", k)
+      itd(v,lvl+1)
+      continue
+    if max_lvl == 0 or lvl < max_lvl:
+      print(" "*lvl*2, "-", k)
+itd(json.loads(sys.stdin.read()))
+endef
+export json2keylist_python
+json2keylist := python -c "$$json2keylist_python"
 
 # define a browser open function
 define BROWSER_PYSCRIPT
@@ -110,15 +128,20 @@ sim-up: sim-create ## Run "pulumi up --stack=sim $(args)
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --yes $(args)
 
 .PHONY: sim-tool
-sim-tool: sim-create ## Run "infra/tools.py --stack sim $(args)"
+sim-tool: sim-create ## Run "infra/scripts/resource_call.py --stack sim $(args)"
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="sim" pipenv run ./infra/tools.py --stack sim $(args)
+	@PULUMI_CONFIG_PASSPHRASE="sim" pipenv run ./infra/scripts/resource_call.py --stack sim $(args)
 
 .PHONY: sim-show
 sim-show: ## Run "pulumi stack output --stack=sim --json $(args)"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack output --json --stack "sim" $(args)
+
+.PHONY: sim-list
+sim-list: ## Run "pulumi stack output --stack=sim --json | json2keylist"
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack output --json --stack "sim" | $(json2keylist)
 
 .PHONY: sim__
 sim__: ## Run "pulumi --stack sim $(args)"
@@ -196,10 +219,10 @@ endif
 prod-create: prod_passphrase.age Pulumi.prod.yaml ## Create pulumi "prod" stack
 
 .PHONY: prod-tool
-prod-tool: prod-create ## Run "infra/tools.py --stack prod $(args)"
+prod-tool: prod-create ## Run "infra/scripts/resource_call.py --stack prod $(args)"
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" pipenv run ./infra/tools.py --stack prod $(args)
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" pipenv run ./infra/scripts/resource_call.py --stack prod $(args)
 
 .PHONY: prod__
 prod__: prod-create ## Run pulumi --stack "prod" $(args)
