@@ -1,3 +1,28 @@
+fcos:
+  # Fedora-CoreOS
+  stream: stable
+  architecture: x86_64
+  platform: metal
+  format: raw.xz
+
+raspberry:
+  eeprom_rpi4:
+    version: 2023.12.06-2712
+    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v2023.12.06-2712/rpi-boot-eeprom-recovery-2023-12-06-2712-sd.zip
+    sha256sum: 156ee1657f9b744e3794ef3d3d97394c07d296c87e568f88297ed97358535a64
+  uboot:
+    version: 2023.07-3.fc39
+    fileurl: https://kojipkgs.fedoraproject.org/packages/uboot-tools/2023.07/3.fc39/noarch/uboot-images-armv8-{VERSION}.noarch.rpm
+    sha256sum: 8d6ab27c73f05364edce170f44bca478fea593ccff1f3d63f1aef44726910956
+  uefi_rpi3:
+    version: "1.39"
+    fileurl: https://github.com/pftf/RPi3/releases/download/v{VERSION}/RPi3_UEFI_Firmware_v{VERSION}.zip
+    sha256sum: 9d2bae7868027997c59663d2a29c5a5573c4a846d67d0cd42cdddb5280ee22d8
+  uefi_rpi4:
+    version: "1.35"
+    fileurl: https://github.com/pftf/RPi4/releases/download/v{VERSION}/RPi4_UEFI_Firmware_v{VERSION}.zip
+    sha256sum: 3ea16d6bc4f8f122527ad6a84c0fe84ad80d85fd43a868d99c360ad9e93d3f6e
+
 openwrt:
   version: "23.05.2"
   target: x86-64
@@ -18,6 +43,7 @@ openwrt:
     # can be overwritten using pulumi:config("build").openwrt.defaults.ip
     ip: "192.168.1.1"
   packages:
+    # additional packages
     - coreutils-base64
     - coreutils-nohup
     - hostapd-utils
@@ -45,46 +71,22 @@ openwrt:
     - unbound-control
     - unbound-control-setup
     - unbound-daemon
-    # replaced packages
-    - "-dropbear"
-    - "-uhttpd"
+    # replace wpad-basic-* in favor of wpad-openssl
     - "-wpad-basic-wolfssl"
     - "-wpad-basic-mbedtls"
-    # remove nginx-ssl, dragged in by luci-ssl-nginx, because nginx-all-module conflicts with it
-    - "-nginx-ssl"
-    # replacement packages
-    - nginx-full
-    - luci-ssl-nginx
-    - nginx-mod-luci-ssl
-    - nginx-ssl-util
+    - wpad-openssl
+    # replace dropbear with openssh
+    - "-dropbear"
     - openssh-server
     - openssh-sftp-server
-    - wpad-openssl
-
-fcos:
-  # Fedora-CoreOS
-  stream: stable
-  architecture: x86_64
-  platform: metal
-  format: raw.xz
-
-raspberry:
-  eeprom_rpi4:
-    version: 2023.12.06-2712
-    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v2023.12.06-2712/rpi-boot-eeprom-recovery-2023-12-06-2712-sd.zip
-    sha256sum: 156ee1657f9b744e3794ef3d3d97394c07d296c87e568f88297ed97358535a64
-  uboot:
-    version: 2023.07-3.fc39
-    fileurl: https://kojipkgs.fedoraproject.org/packages/uboot-tools/2023.07/3.fc39/noarch/uboot-images-armv8-{VERSION}.noarch.rpm
-    sha256sum: 8d6ab27c73f05364edce170f44bca478fea593ccff1f3d63f1aef44726910956
-  uefi_rpi3:
-    version: "1.39"
-    fileurl: https://github.com/pftf/RPi3/releases/download/v{VERSION}/RPi3_UEFI_Firmware_v{VERSION}.zip
-    sha256sum: 9d2bae7868027997c59663d2a29c5a5573c4a846d67d0cd42cdddb5280ee22d8
-  uefi_rpi4:
-    version: "1.35"
-    fileurl: https://github.com/pftf/RPi4/releases/download/v{VERSION}/RPi4_UEFI_Firmware_v{VERSION}.zip
-    sha256sum: 3ea16d6bc4f8f122527ad6a84c0fe84ad80d85fd43a868d99c360ad9e93d3f6e
+    # replace uhttpd with nginx
+    - "-uhttpd"
+    # replace nginx-ssl (dragged in by luci-ssl-nginx) in favor of nginx-full
+    - "-nginx-ssl"
+    - nginx-full
+    - nginx-ssl-util
+    - nginx-mod-luci-ssl
+    - luci-ssl-nginx
 
 homeassistant:
   version: "11.2"
