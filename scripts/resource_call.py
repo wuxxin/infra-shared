@@ -6,21 +6,19 @@
 
 """
 
-import sys
+import argparse
+import importlib
+import inspect
 import os
-
-import pulumi
+import sys
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 shared_dir = os.path.abspath(os.path.join(this_dir, ".."))
 project_dir = os.path.abspath(os.path.join(this_dir, "../.."))
+project_name = os.path.basename(project_dir)
 
 
 def main():
-    import argparse
-    import importlib
-    import inspect
-
     # add base of project to begin of python import path list
     sys.path.insert(0, project_dir)
 
@@ -66,13 +64,22 @@ useful for oneshots like image building or transfer. calling example:
 
     os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
     target_function = getattr(library, args.function)
-    workspace = pulumi.automation.LocalWorkspace(work_dir=project_dir)
-    stack = pulumi.automation.Stack.select(args.stack, workspace)
 
-    stack.refresh(on_output=print)
-    target_res = target_function(*args.args)
+    def target_prog():
+        main_library = importlib.import_module("__main__")
+        print(main_library)
+        target_function(*args.args)
+
+    from pulumi.automation import LocalWorkspaceOptions, select_stack
+
+    stack = select_stack(
+        stack_name=args.stack,
+        project_name="{}-{}-{}".format(project_name, library, args.function),
+        program=target_prog,
+        opts=LocalWorkspaceOptions(work_dir=project_dir),
+    )
+
     stack.up(log_to_std_err=True, on_output=print)
-    print(target_res)
 
 
 if __name__ == "__main__":
