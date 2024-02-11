@@ -3,18 +3,23 @@
 ## Pulumi - Tools
 
 ### Functions
+
+https:
 - serve_prepare
 - serve_once
 - serve_simple
 
+ssh:
 - ssh_copy
 - ssh_deploy
 - ssh_execute
 
+storage:
 - write_removeable
 - encrypted_local_export
 - public_local_export
 
+debug:
 - log_warn
 
 ### Components

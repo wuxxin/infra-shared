@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-## Templating
+## Jinja Templating
 
 ### Python
 - jinja_run
