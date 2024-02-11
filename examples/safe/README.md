@@ -19,5 +19,5 @@
     - hello-nspawn
 
 - Simulation
-    - a libvirt machine with the corresponding features and volumes
-
+    - a libvirt machine with the corresponding features and volumes,
+        but on amd64 instead of arch64

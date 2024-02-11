@@ -82,6 +82,7 @@ host_environment = {
 
 # modify environment depending stack
 if stack_name.endswith("sim"):
+    # simulation adds qemu-guest-agent, debug=True, and 123 as disk passphrase
     host_environment["RPM_OSTREE_INSTALL"].append("qemu-guest-agent")
     host_environment.update({"DEBUG": True})
     luks_root_passphrase = pulumi.Output.concat("1234")
@@ -101,6 +102,7 @@ storage:
 """.format(size_4g=4 * pow(2, 30), size_8g=8 * pow(2, 30))
     )
 else:
+    # generate strong random passwords, get storage identifiers from config
     luks_root_passphrase = pulumi_random.RandomPassword(
         "{}_luks_root_passphrase".format(shortname), special=False, length=24
     ).result
@@ -109,6 +111,7 @@ else:
     ).result
     identifiers = config.get_object("identifiers")[shortname]
 
+# update environment to include storage ids, passphrases and tang setup
 host_environment.update(
     {
         "boot_device": next(
@@ -127,7 +130,7 @@ host_environment.update(
     }
 )
 
-# just write the butane target specification, everything else is included from files_basedir/*.bu
+# write the butane target specification, everything else is included from files_basedir/*.bu
 butane_yaml = pulumi.Output.format(
     """
 variant: fcos
