@@ -180,6 +180,11 @@ make sim__ args="stack output ca_factory --json" | \
 ```sh
 export PULUMI_SKIP_UPDATE_CHECK=1
 export PULUMI_CONFIG_PASSPHRASE=sim
+
+# define some aliases for comfort
+json2yaml='python -c "import sys, yaml, json; yaml.safe_dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)"'
+json2keylist='python -c "$(printf "import json\nimport sys\ndef itd(d,lvl=0):\n  for k,v in d.items():\n    if(isinstance(v,dict)):\n      print(\" \"*lvl*2, \"-\", k); itd(v,lvl+1); continue\n    print(\" \"*lvl*2, \"-\", k)\nitd(json.loads(sys.stdin.read()))")"'
+
 pulumi stack select sim
 pulumi about
 ```
@@ -209,6 +214,24 @@ make sim-show | jq .build_openwrt.result.stdout -r
 ```sh
 make sim__ args="preview --suppress-outputs"
 make sim-up
+
+```
+
+#### cancel an currently running/stuck pulumi update
+```sh
+# "error: the stack is currently locked by 1 lock(s)."
+# "Either wait for the other process(es) to end or delete the lock file with `pulumi cancel`."
+make sim__ args="cancel"
+```
+
+#### page through output as colorfied yaml
+```sh
+# show resource output key list
+make sim__ args="stack output --json" | json2keylist | less
+# show resource output data as colorized formatted yaml
+make sim__ args="stack output --json" | json2yaml  | highlight --syntax yaml -O ansi | less
+# show resource output data as colorized formatted json
+make sim__ args="stack output --json" | highlight --syntax json -O ansi | less
 ```
 
 ### Production
