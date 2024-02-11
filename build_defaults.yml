@@ -4,10 +4,14 @@ openwrt:
   model: generic
   baseurl: https://downloads.openwrt.org/releases
   sign:
-    id: CD54E82DADB3684D
-    fingerprint: BF856781A01293C8409ABE72CD54E82DADB3684D
-    sha256sum: 0501809e242be14e154cf3bf47a9f9170765e5ad60c4f688ccfccb03388f2511
+    id: 626471F1
+    fingerprint: 6D9278A33A9AB3146262DCECF93525A88B699029
+    sha256sum: cc745af6043fd33b3407cd83d0f5e7476a01fc15328cacf576c083bd7987fcbd
     baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
+    comment: |
+      23.05.0, 23.05.2 are signed with PGP key for unattended snapshot builds
+      User ID: OpenWrt Build System pgpsign-snapshots@openwrt.org
+      see https://openwrt.org/docs/guide-user/security/signatures
   disabled_services:
     - uhttpd
   defaults:
@@ -45,10 +49,11 @@ openwrt:
     - "-dropbear"
     - "-uhttpd"
     - "-wpad-basic-wolfssl"
+    - "-wpad-basic-mbedtls"
     # remove nginx-ssl, dragged in by luci-ssl-nginx, because nginx-all-module conflicts with it
     - "-nginx-ssl"
     # replacement packages
-    - nginx-all-module
+    - nginx-full
     - luci-ssl-nginx
     - nginx-mod-luci-ssl
     - nginx-ssl-util
