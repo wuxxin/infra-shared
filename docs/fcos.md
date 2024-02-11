@@ -17,9 +17,9 @@
 
 ### Customization
 
-overwriting buildins butane config or files:
+how to overwrite buildins butane config or files:
 
-- if it is a systemd service, consider a dropin,
+- if it is a systemd service, consider a dropin
 - in other cases, simple redefine setting/file, it will overwrite any buildin file/config
 
 
