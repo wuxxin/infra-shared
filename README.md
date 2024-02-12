@@ -212,7 +212,8 @@ make sim-show | jq .build_openwrt.result.stdout -r
 
 #### test if changes would compute before applying
 ```sh
-make sim__ args="preview --suppress-outputs"
+make sim-preview
+# if list of changes looks good, apply them
 make sim-up
 
 ```
@@ -224,14 +225,21 @@ make sim-up
 make sim__ args="cancel"
 ```
 
-#### page through output as colorfied yaml
+#### show resource output as json
 ```sh
-# show resource output key list
-make sim__ args="stack output --json" | json2keylist | less
-# show resource output data as colorized formatted yaml
-make sim__ args="stack output --json" | json2yaml  | highlight --syntax yaml -O ansi | less
-# show resource output data as colorized formatted json
-make sim__ args="stack output --json" | highlight --syntax json -O ansi | less
+make sim-show
+```
+
+#### show resource output key list as yaml
+```sh
+make sim-list
+```
+
+#### show resource output data as colorized formatted yaml
+```sh
+make sim-show | json2yaml  | highlight --syntax yaml -O ansi | less
+make sim-show | highlight --syntax json -O ansi | less
+make sim-show | bat -l json
 ```
 
 ### Production
