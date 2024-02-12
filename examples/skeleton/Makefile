@@ -91,15 +91,15 @@ state/venv: Pipfile.lock
 .PHONY: build-env
 build-env: state/venv ## Build python environment
 
-.PHONY: python-clean
-python-clean: ## Remove python related artifacts
+.PHONY: py-clean
+py-clean: ## Remove python related artifacts
 	@echo "+ $@"
 	@find . -type d -name '__pycache__' -exec rm -rf {} +
 	@find . -type d -name '.ipynb_checkpoints' -exec rm -rf {} +
 	@find . -type f -name '*.py[co]' -exec rm -f {} +
 
 .PHONY: build-env-clean
-build-env-clean: python-clean ## Remove build environment artifacts
+build-env-clean: py-clean ## Remove build environment artifacts
 	@echo "+ $@"
 	@if readlink -e state/venv; then rm -rf $$(readlink -e state/venv); fi
 	@rm -f state/venv
@@ -126,6 +126,12 @@ sim-up: sim-create ## Run "pulumi up --stack=sim $(args)
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --yes $(args)
+
+.PHONY: sim-preview
+sim-preview: sim-create ## Run "pulumi preview --stack=sim --suppress-outputs $(args)
+	@echo "+ $@"
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) preview --stack "sim" --suppress-outputs $(args)
 
 .PHONY: sim-tool
 sim-tool: sim-create ## Run "infra/scripts/resource_call.py --stack sim $(args)"
@@ -186,7 +192,7 @@ docs-clean: ## Remove local docs
 
 
 .PHONY: clean-all
-clean-all: sim-clean build-env-clean python-clean docs-clean ## Remove build, docs, tmp, salt & sim stack artifacts
+clean-all: sim-clean build-env-clean py-clean docs-clean ## Remove build, docs, tmp, salt & sim stack artifacts
 	@echo "+ $@"
 	@rm -rf state/tmp
 	@rm -rf state/salt
@@ -223,6 +229,17 @@ prod-tool: prod-create ## Run "infra/scripts/resource_call.py --stack prod $(arg
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
 	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" pipenv run ./infra/scripts/resource_call.py --stack prod $(args)
+
+.PHONY: prod-show
+prod-show: ## Run "pulumi stack output --stack "prod" --json $(args)"
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) stack output --json --stack "prod" $(args)
+
+.PHONY: prod-preview
+prod-preview: prod-create ## Run "pulumi preview --stack=prod --suppress-outputs $(args)
+	@echo "+ $@"
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) preview --stack "prod" --suppress-outputs $(args)
 
 .PHONY: prod__
 prod__: prod-create ## Run pulumi --stack "prod" $(args)
