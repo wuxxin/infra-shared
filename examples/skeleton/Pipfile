@@ -38,6 +38,9 @@ pyyaml = "*"
 # templating library
 jinja2 = "*"
 
+# additional ssh connectivity
+paramiko = "*"
+
 # saltstack - local build dependencies
 salt = "*"
 
