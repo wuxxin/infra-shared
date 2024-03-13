@@ -68,22 +68,26 @@ useful for oneshots like image building or transfer. calling example:
     os.environ["PULUMI_SKIP_UPDATE_CHECK"] = "1"
     target_function = getattr(library, args.function)
 
-    def target_prog():
-        target_function(*args.args)
+    def target_prog(stack):
+        target_function(stack, *args.args)
 
     from pulumi.automation import LocalWorkspaceOptions, select_stack
 
-    workspace_opts = LocalWorkspaceOptions(work_dir=project_dir)
+    # workspace_opts = LocalWorkspaceOptions(work_dir=project_dir)
+    #     project_name="{}-{}-{}".format(project_name, library, args.function),
+    #     program=target_prog,
+    #     opts=workspace_opts,
+
     stack = select_stack(
         stack_name=args.stack,
-        project_name="{}-{}-{}".format(project_name, library, args.function),
-        program=target_prog,
-        opts=workspace_opts,
+        work_dir=project_dir,
     )
-    if args.preview:
-        stack.preview(log_to_std_err=True, on_output=print)
-    else:
-        stack.up(log_to_std_err=True, on_output=print)
+    target_prog(stack)
+
+    # if args.preview:
+    #     stack.preview(log_to_std_err=True, on_output=print)
+    # else:
+    #     stack.up(log_to_std_err=True, on_output=print)
 
 
 if __name__ == "__main__":
