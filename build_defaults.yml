@@ -6,6 +6,7 @@ fcos:
   format: raw.xz
 
 raspberry:
+  # raspberry pi 3,4: uboot, uefi bios, eeprom
   eeprom_rpi4:
     version: 2023.12.06-2712
     fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v2023.12.06-2712/rpi-boot-eeprom-recovery-2023-12-06-2712-sd.zip
@@ -43,34 +44,24 @@ openwrt:
     # can be overwritten using pulumi:config("build").openwrt.defaults.ip
     ip: "192.168.1.1"
   packages:
-    # additional packages
+    # packages for command line scripts
     - coreutils-base64
     - coreutils-nohup
     - hostapd-utils
-    - ipset
     - knot-dig
     - knot-host
     - knot-nsupdate
-    - luci-app-firewall
-    - luci-app-nlbwmon
-    - luci-app-sqm
-    - luci-app-unbound
-    - luci-app-upnp
-    - luci-app-wireguard
-    - luci-app-wol
-    - luci-mod-admin-full
-    - luci-proto-ipv6
-    - luci-proto-ppp
-    - luci-proto-wireguard
-    - luci-theme-material
     - mosquitto-client-ssl
-    - qrencode
     - resolveip
+    # network debugging tool
     - tcpdump
+    # add unbound in addition to dnsmasq
     - unbound-anchor
     - unbound-control
     - unbound-control-setup
     - unbound-daemon
+    # add dnsproxy (big, written in go) in addition to unbound as proxy server for DoH, DoT, DoQ
+    - dnsproxy
     # replace wpad-basic-* in favor of wpad-openssl
     - "-wpad-basic-wolfssl"
     - "-wpad-basic-mbedtls"
@@ -84,12 +75,32 @@ openwrt:
     # replace nginx-ssl (dragged in by luci-ssl-nginx) in favor of nginx-full
     - "-nginx-ssl"
     - nginx-full
-    - nginx-ssl-util
+    - nginx-mod-stream
     - nginx-mod-luci-ssl
     - luci-ssl-nginx
+    # luci apps and their upstream programs
+    - luci-app-banip
+    - luci-app-firewall
+    - luci-app-nlbwmon
+    - luci-app-ntpc
+    - luci-app-nft-qos
+    - luci-app-sqm
+    - luci-app-unbound
+    - luci-app-upnp
+    - luci-app-wireguard
+    - luci-app-wol
+    - luci-mod-admin-full
+    - luci-proto-ipv6
+    - luci-proto-ppp
+    # optional dependency for luci-proto-wireguard
+    - qrencode
+    - luci-proto-wireguard
+    # make optional themes available for the web-ui
+    - luci-theme-material
+    - luci-theme-openwrt-2020
 
 homeassistant:
-  version: "11.2"
+  version: "11.5"
   baseurl: https://github.com/home-assistant/operating-system/releases/download
   target: generic-x86-64
 
@@ -104,11 +115,18 @@ esphome:
         # CONFIG_MBEDTLS_DEBUG: y
 
 android:
-  - type: generic
-    repositories: []
+  emulator:
+    magisk:
+      app: https://github.com/topjohnwu/Magisk/releases/download/v27.0/Magisk-v27.0.apk
+      modules:
+        - https://github.com/kdrag0n/safetynet-fix/releases/download/v2.4.0/safetynet-fix-v2.4.0.zip
+        - https://gitlab.com/newbit/usbhostpermissions/-/releases/v1.0.2/downloads/usbhostpermissions
+        - https://github.com/Magisk-Modules-Repo/MagiskHidePropsConf/releases/download/v6.1.2/MagiskHidePropsConf-v6.1.2.zip
+  generic:
+    fdroid:
+      repositories: []
       # fdroid repositories
-    packages:
-      fdroid:
+      packages:
         # fdroid packages
         - com.jens.automation2
         - com.atharok.barcodescanner
