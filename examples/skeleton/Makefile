@@ -85,8 +85,8 @@ state/venv: Pipfile.lock
 	@$(PIPENV) sync
 	# register environment with local ipykernel environment
 	@$(PIPENV) run python -m ipykernel install --user --name=$$(basename $(ROOTDIR))
-	# symlink created virtualenv to state/venv
-	@ln -s $$($(PIPENV) --venv -q) ./state/venv
+	# create symlink of virtualenv to state/venv
+	@if test -e ./state/venv; then rm ./state/venv; fi; ln -s $$($(PIPENV) --venv -q) ./state/venv
 
 .PHONY: build-env
 build-env: state/venv ## Build python environment
@@ -125,7 +125,7 @@ sim-create: Pulumi.sim.yaml ## Create pulumi "sim" stack
 sim-up: sim-create ## Run "pulumi up --stack=sim $(args)
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --yes $(args)
+	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --suppress-outputs --yes $(args)
 
 .PHONY: sim-preview
 sim-preview: sim-create ## Run "pulumi preview --stack=sim --suppress-outputs $(args)
@@ -234,6 +234,12 @@ prod-tool: prod-create ## Run "infra/scripts/resource_call.py --stack prod $(arg
 prod-show: ## Run "pulumi stack output --stack "prod" --json $(args)"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
 	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) stack output --json --stack "prod" $(args)
+
+.PHONY: prod-up
+prod-up: prod-create ## Run "pulumi up --stack=prod $(args)
+	@echo "+ $@"
+	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) up --stack "prod" --suppress-outputs $(args)
 
 .PHONY: prod-preview
 prod-preview: prod-create ## Run "pulumi preview --stack=prod --suppress-outputs $(args)
