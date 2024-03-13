@@ -42,16 +42,17 @@ CONTAINER_FRONTEND: true
 DNS_RESOLVER: true
 RESIDENT_CIDR: 10.140.250.1/24
 RPM_OSTREE_INSTALL:
-  - systemd-networkd
-  - mkosi
-  - apt
   - docker-compose
+  - podman-compose
 LOCALE:
   LANG: en_US.UTF-8
   KEYMAP: us
   TIMEZONE: UTC
   COUNTRY_CODE: UN
 """
+#   - apt
+#   - mkosi
+#   - systemd-networkd
 
 
 class ButaneTranspiler(pulumi.ComponentResource):
