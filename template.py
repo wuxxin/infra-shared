@@ -23,7 +23,7 @@ import jinja2.ext
 def join_paths(basedir, *filepaths):
     "combine filepaths with basedir like os.path.join, but remove leading '/' of each filepath"
     filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
-    return os.path.join(basedir, *filepaths)
+    return os.path.join(basedir if basedir else "/", *filepaths)
 
 
 def merge_dict_struct(struct1, struct2):
