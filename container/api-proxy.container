@@ -1,8 +1,7 @@
 [Unit]
 Description=Container API Proxy (unix socket to tcp port) based on Haproxy
-Wants=container-build@%N.service container-secrets.service podman.service systemd-networkd-wait-online.service
-After=container-build@%N.service container-secrets.service podman.service systemd-networkd-wait-online.service
-# also wait for systemd-networkd-wait-online, which setups the resident bridge
+Wants=container-build@%N.service container-secrets.service podman.service
+After=container-build@%N.service container-secrets.service podman.service
 # upstream socket: a running docker compatible API Server under API_SOCKET
 # downstream tcp: resident:API_PORT
 
