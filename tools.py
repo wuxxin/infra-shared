@@ -3,16 +3,16 @@
 ## Pulumi - Tools
 
 ### Functions
-
 https:
 - serve_prepare
 - serve_once
 - serve_simple
 
 ssh:
-- ssh_copy
+- ssh_put
 - ssh_deploy
 - ssh_execute
+- ssh_get
 
 storage:
 - write_removeable
@@ -69,7 +69,7 @@ def log_warn(x):
 def join_paths(basedir, *filepaths):
     "combine filepaths with basedir like os.path.join, but remove leading '/' of each filepath"
     filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
-    return os.path.join(basedir, *filepaths)
+    return os.path.join(basedir if basedir else "/", *filepaths)
 
 
 def sha256sum_file(filename):
@@ -99,11 +99,11 @@ def get_default_host_ip():
     return gateway_addr
 
 
-class SSHCopier(pulumi.ComponentResource):
-    """Pulumi Component: use with function ssh_copy()"""
+class SSHPut(pulumi.ComponentResource):
+    """Pulumi Component: use with function ssh_put()"""
 
     def __init__(self, name, props, opts=None):
-        super().__init__("pkg:index:SSHCopier", name, None, opts)
+        super().__init__("pkg:index:SSHPut", name, None, opts)
 
         self.props = props
         self.triggers = []
@@ -112,11 +112,12 @@ class SSHCopier(pulumi.ComponentResource):
         self.register_outputs({})
 
     def __transfer(self, name, remote_path, local_path):
-        resource_name = "copy_{}".format(remote_path.replace("/", "_"))
+        resource_name = "put_{}".format(remote_path.replace("/", "_"))
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
+        full_local_path = join_paths(self.props["local_prefix"], local_path)
         triggers = [
             hashlib.sha256(full_remote_path.encode("utf-8")).hexdigest(),
-            pulumi.Output.concat(sha256sum_file(local_path)),
+            pulumi.Output.concat(sha256sum_file(full_local_path)),
         ]
         self.triggers.extend(triggers)
 
@@ -128,7 +129,7 @@ class SSHCopier(pulumi.ComponentResource):
 
             file_transfered = command.local.Command(
                 resource_name,
-                create=copy_cmd.format(local_path, tmpfile),
+                create=copy_cmd.format(full_local_path, tmpfile),
                 delete=rm_cmd.format(tmpfile),
                 triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
@@ -136,7 +137,7 @@ class SSHCopier(pulumi.ComponentResource):
         else:
             file_transfered = command.remote.CopyFile(
                 resource_name,
-                local_path=local_path,
+                local_path=full_local_path,
                 remote_path=full_remote_path,
                 connection=command.remote.ConnectionArgs(
                     host=self.props["host"],
@@ -146,6 +147,89 @@ class SSHCopier(pulumi.ComponentResource):
                         lambda x: x
                     ),
                 ),
+                triggers=triggers,
+                opts=pulumi.ResourceOptions(parent=self),
+            )
+        return file_transfered
+
+
+class SSHSftp(pulumi.CustomResource):
+    def __init__(self, name, props, opts=None):
+        super().__init__("pkg:index:SSHSftp", name, props, opts)
+        self.props = props
+
+    def download_file(self, remote_path, local_path):
+        import paramiko
+
+        privkey = paramiko.RSAKey(
+            data=self.props["sshkey"].private_key_openssh.apply(lambda x: x)
+        )
+        ssh = paramiko.SSHClient()
+        ssh.load_host_keys("")
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(
+            self.props["host"],
+            self.props["port"],
+            username=self.props["user"],
+            pkey=privkey,
+        )
+        sftp = ssh.open_sftp()
+        sftp.get(remote_path, local_path)
+        sftp.close()
+        ssh.close()
+        return sha256sum_file(local_path)
+
+    def create(self):
+        self.result = self.download_file(
+            self.props["remote_path"], self.props["local_path"]
+        )
+
+
+class SSHGet(pulumi.ComponentResource):
+    """Pulumi Component: use with function ssh_get()"""
+
+    def __init__(self, name, props, opts=None):
+        super().__init__("pkg:index:SSHGet", name, None, opts)
+        self.props = props
+        self.triggers = []
+        for key, value in self.props["files"].items():
+            setattr(self, key, self.__transfer(name, key, value))
+        self.register_outputs({})
+
+    def __transfer(self, name, remote_path, local_path):
+        resource_name = "get_{}".format(remote_path.replace("/", "_"))
+        full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
+        full_local_path = join_paths(self.props["local_prefix"], local_path)
+        triggers = [
+            hashlib.sha256(full_remote_path.encode("utf-8")).hexdigest(),
+            pulumi.Output.concat(sha256sum_file(full_local_path)),
+        ]
+        self.triggers.extend(triggers)
+
+        if self.props["simulate"]:
+            os.makedirs(self.props["tmpdir"], exist_ok=True)
+            tmpfile = os.path.abspath(os.path.join(self.props["tmpdir"], resource_name))
+            copy_cmd = "cp {} {}"
+            rm_cmd = "rm {} || true" if self.props["delete"] else ""
+
+            file_transfered = command.local.Command(
+                resource_name,
+                create=copy_cmd.format(full_local_path, tmpfile),
+                delete=rm_cmd.format(tmpfile),
+                triggers=triggers,
+                opts=pulumi.ResourceOptions(parent=self),
+            )
+        else:
+            file_transfered = SSHSftp(
+                resource_name,
+                props={
+                    "host": self.props["host"],
+                    "user": self.props["user"],
+                    "port": self.props["port"],
+                    "sshkey": self.props["sshkey"],
+                    "remote_path": remote_path,
+                    "local_path": local_path,
+                },
                 triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -214,23 +298,28 @@ class SSHDeployer(pulumi.ComponentResource):
         return value_deployed
 
 
-def ssh_copy(
+def ssh_put(
     prefix,
     host,
     user,
     files={},
+    remote_prefix="",
+    local_prefix="",
     port=22,
     delete=False,
-    remote_prefix="",
     simulate=None,
     opts=None,
 ):
-    """copy a set of files from localhost to ssh target using ssh/sftp
-
-    if simulate==True: files are not transfered but written out to state/tmp/stack_name
-    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+    """copy/put a set of files from localhost to ssh target using ssh/sftp
 
     files= {remotepath: localpath,}
+
+    remote_prefix= path prefixed to each remotepath
+    local_prefix= path prefixed to each locallpath
+
+    if delete==True: files will be deleted from target on deletion of resource
+    if simulate==True: files are not transfered but written out to state/tmp/stack_name
+    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     #### Returns
     - [attr(remotepath, remote.CopyFile|local.Command) for remotepath in files]
@@ -239,7 +328,7 @@ def ssh_copy(
 
     #### Example
     ```python
-    config_copied = ssh_copy(resource_name, host, user, files=files_dict)
+    config_copied = ssh_put(resource_name, host, user, files=files_dict)
     config_activated = ssh_execute(resource_name, host, user, cmdline=cmdline,
         triggers=config_copied.triggers,
         opts=pulumi.ResourceOptions(depends_on=[config_copied]))
@@ -257,11 +346,59 @@ def ssh_copy(
         "sshkey": ssh_factory.provision_key,
         "delete": delete,
         "remote_prefix": remote_prefix,
+        "local_prefix": local_prefix,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
     }
-    transfered = SSHCopier(prefix, props, opts=opts)
-    # pulumi.export("{}_copy".format(prefix), transfered)
+    transfered = SSHPut(prefix, props, opts=opts)
+    # pulumi.export("{}_put".format(prefix), transfered)
+    return transfered
+
+
+def ssh_get(
+    prefix,
+    host,
+    user,
+    files={},
+    remote_prefix="",
+    local_prefix="",
+    port=22,
+    simulate=None,
+    triggers=None,
+    opts=None,
+):
+    """get/copy a set of files from the target system to the local filesystem using ssh/sftp
+
+    files= {remotepath: localpath,}
+
+    remote_prefix= path prefixed to each remotepath
+    local_prefix= path prefixed to each locallpath
+
+    if simulate==True: files are not transfered but written out to state/tmp/stack_name
+    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+
+    #### Returns
+    - [attr(remotepath, paramiko.sendfile) for remotepath in files]
+    - triggers: list of key and data hashes for every file
+        - can be used for triggering another function if any file changed
+    """
+
+    from .authority import ssh_factory
+
+    stack_name = pulumi.get_stack()
+    props = {
+        "host": host,
+        "port": port,
+        "user": user,
+        "files": files,
+        "sshkey": ssh_factory.provision_key,
+        "remote_prefix": remote_prefix,
+        "local_prefix": local_prefix,
+        "simulate": stack_name.endswith("sim") if simulate is None else simulate,
+        "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
+    }
+    transfered = SSHGet(prefix, props, opts=opts)
+    # pulumi.export("{}_get".format(prefix), transfered)
     return transfered
 
 
@@ -270,19 +407,22 @@ def ssh_deploy(
     host,
     user,
     files={},
+    remote_prefix="",
     port=22,
     secret=False,
     delete=False,
-    remote_prefix="",
     simulate=None,
     opts=None,
 ):
     """deploy a set of strings as small files to a ssh target
 
+    if secret==True: data is considered a secret
+    if delete==True: files will be deleted from target on deletion of resource
     if simulate==True: data is not transfered but written out to state/tmp/stack_name
     if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     files: {remotepath: data,}
+    remote_prefix= path prefixed to each remotepath
 
     #### Returns
     - [attr(remotepath, remote.Command|local.Command) for remotepath in files]
@@ -305,10 +445,10 @@ def ssh_deploy(
         "port": port,
         "user": user,
         "files": files,
+        "remote_prefix": remote_prefix,
         "sshkey": ssh_factory.provision_key,
         "secret": secret,
         "delete": delete,
-        "remote_prefix": remote_prefix,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
     }
@@ -322,13 +462,16 @@ def ssh_execute(
     host,
     user,
     cmdline,
+    environment={},
     port=22,
     simulate=None,
     triggers=None,
-    environment={},
     opts=None,
 ):
-    """execute a command as user on a ssh target host
+    """execute cmdline with environment as user on a ssh target host
+
+    cmdline: String to be executed on target host
+    environment: Dict of environment entries to be available in cmdline
 
     if simulate==True: command is not executed but written out to state/tmp/stack_name
     if simulate==None: simulate = pulumi.get_stack().endswith("sim")
