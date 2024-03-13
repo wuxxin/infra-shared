@@ -21,28 +21,25 @@ storage:
 
   files:
     # our resident bridge
-    - path: /etc/systemd/network/10-resident.netdev
-      mode: 420
+    - path: /etc/NetworkManager/system-connections/resident
+      mode: 0600
       contents:
         inline: |
-          [NetDev]
-          Name=resident
-          Kind=bridge
+          [connection]
+          id=resident
+          interface-name=resident
+          type=bridge
 
-          [Bridge]
-          STP=false
+          [device]
+          type=bridge
+          name=resident
 
-    - path: /etc/systemd/network/10-resident.network
-      mode: 420
-      contents:
-        inline: |
-          [Match]
-          Name=resident
+          [bridge]
+          stp=false
 
-          [Network]
-          LinkLocalAddressing=ipv6
-          Address={{ RESIDENT_CIDR }}
-          ConfigureWithoutCarrier=yes
+          [ipv4]
+          method=manual
+          address={{ RESIDENT_CIDR }}
 
     # set keyboard layout
     - path: /etc/vconsole.conf
@@ -81,18 +78,6 @@ storage:
 
     - path: /etc/credstore/server.key
       target: /etc/ssl/private/server.key
-
-    # also run systemd-networkd additional to the default nm(network manager)
-    - path: /etc/systemd/system/dbus-org.freedesktop.network1.service
-      target: /usr/lib/systemd/system/systemd-networkd.service
-    - path: /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
-      target: /usr/lib/systemd/system/systemd-networkd.service
-    - path: /etc/systemd/system/sockets.target.wants/systemd-networkd.socket
-      target: /usr/lib/systemd/system/systemd-networkd.socket
-
-    # XXX do not make network-online.target wait for systemd-networkd
-    # - path: /etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service
-    #   target: /usr/lib/systemd/system/systemd-networkd-wait-online.service
 
 systemd:
   units:
