@@ -1,9 +1,13 @@
-FROM docker.io/haproxy:2.8-alpine
+FROM docker.io/haproxy:2.9.6-alpine
 # based on https://github.com/Tecnativa/docker-socket-proxy
 # default is to only allow readonly access (API_POST=0)
 # default accessable API's are API_events, API_ping and API_version
 
+USER root
+
 RUN apk add --no-cache curl
+
+USER haproxy
 
 ENV ALLOW_RESTARTS=0 \
     ALLOW_STOP=0 \

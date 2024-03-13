@@ -1,2 +1,2 @@
-FROM docker.io/mvance/unbound:1.18.0
+FROM docker.io/mvance/unbound:1.19.2
 # based on https://github.com/MatthewVance/unbound-docker

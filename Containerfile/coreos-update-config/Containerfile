@@ -1,1 +1,1 @@
-FROM docker.io/saltstack/salt:3005
+FROM docker.io/saltstack/salt:3006.4
