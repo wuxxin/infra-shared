@@ -170,10 +170,10 @@ make sim-up
 
 #### Show/use root and provision cert
 ```sh
-make sim__ args="stack output ca_factory --json" | \
-    jq ".root_cert_pem" -r | openssl x509 -in - -noout -text
-make sim__ args="stack output ca_factory --json" | \
-    jq ".provision_cert_pem" -r  | openssl x509 -in - -noout -text
+make sim-show args="ca_factory" | jq ".root_cert_pem" -r | \
+    openssl x509 -in /dev/stdin -noout -text
+make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
+    openssl x509 -in /dev/stdin -noout -text
 ```
 
 #### Manual pulumi invocation
@@ -203,8 +203,6 @@ make sim-create
 #### Manual execution of the openwrt image build by calling a function
 ```sh
 make sim-tool args="infra.build build_openwrt"
-# is a shortcut equal to
-PULUMI_CONFIG_PASSPHRASE=sim pipenv run infra/scripts/resource_call.py --stack sim infra.build build_openwrt
 
 # show recorded image build salt-call stdout log output
 make sim-show | jq .build_openwrt.result.stdout -r
@@ -235,10 +233,12 @@ make sim-show
 make sim-list
 ```
 
-#### show resource output data as colorized formatted yaml
+#### show resource output data as colorized formatted json or yaml
 ```sh
+# use highlight and less
 make sim-show | json2yaml  | highlight --syntax yaml -O ansi | less
 make sim-show | highlight --syntax json -O ansi | less
+# use bat for integrated highlight plus pager
 make sim-show | bat -l json
 ```
 
@@ -253,7 +253,7 @@ cat ~/.ssh/id_rsa.pub >> authorized_keys
 
 ```sh
 make prod-create
-make prod__ args=preview
+make prod__ args="preview --suppress-outputs"
 make prod__ args=up
 ```
 
