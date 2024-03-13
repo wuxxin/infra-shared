@@ -70,7 +70,7 @@ pg_postgres_client_cert = create_client_cert(
 
 # jinja environment for butane translation
 host_environment = {
-    "RPM_OSTREE_INSTALL": ["mc"],
+    # "RPM_OSTREE_INSTALL": ["mc"],
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
     },
