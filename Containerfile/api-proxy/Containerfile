@@ -5,7 +5,8 @@ FROM docker.io/haproxy:2.9.6-alpine
 
 USER root
 
-RUN apk add --no-cache curl
+# curl as debugging aid, setpriv to change to user haproxy
+RUN apk add --no-cache curl setpriv
 
 USER haproxy
 
@@ -41,3 +42,8 @@ ENV ALLOW_RESTARTS=0 \
     API_PORT=2375
 
 EXPOSE 2375
+
+USER root
+
+# run as root, chown the inside podman socket to haproxy user, droppriv, start haproxy with config
+CMD /bin/sh -c "chown haproxy /run/podman/podman.sock && cd /var/lib/haproxy && setpriv --reuid=99 --regid=99 --nnp --init-groups env HOME=/var/lib/haproxy haproxy -f /usr/local/etc/haproxy/haproxy.cfg -W -db"
