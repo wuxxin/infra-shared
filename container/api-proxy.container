@@ -9,11 +9,12 @@ After=container-build@%N.service container-secrets.service podman.service
 Image=localhost/%N:latest
 
 # EnvironmentFile=-/etc/containers/environment/%N.env
-# Enable API_CONTAINERS, so traefik can get labels for frontend router configuration
-Environment=API_CONTAINERS=1
+# Enable CONTAINERS, so traefik can get labels for frontend router configuration
+Environment=CONTAINERS=1
 Environment=API_PORT=2375
 # avoid legacy docker.sock
 Environment=API_SOCKET=/run/podman/podman.sock
+# Environment=LOG_LEVEL=debug
 
 # disable selinux labels for accessing podman.sock
 PodmanArgs=--security-opt label=disable
