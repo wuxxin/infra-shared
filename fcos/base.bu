@@ -79,6 +79,10 @@ storage:
     - path: /etc/credstore/server.key
       target: /etc/ssl/private/server.key
 
+  trees:
+    - path: /etc/containers/build/provision-client
+      local: Containerfile/provision-client
+
 systemd:
   units:
     # opt out of counting telemetry
