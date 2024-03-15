@@ -12,7 +12,7 @@ PIPENV ?= $(call find-cmd,pipenv)
 .DEFAULT_GOAL := help
 
 # default to use root podman as docker command
-DOCKER := sudo podman
+DOCKER := podman
 
 # skip annoying version information
 PULUMI_SKIP_UPDATE_CHECK=1
@@ -64,8 +64,8 @@ submodules: ## Pull and update git submodules recursively
 	@git submodule update --init --recursive
 
 
-.PHONY: provision-container
-provision-container: ## Build provision client container
+.PHONY: provision-client
+provision-client: ## Build provision client container
 	@echo "+ $@"
 	@cd infra/Containerfile/provision-client && $(DOCKER) build -t provision-client:latest $$(pwd)
 
