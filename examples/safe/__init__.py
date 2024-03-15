@@ -70,7 +70,8 @@ pg_postgres_client_cert = create_client_cert(
 
 # jinja environment for butane translation
 host_environment = {
-    "RPM_OSTREE_INSTALL": ["mc"],
+    "RPM_OSTREE_INSTALL": ["mc"],  # enable mc for debug (TODO replace with toolbox)
+    "FRONTEND_DASHBOARD": "traefik",  # enable debug dashboard
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
     },
@@ -95,11 +96,11 @@ storage:
     size: {size_8g}
   - name: usb1
     device: /dev/vdb
-    size: {size_4g}
+    size: {size_8g}
   - name: usb2
     device: /dev/vdc
-    size: {size_4g}
-""".format(size_4g=4 * pow(2, 30), size_8g=8 * pow(2, 30))
+    size: {size_8g}
+""".format(size_8g=8 * pow(2, 30))
     )
 else:
     # generate strong random passwords, get storage identifiers from config
