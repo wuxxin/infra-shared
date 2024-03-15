@@ -1,7 +1,7 @@
 [Unit]
 Description=Update Coreos Configuration by applying (transpiled butane) saltstack config
-Wants=container-build@%N.service boot-complete.target
-After=container-build@%N.service boot-complete.target
+Wants=container-build@provision-client.service boot-complete.target
+After=container-build@provision-client.service boot-complete.target
 ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
 # Run saltstack by executing salt-call in an alpine container,
@@ -63,14 +63,14 @@ ExecStart=/usr/bin/bash -c \
 # make a salt-call test/mock run, to see if update would abort midways
 ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
-    localhost/%N:latest \
-    /usr/local/bin/salt-call -c ${root_dir} state.highstate mock=true
+    localhost/provision-client:latest \
+    /usr/bin/salt-call -c ${root_dir} state.highstate mock=true
 
 # do the actual update work
 ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
-    localhost/%N:latest \
-    /usr/local/bin/salt-call -c ${root_dir} state.highstate
+    localhost/provision-client:latest \
+    /usr/bin/salt-call -c ${root_dir} state.highstate
 
 # reload systemd daemon to resync with state from disk
 ExecStart=/usr/bin/systemctl daemon-reload
