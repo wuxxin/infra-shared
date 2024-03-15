@@ -1,10 +1,12 @@
 [Unit]
 Description=Update Coreos Configuration by applying (transpiled butane) saltstack config
-Wants=container-build@provision-client.service boot-complete.target
-After=container-build@provision-client.service boot-complete.target
+Wants=boot-complete.target
+After=boot-complete.target
 ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
-# Run saltstack by executing salt-call in an alpine container,
+# Run config update  by
+# building saltstack in a fedora container,
+# executing salt-call in this container,
 # mounting /etc, /var, /run from host into container
 # XXX only /etc, /var, /run are available for changes
 # XXX /etc/ hosts, hostname, resolv.conf are container specific versions from podman
@@ -12,6 +14,19 @@ ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
 [Service]
 Type=oneshot
+
+# create config for saltstack container
+Environment=fedora_version=39
+ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/coreos-update-config && printf \
+"FROM docker.io/fedora:${fedora_version}\
+\nRUN dnf -y install salt salt-minion lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
+\nCMD lsb_release -a\
+\n" > /etc/containers/build/coreos-update-config/Containerfile'
+
+# build saltstack container
+Environment=PODMAN_BUILD_OPTIONS=
+ExecStart=/usr/bin/bash -c 'cd /etc/containers/build/%N && \
+/usr/bin/podman build $PODMAN_BUILD_OPTIONS --tag localhost/%N:latest . '
 
 # roughly equal to tools.py:salt_config
 Environment=resource_name="%n"
@@ -63,13 +78,13 @@ ExecStart=/usr/bin/bash -c \
 # make a salt-call test/mock run, to see if update would abort midways
 ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
-    localhost/provision-client:latest \
+    localhost/coreos-update-config:latest \
     /usr/bin/salt-call -c ${root_dir} state.highstate mock=true
 
 # do the actual update work
 ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
-    localhost/provision-client:latest \
+    localhost/coreos-update-config:latest \
     /usr/bin/salt-call -c ${root_dir} state.highstate
 
 # reload systemd daemon to resync with state from disk

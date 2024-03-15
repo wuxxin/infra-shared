@@ -1,6 +1,0 @@
-storage:
-  files:
-    - path: /etc/systemd/system/coreos-update-config.service
-      contents:
-        local: fcos/coreos-update-config.service
-

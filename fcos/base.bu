@@ -79,9 +79,11 @@ storage:
     - path: /etc/credstore/server.key
       target: /etc/ssl/private/server.key
 
-  trees:
-    - path: /etc/containers/build/provision-client
-      local: Containerfile/provision-client
+  files:
+    # copy update service, will be overwritten by actual update call
+    - path: /etc/systemd/system/coreos-update-config.service
+      contents:
+        local: fcos/coreos-update-config.service
 
 systemd:
   units:
