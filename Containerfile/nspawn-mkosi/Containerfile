@@ -1,0 +1,6 @@
+FROM docker.io/fedora:39
+
+RUN dnf -y install mkosi acl dnf5 apt pacman zypper archlinux-keyring debian-keyring ubu-keyring && \
+    rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*
+
+CMD lsb_release -a
