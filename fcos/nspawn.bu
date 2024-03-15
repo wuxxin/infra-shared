@@ -27,6 +27,10 @@ storage:
     - path: /etc/mkosi
       local: mkosi
 
+    # mkosi nspawn image builder container
+    - path: /etc/containers/build/nspawn-mkosi
+      local: Containerfile/nspawn-mkosi
+
 systemd:
   units:
     - name: nspawn-mkosi@.service
