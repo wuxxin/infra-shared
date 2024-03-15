@@ -126,7 +126,7 @@ make install-requirements
 
 ```sh
 # Either: build container using sudo podman build
-make provision-container
+make provision-client
 
 # Or: build container using any other container tool
 # - replace "docker" with your container build call
