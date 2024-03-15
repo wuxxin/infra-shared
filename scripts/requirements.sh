@@ -3,7 +3,7 @@ set -eo pipefail
 # set -x
 
 usage() {
-    local this_dir_short=$(basename $(dirname "$(readlink -e "$0")"))
+    local base_dir_short=$(basename $(dirname "$(dirname "$(readlink -e "$0")")"))
     cat <<EOF
 Usage: $(basename $0)  --check | --list | --install | --install-aur | --containerfile
 
@@ -15,13 +15,13 @@ Usage: $(basename $0)  --check | --list | --install | --install-aur | --containe
 
 
 Usage of "--containerfile" needs two replacement lines in Containerfile for package hooks:
-    - Hook for normal packages: "    pacman -Syu --noconfirm"
-    - Hook for AUR packages   : "    yay -Sy --noconfirm"
+    - Hook for normal packages: "    pacman -Syu --noconfirm ... &&"
+    - Hook for AUR packages   : "    yay -Sy --noconfirm ... &&"
 
-Example:
-    cd ${this_dir_short}/Containerfile/provision-client &&
-        cat Containerfile | ../../$(basename $0) --containerfile > Containerfile.new &&
-            mv Containerfile.new Containerfile
+Call With:
+    cd ${base_dir_short}/Containerfile/provision-client &&
+    cat Containerfile | ../../scripts/$(basename $0) --containerfile > Containerfile.new &&
+    mv Containerfile.new Containerfile; cd $(pwd)
 
 EOF
     exit 1
@@ -51,6 +51,32 @@ jq
 # compression
 xz
 
+# # local build and coreos-update-config
+# CHECK: salt-call
+salt
+
+# # mkdocs build
+# CHECK: pango-view
+# pango - library for layout and rendering of text - used for weasyprint by mkdocs-with-pdf
+pango
+
+# # aur build
+# CHECK: go rustc cargo
+go
+rust
+
+# # nspawn build
+# CHECK: getfacl apt-get dnf mkosi
+acl
+# apt - Command-line package manager used on Debian-based systems
+apt
+debian-archive-keyring
+ubuntu-keyring
+# dnf - Package manager forked from Yum, using libsolv as a dependency resolver
+dnf
+# mkosi - Build Legacy-Free OS Images
+mkosi
+
 # # raspberry build
 # CHECK: bsdtar mkfs.vfat udisksctl
 # libarchive - Multi-format archive and compression library
@@ -69,15 +95,6 @@ zip gawk git openssl wget unzip python ncurses zlib gettext libxslt
 # esptool - utility to communicate with the ROM bootloader in Espressif ESP8266
 esptool
 
-# # mkdocs build
-# CHECK: pango-view
-# pango - library for layout and rendering of text - used for weasyprint by mkdocs-with-pdf
-pango
-
-# # aur build
-# CHECK: go rustc cargo
-go
-rust
 "
 
 aur_defines="
@@ -100,6 +117,7 @@ coreos-installer
 # CHECK: esphome
 # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
 esphome
+
 "
 
 gosu() { # $1=user , $@=param
@@ -144,8 +162,8 @@ main() {
     shift
 
     self_path=$(dirname "$(readlink -e "$0")")
-    pkg_list=$(echo "$pkg_defines" | grep -v "^#" | sort | uniq | tr "\n" " ")
-    aur_list=$(echo "$aur_defines" | grep -v "^#" | sort | uniq | tr "\n" " ")
+    pkg_list=$(echo "$pkg_defines" | grep -v "^#" | grep -v "^ *$" | sort | uniq | tr "\n" " ")
+    aur_list=$(echo "$aur_defines" | grep -v "^#" | grep -v "^ *$" | sort | uniq | tr "\n" " ")
     check_list=$(printf "%s\n%s" "$pkg_defines" "$aur_defines" |
         grep "^# CHECK:" | sed -r "s/# CHECK:(.*)/\1/g")
     os_distributor=$(lsb_release -i -s | tr '[:upper:]' '[:lower:]')
@@ -190,8 +208,8 @@ main() {
             "$pkg_defines" "$aur_defines"
 
     elif test "$request" = "--containerfile"; then
-        sed "s/^    pacman -Syu --noconfirm.*/    pacman -Syu --noconfirm ${pkg_list}; \\\\/g" |
-            sed "s/^    yay -Sy --noconfirm.*/    yay -Sy --noconfirm ${aur_list}; \\\\/g"
+        sed -r "s/^    pacman -Syu --noconfirm.+$/    pacman -Syu --noconfirm ${pkg_list} \&\& \\\\/g" |
+            sed -r "s/^    yay -Sy --noconfirm.+$/    yay -Sy --noconfirm ${aur_list} \&\& \\\\/g"
     fi
 }
 
