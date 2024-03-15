@@ -1,7 +1,7 @@
 [Unit]
 Description=Unbound DNS-Resolver
-Wants=network-online.target container-build@%N.service
-After=network-online.target container-build@%N.service
+Wants=container-build@%N.service
+After=container-build@%N.service
 
 [Container]
 Image=localhost/%N:latest
