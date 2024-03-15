@@ -17,11 +17,11 @@ Type=oneshot
 
 # create config for saltstack container
 Environment=fedora_version=39
-ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/coreos-update-config && printf \
+ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/%N && printf \
 "FROM docker.io/fedora:${fedora_version}\
 \nRUN dnf -y install salt salt-minion lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
 \nCMD lsb_release -a\
-\n" > /etc/containers/build/coreos-update-config/Containerfile'
+\n" > /etc/containers/build/%N/Containerfile'
 
 # build saltstack container
 Environment=PODMAN_BUILD_OPTIONS=
@@ -78,13 +78,13 @@ ExecStart=/usr/bin/bash -c \
 # make a salt-call test/mock run, to see if update would abort midways
 ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
-    localhost/coreos-update-config:latest \
+    localhost/%N:latest \
     /usr/bin/salt-call -c ${root_dir} state.highstate mock=true
 
 # do the actual update work
 ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
     -v /etc:/etc -v /etc:/host_etc -v /var:/var -v /run:/run -v /var/home:/home -v /var/roothome:/root \
-    localhost/coreos-update-config:latest \
+    localhost/%N:latest \
     /usr/bin/salt-call -c ${root_dir} state.highstate
 
 # reload systemd daemon to resync with state from disk
