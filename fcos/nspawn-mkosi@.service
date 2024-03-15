@@ -1,15 +1,17 @@
 [Unit]
 Description=Build nspawn image %I using mkosi
-Wants=network-online.target
-After=network-online.target
+Wants=container-build@provision-client.service network-online.target
+After=container-build@provision-client.service network-online.target
 ConditionPathExists=/etc/mkosi/%i/mkosi.conf
-ConditionPathExists=/usr/bin/mkosi
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/etc/mkosi/%i
-ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+ExecStart=/usr/bin/podman run --rm --log-driver=none \
+    -v /etc/mkosi:/etc/mkosi -v /var/lib/mkosi:/var/lib/mkosi -v /var/cache/mkosi:/var/cache/mkosi \
+    localhost/provision-client:latest \
+    /usr/bin/bash -c 'set -eo pipefail; set -x; \
     if test ! -d "/var/lib/mkosi/%i"; then \
         echo "building machine %i"; \
         org_name=$(echo "%i" | tr "-" "~");  \
