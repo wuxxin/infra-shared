@@ -41,9 +41,6 @@ jinja2 = "*"
 # additional ssh connectivity
 paramiko = "*"
 
-# saltstack - local build dependencies
-salt = "*"
-
 # use this venv as jupyter kernel (needs ipykernel installed)
 ipykernel = "*"
 
