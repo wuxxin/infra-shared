@@ -15,5 +15,4 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.hello-compose.rule=Host(`$HOSTNAME`)"
       - "traefik.http.routers.hello-compose.entrypoints=https"
-      # - "traefik.http.routers.hello-compose.tls=true"
       # - "traefik.http.services.hello-compose.loadbalancer.server.port=8080"
