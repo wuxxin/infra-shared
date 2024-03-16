@@ -1,13 +1,13 @@
-systemd:
-  units:
-    - name: container-build@postgresql.service
-      dropins:
-        - name: dropin.conf
-          contents: |
-            [Service]
-            Environment=PODMAN_BUILD_OPTIONS='--build-arg DEFAULTLANG={{ LOCALE["LANG"] }}'
-
 storage:
+  trees:
+    # podman build Containerfile
+    - path: /etc/containers/build
+      local: Containerfile
+
+    # quadlet container/volume/network configuration files
+    - path: /etc/containers/systemd
+      local: container
+
   files:
     - path: /etc/containers/environment/postgresql.env
       mode: 0600
@@ -41,3 +41,12 @@ storage:
           # add mapping tlsmap for tls client certificate to postgresql username
           tlsmap          /^(.*)@{{ ESCAPED_HOSTNAME }}$    \1
           EOF
+
+systemd:
+  units:
+    - name: container-build@postgresql.service
+      dropins:
+        - name: dropin.conf
+          contents: |
+            [Service]
+            Environment=PODMAN_BUILD_OPTIONS='--build-arg DEFAULTLANG={{ LOCALE["LANG"] }}'

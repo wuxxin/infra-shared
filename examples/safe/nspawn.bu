@@ -2,7 +2,7 @@ systemd:
   units:
     # enable nspawn hello-nspawn service
     - name: systemd-nspawn@hello-nspawn.service
-      enabled: false
+      enabled: true
       dropins:
         # load ca cert as credential into machine as showcase
         - name: loadcreds.conf
