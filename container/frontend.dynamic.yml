@@ -16,7 +16,7 @@ tls:
 http:
  routers:
     dashboard:
-      rule: Host(`{{ FRONTEND_DASHBOARD }}]]`)
+      rule: Host(`{{ FRONTEND_DASHBOARD }}`)
       service: api@internal
       entrypoints: https
 {% endif %}
