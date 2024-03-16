@@ -33,5 +33,6 @@ providers:
   file:
     # systemd-nspawn.d/frontend.conf writes service discovery to /traefik volume as *.yml
     directory: /traefik
-    watch: true
+    # TODO: make watch work, is needed for nspawn
+    watch: false
 
