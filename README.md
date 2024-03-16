@@ -6,7 +6,7 @@ Reusables of a learning project by rewriting parts of my home infrastructure as
 a **pulumi** and **core-os** based **gitops** project in **python**.
 
 - See [safe](examples/safe) for usage in an example project
-- Inspired and impressed by https://github.com/deuill/coreos-home-server
+- Inspired and impressed by [deuill/coreos-home-server](https://github.com/deuill/coreos-home-server)
 
 ### Quick start
 
@@ -24,8 +24,7 @@ make sim-up
 
 You have just created two TLS Certificates and an SSH Keypair in a very fancy way!
 
-To see what else you can do with it, continue reading or look at [examples](examples/)
-- also see the [jupyter notebooks](examples/notebooks/) for interactive pulumi, mqtt and homeassistant examples
+See the [examples](examples/) for code of what else can be done with it
 
 
 ### Features
@@ -46,15 +45,6 @@ Components for
         - using container and nspawn labels for dynamic configuration
     - **DNS Resolver**: `unbound`
         - using container for local DNSSEC capable recursive DNS-Resolver
-- `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
-- `tools.py` - SSH copy/deploy/execute functions, Jinja Templating, local and remote Salt-Call
-- `build.py` - build Embedded-OS Images and IOT Images
-    - **Raspberry Extras** - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
-    - **Openwrt Linux** - Network Device Distribution for Router and other network devices
-- `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
-- `write_removeable.py` - write image to removable storage specified by serial_number
-- `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
-- `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
 
 #### Technologies
@@ -181,10 +171,6 @@ make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
 export PULUMI_SKIP_UPDATE_CHECK=1
 export PULUMI_CONFIG_PASSPHRASE=sim
 
-# define some aliases for comfort
-json2yaml='python -c "import sys, yaml, json; yaml.safe_dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)"'
-json2keylist='python -c "$(printf "import json\nimport sys\ndef itd(d,lvl=0):\n  for k,v in d.items():\n    if(isinstance(v,dict)):\n      print(\" \"*lvl*2, \"-\", k); itd(v,lvl+1); continue\n    print(\" \"*lvl*2, \"-\", k)\nitd(json.loads(sys.stdin.read()))")"'
-
 pulumi stack select sim
 pulumi about
 ```
@@ -198,14 +184,6 @@ pipenv run ipython
 ```sh
 make sim-clean
 make sim-create
-```
-
-#### Manual execution of the openwrt image build by calling a function
-```sh
-make sim-tool args="infra.build build_openwrt"
-
-# show recorded image build salt-call stdout log output
-make sim-show | jq .build_openwrt.result.stdout -r
 ```
 
 #### test if changes would compute before applying
@@ -236,7 +214,6 @@ make sim-list
 #### show resource output data as colorized formatted json or yaml
 ```sh
 # use highlight and less
-make sim-show | json2yaml  | highlight --syntax yaml -O ansi | less
 make sim-show | highlight --syntax json -O ansi | less
 # use bat for integrated highlight plus pager
 make sim-show | bat -l json
@@ -256,26 +233,6 @@ make prod-create
 make prod__ args="preview --suppress-outputs"
 make prod__ args=up
 ```
-
-### Architecture
-
-
-#### Objectives
-
-- **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest
-    - use **ssh keys** as root of trust for pulumi **stack secret** using **age**
-    - store **secrets in the repository** using pulumi config secrets
-    - per project **tls root-ca, server-certs**, rollout **m-tls** client certificates where possible
-    - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
-- create **disposable/immutable-ish** infrastructure, aim for **structural isolation** and reusability
-- treat **state as code**, favor **state reconcilation** tools
-    - have the **complete encrypted state** in the **git repository** as **single source of truth**
-- have a **big/full featured provision client** as the center of operation
-    - target one **provision os** and a **container** for foreign distros and **continous integration** processes
-    - facilitate a comfortable local **simulation environment** with **fast reconfiguration** turnaround
-- **documentation** and **interactive notebooks** alongside code
-    - help onboarding with **interactive tinkering** using **jupyter notebooks**
-    - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
 
 
 ### License
