@@ -1,3 +1,5 @@
+{% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+
 storage:
   directories:
     # standard systemd credentials directory
@@ -20,26 +22,38 @@ storage:
     - path: /var/local/bin
 
   files:
-    # our resident bridge
-    - path: /etc/NetworkManager/system-connections/resident
+    # our internal bridge
+    - path: /etc/NetworkManager/system-connections/internal
       mode: 0600
       contents:
         inline: |
           [connection]
-          id=resident
-          interface-name=resident
+          id=internal
+          interface-name=internal
           type=bridge
 
           [device]
           type=bridge
-          name=resident
+          name=internal
 
           [bridge]
           stp=false
 
           [ipv4]
           method=manual
-          address={{ RESIDENT_CIDR }}
+          address={{ INTERNAL_CIDR }}
+
+    # our /etc/hosts entries
+    - path: /etc/hosts
+      contents:
+        inline: |
+          # Loopback entries; do not change.
+          # For historical reasons, localhost precedes localhost.localdomain:
+          127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+          ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+          # add lookup for self.internal
+          {{ cidr2ip(INTERNAL_CIDR) }}    self.internal
+          {{ cidr2ip(PODMAN_CIDR) }}    self.podman
 
     # set keyboard layout
     - path: /etc/vconsole.conf
