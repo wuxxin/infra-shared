@@ -78,9 +78,8 @@ systemd:
       contents: |
         [Unit]
         Description=Podman API Service
-        Wants=network-online.target rpm-ostree-install.service systemd-networkd-wait-online.service
-        After=network-online.target rpm-ostree-install.service systemd-networkd-wait-online.service
-        # also wait for systemd-networkd-wait-online, which does the resident bridge setup
+        Wants=network-online.target rpm-ostree-install.service
+        After=network-online.target rpm-ostree-install.service
 
         Documentation=man:podman-system-service(1)
         StartLimitIntervalSec=0
