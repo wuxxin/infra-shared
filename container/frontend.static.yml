@@ -26,7 +26,7 @@ entryPoints:
 
 providers:
   docker:
-    endpoint: tcp://{{ cidr2ip(RESIDENT_CIDR) }}:2375
+    endpoint: tcp://{{ cidr2ip(INTERNAL_CIDR) }}:2375
     watch: true
     exposedbydefault: false
 
