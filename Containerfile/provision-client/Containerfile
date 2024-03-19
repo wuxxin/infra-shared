@@ -1,5 +1,5 @@
 FROM docker.io/archlinux/archlinux:base-devel
-# archlinux container -- Full featured Provision Client 
+# archlinux container -- Provision Client
 #
 # to update package lists, execute from here:
 # cat Containerfile | ../../scripts/requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
