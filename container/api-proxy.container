@@ -3,7 +3,7 @@ Description=Container API Proxy (unix socket to tcp port) based on Haproxy
 Wants=container-build@%N.service container-secrets.service podman.service
 After=container-build@%N.service container-secrets.service podman.service
 # upstream socket: a running docker compatible API Server under API_SOCKET
-# downstream tcp: resident:API_PORT
+# downstream tcp: self.internal:API_PORT
 
 [Container]
 Image=localhost/%N:latest
@@ -23,7 +23,7 @@ Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
 # publish filtered api: [hostip:]hostPort:containerPort
 {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
-PublishPort={{ cidr2ip(RESIDENT_CIDR) }}:2375:2375
+PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:2375:2375
 
 [Service]
 Restart=always
