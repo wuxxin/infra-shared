@@ -5,7 +5,7 @@ After=container-build@%N.service container-secrets.service api-proxy.service
 
 [Container]
 Image=localhost/%N:latest
-# EnvironmentFile=-/etc/containers/environment/%N.env
+# EnvironmentFile=/etc/containers/environment/%N.env
 
 # allow ports < 1024
 PodmanArgs=--sysctl=net.ipv4.ip_unprivileged_port_start=0
