@@ -15,12 +15,31 @@
     - Compose Container: `compose.yml` - multi-container applications defined using a compose file
     - nSpawn OS-Container: `systemd-nspawn` - an linux OS (build by mkosi) in a light-weight container
 
+### Target Configuration
 
-### Single Container
++ python configuration: `target/example/__init__.py`
 
-### Compose Container
+```python
+this_dir = os.path.dirname(os.path.abspath(__file__))
+files_basedir = os.path.join(this_dir)
+shortname = "example"
+dns_names = ["example.lan"]
+hostname = dns_names[0]
+tls = create_host_cert(hostname, hostname, dns_names)
+butane_yaml = pulumi.Output.format("variant: fcos\nversion: 1.5.0\n")
+host_config = ButaneTranspiler(
+    shotname, hostname, tls, butane_yaml, files_basedir, host_environment
+)
+```
 
-### NSpawn Container
++ butane configuration: `target/example/*.bu`
++ butane includes files_basedir: `target/example/`
+
+#### Single Container
+
+#### Compose Container
+
+#### NSpawn Container
 
 ### Default Services
 #### frontend.service
@@ -75,7 +94,8 @@ environment defaults available in jinja (for details see DEFAULT_ENV_STR):
 - Boolean CONTAINER_FRONTEND
 - Boolean DNS_RESOLVER
 - String  FRONTEND_DASHBOARD
-- String  RESIDENT_CIDR
+- String  INTERNAL_CIDR
+- String  PODMAN_CIDR
 - Dict LOCALE: {LANG, KEYMAP, TIMEZONE, COUNTRY_CODE}
 - List RPM_OSTREE_INSTALL
 
