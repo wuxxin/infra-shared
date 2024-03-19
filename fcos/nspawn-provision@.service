@@ -2,7 +2,7 @@
 Description=Provision Nspawn Image %I
 Wants=network-online.target systemd-networkd-wait-online.service
 After=network-online.target systemd-networkd-wait-online.service
-# also wait for systemd-networkd-wait-online, which does the resident bridge setup
+# also wait for systemd-networkd-wait-online
 ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
 ConditionPathExists=/etc/nspawn/environment/%i.env
 ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
