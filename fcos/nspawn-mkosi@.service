@@ -1,7 +1,7 @@
 [Unit]
 Description=Build nspawn image %I using mkosi
-Wants=container-build@%N.service
-After=container-build@%N.service
+Wants=container-build@%p.service
+After=container-build@%p.service
 ConditionPathExists=/etc/mkosi/%i/mkosi.conf
 
 [Service]
@@ -10,7 +10,7 @@ RemainAfterExit=yes
 WorkingDirectory=/etc/mkosi/%i
 ExecStart=/usr/bin/podman run --rm --log-driver=none \
     -v /etc/mkosi:/etc/mkosi -v /var/lib/mkosi:/var/lib/mkosi -v /var/cache/mkosi:/var/cache/mkosi \
-    localhost/%N:latest \
+    localhost/%p:latest \
     /usr/bin/bash -c 'set -eo pipefail; set -x; \
     if test ! -d "/var/lib/mkosi/%i"; then \
         echo "building machine %i"; \
