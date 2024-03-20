@@ -16,9 +16,8 @@ ConditionPathExists=/run/user/1000/%N/sls/main.sls
 Type=oneshot
 
 # create config for saltstack container
-Environment=fedora_version=39
 ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/%N && printf \
-"FROM docker.io/fedora:${fedora_version}\
+"FROM docker.io/library/fedora:39\
 \nRUN dnf -y install salt salt-minion lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
 \nCMD lsb_release -a\
 \n" > /etc/containers/build/%N/Containerfile'
