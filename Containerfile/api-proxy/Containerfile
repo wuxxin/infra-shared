@@ -1,4 +1,4 @@
-FROM docker.io/haproxy:2.9.6-alpine
+FROM docker.io/library/haproxy:2.9.6-alpine
 # based on https://github.com/Tecnativa/docker-socket-proxy
 # default is to only allow readonly access (API_POST=0)
 # default accessable API's are API_events, API_ping and API_version
