@@ -12,6 +12,12 @@ Volume=/etc/containers/systemd/%N.conf:/opt/unbound/etc/unbound/unbound.conf:ro
 Volume=/etc/containers/systemd/%N_ext.conf:/opt/unbound/etc/unbound/unbound_ext.conf:ro
 Volume=/etc/containers/systemd/%N_srv.conf:/opt/unbound/etc/unbound/unbound_srv.conf:ro
 
+# publish filtered api: [hostip:]hostPort:containerPort
+{% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:53:53/tcp
+PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:53:53/udp
+PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:853:853/tcp
+
 [Service]
 Restart=always
 
