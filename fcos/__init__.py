@@ -80,10 +80,12 @@ class ButaneTranspiler(pulumi.ComponentResource):
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
         )
 
+        # jinja environment to be used
         default_env = yaml.safe_load(DEFAULT_ENV_STR)
         this_env = merge_dict_struct(
             default_env, {} if environment is None else environment
         )
+        self.this_env = pulumi.Output.secret(pulumi.Output.from_input(this_env))
 
         # configure hostname, ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
