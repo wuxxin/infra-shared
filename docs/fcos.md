@@ -10,6 +10,12 @@
     - authorized_keys, tls cert, key, ca_cert, loads container secrets
     - install extensions using rpm-ostree-install or var-local-install
 - Reconfiguration / Update Configuration using translated butane to saltstack execution
+- Default Services
+    - api-proxy.service: haproxy socket to readonly http for traefik container watching
+    - frontend.service: traefik tls termination, routing with automatic container/compose/nspawn watching
+    - dnsresolver.service: unbound dns recursive caching resolver
+- Networking
+    - .internal bridge with dns support for internal networking
 - Comfortable Deployment of
     - Single Container: `podman-systemd.unit` - systemd container units using podman-quadlet
     - Compose Container: `compose.yml` - multi-container applications defined using a compose file
@@ -17,7 +23,8 @@
 
 ### Target Configuration
 
-+ python configuration: `target/example/__init__.py`
+#### python configuration
++ `target/example/__init__.py`
 
 ```python
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -32,24 +39,25 @@ host_config = ButaneTranspiler(
 )
 ```
 
-+ butane configuration: `target/example/*.bu`
-+ butane includes files_basedir: `target/example/`
+#### butane configuration
+
++ butane files: `target/example/*.bu`
++ butane files_basedir: `target/example/`
+
+##### overwrite of buildins
+
+to overwrite buildins butane config or files:
+
+- if it is a systemd service, consider a dropin
+- otherwise redefine the exact buildin setting or file you want to modify
+    - it will automatically receive priority
+    - see `butane jinja templating` for detailed ordering
 
 #### Single Container
 
 #### Compose Container
 
 #### NSpawn Container
-
-### Default Services
-#### frontend.service
-- traefik tls termination, routing
-
-#### api-proxy.service
-- haproxy socket to readonly http for traefik container watching
-
-#### dnsresolver.service
-- unbound dns recursive caching resolver
 
 ### FcosConfigUpdate
 
@@ -68,7 +76,7 @@ Modifications to *.bu and their referenced files will result in a new saltstack 
     - calling a systemd service instead of calling a plain shell script for update
         - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
 
-## Usage and Customization
+### Tools
 
 - `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
 - `tools.py` - SSH copy/deploy/execute functions, local and remote Salt-Call
@@ -80,10 +88,6 @@ Modifications to *.bu and their referenced files will result in a new saltstack 
 - `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
-how to overwrite buildins butane config or files:
-
-- if it is a systemd service, consider a dropin
-- in other cases, simple redefine setting/file, it will overwrite any buildin file/config
 
 ### Butane Transpiler
 
