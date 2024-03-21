@@ -6,8 +6,6 @@ this updates the config of the machine to the desired state and keeps changes mi
 smart restarts of direct or indirectly changed services if name begins with servicename.
 
 #}
-{% set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
-{% set UPDATE_SERVICE_STATUS=UPDATE_SERVICE_STATUS|d(true)%}
 {#
 
 write out user,group,mode if present
@@ -35,6 +33,8 @@ replace filename with /host_etc prefix if in /etc/hostname, /etc/hosts, /etc/res
 create service change/enable/disable macros and accumulator targets
 
 #}
+{%- set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
+{%- set UPDATE_SERVICE_STATUS=UPDATE_SERVICE_STATUS|d(true) %}
 {% if UPDATE_SERVICE_STATUS %}
 {#
 
