@@ -178,30 +178,34 @@ storage:
         )
 
         # 4. jinja template *.bu yaml files from basedir and inline all local references
-        # merged_dict= base_dict -> security_dict > loaded_dict -> fcos_dict
+        target_dict = pulumi.Output.all(
+            loaded_dict=self.load_butane_files(basedir, this_env)
+        ).apply(lambda args: self.inline_local_files(basedir, args["loaded_dict"]))
+
+        # 5. merged_dict= base_dict -> security_dict > target_dict -> fcos_dict
         merged_dict = pulumi.Output.all(
             base_dict=base_dict,
             security_dict=security_dict,
             fcos_dict=fcos_dict,
-            loaded_dict=self.load_butane_files(basedir, this_env),
+            target_dict=target_dict,
         ).apply(
             lambda args: merge_dict_struct(
                 args["fcos_dict"],
                 merge_dict_struct(
-                    args["loaded_dict"],
+                    args["target_dict"],
                     merge_dict_struct(args["security_dict"], args["base_dict"]),
                 ),
             )
         )
 
-        # 5. apply additional template filters
+        # 6. apply additional template filters
         self.butane_config = pulumi.Output.all(merged_dict=merged_dict).apply(
             lambda args: yaml.safe_dump(
                 self.template_files(args["merged_dict"], this_dir, this_env)
             )
         )
 
-        # 6. translate merged butane yaml to saltstack salt yaml config
+        # 7. translate merged butane yaml to saltstack salt yaml config
         # append this_dir/coreos-update-config.sls and basedir/*.sls to it
         self.saltstack_config = pulumi.Output.concat(
             pulumi.Output.all(butane=self.butane_config).apply(
@@ -217,9 +221,7 @@ storage:
 
         # self.saltstack_config.apply(log_warn)
 
-        # 7. translate merged butane yaml to ignition json config
-        # XXX due to pulumi-command exit 1 on stderr output, we silence stderr,
-        #   but output is vital for finding compilation warning and errors, so remove 2>/dev/null on debug
+        # 8. translate merged butane yaml to ignition json config
         # XXX v0.19.0 Add -c/--check option to check config without producing output
         self.ignition_config = command.local.Command(
             "{}_ignition_config".format(resource_name),
