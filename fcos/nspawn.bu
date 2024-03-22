@@ -39,13 +39,8 @@ systemd:
     - name: nspawn-provision@.service
       contents_local: fcos/nspawn-provision@.service
 
-    # for each sub directory in mkosi, create a nspawn-mkosi@<distro_release>.service
-{%- set list_str= "mkosi"|list_dirs() %}
-{%- for d in list_str.split("\n") %}
-  {%- set distro_release=d|replace("mkosi/", "") %}
-    # {{ distro_release }} nspawn mkosi image
-    - name: nspawn-mkosi@{{ distro_release }}.service
- {% endfor %}
+    # for each defined os directory in mkosi, create a nspawn-mkosi@<distro_release>.service
+    # - name: nspawn-mkosi@debian-bookworm.service
 
     - name: systemd-nspawn@.service
       dropins:
