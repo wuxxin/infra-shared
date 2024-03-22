@@ -1,9 +1,9 @@
-{# translates and inlines a subset of butane spec into a one file saltstack salt spec
+{# translates a subset of a one file butane spec into a one file saltstack salt spec
 
-to be used in a saltstack salt-call command,
-from the systemd service "coreos-update-config.service",
-this updates the config of the machine to the desired state and keeps changes minimal,
-smart restarts of direct or indirectly changed services if name begins with servicename.
+to be used from the systemd service "coreos-update-config.service",
+which executes a saltstack salt-call command, with the output of this translation as main.sls
+this updates the config of the machine to the desired state,
+and tells the coreos-update-config service which services are changed and need restarts.
 
 #}
 {#
@@ -150,7 +150,7 @@ mask service change/enable/disable macros
 {% endif %}
 {#
 
-Main Translation of storage:directories, links, files, trees, systemd units and dropins
+Main Translation of storage:directories, links, files, systemd units and dropins
 
 #}
 {%- if "storage" in butane and "directories" in butane.storage %}
@@ -196,7 +196,7 @@ Main Translation of storage:directories, links, files, trees, systemd units and 
         cat <<"EOF" | base64 -d > {{ tr_etc(f.path) }}
         {{ f.contents.source|indent(8) }}
         EOF
-    - onlyif: base64 -d < {{ tr_etc(f.path) }} | cmp -s - /dev/stdin
+    - unless: base64 -d < {{ tr_etc(f.path) }} | cmp -s {{ tr_etc(f.path) }} -
     - creates: {{ tr_etc(f.path) }}
         {%- else %}
     - source: {{ f.contents.source }}
@@ -210,36 +210,8 @@ Main Translation of storage:directories, links, files, trees, systemd units and 
         {{ f.contents.inline|indent(8) }}
 
       {%- endif %}
-      {%- if f.contents.local is defined %}
-        {%- import f.contents.local as contents %}
-    - contents: |
-        {{ contents|string()|indent(8) }}
-
-      {%- endif %}
     {%- endif %}
 {{ target_changed(tr_etc(f.path), target_type) }}
-  {% endfor %}
-{%- endif %}
-
-
-{%- if "storage" in butane and "trees" in butane.storage %}
-  {%- for t in butane.storage.trees %}
-    {%- set path = t.path %}
-    {% set list_str= t.local|list_files() %}
-    {%- for f in list_str.split("\n") %}
-      {%- import f as contents %}
-      {%- set fp= path ~ '/'~ f.replace(t.local ~ '/', '') %}
-{{ tr_etc(fp) }}:
-  file.managed:
-    - makedirs: True
-      {%- if f|has_executable_bit() %}
-    - mode: 0o755
-      {%- endif %}
-    - contents: |
-        {{ contents|string()|indent(8) }}
-
-{{ target_changed(tr_etc(fp)) }}
-    {% endfor %}
   {% endfor %}
 {%- endif %}
 
@@ -251,21 +223,14 @@ Main Translation of storage:directories, links, files, trees, systemd units and 
 {{ service_status(up, u.name, u.enabled) }}
     {%- endif %}
     {%- if not u.mask|d(false) %}
-      {%- if u.contents is defined or u.contents_local is defined %}
+      {%- if u.contents is defined %}
 {{ up }}:
   file.managed:
     # XXX do not follow_symlinks, because if masked file is symlinked to /dev/null
     - follow_symlinks: False
-        {%- if u.contents is defined %}
     - contents: |
         {{ u.contents|indent(8) }}
 
-        {%- elif u.contents_local is defined %}
-          {%- import u.contents_local as contents %}
-    - contents: |
-        {{ contents|string()|indent(8) }}
-
-        {%- endif %}
 {{ target_changed(up) }}
       {%- endif %}
     {%- else %}
@@ -286,12 +251,6 @@ Main Translation of storage:directories, links, files, trees, systemd units and 
         {%- if d.contents is defined %}
     - contents: |
         {{ d.contents|indent(8) }}
-
-        {%- endif %}
-        {%- if d.contents_local is defined %}
-          {%- import d.contents_local as contents %}
-    - contents: |
-        {{ contents|string()|indent(8) }}
 
         {%- endif %}
 {{ target_changed(dp) }}
