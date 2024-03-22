@@ -65,18 +65,6 @@ pango
 go
 rust
 
-# # nspawn build
-# CHECK: getfacl apt-get dnf mkosi
-acl
-# apt - Command-line package manager used on Debian-based systems
-apt
-debian-archive-keyring
-ubuntu-keyring
-# dnf - Package manager forked from Yum, using libsolv as a dependency resolver
-dnf
-# mkosi - Build Legacy-Free OS Images
-mkosi
-
 # # raspberry build
 # CHECK: bsdtar mkfs.vfat udisksctl
 # libarchive - Multi-format archive and compression library

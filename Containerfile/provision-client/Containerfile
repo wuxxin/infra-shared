@@ -5,7 +5,7 @@ FROM docker.io/archlinux/archlinux:base-devel
 # cat Containerfile | ../../scripts/requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
 
 RUN pacman-key --init && pacman -Syu --noconfirm base-devel lsb-release git doas && \
-    pacman -Syu --noconfirm acl age apt atftp debian-archive-keyring dnf dosfstools esptool gnupg go jq knot libarchive mkosi openssl pango pulumi python-pipenv rust salt ubuntu-keyring udisks2 vault xz zip gawk git openssl wget unzip python ncurses zlib gettext libxslt  && \
+    pacman -Syu --noconfirm age atftp dosfstools esptool gnupg go jq knot libarchive openssl pango pulumi python-pipenv rust salt udisks2 vault xz zip gawk git openssl wget unzip python ncurses zlib gettext libxslt  && \
     pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/*
 
