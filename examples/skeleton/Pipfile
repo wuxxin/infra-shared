@@ -38,6 +38,9 @@ pyyaml = "*"
 # templating library
 jinja2 = "*"
 
+# detection of text or binary
+chardet = "*"
+
 # additional ssh connectivity
 paramiko = "*"
 
