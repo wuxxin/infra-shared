@@ -1,0 +1,26 @@
+site_name: Infra-Shared
+
+## configure for local file:// scheme, overwrite for online usage
+# site_url: local browser usage
+site_url: ""
+# use_directory_urls: local browser usage
+use_directory_urls: false
+
+theme:
+  name: material
+
+markdown_extensions:
+  - smarty
+  - toc:
+      permalink: "#"
+  - pymdownx.magiclink
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - fcos.md
+  - tools.md
+  - architecture.md

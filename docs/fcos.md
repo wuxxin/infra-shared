@@ -11,11 +11,11 @@
     - install extensions using rpm-ostree-install or var-local-install
 - Reconfiguration / Update Configuration using translated butane to saltstack execution
 - Default Services
-    - api-proxy.service: haproxy socket to readonly http for traefik container watching
-    - frontend.service: traefik tls termination, routing with automatic container/compose/nspawn watching
-    - dnsresolver.service: unbound dns recursive caching resolver
+    - `api-proxy.service`: haproxy socket to readonly http for traefik container watching
+    - `frontend.service`: traefik tls termination, routing with automatic container/compose/nspawn watching
+    - `dnsresolver.service`: unbound dns recursive caching resolver
 - Networking
-    - .internal bridge with dns support for internal networking
+    - `.internal` bridge with dns support for internal networking
 - Comfortable Deployment of
     - Single Container: `podman-systemd.unit` - systemd container units using podman-quadlet
     - Compose Container: `compose.yml` - multi-container applications defined using a compose file
@@ -46,20 +46,13 @@ host_config = ButaneTranspiler(
 
 ##### overwrite of buildins
 
-to overwrite buildins butane config or files:
+to overwrite buildins butane settings or files:
 
 - if it is a systemd service, consider a dropin
-- otherwise redefine the exact buildin setting or file you want to modify
-    - it will automatically receive priority
+- otherwise redefine the buildin setting or file you want to modify
     - see `butane jinja templating` for detailed ordering
 
-#### Single Container
-
-#### Compose Container
-
-#### NSpawn Container
-
-### FcosConfigUpdate
+### Target Update
 
 reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
 
@@ -76,20 +69,9 @@ Modifications to *.bu and their referenced files will result in a new saltstack 
     - calling a systemd service instead of calling a plain shell script for update
         - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
 
-### Tools
+### Butane Translation
 
-- `authority.py` - TLS Certificate-Authority, functions for TLS Certificates and SSH-Provision
-- `tools.py` - SSH copy/deploy/execute functions, local and remote Salt-Call
-- `build.py` - build Embedded-OS Images and IOT Images
-    - **Raspberry Extras** - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
-    - **Openwrt Linux** - Network Device Distribution for Router and other network devices
-- `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
-- `write_removeable.py` - write image to removable storage specified by serial_number
-- `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
-- `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
-
-
-### Butane Transpiler
+#### Environment
 
 environment defaults available in jinja (for details see DEFAULT_ENV_STR):
 
@@ -103,65 +85,73 @@ environment defaults available in jinja (for details see DEFAULT_ENV_STR):
 - Dict LOCALE: {LANG, KEYMAP, TIMEZONE, COUNTRY_CODE}
 - List RPM_OSTREE_INSTALL
 
-butane jinja templating:
+#### Jinja Templating
 
-1. jinja template butane_input, basedir=basedir
-2. jinja template butane_security_keys, basedir=basedir
-3. jinja template *.bu yaml from this_dir, basedir=subproject_dir
-    - inline all local references including storage:trees as storage:files
-4. jinja template *.bu yaml files from basedir
-    - merge order= butane_input -> butane_security -> this_dir*.bu -> basedir/*.bu
-5. apply additional filters where butane extension template != None
-    - template=jinja: template through jinja
+all butane files and files referenced from butane files with attribute template=jinja
+will be rendered through jinja with the described Environment and optional includes from searchpath
+
+##### custom regex filter
+
+- "text"|regex_escape()
+- "text"|regex_search(pattern)
+- "text"|regex_match(pattern)
+- "text"|regex_replace(pattern, replacement)
+
+search,match,replace support additional args
+- ignorecase=True/*False
+- multiline=True/*False
+
+#### Butane Yaml
+
+the butane configuration is created from
+
+- base_dict    = jinja template butane_input, basedir=basedir
+- security_dict= jinja template butane_security_keys, basedir=basedir
+- fcos_dict    = jinja template *.bu yaml files from fcosdir
+- target_dict  = jinja template *.bu yaml files from basedir
+- merged_dict= fcos_dict+ target_dict+ security_dict+ base_dict
+    - order is earlier gets overwritten by later
+
+for each *.bu in fcosdir, basedir:
+
+- from basedir/*.bu recursive read and execute jinja with environment available
+- parse result as yaml
+- inline all local references
+    - for files and trees use source with base64 encode if file type = binary
+    - storage:trees:[]:local -> files:[]:contents:inline/source
+    - storage:files:[]:contents:local -> []:contents:inline/source
+    - systemd:units:[]:contents_local -> []:contents
+    - systemd:units:[]:dropins:[]:contents_local -> []:contents
+- apply additional filter where template != ""
     - storage:files[].contents.template
     - systemd:units[].template
     - systemd:units[].dropins[].template
-6. translate merged butane yaml to saltstack salt yaml config
-    - jinja templating of butane2salt.jinja with butane_config as additional environment
-    - append this_dir/coreos-update-config.sls and basedir/*.sls to it
-7. translate merged butane yaml to ignition json config
+- merge together with additional watching for contents:inline or source
 
-#### butane to salt translation
+#### Ignition Json
 
-translates and inlines a subset of butane spec into a one file saltstack salt spec
+the ignition spec file is created from the merged final butane yaml
 
-- Only the currently used subset in *.bu files of the butane spec is supported
-  - only storage:directories/links/files/trees and systemd:units[:dropins] are translated
-  - Filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
+#### Saltstack Yaml
 
-- Look at tools.jinja_run for custom filter like traverse files or regex_replace
-- use 'import "subdir/filename" as contents' to import from basedir/subdir/filename
+the saltstack spec file is created from a subset of the final butane yaml
 
-additional outputs if {UPDATE_SERVICE_STATUS} == true:
+- only storage:directories/links/files and systemd:units[:dropins] are translated
+- files:contents must be of type inline or source (base64 encoded)
+- systemd:units and systemd:units:dropins must be of type contents
+- filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
+- append this_dir/coreos-update-config.sls and basedir/*.sls to it
+- additional outputs if {UPDATE_SERVICE_STATUS} == true:
+    - creates a commented, non uniqe, not sorted list of service base names
+        - {UPDATE_DIR}/service_changed.req for services with changed configuration
+        - {UPDATE_DIR}/service_enable.req for services to be enabled
+        - {UPDATE_DIR}/service_disable.req for services to be disabled
+    - see `coreos-update-config.service` for detailed usage of service_*.req
 
-- creates a commented, non uniqe, not sorted list of service base names
-  - {UPDATE_DIR}/service_changed.req for services with changed configuration
-  - {UPDATE_DIR}/service_enable.req for services to be enabled
-  - {UPDATE_DIR}/service_disable.req for services to be disabled
+### Single Container
 
-- usage example:
-```sh
-cat ${UPDATE_DIR}/service_changed.req | grep -v "^#" | \
-    grep -v "^[[:space:]]*$" | sort | uniq
-```
+### Compose Container
 
-
-### Architecture
+### NSpawn Container
 
 
-#### Objectives
-
-- **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest
-    - use **ssh keys** as root of trust for pulumi **stack secret** using **age**
-    - store **secrets in the repository** using pulumi config secrets
-    - per project **tls root-ca, server-certs**, rollout **m-tls** client certificates where possible
-    - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
-- create **disposable/immutable-ish** infrastructure, aim for **structural isolation** and reusability
-- treat **state as code**, favor **state reconcilation** tools
-    - have the **complete encrypted state** in the **git repository** as **single source of truth**
-- have a **big/full featured provision client** as the center of operation
-    - target one **provision os** and a **container** for foreign distros and **continous integration** processes
-    - facilitate a comfortable local **simulation environment** with **fast reconfiguration** turnaround
-- **documentation** and **interactive notebooks** alongside code
-    - help onboarding with **interactive tinkering** using **jupyter notebooks**
-    - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
