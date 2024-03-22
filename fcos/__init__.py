@@ -10,8 +10,7 @@
 - TangFingerprint
 - RemoteDownloadIgnitionConfig
 
-### Python Functions
-- compile_selinux_module
+
 
 """
 
@@ -21,7 +20,6 @@ import glob
 import os
 import re
 import stat
-import subprocess
 
 import pulumi
 import pulumi_command as command
@@ -29,7 +27,16 @@ import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 import yaml
 
-from ..template import jinja_run, jinja_run_template, join_paths, merge_dict_struct
+from ..tools import log_warn
+from ..template import (
+    jinja_run,
+    jinja_run_template,
+    join_paths,
+    merge_dict_struct,
+    load_text,
+    load_contents,
+    compile_selinux_module,
+)
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
@@ -152,7 +159,7 @@ storage:
 """,
         )
 
-        # 1. jinja template butane_input, basedir=basedir
+        # jinja template butane_input, basedir=basedir
         base_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_input, env=this_env).apply(
                 lambda args: yaml.safe_load(
@@ -161,7 +168,7 @@ storage:
             )
         )
 
-        # 2. jina template butane_security_keys, basedir=basedir
+        # jinja template butane_security_keys, basedir=basedir
         security_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_security_keys, env=this_env).apply(
                 lambda args: yaml.safe_load(
@@ -170,19 +177,13 @@ storage:
             )
         )
 
-        # 3. jinja template *.bu yaml from fcosdir and inline all local references
-        fcos_dict = pulumi.Output.all(
-            loaded_dict=self.load_butane_files(subproject_dir, this_env, subdir="fcos")
-        ).apply(
-            lambda args: self.inline_local_files(subproject_dir, args["loaded_dict"])
-        )
+        # jinja template *.bu yaml files from fcosdir
+        fcos_dict = self.load_butane_files(subproject_dir, this_env, subdir="fcos")
 
-        # 4. jinja template *.bu yaml files from basedir and inline all local references
-        target_dict = pulumi.Output.all(
-            loaded_dict=self.load_butane_files(basedir, this_env)
-        ).apply(lambda args: self.inline_local_files(basedir, args["loaded_dict"]))
+        # jinja template *.bu yaml files from basedir
+        target_dict = self.load_butane_files(basedir, this_env)
 
-        # 5. merged_dict= base_dict -> security_dict > target_dict -> fcos_dict
+        # merged_dict= base_dict -> security_dict > target_dict -> fcos_dict
         merged_dict = pulumi.Output.all(
             base_dict=base_dict,
             security_dict=security_dict,
@@ -198,14 +199,12 @@ storage:
             )
         )
 
-        # 6. apply additional template filters
-        self.butane_config = pulumi.Output.all(merged_dict=merged_dict).apply(
-            lambda args: yaml.safe_dump(
-                self.template_files(args["merged_dict"], this_dir, this_env)
-            )
+        # butane config as rendered yaml
+        self.butane_config = pulumi.Output.all(source_dict=merged_dict).apply(
+            lambda args: yaml.safe_dump(args["source_dict"])
         )
 
-        # 7. translate merged butane yaml to saltstack salt yaml config
+        # translate butane yaml to saltstack salt yaml config
         # append this_dir/coreos-update-config.sls and basedir/*.sls to it
         self.saltstack_config = pulumi.Output.concat(
             pulumi.Output.all(butane=self.butane_config).apply(
@@ -221,7 +220,7 @@ storage:
 
         # self.saltstack_config.apply(log_warn)
 
-        # 8. translate merged butane yaml to ignition json config
+        # translate merged butane yaml to ignition json config
         # XXX v0.19.0 Add -c/--check option to check config without producing output
         self.ignition_config = command.local.Command(
             "{}_ignition_config".format(resource_name),
@@ -237,8 +236,9 @@ storage:
         self.register_outputs({})
 
     def load_butane_files(self, basedir, environment, subdir=""):
-        "read and jinja template all basedir/*.bu files from basedir recursive, parse as yaml, merge together"
+        "read and jinja template all basedir/*.bu files from basedir recursive, parse as yaml, merge together return dict"
 
+        merged_dict = {}
         all_files = sorted(
             [
                 fname
@@ -248,35 +248,112 @@ storage:
             ]
         )
 
-        merged_yaml = {}
         for fname in all_files:
-            yaml_dict = pulumi.Output.all(fname=fname, env=environment).apply(
+            source_dict = pulumi.Output.all(fname=fname, env=environment).apply(
                 lambda args: yaml.safe_load(
                     jinja_run_template(args["fname"], basedir, args["env"])
                 )
             )
-            merged_yaml = pulumi.Output.all(
-                yaml1_dict=merged_yaml, yaml2_dict=yaml_dict
+            inlined_dict = pulumi.Output.all(source_dict=source_dict).apply(
+                lambda args: self.inline_local_files(args["source_dict"], basedir)
+            )
+
+            expanded_dict = pulumi.Output.all(
+                source_dict=inlined_dict, env=environment
+            ).apply(
+                lambda args: self.expand_templates(
+                    args["source_dict"], basedir, args["env"]
+                )
+            )
+
+            merged_dict = pulumi.Output.all(
+                yaml1_dict=merged_dict, yaml2_dict=expanded_dict
             ).apply(
                 lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"])
             )
 
-        return merged_yaml
+        return merged_dict
 
-    def template_files(self, yaml_dict, basedir, environment):
-        """additional template translation of contents from butane local references where template =! None
+    def inline_local_files(self, yaml_dict, basedir):
+        """inline all local references
+
+        - for files and trees use source base64 encode if file type = binary, else use inline
+        - storage:trees:[]:local -> files:[]:contents:inline/source
+        - storage:files:[]:contents:local -> []:contents:inline/source
+        - systemd:units:[]:contents_local -> []:contents
+        - systemd:units:[]:dropins:[]:contents_local -> []:contents
+        """
+
+        ydict = copy.deepcopy(yaml_dict)
+
+        if "storage" in ydict and "trees" in ydict["storage"]:
+            if "files" not in ydict["storage"]:
+                ydict["storage"].update({"files": []})
+            for tnr in range(len(ydict["storage"]["trees"])):
+                t = ydict["storage"]["trees"][tnr]
+                for lf in glob.glob(
+                    join_paths(basedir, t["local"], "**"), recursive=True
+                ):
+                    if os.path.isfile(lf):
+                        rf = join_paths(
+                            t["path"] if "path" in t else "/",
+                            os.path.relpath(lf, join_paths(basedir, t["local"])),
+                        )
+                        is_exec = os.stat(lf).st_mode & stat.S_IXUSR
+
+                        ydict["storage"]["files"].append(
+                            {
+                                "path": rf,
+                                "mode": 0o755 if is_exec else 0o664,
+                                "contents": load_contents(lf),
+                            }
+                        )
+            del ydict["storage"]["trees"]
+
+        if "storage" in ydict and "files" in ydict["storage"]:
+            for fnr in range(len(ydict["storage"]["files"])):
+                f = ydict["storage"]["files"][fnr]
+
+                if "contents" in f and "local" in f["contents"]:
+                    fname = f["contents"]["local"]
+                    del ydict["storage"]["files"][fnr]["contents"]["local"]
+                    ydict["storage"]["files"][fnr]["contents"].update(
+                        load_contents(join_paths(basedir, fname))
+                    )
+
+        if "systemd" in ydict and "units" in ydict["systemd"]:
+            for unr in range(len(ydict["systemd"]["units"])):
+                u = ydict["systemd"]["units"][unr]
+
+                if "contents_local" in u:
+                    fname = u["contents_local"]
+                    del ydict["systemd"]["units"][unr]["contents_local"]
+                    ydict["systemd"]["units"][unr].update(
+                        {"contents": load_text(basedir, fname)}
+                    )
+
+                if "dropins" in u:
+                    for dnr in range(len(u["dropins"])):
+                        d = ydict["systemd"]["units"][unr]["dropins"][dnr]
+
+                        if "contents_local" in d:
+                            fname = d["contents_local"]
+                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
+                                "contents_local"
+                            ]
+                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
+                                {"contents": load_text(basedir, fname)}
+                            )
+        return ydict
+
+    def expand_templates(self, yaml_dict, basedir, environment):
+        """template translation of contents from butane local references where template =! None
 
         - storage:files[].contents.template
         - systemd:units[].template
         - systemd:units[].dropins[].template
-
-        - template= "jinja"
-            - template the source through jinja
-
-        - template= "selinux"
-            - compile source selinux text configuration to binary as file:contents.source:data url
-            - available for storage.files only
-
+        - template= "jinja": template the source through jinja
+        - template= "selinux": compile selinux text configuration to binary (only storage.files)
         """
 
         ydict = copy.deepcopy(yaml_dict)
@@ -290,16 +367,9 @@ storage:
                         raise ValueError(
                             "Invalid option, template must be one of: jinja, selinux"
                         )
-                    if "local" in f["contents"]:
-                        fname = f["contents"]["local"]
-                        del ydict["storage"]["files"][fnr]["contents"]["local"]
-                        ydict["storage"]["files"][fnr]["contents"].update(
-                            {"inline": open(join_paths(basedir, fname), "r").read()}
-                        )
-                        f = ydict["storage"]["files"][fnr]
                     if "inline" not in f["contents"]:
                         raise ValueError(
-                            "Invalid option, contents must be one of 'local' or 'inline' if template != None"
+                            "Invalid option, contents must be != None if template != None"
                         )
                     if f["contents"]["template"] == "jinja":
                         data = jinja_run(f["contents"]["inline"], basedir, environment)
@@ -320,13 +390,6 @@ storage:
                 u = ydict["systemd"]["units"][unr]
                 if "template" in u and u["template"] not in ["jinja"]:
                     raise ValueError("Invalid option, template must be one of: jinja")
-                if "contents_local" in u and "template" in u:
-                    fname = u["contents_local"]
-                    del ydict["systemd"]["units"][unr]["contents_local"]
-                    ydict["systemd"]["units"][unr].update(
-                        {"contents": open(join_paths(basedir, fname), "r").read()}
-                    )
-                    u = ydict["systemd"]["units"][unr]
                 if "contents" in u and "template" in u:
                     data = jinja_run(u["contents"], basedir, environment)
                     ydict["systemd"]["units"][unr].update({"contents": data})
@@ -334,95 +397,14 @@ storage:
                 if "dropins" in u:
                     for dnr in range(len(u["dropins"])):
                         d = ydict["systemd"]["units"][unr]["dropins"][dnr]
-                        if "contents_local" in d and "template" in d:
-                            fname = d["contents_local"]
-                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
-                                "contents_local"
-                            ]
-                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
-                                {
-                                    "contents": open(
-                                        join_paths(basedir, fname), "r"
-                                    ).read()
-                                }
+                        if "template" in d and d["template"] not in ["jinja"]:
+                            raise ValueError(
+                                "Invalid option, template must be one of: jinja"
                             )
-                            d = ydict["systemd"]["units"][unr]["dropins"][dnr]
                         if "contents" in d and "template" in d:
                             data = jinja_run(d["contents"], basedir, environment)
                             ydict["systemd"]["units"][unr]["dropins"][dnr].update(
                                 {"contents": data}
-                            )
-        return ydict
-
-    def inline_local_files(self, basedir, yaml_dict):
-        """inline the contents of butane local references
-
-        - storage:trees:[]:local -> files:[]:contents:inline
-        - storage:files:[]:contents:local -> []:contents:inline
-        - systemd:units:[]:contents_local -> []:contents
-        - systemd:units:[]:dropins:[]:contents_local -> []:contents
-
-        """
-
-        def read_include(basedir, *filepaths):
-            return open(join_paths(basedir, *filepaths), "r").read()
-
-        ydict = copy.deepcopy(yaml_dict)
-
-        if "storage" in ydict and "trees" in ydict["storage"]:
-            for tnr in range(len(ydict["storage"]["trees"])):
-                t = ydict["storage"]["trees"][tnr]
-                for lf in glob.glob(
-                    join_paths(basedir, t["local"], "**"), recursive=True
-                ):
-                    if os.path.isfile(lf):
-                        rf = join_paths(
-                            t["path"] if "path" in t else "/",
-                            os.path.relpath(lf, join_paths(basedir, t["local"])),
-                        )
-                        is_exec = os.stat(lf).st_mode & stat.S_IXUSR
-                        ydict["storage"]["files"].append(
-                            {
-                                "path": rf,
-                                "mode": 0o755 if is_exec else 0o664,
-                                "contents": {"inline": read_include(lf)},
-                            }
-                        )
-            del ydict["storage"]["trees"]
-
-        if "storage" in ydict and "files" in ydict["storage"]:
-            for fnr in range(len(ydict["storage"]["files"])):
-                f = ydict["storage"]["files"][fnr]
-
-                if "contents" in f and "local" in f["contents"]:
-                    fname = f["contents"]["local"]
-                    del ydict["storage"]["files"][fnr]["contents"]["local"]
-                    ydict["storage"]["files"][fnr]["contents"].update(
-                        {"inline": read_include(basedir, fname)}
-                    )
-
-        if "systemd" in ydict and "units" in ydict["systemd"]:
-            for unr in range(len(ydict["systemd"]["units"])):
-                u = ydict["systemd"]["units"][unr]
-
-                if "contents_local" in u:
-                    fname = u["contents_local"]
-                    del ydict["systemd"]["units"][unr]["contents_local"]
-                    ydict["systemd"]["units"][unr].update(
-                        {"contents": read_include(basedir, fname)}
-                    )
-
-                if "dropins" in u:
-                    for dnr in range(len(u["dropins"])):
-                        d = ydict["systemd"]["units"][unr]["dropins"][dnr]
-
-                        if "contents_local" in d:
-                            fname = d["contents_local"]
-                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
-                                "contents_local"
-                            ]
-                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
-                                {"contents": read_include(basedir, fname)}
                             )
         return ydict
 
@@ -736,33 +718,3 @@ class TangFingerprint(pulumi.ComponentResource):
 
         self.result = self.fingerprint.stdout
         self.register_outputs({})
-
-
-def compile_selinux_module(content):
-    timeout_seconds = 10
-    chk_process = subprocess.Popen(
-        ["checkmodule", "-M", "-m", "-o", "/dev/stdout", "/dev/stdin"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    chk_output, chk_error = chk_process.communicate(
-        input=content, timeout=timeout_seconds
-    )
-    if chk_process.returncode != 0:
-        raise Exception("checkmodule failed:\n{}".format(chk_error))
-    pkg_process = subprocess.Popen(
-        ["semodule_package", "-o", "/dev/stdout", "-m", "/dev/stdin"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    pkg_output, pkg_error = pkg_process.communicate(
-        input=chk_output, timeout=timeout_seconds
-    )
-    if pkg_process.returncode != 0:
-        raise Exception("semodule_package failed:\n{}".format(pkg_error))
-
-    return pkg_output
