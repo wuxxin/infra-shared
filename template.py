@@ -1,21 +1,32 @@
 #!/usr/bin/env python
 """
-## Jinja Templating
+## Jinja and other Templating
 
 ### Python
 - jinja_run
 - jinja_run_template
 - ToolsExtension(jinja2.ext.Extension)
+
 - join_paths
+- is_text
+- load_text
+- load_contents
+
 - merge_dict_struct
 
+- compile_selinux_module
+
 """
+
+import base64
 import copy
 import glob
 import os
 import re
 import stat
+import subprocess
 
+import chardet
 import jinja2
 import jinja2.ext
 
@@ -24,6 +35,28 @@ def join_paths(basedir, *filepaths):
     "combine filepaths with basedir like os.path.join, but remove leading '/' of each filepath"
     filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
     return os.path.join(basedir if basedir else "/", *filepaths)
+
+
+def is_text(filepath):
+    with open(filepath, "rb") as file:
+        data = file.read(8192)
+    result = chardet.detect(data)
+    return result["confidence"] > 0.5
+
+
+def load_text(basedir, *filepaths):
+    return open(join_paths(basedir, *filepaths), "r").read()
+
+
+def load_contents(filepath):
+    if is_text(filepath):
+        contents = {"inline": open(filepath, "r").read()}
+    else:
+        contents = {
+            "source": "data:;base64,"
+            + base64.b64encode(open(filepath, "rb").read()).decode("utf-8")
+        }
+    return contents
 
 
 def merge_dict_struct(struct1, struct2):
@@ -65,10 +98,10 @@ class ToolsExtension(jinja2.ext.Extension):
     def __init__(self, environment):
         super(ToolsExtension, self).__init__(environment)
         self.environment = environment
-        self.environment.filters["list_files"] = self.list_files
-        self.environment.filters["list_dirs"] = self.list_dirs
-        self.environment.filters["has_executable_bit"] = self.has_executable_bit
-        self.environment.filters["get_filemode"] = self.get_filemode
+        # self.environment.filters["list_files"] = self.list_files
+        # self.environment.filters["list_dirs"] = self.list_dirs
+        # self.environment.filters["has_executable_bit"] = self.has_executable_bit
+        # self.environment.filters["get_filemode"] = self.get_filemode
         self.environment.filters["regex_escape"] = self.regex_escape
         self.environment.filters["regex_search"] = self.regex_search
         self.environment.filters["regex_match"] = self.regex_match
@@ -192,3 +225,33 @@ def jinja_run_template(template_filename, searchpath, environment={}):
     template = env.get_template(template_filename)
     rendered = template.render(environment)
     return rendered
+
+
+def compile_selinux_module(content):
+    timeout_seconds = 10
+    chk_process = subprocess.Popen(
+        ["checkmodule", "-M", "-m", "-o", "/dev/stdout", "/dev/stdin"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    chk_output, chk_error = chk_process.communicate(
+        input=content, timeout=timeout_seconds
+    )
+    if chk_process.returncode != 0:
+        raise Exception("checkmodule failed:\n{}".format(chk_error))
+    pkg_process = subprocess.Popen(
+        ["semodule_package", "-o", "/dev/stdout", "-m", "/dev/stdin"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    pkg_output, pkg_error = pkg_process.communicate(
+        input=chk_output, timeout=timeout_seconds
+    )
+    if pkg_process.returncode != 0:
+        raise Exception("semodule_package failed:\n{}".format(pkg_error))
+
+    return pkg_output
