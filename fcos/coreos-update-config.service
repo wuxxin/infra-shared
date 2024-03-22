@@ -4,13 +4,11 @@ Wants=boot-complete.target
 After=boot-complete.target
 ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
-# Run config update  by
+# Run config update by
 # building saltstack in a fedora container,
 # executing salt-call in this container,
-# mounting /etc, /var, /run from host into container
-# XXX only /etc, /var, /run are available for changes
-# XXX /etc/ hosts, hostname, resolv.conf are container specific versions from podman
-#     to workaround this, /etc is also mounted as /host_etc
+# mounting /etc, /var, /run from host into container, /etc is also mounted as /host_etc
+# butane2salt.jinja remaps files /etc/[hosts,hostname,resolv.conf]# to /host_etc/*
 
 [Service]
 Type=oneshot
@@ -92,8 +90,8 @@ ExecStart=/usr/bin/systemctl daemon-reload
 # enable and disable each service that should be enabled/disabled, by list created from butane2salt.jinja
 ExecStart=/usr/bin/bash -c '\
     for status in enable disable; do \
-        if test -e ${root_dir}/service_${status}.req; then \
-            service_list=$(cat ${root_dir}/service_${status}.req | \
+        if test -e ${root_dir}/service_$status.req; then \
+            service_list=$(cat ${root_dir}/service_$status.req | \
                 grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
             if test "$service_list" != ""; then \
                 echo "systemctl $status $service_list"; \
@@ -113,10 +111,10 @@ ExecStart=/usr/bin/bash -c '\
             torestart=""; \
             templates=""; \
             for i in $changed; do \
-                if test "${i%@" != "${i}"; then \
+                if test "$(echo $i | sed -r "s/([^@]+)@.*/\1/g")" != "$i"; then \
                     templates="$templates $i"; \
                 else \
-                    wantedby=$(systemctl show "${i}.service" --property=WantedBy --value); \
+                    wantedby=$(systemctl show "$i.service" --property=WantedBy --value); \
                     if test "$wantedby" != ""; then \
                         torestart="$torestart $i"; \
                     fi; \
@@ -132,10 +130,7 @@ ExecStart=/usr/bin/bash -c '\
         fi; \
     fi'
 
-# delete main.sls because its containing secrets and as flag that update is done
-# clean other runtime files too, because they also may leak secrets
-
-# ExecStart=rm ${sls_dir}/main.sls
-
+# delete main.sls and var/cache because of secrets and as flag that update is done
+ExecStart=/usr/bin/bash -c 'rm -f ${sls_dir}/main.sls; rm -rf ${root_dir}/var/cache'
 
 # XXX have no [Install] section, because this service is only called from external
