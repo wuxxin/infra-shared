@@ -32,7 +32,7 @@ See the [examples](examples/) for code of what else can be done with it
 Components for
 
 - **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
-    - Setup, Bootstrap and Reconfiguration of CoreOS with **Jinja templated butane** files
+    - **Setup**: Bootstrap and Reconfiguration of CoreOS with **Jinja templated butane** files
     - **Reconfiguration**: `coreos-update-config*`
         - Fast (~4s) reconfiguration based on `butane2salt.jinja` translation
     - **Single Container**: `podman-systemd.unit`
@@ -42,7 +42,7 @@ Components for
     - **nSpawn OS-Container**: `systemd-nspawn`
         - `nspawn*` - run an linux OS (build by mkosi) in a light-weight container
     - **tls/http FrontEnd**: `traefik`
-        - using container and nspawn labels for dynamic configuration
+        - using container, compose and nspawn labels for dynamic configuration
     - **DNS Resolver**: `unbound`
         - using container for local DNSSEC capable recursive DNS-Resolver
 
@@ -87,8 +87,8 @@ make
 
 ```sh
 project_name=example
-base_dir=$(pwd)
-project_dir=${base_dir}/${project_name}
+current_dir=$(pwd)
+project_dir=${current_dir}/${project_name}
 mkdir -p ${project_dir}
 cd ${project_dir}
 git init
