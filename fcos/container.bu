@@ -24,7 +24,7 @@ storage:
     - path: /etc/containers/environment/container-secrets.env
       contents:
         inline: |
-          FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
+          FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/root_bundle.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
 
 {% if CONTAINER_FRONTEND|d(false) %}
     # copy apiproxy and frontend configuration
