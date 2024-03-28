@@ -1,6 +1,8 @@
-## Safe - Fedora-CoreOS on ARM
+# Safe - Fedora-CoreOS on Raspberry Pi Appliance
 
-- Hardware: Raspberry Pi4
+Showcase a self-updating encrypted storage appliance in < 600 lines or < 1500 words code
+
+- Hardware: Raspberry Pi4 (arm64)
 
 - Storage:
     - encrypted storage at rest
@@ -12,20 +14,21 @@
     - a libvirt machine with the corresponding features and volumes,
         but on amd64 instead of arch64, 8gb boot, 2 x 8gb usb sticks
 
-- Single Container
+- Single Container Showcase
     - lan available postgresql with mandatory ssl and optional clientcert auth
         - container/postgesql.[conf|container|volume]
         - Containerfile/postgresql
 
 - Compose Showcase Example
-    - simple go application returning some ascii fishes
+    - simple compose file for building and running a go application returning some ascii fishes
         - compose.bu
         - compose/hello-compose/compose.yml
         - compose/hello-compose/backend/Containerfile
         - compose/hello-compose/backend/main.go
 
 - Nspawn Showcase Example
-    - hello-nspawn
+    - hello-nspawn - debian based virtual machine
+        - serving a static file using nginx returning some ascii fishes
         - nspawn.bu
         - nspawn/hello-nspawn/nspawn.provision.sh
 
