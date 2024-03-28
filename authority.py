@@ -14,7 +14,7 @@
     - ca_dns_names_list,ca_dns_names, ca_provision_name, ca_provision_unit, ca_provision_dns_names_list
     - ca_provision_dns_names, ca_permitted_domains_list, ca_permitted_domains, cert_validity_period_hours
 - ca_factory
-    - ca_type, root_key_pem, root_cert_pem
+    - ca_type, root_key_pem, root_cert_pem, root_bundle_pem
     - provision_key_pem, provision_request_pem, provision_cert_pem
 - ssh_provision_name
 - ssh_factory
@@ -132,6 +132,9 @@ class CACertFactoryVault(pulumi.ComponentResource):
         self.root_key_pem = Output.secret(ca_secrets["ca_root_key_pem"])
         self.root_cert_pem = Output.unsecret(ca_secrets["ca_root_cert_pem"])
         self.root_hash_id = ca_root_hash.stdout
+        self.root_bundle_pem = Output.concat(
+            self.root_cert_pem, "\n", vault_config.get("ca_extra_cert_bundle", "\n")
+        )
         self.provision_key_pem = Output.secret(ca_secrets["ca_provision_key_pem"])
         self.provision_request_pem = Output.unsecret(
             ca_secrets["ca_provision_request_pem"]
@@ -214,6 +217,9 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
         self.root_key_pem = ca_root_key.private_key_pem
         self.root_cert_pem = ca_root_cert.cert_pem
         self.root_hash_id = ca_root_hash.stdout
+        self.root_bundle_pem = Output.concat(
+            self.root_cert_pem, "\n", ca_config.get("ca_extra_cert_bundle", "\n")
+        )
         self.provision_key_pem = ca_provision_key.private_key_pem
         self.provision_request_pem = ca_provision_request.cert_request_pem
         self.provision_cert_pem = ca_provision_cert.cert_pem
@@ -489,6 +495,7 @@ ca_config = {
     "ca_provision_dns_names": ",".join(__prov_dns_list),
     "ca_permitted_domains_list": __ca_permitted_list,
     "ca_permitted_domains": ",".join(__ca_permitted_list),
+    "ca_extra_cert_bundle": config.get_string("ca_extra_cert_bundle", "\n"),
     "cert_validity_period_hours": config.get_int(
         "cert_validity_period_hours", default_hours_private_cert
     ),
@@ -506,9 +513,14 @@ else:
 pulumi.export("ca_factory", ca_factory)
 
 # write out public part of ca cert for usage as file
-exported_ca_factory = public_local_export(
+exported_ca_cert = public_local_export(
     "ca_factory", "ca_cert.pem", ca_factory.root_cert_pem
 )
+# write out public bundle of ca certs for usage as file
+exported_ca_bundle = public_local_export(
+    "ca_factory", "ca_bundle.pem", ca_factory.root_bundle_pem
+)
+
 
 # provision host cert for use in servce_once.py
 provision_host_names = [
