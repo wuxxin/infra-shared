@@ -1,1 +1,0 @@
-../../../../examples/safe/README.md
