@@ -21,7 +21,7 @@ PodmanArgs=--security-opt label=disable
 Volume=/run/podman/podman.sock:/run/podman/podman.sock
 Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
-# publish filtered api: [hostip:]hostPort:containerPort
+# publish filtered api to [hostip:]hostPort:containerPort
 {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:2375:2375
 
