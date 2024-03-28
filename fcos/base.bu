@@ -43,19 +43,18 @@ storage:
           method=manual
           address={{ INTERNAL_CIDR }}
 
-
     # set keyboard layout
     - path: /etc/vconsole.conf
       mode: 0644
       contents:
-        inline: KEYMAP={{ LOCALE["KEYMAP"] }}
+        inline: |
+          KEYMAP={{ LOCALE["KEYMAP"] }}
 
     # environment for RPM_OSTREE_INSTALL packages
     - path: /etc/local/environment/rpm-ostree-install.env
       contents:
         inline: |
           RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
-
 
     # our /etc/hosts entries
     - path: /etc/hosts
