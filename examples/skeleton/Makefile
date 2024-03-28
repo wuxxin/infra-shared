@@ -173,22 +173,37 @@ endif
 
 
 .PHONY: docs
-docs: build-env ## Build mkdocs documentation
+docs: build-env ## Build docs for local usage and open in browser
 	@echo "+ $@"
-	@pipenv run mkdocs build -f mkdocs.yml
-	@echo "finished. browse documentation at state/site/index.html"
-	@$(BROWSER) state/site/index.html
+	@mkdir -p state/docs
+	@pipenv run mkdocs build --no-directory-urls -d state/docs -f mkdocs.yml
+	@echo "finished. browse documentation at state/docs/index.html"
+	@$(BROWSER) state/docs/index.html
+
+.PHONY: docs-online-build
+docs-online-build: build-env ## Build docs for http serve
+	@echo "+ $@"
+	@mkdir -p state/docs/online
+	@pipenv run mkdocs build -d state/docs/online -f mkdocs.yml
 
 .PHONY: docs-serve
 docs-serve: build-env ## Rebuild and serve docs with autoreload
 	@echo "+ $@"
 	@pipenv run mkdocs serve -f mkdocs.yml
 
-.PHONY: docs-clean
-docs-clean: ## Remove local docs
+.PHONY: docs-infra
+docs-infra: build-env ## Build infra/docs for local usage and open in browser
 	@echo "+ $@"
-	@rm -rf state/site
-	@mkdir state/site
+	@mkdir -p state/docs/infra
+	@pipenv run mkdocs build --no-directory-urls -d ../state/docs/infra -f infra/mkdocs.yml
+	@echo "finished. browse documentation at state/docs/infra/index.html"
+	@$(BROWSER) state/docs/infra/fcos.html
+
+.PHONY: docs-clean
+docs-clean: ## Remove all generated docs
+	@echo "+ $@"
+	@rm -rf state/docs
+	@mkdir -p state/docs
 
 
 .PHONY: clean-all
