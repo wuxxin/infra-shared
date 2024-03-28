@@ -29,7 +29,6 @@ See the [examples](examples/) for code of what else can be done with it
 
 ### Features
 
-
 - **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
     - **Setup**: Bootstrap and Reconfiguration of CoreOS with **Jinja templated butane** files
     - **Reconfiguration**: `coreos-update-config*`
@@ -52,8 +51,17 @@ See the [examples](examples/) for code of what else can be done with it
     - **Raspberry Extras** - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
     - **Openwrt Linux** - Network Device Distribution for Router and other network devices
 
-#### Technologies used
+### Technologies
 
+**Need to know** technologies (to write Deployment and Docs):
+- Basic Knowledge of `Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown`
+
+**Advanced functionality** available with knowledge of:
+- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Jupyter Notebooks
+
+Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
+
+#### Tools used
 - `pulumi` - imperativ infrastructure delaration using python
 - `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
 - `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
@@ -68,14 +76,6 @@ See the [examples](examples/) for code of what else can be done with it
 - `mkosi` - build nspawn OS container images
 - `age` - ssh keys based encryption of production files and pulumi master password
 - `pipenv` - virtualenv management using Pipfile and Pipfile.lock
-
-**Need to know** technologies (to write Deployment and Docs):
-- Basic Knowledge of `Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown`
-
-**Advanced functionality** available with knowledge of:
-- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Jupyter Notebooks
-
-Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
 
 ### Usage
 
