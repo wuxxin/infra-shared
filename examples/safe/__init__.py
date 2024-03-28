@@ -30,7 +30,7 @@ from infra.authority import (
     ca_config,
     create_client_cert,
     create_host_cert,
-    exported_ca_factory,
+    exported_ca_cert,
     ssh_factory,
 )
 from infra.fcos import (
@@ -172,7 +172,7 @@ pg_server = postgresql.Provider(
     username="postgres",
     password=pg_postgres_password.result,
     superuser=True,
-    sslrootcert=exported_ca_factory.filename,
+    sslrootcert=exported_ca_cert.filename,
     sslmode="require",
     opts=pulumi.ResourceOptions(depends_on=[host_machine, host_update]),
 )
