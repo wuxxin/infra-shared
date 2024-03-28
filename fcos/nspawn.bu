@@ -85,3 +85,4 @@ systemd:
             ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
               printf "" > /etc/local/frontend/%i.yml; \
               podman cp /etc/local/frontend/%i.yml "systemd-frontend:/traefik/%i.yml"'
+
