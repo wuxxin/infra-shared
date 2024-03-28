@@ -92,9 +92,12 @@ storage:
     #       kernel.printk=4
 
   links:
-    # symlink root_ca,server.crt,server.key as systemd credentials
+    # symlink root_ca,root_bundle,server.crt,server.key as systemd credentials
     - path: /etc/credstore/root_ca.crt
       target: /etc/ssl/certs/root_ca.crt
+
+    - path: /etc/credstore/root_bundle.crt
+      target: /etc/ssl/certs/roo_bundle.crt
 
     - path: /etc/credstore/server.crt
       target: /etc/ssl/certs/server.crt
