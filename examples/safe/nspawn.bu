@@ -4,11 +4,11 @@ systemd:
     - name: systemd-nspawn@hello-nspawn.service
       enabled: true
       dropins:
-        # load ca cert as credential into machine as showcase
+        # load ca cert bundle as credential into machine as showcase
         - name: loadcreds.conf
           contents: |
             [Service]
-            LoadCredential=root_ca.crt
+            LoadCredential=root_bundle.crt
 
 storage:
   files:

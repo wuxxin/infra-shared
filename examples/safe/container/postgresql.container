@@ -11,6 +11,7 @@ PodmanArgs=--shm-size=256MB
 
 # container wants gid 999 as group for secrets access
 Secret=root_ca.crt,mode=0640,gid=999
+Secret=root_bundle.crt,mode=0640,gid=999
 Secret=server.crt,mode=0640,gid=999
 Secret=server.key,mode=0640,gid=999
 
