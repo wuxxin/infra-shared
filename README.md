@@ -29,7 +29,6 @@ See the [examples](examples/) for code of what else can be done with it
 
 ### Features
 
-Components for
 
 - **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
     - **Setup**: Bootstrap and Reconfiguration of CoreOS with **Jinja templated butane** files
@@ -45,9 +44,15 @@ Components for
         - using container, compose and nspawn labels for dynamic configuration
     - **DNS Resolver**: `unbound`
         - using container for local DNSSEC capable recursive DNS-Resolver
+- **TLS Certificate-Authority**, TLS Certificates and **SSH**-Certificates
+- **SSH** copy/deploy/execute functions, local and remote **Salt-Call**
+- **serve** configuration **HTTPS** payloads, request a port forwarding
+- **write** image to **removable storage** specified by serial_number
+- build Embedded-OS Images and IOT Images
+    - **Raspberry Extras** - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
+    - **Openwrt Linux** - Network Device Distribution for Router and other network devices
 
-
-#### Technologies
+#### Technologies used
 
 - `pulumi` - imperativ infrastructure delaration using python
 - `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
@@ -151,6 +156,8 @@ provision-client
 
 ```sh
 make docs
+# build infra-shared documentation
+make docs-infra
 ```
 
 #### Create/build/install simulation target
