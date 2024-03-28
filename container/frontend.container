@@ -11,6 +11,7 @@ Image=localhost/%N:latest
 PodmanArgs=--sysctl=net.ipv4.ip_unprivileged_port_start=0
 
 # configure access to tls, frontend can present itself with server.*
+Secret=root_bundle.crt,mode=0640
 Secret=root_ca.crt,mode=0640
 Secret=server.crt,mode=0640
 Secret=server.key,mode=0640
