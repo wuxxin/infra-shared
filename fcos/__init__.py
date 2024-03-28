@@ -10,8 +10,6 @@
 - TangFingerprint
 - RemoteDownloadIgnitionConfig
 
-
-
 """
 
 import base64
@@ -27,7 +25,7 @@ import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 import yaml
 
-from ..tools import log_warn
+# from ..tools import log_warn
 from ..template import (
     jinja_run,
     jinja_run_template,
@@ -41,30 +39,11 @@ from ..template import (
 this_dir = os.path.dirname(os.path.abspath(__file__))
 subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
 
-# default template environment, if nothing else is defined
-DEFAULT_ENV_STR = """
-DEBUG: false
-UPDATE_SERVICE_STATUS: true
-CONTAINER_FRONTEND: true
-DNS_RESOLVER: true
-INTERNAL_CIDR: 10.87.250.1/24
-PODMAN_CIDR: 10.88.0.0/16
-RPM_OSTREE_INSTALL:
-  - docker-compose
-  - podman-compose
-  - systemd-networkd
-LOCALE:
-  LANG: en_US.UTF-8
-  KEYMAP: us
-  TIMEZONE: UTC
-  COUNTRY_CODE: UN
-"""
-
 
 class ButaneTranspiler(pulumi.ComponentResource):
     """translate jinja templated butane files to ignition and a subset to saltstack salt format
 
-    - see DEFAULT_ENV_STR for environment defaults available in jinja
+    - see `base_env.yml` for environment defaults available in jinja
     - returns
         - butane_config (merged butane yaml)
         - saltstack_config (butane translated to inlined saltstack yaml with customizations
@@ -88,7 +67,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         )
 
         # jinja environment to be used
-        default_env = yaml.safe_load(DEFAULT_ENV_STR)
+        default_env = yaml.safe_load(open(os.path.join(this_dir, "base_env.yml"), "r"))
         this_env = merge_dict_struct(
             default_env, {} if environment is None else environment
         )
