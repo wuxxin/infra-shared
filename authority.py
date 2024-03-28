@@ -495,7 +495,7 @@ ca_config = {
     "ca_provision_dns_names": ",".join(__prov_dns_list),
     "ca_permitted_domains_list": __ca_permitted_list,
     "ca_permitted_domains": ",".join(__ca_permitted_list),
-    "ca_extra_cert_bundle": config.get_string("ca_extra_cert_bundle", "\n"),
+    "ca_extra_cert_bundle": config.get("ca_extra_cert_bundle", "\n"),
     "cert_validity_period_hours": config.get_int(
         "cert_validity_period_hours", default_hours_private_cert
     ),
