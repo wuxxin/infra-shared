@@ -90,9 +90,9 @@ passwd:
 security:
   tls:
     certificate_authorities:
-      - inline: |    
+      - inline: |
 """,
-            ca_factory.root_cert_pem.apply(
+            ca_factory.root_bundle_pem.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
@@ -104,11 +104,21 @@ storage:
         inline: """,
             hostname,
             """
+    - path: /etc/ssl/certs/root_bundle.crt
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+""",
+            ca_factory.root_bundle_pem.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """          
     - path: /etc/ssl/certs/root_ca.crt
       filesystem: root
       mode: 0644
       contents:
-        inline: |        
+        inline: |
 """,
             ca_factory.root_cert_pem.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
@@ -482,7 +492,7 @@ ignition:
       certificate_authorities:
         - inline: |        
 """,
-            ca_factory.root_cert_pem.apply(
+            ca_factory.root_bundle_pem.apply(
                 lambda x: "\n".join(["            " + line for line in x.splitlines()])
             ),
             """
