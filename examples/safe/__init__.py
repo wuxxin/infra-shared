@@ -3,7 +3,7 @@
 
 ### config
 - safe_dns_names
-- identifiers[shortname]["storage"]
+- identifiers["safe"]["storage"]
 - tang_url
 
 ### host
@@ -131,7 +131,8 @@ host_environment.update(
     }
 )
 
-# write the butane target specification, everything else is included from files_basedir/*.bu
+# write the butane target specification
+# everything else is included from files_basedir/*.bu
 butane_yaml = pulumi.Output.format(
     """
 variant: fcos
