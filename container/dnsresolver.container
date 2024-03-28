@@ -7,12 +7,17 @@ After=container-build@%N.service
 Image=localhost/%N:latest
 # EnvironmentFile=/etc/containers/environment/%N.env
 
-Volume=dnsresolver.volume:/opt/unbound/var/lib/unbound
-Volume=/etc/containers/systemd/%N.conf:/opt/unbound/etc/unbound/unbound.conf:ro
-Volume=/etc/containers/systemd/%N_ext.conf:/opt/unbound/etc/unbound/unbound_ext.conf:ro
-Volume=/etc/containers/systemd/%N_srv.conf:/opt/unbound/etc/unbound/unbound_srv.conf:ro
+Secret=root_ca.crt,mode=0640
+# Also make server key available so DoT is possible
+Secret=server.crt,mode=0640
+Secret=server.key,mode=0640
 
-# publish filtered api: [hostip:]hostPort:containerPort
+Volume=dnsresolver.volume:/var/lib/unbound
+Volume=/etc/containers/systemd/%N.conf:/etc/unbound/unbound.conf:ro
+Volume=/etc/containers/systemd/%N_ext.conf:/etc/unbound/unbound_ext.conf:ro
+Volume=/etc/containers/systemd/%N_srv.conf:/etc/unbound/unbound_srv.conf:ro
+
+# publish dns to self.internal:53/tcp,udp:853/tcp
 {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:53:53/tcp
 PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:53:53/udp
