@@ -104,7 +104,7 @@ state/tmp
 state/salt
 
 # mkdocs generated documentation files
-state/site
+state/docs
 
 # pulumi state for stacks "*sim"
 state/pulumi/.pulumi/backups/*sim
@@ -132,13 +132,6 @@ EOF
 
 create_ifnotexist mkdocs.yml <<EOF
 site_name: ${project_name} Infrastructure
-site_dir: state/site
-
-## configure for local file:// scheme, overwrite for online usage
-# site_url: local browser usage
-site_url: ""
-# use_directory_urls: local browser usage
-use_directory_urls: false
 
 theme:
   name: material
