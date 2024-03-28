@@ -20,5 +20,5 @@ nav:
   - dnsresolver.md
   - tools.md
   - architecture.md
-  - src/examples/README.md
-  - src/examples/safe/README.md
+  - Examples:
+    - examples/safe/README.md
