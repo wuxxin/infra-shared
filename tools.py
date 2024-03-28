@@ -532,7 +532,9 @@ class DataExport(pulumi.ComponentResource):
     def __init__(
         self, prefix, filename, data, key=None, filter="", delete=False, opts=None
     ):
-        super().__init__("pkg:index:DataExport", prefix, None, opts)
+        super().__init__(
+            "pkg:index:DataExport", "_".join([prefix, filename]), None, opts
+        )
 
         stack_name = pulumi.get_stack()
         filter += " | " if filter else ""
