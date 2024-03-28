@@ -1,6 +1,6 @@
 FROM docker.io/library/haproxy:2.9.6-alpine
 # based on https://github.com/Tecnativa/docker-socket-proxy
-# default is to only allow readonly access (API_POST=0)
+# default access is readonly (API_POST=0)
 # default accessable API's are API_events, API_ping and API_version
 
 USER root
@@ -45,5 +45,9 @@ EXPOSE 2375
 
 USER root
 
-# run as root, chown the inside podman socket to haproxy user, droppriv, start haproxy with config
-CMD /bin/sh -c "chown haproxy /run/podman/podman.sock && cd /var/lib/haproxy && setpriv --reuid=99 --regid=99 --nnp --init-groups env HOME=/var/lib/haproxy haproxy -f /usr/local/etc/haproxy/haproxy.cfg -W -db"
+# run as root, chown the inside podman socket to haproxy user,
+#   droppriv to id:99:99, start haproxy with config
+CMD /bin/sh -c "chown haproxy /run/podman/podman.sock && \
+    cd /var/lib/haproxy && setpriv --reuid=99 --regid=99 --nnp --init-groups \
+    env HOME=/var/lib/haproxy haproxy -f /usr/local/etc/haproxy/haproxy.cfg -W -db"
+
