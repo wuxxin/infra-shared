@@ -3,8 +3,9 @@
 ### Environment
 
 environment defaults available in jinja:
+
 - see [fcos/base_env.yml](fcos/base_env.yml) for defaults
-- see [dnsresolver](dnsresolver.md) for DNS_ related optional variables
+- see [DNS-Resolver](dnsresolver.md) for DNS_ related optional variables
 
 
 ### Jinja Templating
