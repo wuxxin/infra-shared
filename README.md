@@ -3,7 +3,7 @@
 
 Reusables of a learning project by rewriting parts of my home infrastructure as
 
-a **pulumi** and **core-os** based **gitops** project in **python**.
+a **Pulumi** and **Fedora Coreos** based **Gitops** Project in **Python**.
 
 - See [safe](examples/safe) for usage in an example project
 - Inspired and impressed by [deuill/coreos-home-server](https://github.com/deuill/coreos-home-server)
