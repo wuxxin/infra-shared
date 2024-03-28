@@ -27,8 +27,8 @@ storage:
           FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
 
 {% if CONTAINER_FRONTEND|d(false) %}
-    # copy api-proxy and frontend configuration
-  {% for f in ["api-proxy.container", "api-proxy.cfg",
+    # copy apiproxy and frontend configuration
+  {% for f in ["apiproxy.container", "apiproxy.cfg",
       "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
@@ -50,14 +50,10 @@ storage:
 
   trees:
     # unconditional copy containerfiles
-    - path: /etc/containers/build/api-proxy
-      local: Containerfile/api-proxy
-
-    - path: /etc/containers/build/frontend
-      local: Containerfile/frontend
-
-    - path: /etc/containers/build/dnsresolver
-      local: Containerfile/dnsresolver
+{% for f in ["apiproxy", "frontend", "dnsresolver"] %}
+    - path: /etc/containers/build/{{ f }}
+      local: Containerfile/{{ f }}
+{% endfor %}
 
 systemd:
   units:
