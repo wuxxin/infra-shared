@@ -8,6 +8,7 @@ Image=localhost/%N:latest
 # EnvironmentFile=/etc/containers/environment/%N.env
 
 Secret=root_ca.crt,mode=0640
+Secret=root_bundle.crt,mode=0640
 # Also make server key available so DoT is possible
 Secret=server.crt,mode=0640
 Secret=server.key,mode=0640
