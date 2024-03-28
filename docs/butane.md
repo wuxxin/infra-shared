@@ -3,8 +3,8 @@
 ### Environment
 
 environment defaults available in jinja:
-- see [fcos/base_env.yml](../fcos/base_env.yml) for defaults
-- see [dnsresolver.md](dnsresolver.md) for DNS_ related optional variables
+- see [fcos/base_env.yml](src/fcos/base_env.yml) for defaults
+- see [dnsresolver](dnsresolver.md) for DNS_ related optional variables
 
 
 ### Jinja Templating
@@ -31,10 +31,12 @@ the butane configuration is created from
 - security_dict= jinja template butane_security_keys, basedir=basedir
 - fcos_dict    = jinja template *.bu yaml files from fcosdir
 - target_dict  = jinja template *.bu yaml files from basedir
-- merged_dict= fcos_dict+ target_dict+ security_dict+ base_dict
+
+#### Merge Order
+- merged_dict  = fcos_dict+ target_dict+ security_dict+ base_dict
     - order is earlier gets overwritten by later
 
-for each *.bu in fcosdir, basedir:
+#### for each *.bu in fcosdir, basedir:
 
 - from basedir/*.bu recursive read and execute jinja with environment available
 - parse result as yaml
@@ -68,9 +70,9 @@ the saltstack spec file is created from a subset of the final butane yaml
         - {UPDATE_DIR}/service_changed.req for services with changed configuration
         - {UPDATE_DIR}/service_enable.req for services to be enabled
         - {UPDATE_DIR}/service_disable.req for services to be disabled
-    - `podman-systemd`, `compose.yml` and `nspawn` container:
-        share the same namespace for service change recognition
-        and should therefore not share the same name
-    - podman-systemd container config support files (beside .container and .volume),
-        should also start with the servicename as part of the filename, to be recognized
     - see `coreos-update-config.service` for detailed usage of service_*.req
+- `podman-systemd`, `compose.yml` and `nspawn` container:
+    share the same namespace for service change recognition
+    and should therefore not share the same name
+    - podman-systemd container config support files (beside .container and .volume),
+    should also start with the servicename as part of the filename, to be recognized

@@ -1,7 +1,7 @@
 ## DNS-Resolver
 
-DNS Resolving is done using Unbound
-- available under `dns.internal` on udp/53, tcp/53, DoT:tcp/853
+DNS Resolving is done using `Unbound`
+- available under `dns.internal` on udp/53, tcp/53 and DoT:tcp/853
 - the default upstream is split round robin DoT (DNS over TLS) over
     - 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
 
@@ -60,7 +60,7 @@ DNS_SRV: |
   access-control: 192.168.2.0/24 allow
 
   # override public dns entry
-  local-data: 'checkonline.home-assistant.io. 300 IN A 10.9.8.1'
+  local-data: 'checkonline.home-assistant.io. 300 IN A 1.2.3.4'
 
 ```
 
