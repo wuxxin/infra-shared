@@ -7,7 +7,7 @@
 
 - Jinja templating of butane yaml content with environment vars replacement and some default vars
 - Configuration and Initial Boot
-    - authorized_keys, tls cert, key, ca_cert, loads container secrets
+    - authorized_keys, loads container secrets: tls cert, key, ca_cert, ca_bundle
     - install extensions using rpm-ostree-install or var-local-install
 - Reconfiguration / Update Configuration using translated butane to saltstack execution
 - Default Services

@@ -1,6 +1,5 @@
-## Architecture
-
-### Objectives
+# Architecture
+## Objectives
 
 - **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest
     - use **ssh keys** as root of trust for pulumi **stack secret** using **age**

@@ -9,7 +9,7 @@ DNS Resolving is done using `Unbound`
 
 ```yaml
 DNS_RESOLVER: true      # true/false
-DNS_VERBOSITY: "1"      # Integer String: "1-5"
+DNS_VERBOSITY: "1"      # Integer String: "0-5"
 DNS_UPSTREAM_TLS: true  # true/false
 DNS_UPSTREAM:           # list, defaults: None
 # if not defined upstream is taken from dnsresolver_ext.conf
