@@ -1,8 +1,0 @@
-FROM docker.io/library/fedora:39
-
-# mkosi and tools to build fedora,debian,opensuse,archlinux,ubuntu distributions
-
-RUN dnf -y install mkosi acl dnf5 apt pacman zypper archlinux-keyring debian-keyring ubu-keyring && \
-    rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*
-
-CMD lsb_release -a

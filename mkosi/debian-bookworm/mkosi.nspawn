@@ -1,9 +1,0 @@
-[Exec]
-Boot=on
-LinkJournal=try-guest
-
-[Files]
-
-[Network]
-Private=on
-VirtualEthernet=on
