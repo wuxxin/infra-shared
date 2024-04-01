@@ -25,7 +25,7 @@ import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 import yaml
 
-# from ..tools import log_warn
+from ..tools import log_warn
 from ..template import (
     jinja_run,
     jinja_run_template,
@@ -207,7 +207,7 @@ storage:
             *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
 
-        # self.saltstack_config.apply(log_warn)
+        # self.butane_config.apply(log_warn)
 
         # translate merged butane yaml to ignition json config
         # XXX v0.19.0 Add -c/--check option to check config without producing output
