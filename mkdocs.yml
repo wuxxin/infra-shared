@@ -17,8 +17,10 @@ markdown_extensions:
 nav:
   - fcos.md
   - butane.md
-  - dnsresolver.md
-  - tools.md
-  - architecture.md
+  - Services:
+    - dnsresolver.md
   - Examples:
     - examples/safe/README.md
+    - tools.md
+  - architecture.md
+
