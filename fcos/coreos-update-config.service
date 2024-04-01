@@ -1,7 +1,7 @@
 [Unit]
 Description=Update Coreos Configuration by applying (transpiled butane) saltstack config
-Wants=boot-complete.target
 After=boot-complete.target
+Wants=boot-complete.target
 ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
 # Run config update by

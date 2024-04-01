@@ -1,7 +1,7 @@
 [Unit]
 Description=Run compose up for %I
-Wants=podman.service compose-build@%i.service
 After=podman.service compose-build@%i.service
+Wants=podman.service compose-build@%i.service
 ConditionPathExists=/etc/compose/build/%i/compose.yml
 
 [Service]
