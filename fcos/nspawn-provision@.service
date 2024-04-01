@@ -14,42 +14,65 @@ EnvironmentFile=/etc/nspawn/environment/%i.env
 # Environment NSPAWN_OSNAME must be set
 # Environment NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
 
-# firstboot defaults, picked up by systemd.firstboot can be overwritten via drop.in
+# firstboot defaults, to prevent interactive prompting, picked up by systemd
+# firstboot can be overwritten via drop.in
 SetCredential=firstboot.locale:en_US.UTF-8
 SetCredential=firstboot.keymap:us
 SetCredential=firstboot.timezone:UTC
 
-# nspawn.provision.sh and additional files from build/%i will be copied to /tmp of machine
-ExecStart=/usr/bin/bash -c 'set -eo pipefail; set -x; \
-    if test ! -d "/var/lib/machines/%i"; then \
-      if test ! -d "/var/lib/mkosi/$NSPAWN_OSNAME"; then \
-        systemctl start --wait nspawn-mkosi@$NSPAWN_OSNAME; \
-        if test ! -d "/var/lib/mkosi/$NSPAWN_OSNAME"; then \
-          echo "Error: base image dependency $NSPAWN_OSNAME not found"; \
-          exit 1; \
-        fi; \
-      fi; \
-      echo "Import machine %i from $NSPAWN_OSNAME"; \
-      cp -a /var/lib/mkosi/$NSPAWN_OSNAME/image/ /var/lib/machines/%i; \
-      printf "Provision machine %i"; \
-      systemd-nspawn --boot --link-journal=try-guest --network-veth --network-zone=nspawn \
-          -U --settings=override --machine=%i; \
-      while ! machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
-      while ! machinectl show %i | grep -q State=running; do echo -n "+"; sleep 1; done; \
-      sleep 1; echo " is running"; \
-      echo "copy additional files to /tmp of machine"; \
-      for f in /etc/nspawn/build/%i/*; do machinectl copy-to %i "$f" /tmp/; done; \
-      echo "execute nspawn.provision.sh script in machine with stdin pipe"; \
-      echo "${NSPAWN_PROVISION}" | machinectl shell %i /bin/sh -c \
-          "/bin/chmod +x /tmp/nspawn.provision.sh; /tmp/nspawn.provision.sh --yes"; \
-      printf "provision done, power off machine %i "; \
-      machinectl poweroff %i; \
-      while machinectl list -a --no-legend | grep -q ^%i; do echo -n "."; sleep 1; done; \
-      echo " is stopped"; \
-      touch /etc/local/flags/provision-%i.stamp; \
-    else \
-      echo "Machine %i already provisioned, skipping provision"; \
-    fi'
+ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
+if test ! -d "/var/lib/machines/%i"; then \
+  if ! podman image exists "localhost/$NSPAWN_OSNAME:latest"; then \
+    systemctl start --wait "container-build@$NSPAWN_OSNAME"; \
+    if ! podman image exists "localhost/$NSPAWN_OSNAME:latest"; then \
+      echo "Error: image $NSPAWN_OSNAME not found"; \
+      exit 1; \
+    fi; \
+  fi; \
+  tmpdir=$(mktemp -d) || { echo "error: mktemp failed" >&2; exit 1; }; \
+  echo "Export $NSPAWN_OSNAME for machine %i"; \
+  podman save --compress --format docker-dir "localhost/$NSPAWN_OSNAME:latest" -o $tmpdir; \
+  cd $tmpdir; mkdir -p $tmpdir/merged_fs; \
+  for layerid in $(jq -r ".layers[].digest" manifest.json); do \
+    layername="$(printf "$layerid" | sed -r "s/sha256:(.+)/\\1/g")"; \
+    if test "$(printf "$layername" | tr -d " ")" != ""; then \
+      echo "merge layer $layername"; \
+      tar -xzf "$layername" -C merged_fs; \
+    fi; \
+  done; \
+  echo "import tree into %i"; \
+  cp -ar "$tmpdir/merged_fs" "/var/lib/machines/%i"; \
+  rm -rf "$tmpdir"; \
+  touch "/var/lib/machines/%i/.NEED.PROVISION";
+fi \
+'
+
+ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
+if test -e "/var/lib/machines/%i/.NEED.PROVISION"; then \
+  rm "/var/lib/machines/%i/.NEED.PROVISION"; \
+  printf "Provision %i"; \
+  machinectl start "%i"; \
+  while ! machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
+  while ! machinectl show "%i" | grep -q State=running; do echo -n "+"; sleep 1; done; \
+  sleep 1; echo " is running"; \
+  for f in /etc/nspawn/build/%i/*; do machinectl copy-to "%i" "$f" /tmp/; done; \
+  echo "${NSPAWN_PROVISION}" | machinectl shell "%i" /bin/sh -c \
+      "/bin/chmod +x /tmp/nspawn.provision.sh; /tmp/nspawn.provision.sh --provision"; \
+  printf "power off %i "; \
+  machinectl poweroff "%i"; \
+  while machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
+  echo " stopped"; \
+  touch "/etc/local/flags/provision-%i.stamp"; \
+else \
+  if test ! -d "/var/lib/machines/%i"; then \
+    echo "import of image $NSPAWN_OSNAME failed for machine %i"; \
+    exit 1; \
+  else \
+    echo "%i skipped already run"; \
+  fi; \
+fi \
+'
+
 
 [Install]
 WantedBy=multi-user.target
