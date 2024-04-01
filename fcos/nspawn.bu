@@ -33,8 +33,7 @@ systemd:
             # add network-zone to default parameter
             [Service]
             ExecStart=
-            ExecStart=systemd-nspawn --quiet --keep-unit --boot --register=yes --link-journal=try-guest \
-              --network-veth --network-zone=nspawn -U --settings=override --machine=%i
+            ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-zone=nspawn -U --settings=override --machine=%i
 
         # add provision dependency
         - name: provision.conf
