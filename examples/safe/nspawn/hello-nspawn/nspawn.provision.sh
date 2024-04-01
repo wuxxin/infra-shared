@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-if test "$1" != "--yes"; then
-    echo "Error, missing arg '--yes'"
+if test "$1" != "--provision"; then
+    cat << EOF
+Usage: $0 --provision
+
+Provision bootstrap script. Expects an dpkg system.
+DONT execute on an already configured system, it
+WILL WIPE IMPORTANT FILES like /etc/ssh/ssh_host*.
+
+EOF
     exit 1
 fi
 shift
@@ -9,6 +16,8 @@ shift
 stdin=$(cat -)
 codename=$(lsb_release -c -s)
 distribution="$(lsb_release -i -s)"
+
+echo "Provision running on distribution: $distribution , codename: $codename"
 
 # delete and create a new set of openssh-server host keys
 rm /etc/ssh/ssh_host*

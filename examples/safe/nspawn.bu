@@ -1,37 +1,58 @@
 systemd:
   units:
-    # enable nspawn hello-nspawn service
+    # enable hello-nspawn service
     - name: systemd-nspawn@hello-nspawn.service
       enabled: true
       dropins:
-        # load ca cert bundle as credential into machine as showcase
         - name: loadcreds.conf
           contents: |
             [Service]
+            # load ca cert bundle as credential into systemd-nspawn
             LoadCredential=root_bundle.crt
 
+    # make provision depend on container-build@debian-bookworm
+    - name: nspawn-provision@hello-nspawn.service
+      enabled: true
+      dropins:
+        - name: require.conf
+          contents: |
+            [Unit]
+            Wants=container-build@debian-bookworm.service
+            After=container-build@debian-bookworm.service
+
 storage:
+  directories:
+    - path: /var/lib/volumes/hello-nspawn.data
+
   files:
-    # nspawn machine execution settings
+    # machine .nspawn configuration settings
     - path: /etc/systemd/nspawn/hello-nspawn.nspawn
       contents:
         inline: |
           [Exec]
+          # set custom env
           Environment=TEST=true
+          # load ca cert bundle as credential from systemd-nspawn into nspawn machine
+          LoadCredential=root_bundle.crt
+          Environment=root_bundle_path=%d/root_bundle.crt
 
-    # nspawn machine provision script
+          [Files]
+          # Example Volume
+          Bind=/var/lib/volumes/hello-nspawn.data:/var/lib/data
+
+    # machine provision script
     - path: /etc/nspawn/build/hello-nspawn/nspawn.provision.sh
       mode: 0755
       contents:
         local: nspawn/hello-nspawn/nspawn.provision.sh
 
-    # nspawn provision environment
+    # provision environment
     - path: /etc/nspawn/environment/hello-nspawn.env
       mode: 0600
       contents:
         inline: |
-          # NSPAWN_OSNAME, NSPAWN_PROVISION are used by nspawn-provision@.service
-          # NSPAWN_TRAEFIK is used by systemd-nspawn@.d/traefik.conf
+          # used by nspawn-provision@.service: NSPAWN_OSNAME, NSPAWN_PROVISION
+          # used by systemd-nspawn@.d/traefik.conf: NSPAWN_TRAEFIK
           # NSPAWN_PROVISION is pasted as STDIN to nspawn.provision.sh
           # ##NSPAWN_IPADDR## is replaced inside NSPAWN_TRAEFIK with the current machine ip
           NSPAWN_OSNAME=debian-bookworm
