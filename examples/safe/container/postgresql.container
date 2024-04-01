@@ -17,7 +17,8 @@ Secret=server.key,mode=0640,gid=999
 
 Exec=docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf
 HealthCmd=/usr/bin/bash -c \
-    "pg_isready -h /var/run/postgresql && psql -h /var/run/postgresql -d template0 -c \"SELECT 1\" >/dev/null 2>&1"
+    "pg_isready -h /var/run/postgresql && \
+    su postgres env USER=postgres psql -h /var/run/postgresql -d template0 -c \"SELECT 1\" >/dev/null 2>&1"
 
 Volume=postgresql.volume:/var/lib/postgresql/data
 Volume=/etc/containers/systemd/postgresql.conf:/etc/postgresql/postgresql.conf:ro
