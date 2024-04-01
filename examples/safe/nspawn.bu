@@ -32,8 +32,6 @@ storage:
           [Exec]
           # set custom env
           Environment=TEST=true
-          # load ca cert bundle as credential from systemd-nspawn into nspawn machine
-          LoadCredential=root_bundle.crt
           Environment=root_bundle_path=%d/root_bundle.crt
 
           [Files]
