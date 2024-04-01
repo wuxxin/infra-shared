@@ -1,20 +1,35 @@
-# Butane Transpiler default environment
-DEBUG: false                  # true/false
-UPDATE_SERVICE_STATUS: true   # true/false
-CONTAINER_FRONTEND: true      # true/false
-# FRONTEND_DASHBOARD: None, set to string of full hostname
-#   eg. `traefik.host.domain` to enable traefik dashboard
-DNS_RESOLVER: true            # true/false
-# other DNS_ options, see docs/dnsresolver.md
-INTERNAL_CIDR: 10.87.250.1/24
-PODMAN_CIDR: 10.88.0.0/16
-RPM_OSTREE_INSTALL:
-  - docker-compose
-  - podman-compose
-  - systemd-networkd
+# Jinja Default Environment
+
+# DEBUG: true/false
+DEBUG: false
+
+# Default locale (lang, keymap, timezone, country_code)
 LOCALE:
   LANG: en_US.UTF-8
   KEYMAP: us
   TIMEZONE: UTC
   COUNTRY_CODE: UN
 
+# DNS_RESOLVER: true/false, if true run own recursive nameserver
+# other DNS_ options, see docs/dnsresolver.md
+DNS_RESOLVER: true
+
+# CONTAINER_FRONTEND: true/false, if true traefik will do tls termination and https routing
+CONTAINER_FRONTEND: true
+# FRONTEND_DASHBOARD: string, if set to string of full hostname
+# (eg. "traefik.host.domain") will enable traefik dashboard if container_frontend is used
+FRONTEND_DASHBOARD:
+
+# Additional RPM packets to be available
+RPM_OSTREE_INSTALL:
+  - docker-compose
+  - podman-compose
+  - systemd-networkd
+
+# UPDATE_SERVICE_STATUS: true/false, if true butane2salt translation will add update service related states
+UPDATE_SERVICE_STATUS: true
+
+# Network CIDR of Internal, Podman and Nspawn Network
+INTERNAL_CIDR: 10.87.250.1/24
+PODMAN_CIDR: 10.88.0.0/16
+NSPAWN_CIDR: 10.87.249.0/24
