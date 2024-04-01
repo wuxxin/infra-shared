@@ -87,13 +87,14 @@ passwd:
                 lambda x: "\n".join(["        - " + line for line in x.splitlines()])
             ),
             """
-security:
-  tls:
-    certificate_authorities:
-      - inline: |
+ignition:
+  security:
+    tls:
+      certificate_authorities:
+        - inline: |
 """,
             ca_factory.root_bundle_pem.apply(
-                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+                lambda x: "\n".join(["            " + line for line in x.splitlines()])
             ),
             """
 storage:
@@ -105,7 +106,6 @@ storage:
             hostname,
             """
     - path: /etc/ssl/certs/root_bundle.crt
-      filesystem: root
       mode: 0644
       contents:
         inline: |
@@ -115,7 +115,6 @@ storage:
             ),
             """          
     - path: /etc/ssl/certs/root_ca.crt
-      filesystem: root
       mode: 0644
       contents:
         inline: |
@@ -125,7 +124,6 @@ storage:
             ),
             """          
     - path: /etc/ssl/certs/server.crt
-      filesystem: root
       mode: 0644
       contents:
         inline: |
@@ -135,7 +133,6 @@ storage:
             ),
             """          
     - path: /etc/ssl/private/server.key
-      filesystem: root
       mode: 0600
       contents:
         inline: |
