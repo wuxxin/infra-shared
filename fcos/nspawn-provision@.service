@@ -43,7 +43,7 @@ if test ! -d "/var/lib/machines/%i"; then \
   echo "import tree into %i"; \
   cp -ar "$tmpdir/merged_fs" "/var/lib/machines/%i"; \
   rm -rf "$tmpdir"; \
-  touch "/var/lib/machines/%i/.NEED.PROVISION";
+  touch "/var/lib/machines/%i/.NEED.PROVISION"; \
 fi \
 '
 
