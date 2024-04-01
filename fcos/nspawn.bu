@@ -3,44 +3,28 @@ storage:
     # standard *.nspawn directory
     - path: /etc/systemd/nspawn
 
-    # standard image base directory
+    # standard nspawn machine image base directory
     - path: /var/lib/machines
+
+    # our nspawn volume storage base directory
+    - path: /var/lib/volumes
+
+    # our nspawn build configuration directory
+    - path: /etc/nspawn/build
 
     # our nspawn environment directory
     - path: /etc/nspawn/environment
       mode: 0700
 
-    # our nspawn build configuration directory
-    - path: /etc/nspawn/build
-
-    # our mkosi nspawn image configuration directory
-    - path: /etc/mkosi
-
-    # our mkosi image output directory
-    - path: /var/lib/mkosi
-
-    # our mkosi cache directory
-    - path: /var/cache/mkosi
-
   trees:
-    # our mkosi os-image configuration files
-    - path: /etc/mkosi
-      local: mkosi
-
-    # mkosi nspawn image builder container
-    - path: /etc/containers/build/nspawn-mkosi
-      local: Containerfile/nspawn-mkosi
+    # unconditional copy containerfiles
+    - path: /etc/containers/build/debian-bookworm
+      local: Containerfile/debian-bookworm
 
 systemd:
   units:
-    - name: nspawn-mkosi@.service
-      contents_local: fcos/nspawn-mkosi@.service
-
     - name: nspawn-provision@.service
       contents_local: fcos/nspawn-provision@.service
-
-    # for each defined os directory in mkosi, create a nspawn-mkosi@<distro_release>.service
-    # - name: nspawn-mkosi@debian-bookworm.service
 
     - name: systemd-nspawn@.service
       dropins:
