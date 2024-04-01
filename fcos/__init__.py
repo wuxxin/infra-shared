@@ -362,6 +362,7 @@ storage:
                         )
                     if f["contents"]["template"] == "jinja":
                         data = jinja_run(f["contents"]["inline"], basedir, environment)
+                        del ydict["storage"]["files"][fnr]["contents"]["template"]
                         ydict["storage"]["files"][fnr]["contents"].update(
                             {"inline": data}
                         )
@@ -370,6 +371,7 @@ storage:
                             compile_selinux_module(f["contents"]["inline"])
                         ).decode("utf-8")
                         del ydict["storage"]["files"][fnr]["contents"]["inline"]
+                        del ydict["storage"]["files"][fnr]["contents"]["template"]
                         ydict["storage"]["files"][fnr]["contents"].update(
                             {"source": data}
                         )
@@ -382,6 +384,7 @@ storage:
                 if "contents" in u and "template" in u:
                     data = jinja_run(u["contents"], basedir, environment)
                     ydict["systemd"]["units"][unr].update({"contents": data})
+                    del ydict["systemd"]["units"][unr]["template"]
 
                 if "dropins" in u:
                     for dnr in range(len(u["dropins"])):
@@ -395,6 +398,9 @@ storage:
                             ydict["systemd"]["units"][unr]["dropins"][dnr].update(
                                 {"contents": data}
                             )
+                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
+                                "template"
+                            ]
         return ydict
 
 
