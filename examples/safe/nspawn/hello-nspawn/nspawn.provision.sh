@@ -46,9 +46,8 @@ chmod "0600" "$HOME/.ssh/authorized_keys"
 # install openssh server and nginx, make index.html available on port 80
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install --yes openssh-server nginx
-mkdir -p /var/www
-
-cat >/var/www/index.html <<"EOF"
+mkdir -p /var/www/html
+cat >/var/www/html/index.html <<"EOF"
 <!DOCTYPE html>
 <html>
 <head>
@@ -56,12 +55,12 @@ cat >/var/www/index.html <<"EOF"
 </head>
 <body>
 <pre>
-        ><(((((°>
-                    ><(((°>
-        ><((((°>
-    <°)))><            ><(((((°>
-                <°))><
-            <°)))><         <')))))><
+           ><(((((>
+                    ><(((>
+        ><((((>
+    <)))><            ><(((((>
+                <))><
+            <)))><         <)))))><
     Hello from a NSpawn Container!
 </pre>
 </body>
