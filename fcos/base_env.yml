@@ -24,7 +24,7 @@ FRONTEND_DASHBOARD:
 RPM_OSTREE_INSTALL:
   # docker compose is used for compose container
   - docker-compose
-  # systemd-networkd is used for nspawn automatic network setup
+  # systemd-networkd is used for nspawn network setup
   - systemd-networkd
   # checkmodule is used for selinux module compile for nspawn
   - checkpolicy
@@ -33,6 +33,6 @@ RPM_OSTREE_INSTALL:
 UPDATE_SERVICE_STATUS: true
 
 # Network CIDR of Internal, Podman and Nspawn Network
-INTERNAL_CIDR: 10.87.250.1/24
-PODMAN_CIDR: 10.88.0.0/16
-NSPAWN_CIDR: 10.87.249.0/24
+INTERNAL_CIDR: 10.87.240.1/24
+NSPAWN_CIDR: 10.87.241.1/24
+PODMAN_CIDR: 10.88.0.1/16
