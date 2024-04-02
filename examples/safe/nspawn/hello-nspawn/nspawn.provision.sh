@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -eo pipefail
+
 if test "$1" != "--provision"; then
     cat << EOF
 Usage: $0 --provision
@@ -42,7 +44,10 @@ chmod "0600" "$HOME/.ssh/authorized_keys"
 # DEBIAN_FRONTEND=noninteractive dpkg-reconfigure --force openssh-server
 
 # install openssh server and nginx, make index.html available on port 80
+apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install --yes openssh-server nginx
+mkdir -p /var/www
+
 cat >/var/www/index.html <<"EOF"
 <!DOCTYPE html>
 <html>
