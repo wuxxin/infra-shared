@@ -128,27 +128,9 @@ make provision-client
 cd infra/Containerfile/provision-client && \
     docker build -t provision-client:latest $(pwd)
 
-# add a provision-client() function to running shell
-# - replace "sudo podman" to match your local container software
-source /dev/stdin <<'EOF'
-provision-client() {
-  test "${1}" = "" && set -- "/usr/bin/bash" "${@:1}"; \
-  sudo podman run -it --rm \
-  --user="$(id -u):$(id -g)" --network=host \
-  -v "/etc/passwd:/etc/passwd:ro" -v "/etc/group:/etc/group:ro" \
-  -v "$HOME:$HOME" -v "$(pwd):$(pwd)" -v "$XDG_RUNTIME_DIR:$XDG_RUNTIME_DIR" \
-  -e "HOME=$HOME" -e "PWD=$(pwd)" -e "LANG=$LANG" -e "TERM=$TERM" -e "USER=$USER" \
-  -e "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" \
-  -w "$(pwd)" \
-  localhost/provision-client \
-  "${@:1}"
-}
-EOF
-
 # call provision client (defaults to /usr/bin/bash interactive shell)
-provision-client
-
-# add `provision-client() {...}` to .bashrc to have it available every time.
+infra/scripts/provision-client.sh
+# use exit to return to base shell
 ```
 
 
