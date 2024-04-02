@@ -25,7 +25,7 @@ RUN HOME=/home/user && \
     doas -u root pacman --noconfirm -U *.pkg.tar.zst && \
     cd .. && \
     rm -rf yay && \
-    yay -Sy --noconfirm butane coreos-installer esphome  && \
+    yay -Sy --noconfirm butane checkpolicy coreos-installer esphome libsepol semodule-utils  && \
     yay -Sc --noconfirm && \
     rm -rf $HOME/.cargo/registry $HOME/.cache/go-build $HOME/.cache/yay && \
     doas -u root pacman -Scc --noconfirm && \
