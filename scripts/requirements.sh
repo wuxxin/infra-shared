@@ -94,12 +94,12 @@ butane
 coreos-installer
 
 # SELinux module tools
-# # CHECK: semodule_package checkmodule
-# KEY-OWNER: Jason Zaman <perfinion@gentoo.org>
-# PACKAGE-KEY: selinux 63191CE94183098689CAB8DB7EF137EC935B0EAF 80862ce3e3de1cffa8f0a966c84a8f57296b1609f92d5696405bd2dcf038b819
-# libsepol
-# semodule-utils
-# checkpolicy
+# CHECK: semodule_package checkmodule
+# KEY-OWNER: lautrbach@redhat.com
+# PACKAGE-KEY: selinux B8682847764DF60DF52D992CBC3905F235179CF1 73de67c522ebe3ddca72cdd447f64c26aeda5d217316b9ca7ef2356cff2a9dd3
+libsepol
+semodule-utils
+checkpolicy
 
 # # esphome build
 # CHECK: esphome
