@@ -2,10 +2,14 @@
 storage:
   directories:
     # standard systemd credentials directory
-    - path: /etc/credstore
+    # - path: /etc/credstore
 
     # our system environment directory, name files {service}.env
     - path: /etc/local/environment
+      mode: 0700
+
+    # our custom selinux policy directory
+    - path: /etc/local/selinux
       mode: 0700
 
     # our system flags directory
@@ -13,9 +17,6 @@ storage:
 
     # our local frontend (traefik) configuration directory
     - path: /etc/local/frontend
-
-    # our custom selinux configuration directory
-    - path: /etc/selinux/custom
 
     # our directory for local commandline scripts and binaries
     - path: /var/local/bin
@@ -70,6 +71,7 @@ storage:
           {{ cidr2ip(INTERNAL_CIDR) }}    dns.internal
           {{ cidr2ip(INTERNAL_CIDR) }}    self.internal
           {{ cidr2ip(PODMAN_CIDR) }}    self.podman
+          {{ cidr2ip(NSPAWN_CIDR) }}    self.nspawn
 
     # copy update service, will be overwritten by actual update call
     - path: /etc/systemd/system/coreos-update-config.service
@@ -125,14 +127,33 @@ systemd:
             ExecStart=-/usr/sbin/agetty --autologin core --noclear %I $TERM
     {% endif %}
 
+    # custom policy loader, instance with %i.te/.mod/.pp found in /etc/local/selinux
+    - name: selinux-custom-policy@.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Compile and Load SELinux policy %I
+        After=local-fs.target
+
+        [Service]
+        Type=oneshot
+        # checkmodule is in checkpolicy
+        ExecStart=/usr/sbin/checkmodule -M -m -o /etc/local/selinux/%I.mod /etc/local/selinux/%I.te
+        ExecStart=/usr/sbin/semodule_package -o /etc/local/selinux/%I.pp -m /etc/local/selinux/%I.mod
+        ExecStart=/usr/sbin/semodule -i /etc/local/selinux/%I.pp
+        RemainAfterExit=yes
+
+        [Install]
+        WantedBy=multi-user.target
+
     # install pkgs from RPM_OSTREE_INSTALL, will reboot afterwards, but only first time
     - name: rpm-ostree-install.service
       enabled: true
       contents: |
         [Unit]
         Description=Layer Extensions with rpm-ostree
-        Wants=network-online.target
         After=network-online.target
+        Wants=network-online.target
         Before=zincati.service
         ConditionPathExists=/etc/local/environment/%N.env
 
@@ -154,8 +175,8 @@ systemd:
       contents: |
         [Unit]
         Description=/var/local installed Extensions - only use if no ostree version is available
-        Wants=network-online.target
         After=network-online.target
+        Wants=network-online.target
         Before=zincati.service
 
         [Service]
