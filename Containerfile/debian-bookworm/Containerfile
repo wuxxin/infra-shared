@@ -12,13 +12,3 @@ RUN printf "pts/0\npts/1\npts/2\npts/3\npts/4\n" >> /etc/securetty
 # make sure systemd-networkd and systemd-resolved are running
 RUN systemctl enable systemd-networkd && systemctl enable systemd-resolved
 
-# # do not prompt interactive on firstboot
-# RUN mkdir -p /etc/systemd/system/systemd-firstboot.service.d; \
-#     printf "[Service]\nExecStart=\nExecStart=true\n" > \
-#     /etc/systemd/system/systemd-firstboot.service.d/unattended.conf
-
-# unlock root account
-# RUN passwd -u root
-
-# # symlink /run/systemd/resolve/stub-resolv.conf to /etc/resolv.conf, otherwise network will fail
-# ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
