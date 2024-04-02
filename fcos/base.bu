@@ -1,3 +1,5 @@
+# base butane config
+# {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 storage:
   directories:
@@ -22,7 +24,7 @@ storage:
     - path: /var/local/bin
 
   files:
-    # our internal bridge
+    # our internal bridge (configured using networkmanager)
     - path: /etc/NetworkManager/system-connections/internal
       mode: 0600
       contents:
@@ -66,8 +68,7 @@ storage:
           # For historical reasons, localhost precedes localhost.localdomain:
           127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
           ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-          # add lookup for internal and podman
-          # {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+          # add lookup for internal, podman and nspawn
           {{ cidr2ip(INTERNAL_CIDR) }}    dns.internal
           {{ cidr2ip(INTERNAL_CIDR) }}    self.internal
           {{ cidr2ip(PODMAN_CIDR) }}    self.podman
@@ -106,6 +107,10 @@ storage:
 
     - path: /etc/credstore/server.key
       target: /etc/ssl/private/server.key
+
+    # symlink systemd-networkd for automatic start
+    - path: /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+      target: /usr/lib/systemd/system/systemd-networkd.service
 
 systemd:
   units:
