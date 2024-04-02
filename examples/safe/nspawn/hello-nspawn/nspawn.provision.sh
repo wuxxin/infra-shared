@@ -19,10 +19,6 @@ distribution="$(lsb_release -i -s)"
 
 echo "Provision running on distribution: $distribution , codename: $codename"
 
-# delete and create a new set of openssh-server host keys
-rm /etc/ssh/ssh_host*
-DEBIAN_FRONTEND=noninteractive dpkg-reconfigure --force openssh-server
-
 # create user, copy skeleton files
 USERNAME="user"
 HOME="/home/$USERNAME"
@@ -41,8 +37,12 @@ echo "$authorized_keys" >"$HOME/.ssh/authorized_keys"
 chown "$USERNAME:$USERNAME" "$HOME/.ssh/authorized_keys"
 chmod "0600" "$HOME/.ssh/authorized_keys"
 
-# install nginx and make index.html available on port 80
-DEBIAN_FRONTEND=noninteractive apt-get install --yes nginx
+# delete and create a new set of openssh-server host keys
+# rm /etc/ssh/ssh_host*
+# DEBIAN_FRONTEND=noninteractive dpkg-reconfigure --force openssh-server
+
+# install openssh server and nginx, make index.html available on port 80
+DEBIAN_FRONTEND=noninteractive apt-get install --yes openssh-server nginx
 cat >/var/www/index.html <<"EOF"
 <!DOCTYPE html>
 <html>
