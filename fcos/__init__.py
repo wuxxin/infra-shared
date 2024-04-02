@@ -349,9 +349,9 @@ storage:
                 f = ydict["storage"]["files"][fnr]
 
                 if "contents" in f and "template" in f["contents"]:
-                    if f["contents"]["template"] not in ["jinja", "selinux"]:
+                    if f["contents"]["template"] not in ["jinja", "selinux-te2mod"]:
                         raise ValueError(
-                            "Invalid option, template must be one of: jinja, selinux"
+                            "Invalid option, template must be one of: jinja, selinux-te2mod"
                         )
                     if "inline" not in f["contents"]:
                         raise ValueError(
@@ -363,7 +363,7 @@ storage:
                         ydict["storage"]["files"][fnr]["contents"].update(
                             {"inline": data}
                         )
-                    elif f["contents"]["template"] == "selinux":
+                    elif f["contents"]["template"] == "selinux-te2mod":
                         data = "data:;base64," + base64.b64encode(
                             compile_selinux_module(f["contents"]["inline"])
                         ).decode("utf-8")
