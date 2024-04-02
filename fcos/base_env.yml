@@ -22,9 +22,12 @@ FRONTEND_DASHBOARD:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
+  # docker compose is used for compose container
   - docker-compose
-  - podman-compose
+  # systemd-networkd is used for nspawn automatic network setup
   - systemd-networkd
+  # checkmodule is used for selinux module compile for nspawn
+  - checkpolicy
 
 # UPDATE_SERVICE_STATUS: true/false, if true butane2salt translation will add update service related states
 UPDATE_SERVICE_STATUS: true
