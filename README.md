@@ -38,7 +38,7 @@ See the [examples](examples/) for code of what else can be done with it
     - **Compose Container**: `compose.yml`
         - `compose*` - run multi-container applications defined using a compose file
     - **nSpawn OS-Container**: `systemd-nspawn`
-        - `nspawn*` - run an linux OS (build by mkosi) in a light-weight container
+        - `nspawn*` - run any linux OS in a light-weight system container
     - **tls/http FrontEnd**: `traefik`
         - using container, compose and nspawn labels for dynamic configuration
     - **DNS Resolver**: `unbound`
