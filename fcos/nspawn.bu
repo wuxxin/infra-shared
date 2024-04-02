@@ -35,29 +35,62 @@ systemd:
             ExecStart=
             ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-zone=nspawn -U --settings=override --machine=%i
 
-        # add provision dependency
-        - name: provision.conf
+        - name: 00_provision.conf
           contents: |
             [Unit]
+            # add nspawn-provision@%i as hard dependency
             After=nspawn-provision@%i.service
             Requires=nspawn-provision@%i.service
+            ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
+            ConditionPathExists=/etc/nspawn/environment/%i.env
+            ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
 
-        # add frontend service discovery: create on post start, remove on post stop
-        - name: frontend.conf
+            [Service]
+            EnvironmentFile=/etc/nspawn/environment/%i.env
+            # Environment NSPAWN_OSNAME must be set
+            # Environment NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
+
+            # firstboot defaults, to prevent interactive prompting, can be overwritten via drop.in
+            SetCredential=firstboot.locale:en_US.UTF-8
+            SetCredential=firstboot.keymap:us
+            SetCredential=firstboot.timezone:UTC
+
+            # copy provision files to new machine and execute provision
+            ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+            if test -e "/var/lib/machines/.%i.NEED.PROVISION"; then \
+              printf "Provision %i"; \
+              while ! machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
+              while ! machinectl show "%i" | grep -q State=running; do echo -n "+"; sleep 1; done; \
+              sleep 1; echo " is running"; \
+              for f in /etc/nspawn/build/%i/*; do \
+                cat "$f" | systemd-run --wait --collect --service-type=exec --pipe -q --machine=%i /bin/sh -c "> /tmp/$(basename $f)"; \
+              done; \
+              echo "${NSPAWN_PROVISION}" | systemd-run --wait --collect --service-type=exec --pipe -q --machine=%i /bin/bash -c \
+                  "/bin/chmod +x /tmp/nspawn.provision.sh && /tmp/nspawn.provision.sh --provision"; \
+              rm "/var/lib/machines/.%i.NEED.PROVISION"; \
+              touch "/etc/local/flags/provision-%i.stamp"; \
+            else \
+              echo "provision of %i skipped, already run"; \
+            fi \
+            '
+
+        - name: 01_frontend.conf
           contents: |
             [Unit]
             After=frontend.service
             Wants=frontend.service
 
             [Service]
+            # add frontend service discovery: create on post start, remove on post stop
             # wait until ready, get, save ip, replace ##NSPAWN_IPADDR## in NSPAWN_TRAEFIK, cp to traefik
             ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
               if test -e /etc/nspawn/environment/%i.env; then \
+                while ! machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
                 while ! machinectl status "%i" | grep -q "State: running"; do sleep 1; done; \
-                IPADDR=$(machinectl show "%i" --property=IPAddress --value); \
+                IPADDR=$(machinectl list --no-pager --no-legend --max-addresses 1 -l | grep "%i" | sed -r "s/.+ ([^ ]+)$/\\1/g"); \
                 echo "$IPADDR" > /etc/local/flags/%i.ipaddr; \
                 . /etc/nspawn/environment/%i.env; \
-                TRAEFIK_YML="$(echo "$$NSPAWN_TRAEFIK" | sed -r "s/##NSPAWN_IPADDR##/${IPADDR}/g")"; \
+                TRAEFIK_YML="$(echo "$$NSPAWN_TRAEFIK" | sed -r "s/##NSPAWN_IPADDR##/$IPADDR/g")"; \
                 if test "$TRAEFIK_YML" != "$(cat /etc/local/frontend/%i.yml)"; then \
                     echo "$TRAEFIK_YML" > /etc/local/frontend/%i.yml; \
                     podman cp /etc/local/frontend/%i.yml "systemd-frontend:/traefik/%i.yml"; \

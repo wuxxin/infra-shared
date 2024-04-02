@@ -1,8 +1,10 @@
 [Unit]
 Description=Provision Nspawn Image %I
-Wants=network-online.target systemd-networkd-wait-online.service
-After=network-online.target systemd-networkd-wait-online.service
-# also wait for systemd-networkd-wait-online
+After=network-online.target
+# systemd-networkd-wait-online.service
+# selinux-custom-policy@nspawn.service
+Wants=network-online.target
+# Requires=selinux-custom-policy@nspawn.service
 ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
 ConditionPathExists=/etc/nspawn/environment/%i.env
 ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
@@ -12,14 +14,8 @@ Type=oneshot
 RemainAfterExit=yes
 EnvironmentFile=/etc/nspawn/environment/%i.env
 # Environment NSPAWN_OSNAME must be set
-# Environment NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
 
-# firstboot defaults, to prevent interactive prompting, picked up by systemd
-# firstboot can be overwritten via drop.in
-SetCredential=firstboot.locale:en_US.UTF-8
-SetCredential=firstboot.keymap:us
-SetCredential=firstboot.timezone:UTC
-
+# extract and merge filetree from base container to the machine directory
 ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
 if test ! -d "/var/lib/machines/%i"; then \
   if ! podman image exists "localhost/$NSPAWN_OSNAME:latest"; then \
@@ -43,36 +39,9 @@ if test ! -d "/var/lib/machines/%i"; then \
   echo "import tree into %i"; \
   cp -ar "$tmpdir/merged_fs" "/var/lib/machines/%i"; \
   rm -rf "$tmpdir"; \
-  touch "/var/lib/machines/%i/.NEED.PROVISION"; \
+  touch "/var/lib/machines/.%i.NEED.PROVISION"; \
 fi \
 '
-
-ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
-if test -e "/var/lib/machines/%i/.NEED.PROVISION"; then \
-  rm "/var/lib/machines/%i/.NEED.PROVISION"; \
-  printf "Provision %i"; \
-  machinectl start "%i"; \
-  while ! machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
-  while ! machinectl show "%i" | grep -q State=running; do echo -n "+"; sleep 1; done; \
-  sleep 1; echo " is running"; \
-  for f in /etc/nspawn/build/%i/*; do machinectl copy-to "%i" "$f" /tmp/; done; \
-  echo "${NSPAWN_PROVISION}" | machinectl shell "%i" /bin/sh -c \
-      "/bin/chmod +x /tmp/nspawn.provision.sh; /tmp/nspawn.provision.sh --provision"; \
-  printf "power off %i "; \
-  machinectl poweroff "%i"; \
-  while machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
-  echo " stopped"; \
-  touch "/etc/local/flags/provision-%i.stamp"; \
-else \
-  if test ! -d "/var/lib/machines/%i"; then \
-    echo "import of image $NSPAWN_OSNAME failed for machine %i"; \
-    exit 1; \
-  else \
-    echo "%i skipped already run"; \
-  fi; \
-fi \
-'
-
 
 [Install]
 WantedBy=multi-user.target
