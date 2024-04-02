@@ -1,3 +1,6 @@
+# nspawn butane config
+# {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+
 storage:
   directories:
     # standard *.nspawn directory
@@ -21,6 +24,38 @@ storage:
     - path: /etc/containers/build/debian-bookworm
       local: Containerfile/debian-bookworm
 
+  files:
+    # our systemd-nspawn bridge (configured using systemd-networkd)
+    - path: /etc/systemd/network/10-nspawn.netdev
+      mode: 420
+      contents:
+        inline: |
+          [NetDev]
+          Name=nspawn
+          Kind=bridge
+
+          [Bridge]
+          STP=false
+
+    - path: /etc/systemd/network/10-nspawn.network
+      mode: 420
+      contents:
+        inline: |
+          [Match]
+          Name=nspawn
+
+          [Network]
+          Description=Default Network for systemd-nspawn machines
+          Address={{ NSPAWN_CIDR }}
+          IPMasquerade=ipv4
+          LinkLocalAddressing=no
+          DHCPServer=yes
+          ConfigureWithoutCarrier=yes
+
+          [DHCPServer]
+          ServerAddress={{ NSPAWN_CIDR }}
+          DNS={{ cidr2ip(INTERNAL_CIDR) }}
+
 systemd:
   units:
     - name: nspawn-provision@.service
@@ -30,10 +65,10 @@ systemd:
       dropins:
         - name: nspawnargs.conf
           contents: |
-            # add network-zone to default parameter
+            # add "network-bridge=nspawn" to default parameter
             [Service]
             ExecStart=
-            ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-zone=nspawn -U --settings=override --machine=%i
+            ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-bridge=nspawn -U --settings=override --machine=%i
 
         - name: 00_provision.conf
           contents: |
@@ -55,18 +90,19 @@ systemd:
             SetCredential=firstboot.keymap:us
             SetCredential=firstboot.timezone:UTC
 
-            # copy provision files to new machine and execute provision
-            ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+            # copy provision files to /root at new machine and execute provision
+            ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; \
             if test -e "/var/lib/machines/.%i.NEED.PROVISION"; then \
               printf "Provision %i"; \
               while ! machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
               while ! machinectl show "%i" | grep -q State=running; do echo -n "+"; sleep 1; done; \
               sleep 1; echo " is running"; \
               for f in /etc/nspawn/build/%i/*; do \
-                cat "$f" | systemd-run --wait --collect --service-type=exec --pipe -q --machine=%i /bin/sh -c "> /tmp/$(basename $f)"; \
+                cat "$f" | systemd-run -q -G -P -u provision-%i -M %i --wait --service-type=exec \
+                  /bin/bash -c "cat -- > /root/$(basename $f)"; \
               done; \
-              echo "${NSPAWN_PROVISION}" | systemd-run --wait --collect --service-type=exec --pipe -q --machine=%i /bin/bash -c \
-                  "/bin/chmod +x /tmp/nspawn.provision.sh && /tmp/nspawn.provision.sh --provision"; \
+              echo "${NSPAWN_PROVISION}" | systemd-run -q -G -P -u provision-%i -M %i --wait --service-type=exec \
+                  /bin/bash -c "chmod +x /root/nspawn.provision.sh && /root/nspawn.provision.sh --provision"; \
               rm "/var/lib/machines/.%i.NEED.PROVISION"; \
               touch "/etc/local/flags/provision-%i.stamp"; \
             else \
@@ -83,7 +119,7 @@ systemd:
             [Service]
             # add frontend service discovery: create on post start, remove on post stop
             # wait until ready, get, save ip, replace ##NSPAWN_IPADDR## in NSPAWN_TRAEFIK, cp to traefik
-            ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+            ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; \
               if test -e /etc/nspawn/environment/%i.env; then \
                 while ! machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
                 while ! machinectl status "%i" | grep -q "State: running"; do sleep 1; done; \
@@ -98,7 +134,7 @@ systemd:
               fi'
 
             # post empty string to discoveryfile so service is seen as removed by traefik
-            ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+            ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; \
               printf "" > /etc/local/frontend/%i.yml; \
               podman cp /etc/local/frontend/%i.yml "systemd-frontend:/traefik/%i.yml"'
 
