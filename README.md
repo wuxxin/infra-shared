@@ -129,7 +129,7 @@ cd infra/Containerfile/provision-client && \
     docker build -t provision-client:latest $(pwd)
 
 # call provision client (defaults to /usr/bin/bash interactive shell)
-infra/scripts/provision-client.sh
+infra/scripts/provision_client.sh
 # use exit to return to base shell
 ```
 
