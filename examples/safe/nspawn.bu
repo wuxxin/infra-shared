@@ -64,6 +64,7 @@ storage:
             routers:
               hello-nspawn:
                 rule: Host(\`hello-nspawn.{{ HOSTNAME }}\`)
+                service: hello-nspawn
                 entrypoints: https
             services:
               hello-nspawn:
