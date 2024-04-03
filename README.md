@@ -117,19 +117,24 @@ infra/create_skeleton.sh --yes
 make install-requirements
 ```
 
-+ on other linux, use a build container
++ on other linux, use a provision container.
+
+This needs podman or docker already installed on host.
+
+For the simulation environment with libvirt the host system must also have a configured libvirt.
 
 ```sh
-# Either: build container using sudo podman build
+# Either: build container using `sudo podman build`
 make provision-client
 
 # Or: build container using any other container tool
-# - replace "docker" with your container build call
+# - replace "docker" with the preferred container build call
 cd infra/Containerfile/provision-client && \
     docker build -t provision-client:latest $(pwd)
 
-# call provision client (defaults to /usr/bin/bash interactive shell)
-infra/scripts/provision_client.sh
+# call provision shell(defaults to /usr/bin/bash interactive shell)
+# defaults to podman, but can be overriden with DOCKER=executable
+DOCKER=docker infra/scripts/provision_shell.sh
 # use exit to return to base shell
 ```
 
