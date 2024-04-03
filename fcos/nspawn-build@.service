@@ -1,5 +1,5 @@
 [Unit]
-Description=Provision Nspawn Image %I
+Description=Build Nspawn Image %I
 After=network-online.target
 # systemd-networkd-wait-online.service
 # selinux-custom-policy@nspawn.service
