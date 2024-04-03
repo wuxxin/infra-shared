@@ -1,6 +1,8 @@
 # Safe - Fedora-CoreOS on Raspberry Pi Appliance
 
-Showcase a self-updating encrypted storage appliance in < 600 lines or < 1500 words code
+Showcase: a self-updating encrypted storage appliance,
+
+with container, compose and nspawn example in < 600 lines, < 1500 words easy to read code
 
 - Hardware: Raspberry Pi4 (arm64)
 
@@ -20,6 +22,7 @@ Showcase a self-updating encrypted storage appliance in < 600 lines or < 1500 wo
 - Single Container Showcase `Postgresql Server`
 
     lan available postgresql with mandatory ssl and optional clientcert auth
+
     - [container.bu](container.bu)
     - [container/postgresql.conf](container/postgresql.conf)
     - [container/postgresql.container](container/postgresql.container)
@@ -38,6 +41,7 @@ Showcase a self-updating encrypted storage appliance in < 600 lines or < 1500 wo
 - Nspawn Showcase Example `hello-nspawn`
 
     debian based machine serving a static file using nginx returning some ascii fishes
+
     - [nspawn.bu](nspawn.bu)
     - [nspawn/hello-nspawn/nspawn.provision.sh](nspawn/hello-nspawn/nspawn.provision.sh)
 
