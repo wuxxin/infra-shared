@@ -5,20 +5,19 @@ if test "$1" != "--provision"; then
     cat << EOF
 Usage: $0 --provision
 
-Provision bootstrap script. Expects an dpkg system.
-DONT execute on an already configured system, it
-WILL WIPE IMPORTANT FILES like /etc/ssh/ssh_host*.
-
+Provision bootstrap script. Expects an dpkg based linux.
+DONT execute on an already configured system.
+THIS WILL OVERWRITE ALREADY EXISTING FILES.
 EOF
     exit 1
 fi
 shift
 
-# save stdin, get os distribution and codename
+# save stdin for later usage
 stdin=$(cat -)
+
 codename=$(lsb_release -c -s)
 distribution="$(lsb_release -i -s)"
-
 echo "Provision running on distribution: $distribution , codename: $codename"
 
 # create user, copy skeleton files
@@ -39,10 +38,6 @@ echo "$authorized_keys" >"$HOME/.ssh/authorized_keys"
 chown "$USERNAME:$USERNAME" "$HOME/.ssh/authorized_keys"
 chmod "0600" "$HOME/.ssh/authorized_keys"
 
-# delete and create a new set of openssh-server host keys
-# rm /etc/ssh/ssh_host*
-# DEBIAN_FRONTEND=noninteractive dpkg-reconfigure --force openssh-server
-
 # install openssh server and nginx, make index.html available on port 80
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install --yes openssh-server nginx
@@ -51,16 +46,20 @@ cat >/var/www/html/index.html <<"EOF"
 <!DOCTYPE html>
 <html>
 <head>
-<style>pre { font-family: monospace; white-space: pre-wrap; }</style>
+<style>pre { font-family: monospace; font-size: 2em; white-space: pre; }</style>
 </head>
 <body>
 <pre>
            ><(((((>
+
                     ><(((>
         ><((((>
+
     <)))><            ><(((((>
                 <))><
-            <)))><         <)))))><
+
+         <)))><    <)))))><
+
     Hello from a NSpawn Container!
 </pre>
 </body>
