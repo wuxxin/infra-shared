@@ -1,17 +1,12 @@
 systemd:
   units:
-    # enable hello-nspawn service
-    - name: systemd-nspawn@hello-nspawn.service
+    # autostart hello-nspawn service
+    - name: nspawn-up@hello-nspawn.service
       enabled: true
-      dropins:
-        - name: loadcreds.conf
-          contents: |
-            [Service]
-            # load ca cert bundle as credential into systemd-nspawn
-            LoadCredential=root_bundle.crt
 
-    # make provision depend on container-build@debian-bookworm
-    - name: nspawn-provision@hello-nspawn.service
+    # make nspawn-build depend on container-build@debian-bookworm
+    # container-build@(*) should be the same as NSPAWN_OSNAME
+    - name: nspawn-build@hello-nspawn.service
       enabled: true
       dropins:
         - name: require.conf
@@ -20,22 +15,32 @@ systemd:
             Wants=container-build@debian-bookworm.service
             After=container-build@debian-bookworm.service
 
+    # load ca cert bundle as credential into systemd-nspawn
+    - name: systemd-nspawn@hello-nspawn.service
+      dropins:
+        - name: loadcreds.conf
+          contents: |
+            [Service]
+            LoadCredential=root_bundle.crt
+
 storage:
   directories:
+    # add a "volume", todo: make some service like podman quadlet
     - path: /var/lib/volumes/hello-nspawn.data
 
   files:
-    # machine .nspawn configuration settings
+    # machine .nspawn configuration
     - path: /etc/systemd/nspawn/hello-nspawn.nspawn
       contents:
         inline: |
           [Exec]
           # set custom env
           Environment=TEST=true
+          # %d = Credentials directory
           Environment=root_bundle_path=%d/root_bundle.crt
 
           [Files]
-          # Example Volume
+          # Example "Volume"
           Bind=/var/lib/volumes/hello-nspawn.data:/var/lib/data
 
     # machine provision script
@@ -44,14 +49,14 @@ storage:
       contents:
         local: nspawn/hello-nspawn/nspawn.provision.sh
 
-    # provision environment
+    # machine provision environment
     - path: /etc/nspawn/environment/hello-nspawn.env
       mode: 0600
       contents:
         inline: |
-          # used by nspawn-provision@.service: NSPAWN_OSNAME, NSPAWN_PROVISION
-          # used by systemd-nspawn@.d/traefik.conf: NSPAWN_TRAEFIK
-          # NSPAWN_PROVISION is pasted as STDIN to nspawn.provision.sh
+          # NSPAWN_OSNAME   : base container image name, for spawn-build@service
+          # NSPAWN_PROVISION: optional input as STDIN to nspawn.provision.sh
+          # NSPAWN_TRAEFIK  : optional router and services configuration for systemd-nspawn@.d/traefik.conf
           # ##NSPAWN_IPADDR## is replaced inside NSPAWN_TRAEFIK with the current machine ip
           NSPAWN_OSNAME=debian-bookworm
           NSPAWN_PROVISION="
