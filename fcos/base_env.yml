@@ -26,8 +26,11 @@ RPM_OSTREE_INSTALL:
   - docker-compose
   # systemd-networkd is used for nspawn network setup
   - systemd-networkd
+  # testing
   # checkmodule is used for selinux module compile for nspawn
   - checkpolicy
+  # lightweight alternative to docker-compose ?
+  - podman-compose
 
 # UPDATE_SERVICE_STATUS: true/false, if true butane2salt translation will add update service related states
 UPDATE_SERVICE_STATUS: true
