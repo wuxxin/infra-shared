@@ -1,19 +1,23 @@
 # Butane Translation
 
-### Environment
+### Jinja Templating
 
-environment defaults available in jinja:
+in addition to jinja inside butane files,
+files referenced from butane files with attribute template=jinja
+will be rendered through jinja with the described Environment and optional includes from searchpath
 
-- see [fcos/base_env.yml](fcos/base_env.yml) for defaults
+#### Environment
+
+- environment defaults available in jinja
+
+```yaml
+{% include "fcos/base_env.yml" %}
+```
+
 - see [DNS-Resolver](dnsresolver.md) for DNS_ related optional variables
 
 
-### Jinja Templating
-
-all butane files and files referenced from butane files with attribute template=jinja
-will be rendered through jinja with the described Environment and optional includes from searchpath
-
-#### custom regex filter
+#### Custom regex filter
 
 - "text"|regex_escape()
 - "text"|regex_search(pattern)
