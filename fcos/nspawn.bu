@@ -19,11 +19,6 @@ storage:
     - path: /etc/nspawn/environment
       mode: 0700
 
-  trees:
-    # unconditional copy containerfiles
-    - path: /etc/containers/build/debian-bookworm
-      local: Containerfile/debian-bookworm
-
   files:
     # our systemd-nspawn bridge (configured using systemd-networkd)
     - path: /etc/systemd/network/10-nspawn.netdev
@@ -56,33 +51,37 @@ storage:
           ServerAddress={{ NSPAWN_CIDR }}
           DNS={{ cidr2ip(INTERNAL_CIDR) }}
 
+  trees:
+    # unconditional copy containerfiles
+    - path: /etc/containers/build/debian-bookworm
+      local: Containerfile/debian-bookworm
+
 systemd:
   units:
-    - name: nspawn-provision@.service
-      contents_local: fcos/nspawn-provision@.service
+    - name: nspawn-build@.service
+      contents_local: fcos/nspawn-build@.service
 
     - name: systemd-nspawn@.service
       dropins:
         - name: nspawnargs.conf
           contents: |
-            # add "network-bridge=nspawn" to default parameter
             [Service]
+            # add "network-bridge=nspawn" to default parameter
             ExecStart=
             ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-bridge=nspawn -U --settings=override --machine=%i
 
         - name: 00_provision.conf
           contents: |
             [Unit]
-            # add nspawn-provision@%i as hard dependency
-            After=nspawn-provision@%i.service
-            Requires=nspawn-provision@%i.service
+            # add nspawn-build@%i as hard dependency
+            After=nspawn-build@%i.service
+            Requires=nspawn-build@%i.service
             ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
             ConditionPathExists=/etc/nspawn/environment/%i.env
             ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
 
             [Service]
             EnvironmentFile=/etc/nspawn/environment/%i.env
-            # Environment NSPAWN_OSNAME must be set
             # Environment NSPAWN_PROVISION should be set and will be pasted to STDIN of provision script
 
             # firstboot defaults, to prevent interactive prompting, can be overwritten via drop.in
@@ -110,36 +109,55 @@ systemd:
             fi \
             '
 
-        - name: 01_frontend.conf
+        - name: 10_discovery.conf
           contents: |
             [Unit]
-            After=frontend.service
-            Wants=frontend.service
+            After=frontend.service dnsresolver.service
+            Wants=frontend.service dnsresolver.service
 
             [Service]
-            # add frontend service discovery: create on post start, remove on post stop
-            # wait until ready, get, save ip, replace ##NSPAWN_IPADDR## in NSPAWN_TRAEFIK, cp to traefik
+            # dns and frontend service discovery
+            # create entries on post start, remove on post stop
+
+            # StartPost
+            # extract ipaddr from machinectl, replace ##NSPAWN_IPADDR## in NSPAWN_TRAEFIK
+            # update DNS via unbound-control local_data
+            # cp service configuration to traefik
+
             ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; \
               if test -e /etc/nspawn/environment/%i.env; then \
                 while ! machinectl list -a --no-legend | grep -q "^%i"; do echo -n "."; sleep 1; done; \
                 while ! machinectl status "%i" | grep -q "State: running"; do sleep 1; done; \
-                echo "Waiting for machine %i to get ip"; sleep 3; \
+                echo "Sleeping 5 sec to be sure to get usable ip from machine %i"; sleep 5; \
                 IPADDR=$(machinectl list --no-pager --no-legend --max-addresses 1 -l | grep "%i" | sed -r "s/.+ ([^ ]+)$/\\1/g"); \
+                IPPTR=$(printf "$IPADDR." | tac -s. | sed -r "s/.$/.in-addr.arpa/"); \
                 echo "$IPADDR" > /etc/local/flags/%i.ipaddr; \
+                echo "$IPPTR" > /etc/local/flags/%i.ipptr; \
+                echo "adding machine %i.nspawn with ip $IPADDR to DNS"; \
+                podman exec systemd-dnsresolver unbound-control local_data "%i.nspawn" A "$IPADDR"; \
+                podman exec systemd-dnsresolver unbound-control local_data "$IPPTR" PTR "%i.nspawn"; \
                 . /etc/nspawn/environment/%i.env; \
                 TRAEFIK_YML="$(echo "$$NSPAWN_TRAEFIK" | sed -r "s/##NSPAWN_IPADDR##/$IPADDR/g")"; \
                 if test "$TRAEFIK_YML" != "$(cat /etc/local/frontend/%i.yml)"; then \
-                    echo "adding machine %i ($IPADDR) to frontend"; \
-                    echo "$TRAEFIK_YML" > /etc/local/frontend/%i.yml; \
-                    podman cp /etc/local/frontend/%i.yml "systemd-frontend:/traefik/%i.yml"; \
+                  echo "adding machine %i ($IPADDR) to frontend"; \
+                  echo "$TRAEFIK_YML" > /etc/local/frontend/%i.yml; \
+                  podman cp /etc/local/frontend/%i.yml "systemd-frontend:/traefik/%i.yml"; \
                 else \
-                    echo "machine %i ($IPADDR) already added and identical"; \
+                  echo "machine %i ($IPADDR) already added and identical"; \
                 fi; \
               fi'
 
+            # StopPost
+            # use unbound-control to remove DNS local_data
             # post empty string to discoveryfile so service is seen as removed by traefik
+
             ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; \
-              echo "removing machine %i from frontend"; \
+              echo "removing machine %i from dnsresolver and frontend"; \
+              podman exec systemd-dnsresolver unbound-control local_data_remove "%i.nspawn"; \
+              if test -e /etc/local/flags/%i.ipptr; then \
+                IPPTR=$(cat /etc/local/flags/%i.ipptr); \
+                podman exec systemd-dnsresolver unbound-control local_data_remove "$IPPTR"; \
+              fi; \
               printf "" > /etc/local/frontend/%i.yml; \
               podman cp /etc/local/frontend/%i.yml "systemd-frontend:/traefik/%i.yml"'
 
