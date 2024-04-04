@@ -31,8 +31,8 @@ providers:
     exposedbydefault: false
 
   file:
+    # frontend-post-up writes frondend.dynamic.yml to /traefik
     # systemd-nspawn.d/frontend.conf writes service discovery to /traefik volume as *.yml
     directory: /traefik
-    # TODO: make watch work, is needed for nspawn
-    watch: false
+    watch: true
 

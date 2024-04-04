@@ -18,10 +18,10 @@ Secret=server.key,mode=0640
 
 # traefik static configuration
 Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
-# use /traefik directory for service discovery and for letsencrypt state in /traefik/letsencrypt.json
+# /traefik directory is used for service discovery
+# /traefik/letsencrypt.json for optional letsencrypt state
+# frontend-post-up.service writes frondend.dynamic.yml to /traefik
 Volume=frontend.volume:/traefik
-# add "dynamic" config to /traefik, so file service discovery will find it
-Volume=/etc/containers/systemd/%N.dynamic.yml:/traefik/frontend.dynamic.yml:ro
 
 # Publich http and https to [hostip:]hostPort:containerPort
 PublishPort=443:443
