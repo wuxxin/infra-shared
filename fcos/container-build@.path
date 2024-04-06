@@ -2,7 +2,7 @@
 Description=Build Container for %I
 
 [Path]
-PathModified=/etc/containers/build/%i/Containerfile
+PathChanged==/etc/containers/build/%i
 Unit=container-build@%i.service
 
 [Install]

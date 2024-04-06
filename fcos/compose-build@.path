@@ -2,7 +2,7 @@
 Description=Build Compose Images for %I
 
 [Path]
-PathModified=/etc/compose/build/%i/compose.yml
+PathChanged==/etc/compose/build/%i
 Unit=compose-build@%i.service
 
 [Install]

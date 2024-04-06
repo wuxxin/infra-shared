@@ -1,5 +1,5 @@
 [Unit]
-Description=Build Compose Images for %I
+Description=Build Compose Container for %I
 After=podman.service
 Wants=podman.service compose-build@%i.path
 ConditionPathExists=/etc/compose/build/%i/compose.yml
