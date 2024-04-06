@@ -15,5 +15,5 @@ systemd:
     - name: compose-build@.service
       contents_local: fcos/compose-build@.service
 
-    - name: compose-up@.service
-      contents_local: fcos/compose-up@.service
+    - name: compose@.service
+      contents_local: fcos/compose@.service

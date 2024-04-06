@@ -15,5 +15,5 @@ storage:
 systemd:
   units:
     # enable compose hello-compose service
-    - name: compose-up@hello-compose.service
+    - name: compose@hello-compose.service
       enabled: true

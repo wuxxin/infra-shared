@@ -1,11 +1,13 @@
 [Unit]
-Description=Run compose up for %I
+Description=Run compose container %I
 After=podman.service compose-build@%i.service
 Wants=podman.service compose-build@%i.service
 ConditionPathExists=/etc/compose/build/%i/compose.yml
 
 [Service]
 Environment=DOCKER_HOST=unix:///run/podman/podman.sock
+LoadCredential=root_bundle.crt
+
 WorkingDirectory=/etc/compose/build/%i
 ExecStart=/usr/bin/docker-compose -f compose.yml --env-file /etc/compose/environment/%i.env up
 ExecStop=/usr/bin/docker-compose -f compose.yml --env-file /etc/compose/environment/%i.env down
