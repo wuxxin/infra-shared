@@ -11,25 +11,27 @@ LOCALE:
   COUNTRY_CODE: UN
 
 # DNS_RESOLVER: true/false, if true run own recursive nameserver
-# other DNS_ options, see docs/dnsresolver.md
+# other DNS: options, see docs/dnsresolver.md
 DNS_RESOLVER: true
+DNS:
+  VERBOSITY: "1"
 
-# CONTAINER_FRONTEND: true/false, if true traefik will do tls termination and https routing
-CONTAINER_FRONTEND: true
+# WEB_FRONTEND: true/false, if true traefik will do tls termination and https routing
+WEB_FRONTEND: true
+
 # FRONTEND_DASHBOARD: string, if set to string of full hostname
-# (eg. "traefik.host.domain") will enable traefik dashboard if container_frontend is used
+# (eg. "traefik.host.domain") will enable traefik dashboard if WEB_FRONTEND is used
 FRONTEND_DASHBOARD:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
-  # docker compose is used for compose container
+  # docker compose is needed by compose.bu for compose container
   - docker-compose
-  # systemd-networkd is used for nspawn network setup
+  # systemd-networkd is needed by nspawn.bu for network setup
   - systemd-networkd
-  # testing
-  # checkmodule is used for selinux module compile for nspawn
+  # testing: checkmodule is used for selinux module compile
   - checkpolicy
-  # lightweight alternative to docker-compose ?
+  # testing: lightweight alternative to docker-compose
   - podman-compose
 
 # UPDATE_SERVICE_STATUS: true/false, if true butane2salt translation will add update service related states
@@ -39,3 +41,4 @@ UPDATE_SERVICE_STATUS: true
 INTERNAL_CIDR: 10.87.240.1/24
 NSPAWN_CIDR: 10.87.241.1/24
 PODMAN_CIDR: 10.88.0.1/16
+PODMAN_POOL_BASE: "10.89."
