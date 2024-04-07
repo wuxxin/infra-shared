@@ -4,9 +4,11 @@
 storage:
   directories:
     # standard systemd credentials directory
-    # - path: /etc/credstore
+    - path: /etc/credstore
+      mode: 0700
 
-    # our system environment directory, name files {service}.env
+    # our system environment directory
+    # for non container services environment files named <service>.env
     - path: /etc/local/environment
       mode: 0700
 
@@ -16,12 +18,6 @@ storage:
 
     # our system flags directory
     - path: /etc/local/flags
-
-    # our local frontend (traefik) configuration directory
-    - path: /etc/local/frontend
-
-    # our directory for local commandline scripts and binaries
-    - path: /var/local/bin
 
   files:
     # our internal bridge (configured using networkmanager)
@@ -79,21 +75,6 @@ storage:
       contents:
         local: fcos/coreos-update-config.service
 
-    # tell systemd to not use a pager when printing information
-    # - path: /etc/profile.d/systemd-pager.sh
-    #   mode: 0644
-    #   contents:
-    #     inline: |
-    #       export SYSTEMD_PAGER=cat
-
-    # hide audit messages from the interactive console
-    # - path: /etc/sysctl.d/20-silence-audit.conf
-    #   mode: 0644
-    #   contents:
-    #     inline: |
-    #       # Raise console message logging level from DEBUG (7) to WARNING (4)
-    #       kernel.printk=4
-
   links:
     # symlink root_ca,root_bundle,server.crt,server.key as systemd credentials
     - path: /etc/credstore/root_ca.crt
@@ -107,10 +88,6 @@ storage:
 
     - path: /etc/credstore/server.key
       target: /etc/ssl/private/server.key
-
-    # symlink systemd-networkd for automatic start
-    - path: /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
-      target: /usr/lib/systemd/system/systemd-networkd.service
 
 systemd:
   units:
@@ -166,58 +143,11 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         EnvironmentFile=/etc/local/environment/%N.env
-        # XXX workaround systemd variables counting as one arg if passed directly into a command line
+        # XXX systemd variables counting as one arg if passed directly into a command line
         ExecStart=/usr/bin/bash -c 'set -e; \
             /usr/bin/rpm-ostree install \
               --assumeyes --idempotent --allow-inactive --reboot ${RPM_OSTREE_INSTALL}'
         ExecStart=/usr/bin/touch /etc/local/flags/%N.stamp
-
-        [Install]
-        WantedBy=multi-user.target
-
-    # install pkgs if newer from FILEURL to LOCALFILE, replace VERSION and ARCH, check hash
-    - name: var-local-install@.service
-      contents: |
-        [Unit]
-        Description=/var/local installed Extensions - only use if no ostree version is available
-        After=network-online.target
-        Wants=network-online.target
-        Before=zincati.service
-
-        [Service]
-        Type=oneshot
-        RemainAfterExit=yes
-        # dropin must define: VERSION, FILEURL, LOCALFILE and either HASHURL or SHA256SUM
-        # FILEURL, HASHURL are searched and replaced for {VERSION} and {ARCH}
-        Environment=FLAG_FILE=/etc/local/flags/%N.stamp
-        ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
-          VER_NEW="$VERSION"; \
-          VER_INUSE="$(if test -e "$FLAG_FILE"; then cat "$FLAG_FILE"; else echo "0"; fi)"; \
-          VER_GT="$(echo -e "$VER_NEW\n$VER_INUSE\n" | sort -Vr | head -n1)"; \
-          LOCAL_NAME="$LOCALFILE"; BASE_FILE="$(basename $LOCAL_NAME)"; \
-          REMOTE_URL="$FILEURL"; REMOTE_HASH="$HASHURL"; HASH_STRING="$SHA256SUM"; \
-          repl_url() { echo "$@" | sed -r "s/\{VERSION\}/${VERSION}/g" | sed -r "s/\{ARCH\}/$(uname -m)/g"; }; \
-          if test "$VER_NEW" = "" -o "$REMOTE_URL" = "" -o "$LOCAL_NAME" = ""; then echo "miss arg"; exit 1; fi; \
-          if test "$REMOTE_HASH" = "" -a "$HASH_STRING" = ""; then echo "HASHURL or SHA256SUM needed"; exit 1; fi; \
-          if test "$VER_INUSE" != "$VER_NEW" -o ! -e "$LOCAL_NAME"; then \
-              if test "$VER_GT" = "$VER_NEW" -o ! -e "$LOCAL_NAME"; then \
-                  TEMP_DIR="$(mktemp -d)" && trap "rm -rf $TEMP_DIR" EXIT; \
-                  curl -sSL -o "$TEMP_DIR/$BASE_FILE" "$(repl_url $REMOTE_URL)"; \
-                  if test "$REMOTE_HASH" != ""; then \
-                      curl -sSL -o "$TEMP_DIR/$BASE_FILE.hash" "$(repl_url $REMOTE_HASH)"; \
-                      pushd "$TEMP_DIR"; \
-                      cat "$TEMP_DIR/$BASE_FILE.hash" | \
-                        sed -r "s/^([^ ]+) +.+$/\\1 *$BASE_FILE/g" | sha256sum -c; \
-                      popd; \
-                  fi; \
-                  if test "$HASH_STRING" != ""; then \
-                      pushd "$TEMP_DIR"; echo "$HASH_STRING *$BASE_FILE" | sha256sum -c; popd; \
-                  fi; \
-              fi; \
-              mv "$TEMP_DIR/$BASE_FILE" "$LOCAL_NAME"; \
-              chmod +x "$LOCAL_NAME"; \
-              echo "$VER_NEW" >"$FLAG_FILE"; \
-          fi'
 
         [Install]
         WantedBy=multi-user.target

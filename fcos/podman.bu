@@ -1,0 +1,84 @@
+# service butane config
+# {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+
+storage:
+  files:
+    # symlink /run/docker.sock to /run/podman/podman.sock, so compose will also use podman
+    - path: /etc/tmpfiles.d/podman-docker.conf
+      contents:
+        inline: |
+          # L /symlink/to/create  -     -     -     - symlink/target/path
+          L   /run/docker.sock    -     -     -     - /run/podman/podman.sock
+          D!  /run/podman         0750  root  root
+
+    # configure podman
+    - path: /etc/containers/containers.conf
+      contents:
+        inline: |
+          [containers]
+          default_capabilities = [ "CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID", "KILL", "NET_BIND_SERVICE", "SETFCAP", "SETGID", "SETPCAP", "SETUID", "SYS_CHROOT",]
+          default_sysctls = [  "net.ipv4.ping_group_range=0 0",]
+          # podman defaults to less capabilities than docker
+          # docker additionaly adds "AUDIT_WRITE", "MKNOD" and "NET_RAW"
+          # if needed, use the --cap-add option or edit here
+{% if DNS_RESOLVER|d(false) %}
+          dns_servers = ["{{ cidr2ip(INTERNAL_CIDR) }}", ]
+{% endif %}
+          [network]
+          # make podman alias podman0 a 16Bit Network
+          default_network="podman"
+          default_subnet="{{ PODMAN_CIDR }}"
+          # make podman1 to podman99 a 8Bit Network
+          default_subnet_pools=[
+{% for subnet in range(1,99) %}
+            {"base" = "{{ PODMAN_POOL_BASE }}{{ subnet }}.0/24", "size" = 24},
+{% endfor %}
+          ]
+          [engine]
+          runtime = "crun"
+          [machine]
+          [secrets.opts]
+          [engine.runtimes]
+          [engine.volume_plugins]
+
+systemd:
+  units:
+    # mask docker.service/socket, because we will use podman only
+    - name: docker.service
+      mask: true
+
+    - name: docker.socket
+      mask: true
+
+    # mask podman.socket, because we unconditional start podman
+    - name: podman.socket
+      mask: true
+
+    # load /etc/credstore/* into podman secrets
+    - name: container-secrets.service
+      enabled: true
+      contents_local: fcos/container-secrets.service
+
+    # overwrite podman.service: set explicit socket, dont exit on timeout, always enabled
+    - name: podman.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Podman API Service
+        After=network-online.target rpm-ostree-install.service
+        Wants=network-online.target rpm-ostree-install.service
+
+        Documentation=man:podman-system-service(1)
+        StartLimitIntervalSec=0
+
+        [Service]
+        Delegate=true
+        Type=exec
+        KillMode=process
+        Environment=LOGGING="--log-level=info"
+        ExecStartPre=/usr/bin/bash -c "if test ! -d /run/podman; then mkdir -m 0750 /run/podman; fi"
+        ExecStart=/usr/bin/podman $LOGGING system service --time 0 unix:///run/podman/podman.sock
+
+        [Install]
+        WantedBy=multi-user.target
+

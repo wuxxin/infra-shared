@@ -4,10 +4,10 @@
 storage:
   directories:
     # standard *.nspawn directory
-    - path: /etc/systemd/nspawn
+    #- path: /etc/systemd/nspawn
 
     # standard nspawn machine image base directory
-    - path: /var/lib/machines
+    #- path: /var/lib/machines
 
     # our nspawn volume storage base directory
     - path: /var/lib/volumes
@@ -56,6 +56,11 @@ storage:
     - path: /etc/containers/build/debian-bookworm
       local: Containerfile/debian-bookworm
 
+  links:
+    # symlink systemd-networkd for automatic start, because nspawn.bu uses networkd
+    - path: /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+      target: /usr/lib/systemd/system/systemd-networkd.service
+
 systemd:
   units:
     - name: nspawn-build@.service
@@ -69,6 +74,13 @@ systemd:
             # add "network-bridge=nspawn" to default parameter
             ExecStart=
             ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-bridge=nspawn -U --settings=override --machine=%i
+
+        # add root_bundle and root_ca to default available credentials
+        - name: loadcreds.conf
+          contents: |
+            [Service]
+            ImportCredential=root_bundle.crt
+            ImportCredential=root_ca.crt
 
         - name: 00_provision.conf
           contents: |

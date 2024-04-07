@@ -1,8 +1,10 @@
+# container butane config
+
 storage:
   directories:
     # standard podman quadlet container/volume/network configuration directory
     #   automatic service recognition if: {service}[.*].{container,volume,*}
-    - path: /etc/containers/systemd
+    # - path: /etc/containers/systemd
 
     # our containers environment directory
     - path: /etc/containers/environment
@@ -11,41 +13,32 @@ storage:
     # our containers Containerfile directory
     - path: /etc/containers/build
 
+    # our local frontend (traefik) configuration directory
+    - path: /etc/local/frontend
+
+{% if WEB_FRONTEND|d(false) or DNS_RESOLVER|d(false) %}
   files:
-    # symlink /run/docker.sock to /run/podman/podman.sock, so compose will also use podman
-    - path: /etc/tmpfiles.d/podman-docker.conf
-      contents:
-        inline: |
-          # L /symlink/to/create  -     -     -     - symlink/target/path
-          L   /run/docker.sock    -     -     -     - /run/podman/podman.sock
-          D!  /run/podman         0750  root  root
-
-    # environment for list of files to import as containers secrets
-    - path: /etc/containers/environment/container-secrets.env
-      contents:
-        inline: |
-          FILES=/etc/ssl/certs/root_ca.crt /etc/ssl/certs/root_bundle.crt /etc/ssl/certs/server.crt /etc/ssl/private/server.key
-
-{% if CONTAINER_FRONTEND|d(false) %}
+  {% if WEB_FRONTEND|d(false) %}
     # copy apiproxy and frontend configuration
-  {% for f in ["apiproxy.container", "apiproxy.cfg",
+    {% for f in ["apiproxy.container", "apiproxy.cfg",
       "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: container/{{ f }}
         template: jinja
-  {% endfor %}
-{% endif %}
+    {% endfor %}
+  {% endif %}
 
-{% if DNS_RESOLVER|d(false) %}
+  {% if DNS_RESOLVER|d(false) %}
     # copy unbound dns-resolver configuration, can be overwritten later
-  {% for f in ["dnsresolver.container", "dnsresolver.volume",
+    {% for f in ["dnsresolver.container", "dnsresolver.volume",
       "dnsresolver.conf",  "dnsresolver_srv.conf",  "dnsresolver_ext.conf",] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: container/{{ f }}
         template: jinja
-  {% endfor %}
+    {% endfor %}
+  {% endif %}
 {% endif %}
 
   trees:
@@ -57,51 +50,13 @@ storage:
 
 systemd:
   units:
-    # mask docker.service/socket, because we will use podman only
-    - name: docker.service
-      mask: true
-
-    - name: docker.socket
-      mask: true
-
-    # mask podman.socket, because we unconditional start podman
-    - name: podman.socket
-      mask: true
-
-    # overwrite podman.service: set explicit socket, dont exit on timeout, always enabled
-    - name: podman.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Podman API Service
-        After=network-online.target rpm-ostree-install.service
-        Wants=network-online.target rpm-ostree-install.service
-
-        Documentation=man:podman-system-service(1)
-        StartLimitIntervalSec=0
-
-        [Service]
-        Delegate=true
-        Type=exec
-        KillMode=process
-        Environment=LOGGING="--log-level=info"
-        ExecStartPre=/usr/bin/bash -c "if test ! -d /run/podman; then mkdir -m 0750 /run/podman; fi"
-        ExecStart=/usr/bin/podman $LOGGING system service --time 0 unix:///run/podman/podman.sock
-
-        [Install]
-        WantedBy=multi-user.target
-
     - name: container-build@.path
       contents_local: fcos/container-build@.path
 
     - name: container-build@.service
       contents_local: fcos/container-build@.service
 
-    - name: container-secrets.service
-      enabled: true
-      contents_local: fcos/container-secrets.service
-
-{% if CONTAINER_FRONTEND|d(false) %}
+{% if WEB_FRONTEND|d(false) %}
     - name: frontend-post-up.service
       enabled: true
       contents: |
