@@ -102,9 +102,9 @@ semodule-utils
 checkpolicy
 
 # # esphome build
-# CHECK: esphome
+# # CHECK: esphome
 # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-esphome
+# esphome
 
 "
 
