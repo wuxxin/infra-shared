@@ -68,6 +68,7 @@ pg_postgres_client_cert = create_client_cert(
     dns_names=["postgres@{}".format(name) for name in dns_names],
 )
 
+
 # jinja environment for butane translation
 host_environment = {
     "RPM_OSTREE_INSTALL": ["mc"],  # enable mc for debug (TODO replace with toolbox)
@@ -80,6 +81,16 @@ host_environment = {
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRES_PASSWORD": pg_postgres_password.result,
 }
+
+# modify environment from config:dns if available
+if config.get_object("dns", None):
+    host_environment.update(
+        {
+            "DNS": {
+                key.upper(): value for key, value in config.get_object("dns").items()
+            },
+        }
+    )
 
 # modify environment depending stack
 if stack_name.endswith("sim"):
