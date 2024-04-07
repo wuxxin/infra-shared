@@ -76,6 +76,6 @@ def build_homeassistant():
     pass
 
 
-def build_esphome():
+def build_esphome_device():
     "build yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF"
     pass
