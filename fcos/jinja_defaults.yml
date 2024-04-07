@@ -3,25 +3,22 @@
 # DEBUG: true/false
 DEBUG: false
 
+# DNS_RESOLVER: true/false, if true run unbound as recursive nameserver
+DNS_RESOLVER: true
+
+# WEB_FRONTEND: true/false, if true run traefik for tls termination and https routing
+WEB_FRONTEND: true
+
+# FRONTEND_DASHBOARD: string, if set to string of full hostname
+# (eg. "traefik.host.domain") will enable traefik dashboard if WEB_FRONTEND is used
+FRONTEND_DASHBOARD:
+
 # Default locale (lang, keymap, timezone, country_code)
 LOCALE:
   LANG: en_US.UTF-8
   KEYMAP: us
   TIMEZONE: UTC
   COUNTRY_CODE: UN
-
-# DNS_RESOLVER: true/false, if true run own recursive nameserver
-# other DNS: options, see docs/dnsresolver.md
-DNS_RESOLVER: true
-DNS:
-  VERBOSITY: "1"
-
-# WEB_FRONTEND: true/false, if true traefik will do tls termination and https routing
-WEB_FRONTEND: true
-
-# FRONTEND_DASHBOARD: string, if set to string of full hostname
-# (eg. "traefik.host.domain") will enable traefik dashboard if WEB_FRONTEND is used
-FRONTEND_DASHBOARD:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
@@ -34,11 +31,31 @@ RPM_OSTREE_INSTALL:
   # testing: lightweight alternative to docker-compose
   - podman-compose
 
-# UPDATE_SERVICE_STATUS: true/false, if true butane2salt translation will add update service related states
-UPDATE_SERVICE_STATUS: true
-
 # Network CIDR of Internal, Podman and Nspawn Network
 INTERNAL_CIDR: 10.87.240.1/24
 NSPAWN_CIDR: 10.87.241.1/24
 PODMAN_CIDR: 10.88.0.1/16
 PODMAN_POOL_BASE: "10.89."
+
+# SALT_SERVICE_STATUS: true/false, if true:
+#   butane2salt translation will add update service related service states and changes
+SALT_SERVICE_STATUS: true
+
+# DNS Resolver options, see docs/dnsresolver.md
+DNS:
+  VERBOSITY: "1"
+  # UPSTREAM_TLS: boolean, defaults: true
+  # UPSTREAM: list, defaults: None
+  # # if not defined upstream is set to 2x google, 2x adguard, 2xcloudflare lookup split using tls
+  # # custom upstream forwarder list syntax:
+  # # - 1.2.3.4@567#dns.domain
+  # FORWARD: list, defaults: None
+  # # custom forwarder list syntax:
+  # # - name: zone
+  # #   addr: addr
+  # #   tls: true/false
+  # EXT: |
+  #   # custom text appended to dnsresolver_ext.conf, start with new section
+  # SRV: |
+  #   # custom text appended to dnsresolver_srv.conf, placed _inside_ the server section
+
