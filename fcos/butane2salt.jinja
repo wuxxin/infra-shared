@@ -34,8 +34,8 @@ create service change/enable/disable macros and accumulator targets
 
 #}
 {%- set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
-{%- set UPDATE_SERVICE_STATUS=UPDATE_SERVICE_STATUS|d(true) %}
-{% if UPDATE_SERVICE_STATUS %}
+{%- set SALT_SERVICE_STATUS=SALT_SERVICE_STATUS|d(true) %}
+{% if SALT_SERVICE_STATUS %}
 {#
 
 write service to service_enable.req/service_disable.req

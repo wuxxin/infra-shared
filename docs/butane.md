@@ -14,7 +14,7 @@ will be rendered through jinja with the described Environment and optional inclu
 # see fcos/jinja_defaults.yml
 ```
 
-- see [DNS-Resolver](dnsresolver.md) for DNS_ related optional variables
+- see [DNS-Resolver](dnsresolver.md) for DNS Resolver related optional variables examples
 
 
 #### Custom regex filter
@@ -70,7 +70,7 @@ the saltstack spec file is created from a subset of the final butane yaml
 - systemd:units and systemd:units:dropins must be of type contents
 - filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
 - append this_dir/coreos-update-config.sls and basedir/*.sls to it
-- additional outputs if {UPDATE_SERVICE_STATUS} == true:
+- additional outputs if {SALT_SERVICE_STATUS} == true:
     - creates a commented, non uniqe, not sorted list of service base names
         - {UPDATE_DIR}/service_changed.req for services with changed configuration
         - {UPDATE_DIR}/service_enable.req for services to be enabled
