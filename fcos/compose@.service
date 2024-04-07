@@ -6,8 +6,9 @@ ConditionPathExists=/etc/compose/build/%i/compose.yml
 
 [Service]
 Environment=DOCKER_HOST=unix:///run/podman/podman.sock
-LoadCredential=root_bundle.crt
-
+# add root_bundle and root_ca to default available credentials
+ImportCredential=root_bundle.crt
+ImportCredential=root_ca.crt
 WorkingDirectory=/etc/compose/build/%i
 ExecStart=/usr/bin/docker-compose -f compose.yml --env-file /etc/compose/environment/%i.env up
 ExecStop=/usr/bin/docker-compose -f compose.yml --env-file /etc/compose/environment/%i.env down
