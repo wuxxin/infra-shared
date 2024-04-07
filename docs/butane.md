@@ -11,7 +11,7 @@ will be rendered through jinja with the described Environment and optional inclu
 - environment defaults available in jinja
 
 ```yaml
-{% include "fcos/base_env.yml" %}
+# see fcos/jinja_defaults.yml
 ```
 
 - see [DNS-Resolver](dnsresolver.md) for DNS_ related optional variables
