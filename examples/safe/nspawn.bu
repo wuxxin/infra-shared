@@ -1,9 +1,5 @@
 systemd:
   units:
-    # autostart hello-nspawn service
-    - name: nspawn-up@hello-nspawn.service
-      enabled: true
-
     # make nspawn-build depend on container-build@debian-bookworm
     # container-build@(*) should be the same as NSPAWN_OSNAME
     - name: nspawn-build@hello-nspawn.service
@@ -15,13 +11,13 @@ systemd:
             Wants=container-build@debian-bookworm.service
             After=container-build@debian-bookworm.service
 
-    # load ca cert bundle as credential into systemd-nspawn
+    # load server key as credential into systemd-nspawn
     - name: systemd-nspawn@hello-nspawn.service
       dropins:
         - name: loadcreds.conf
           contents: |
             [Service]
-            LoadCredential=root_bundle.crt
+            ImportCredential=server.crt
 
 storage:
   directories:
@@ -36,8 +32,6 @@ storage:
           [Exec]
           # set custom env
           Environment=TEST=true
-          # %d = Credentials directory
-          Environment=root_bundle_path=%d/root_bundle.crt
 
           [Files]
           # Example "Volume"
