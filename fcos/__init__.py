@@ -43,7 +43,7 @@ subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
 class ButaneTranspiler(pulumi.ComponentResource):
     """translate jinja templated butane files to ignition and a subset to saltstack salt format
 
-    - see `base_env.yml` for environment defaults available in jinja
+    - uses `jinja_defaults.yml` for environment defaults available in jinja
     - returns
         - butane_config (merged butane yaml)
         - saltstack_config (butane translated to inlined saltstack yaml with customizations
@@ -67,7 +67,9 @@ class ButaneTranspiler(pulumi.ComponentResource):
         )
 
         # jinja environment to be used
-        default_env = yaml.safe_load(open(os.path.join(this_dir, "base_env.yml"), "r"))
+        default_env = yaml.safe_load(
+            open(os.path.join(this_dir, "jinja_defaults.yml"), "r")
+        )
         this_env = merge_dict_struct(
             default_env, {} if environment is None else environment
         )
@@ -412,20 +414,23 @@ class FcosImageDownloader(pulumi.ComponentResource):
         image_format=None,
         opts=None,
     ):
-        from ..authority import project_dir, stack_name
+        from ..authority import project_dir, stack_name, config
 
         defaults = yaml.safe_load(
             open(os.path.join(this_dir, "..", "build_defaults.yml"), "r")
         )
 
+        config = config.get_object("build")
+        fcos_config = merge_dict_struct(defaults["fcos"], config.get("fcos", {}))
+
         if not stream:
-            stream = defaults["fcos"]["stream"]
+            stream = fcos_config["stream"]
         if not architecture:
-            architecture = defaults["fcos"]["architecture"]
+            architecture = fcos_config["architecture"]
         if not platform:
-            platform = defaults["fcos"]["platform"]
+            platform = fcos_config["platform"]
         if not image_format:
-            image_format = defaults["fcos"]["format"]
+            image_format = fcos_config["format"]
 
         resource_name = "fcos_{s}_{a}_{p}_{f}".format(
             s=stream, a=architecture, p=platform, f=image_format
@@ -516,7 +521,7 @@ ignition:
 
 
 class LibvirtIgniteFcos(pulumi.ComponentResource):
-    """create a libvirt based virtual machine according to an ignition config"""
+    """create a libvirt based x86_64 virtual machine according to an ignition config"""
 
     serial_tty_addon = """
       <serial type="pty">
@@ -575,9 +580,12 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self, ignore_changes=["content"]),
         )
 
-        # download qemu base image
+        # download qemu base image for libvirt, overwrite architecture, platform and image_format
         self.baseimage = FcosImageDownloader(
-            platform="qemu", image_format="qcow2.xz", opts=child_opts
+            architecture="x86_64",
+            platform="qemu",
+            image_format="qcow2.xz",
+            opts=child_opts,
         )
 
         # create volumes, pass size if not boot vol, pass source if boot vol
