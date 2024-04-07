@@ -78,17 +78,26 @@ Modifications to *.bu and their referenced files will result in a new saltstack 
 
 Environment:
 
-- `/etc/containers/environment/` *instance*`.env`
+- `/etc/containers/environment/`*instance*`.env`
 
 Containerfile & Build Dependencies:
 
-- `/etc/containers/build/` *instance* `/Containerfile`
-- `/etc/containers/build/` *instance* `/.*`
+- `/etc/containers/build/`*instance*`/Containerfile`
+- `/etc/containers/build/`*instance*`/.*`
 
 Container, Volume and Runtime Dependencies:
 
-- `/etc/containers/systemd/` *instance*`.[container|volume]`
-- `/etc/containers/systemd/` *instance*`.*`
+- `/etc/containers/systemd/`*instance*`.[container|volume]`
+
+    - Additional Credentials:
+
+    ```toml
+    [Container]
+    Secret=server.crt
+    ```
+
+- Additional Service files recognized as part of service:
+    - `/etc/containers/systemd/`*instance*`*`
 
 #### Compose Container
 
@@ -99,10 +108,48 @@ Environment:
 Compose.yml and Build Dependencies:
 
 - `/etc/compose/build/` *instance* `/compose.yml`
-- `/etc/compose/build/` *instance* `/.*`
+- Additional Build Files:
+    - `/etc/compose/build/` *instance* `/.*`
+
+Additional Credentials:
+
+- `/etc/systemd/system/compose@` *instance*`.service.d/loadcreds.conf`
+
+```toml
+[Service]
+ImportCredential=server.crt
+```
 
 #### NSpawn Container
 
+Environment:
+
+- `/etc/nspawn/environment/` *instance*`.env`
+
+.nspawn Configuration:
+
+- `/etc/systemd/nspawn/` *instance*`.nspawn`
+
+Build Dependencies:
+
+- `nspawn-build@` *instance*`.service.d/*.conf`
+
+Provision Files:
+
+- `/etc/nspawn/build/` *instance* `/nspawn.provision.sh`
+- Additional Provision Files:
+    - `/etc/nspawn/build/` *instance* `/.*`
+
+Additional Credentials:
+
+- /etc/systemd/system/systemd-nspawn@` *instance*`.service.d/loadcreds.conf`
+```toml
+[Service]
+ImportCredential=server.crt
+```
+
+Volumes:
+- /var/lib/volumes/` *instance*.*volume*`/`
 
 ### Credentials / Secrets
 
