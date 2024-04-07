@@ -1,6 +1,8 @@
 secrets:
   root_bundle.crt:
-    external: true
+    file: ${CREDENTIALS_DIRECTORY}/root_bundle.crt
+  root_ca.crt:
+    file: ${CREDENTIALS_DIRECTORY}/root_ca.crt
 
 services:
   backend:
@@ -11,6 +13,7 @@ services:
       - 8080
     secrets:
       - source: root_bundle.crt
+      - source: root_ca.crt
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.hello-compose.rule=Host(`$HOSTNAME`)"
