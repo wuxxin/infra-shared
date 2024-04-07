@@ -96,7 +96,7 @@ if config.get_object("dns", None):
 if stack_name.endswith("sim"):
     # simulation adds qemu-guest-agent, debug=True, and 123 as disk passphrase
     host_environment["RPM_OSTREE_INSTALL"].append("qemu-guest-agent")
-    host_environment.update({"DEBUG": True})
+    host_environment.update({"DEBUG_CONSOLE_AUTOLOGIN": True})
     luks_root_passphrase = pulumi.Output.concat("1234")
     luks_var_passphrase = pulumi.Output.concat("1234")
     identifiers = yaml.safe_load(

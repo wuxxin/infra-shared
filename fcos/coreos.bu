@@ -1,4 +1,4 @@
-# base butane config
+# butane config
 # {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 storage:
@@ -96,7 +96,7 @@ systemd:
       enabled: false
       mask: true
 
-    {% if DEBUG %}
+    {% if DEBUG_CONSOLE_AUTOLOGIN %}
     # debugging: Add autologin on serial console
     - name: serial-getty@ttyS0.service
       dropins:

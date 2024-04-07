@@ -1,4 +1,4 @@
-# nspawn butane config
+# butane config
 # {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 storage:

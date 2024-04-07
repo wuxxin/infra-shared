@@ -1,3 +1,5 @@
+# butane config
+
 storage:
   directories:
     # our compose environment directory

@@ -1,7 +1,7 @@
 boot_device:
   luks:
     threshold: 1
-{%- if tang_url is none or DEBUG %}
+{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
     tpm2: true
 {%- endif %}
 {%- if tang_url %}
@@ -39,7 +39,7 @@ storage:
       discard: true
       clevis:
         threshold: 1
-{%- if tang_url is none or DEBUG %}
+{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
         tpm2: true
 {%- endif %}
 {%- if tang_url %}

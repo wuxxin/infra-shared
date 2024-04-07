@@ -1,9 +1,7 @@
 # Jinja Default Environment
 
-# DEBUG: true/false
-DEBUG: false
-
-# DNS_RESOLVER: true/false, if true run unbound as recursive nameserver
+# DNS_RESOLVER: true/false
+# if true run unbound as recursive nameserver for container, compose and nspawn machines
 DNS_RESOLVER: true
 
 # WEB_FRONTEND: true/false, if true run traefik for tls termination and https routing
@@ -40,6 +38,9 @@ PODMAN_POOL_BASE: "10.89."
 # SALT_SERVICE_STATUS: true/false, if true:
 #   butane2salt translation will add update service related service states and changes
 SALT_SERVICE_STATUS: true
+
+# DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
+DEBUG_CONSOLE_AUTOLOGIN: false
 
 # DNS Resolver options, see docs/dnsresolver.md
 DNS:
