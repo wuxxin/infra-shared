@@ -39,7 +39,7 @@ See the [examples](examples/) for code of what else can be done with it
         - `compose*` - run multi-container applications defined using a compose file
     - **nSpawn OS-Container**: `systemd-nspawn`
         - `nspawn*` - run any linux OS in a light-weight system container
-    - **tls/http FrontEnd**: `traefik`
+    - **tls/http/web FrontEnd**: `traefik`
         - using container, compose and nspawn labels for dynamic configuration
     - **DNS Resolver**: `unbound`
         - using container for local DNSSEC capable recursive DNS-Resolver
