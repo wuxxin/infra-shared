@@ -1,6 +1,6 @@
 storage:
   trees:
-    # compose build compose.yml files
+    # hello-compose build files, including compose.yml
     - path: /etc/compose/build
       local: compose
 
@@ -14,6 +14,6 @@ storage:
 
 systemd:
   units:
-    # enable compose hello-compose service
+    # enable hello-compose service
     - name: compose@hello-compose.service
       enabled: true
