@@ -7,21 +7,23 @@ Fedora CoreOS:
 
 Library Features:
 
-- [Jinja templating of butane yaml](butane.md) content with env vars replacement and default vars
-- Configuration and Initial Boot
+- [Jinja templating of butane](butane.md) yaml content with env vars replacement and default vars
+- [Configuration](#host-configuration) and Initial Boot
     - authorized_keys, loads container secrets: tls cert, key, ca_cert, ca_bundle
     - install extensions using rpm-ostree-install or var-local-install
-- Reconfiguration / Update Configuration using translated butane to saltstack execution
+- Reconfiguration / [Update Configuration](#host-update) using translated butane to saltstack execution
 - Default Services
     - `apiproxy.service`: haproxy socket to readonly http api proxy for traefik container watching
     - `frontend.service`: traefik tls termination, middleware, container/compose/nspawn discovery
     - `dnsresolver.service`: unbound dns recursive caching resolver
 - Networking
-    - `.internal` bridge with dns support for internal networking
+    - `.internal` bridge with dns support
+    - `.podman[1-99]` bridge with dns support and dns resolution for `.podman` container
+    - `.nspawn` bridge with dns support and dns resolution for `.nspawn` container
 - Comfortable Deployment of
-    - Single Container: `podman-systemd.unit` - systemd container units using podman-quadlet
-    - Compose Container: `compose.yml` - multi-container applications defined using a compose file
-    - nSpawn OS-Container: `systemd-nspawn` - a linux OS in a light-weight container
+    - [Single Container](#single-container): `podman-systemd.unit` - systemd container units using podman-quadlet
+    - [Compose Container](#compose-container): `compose.yml` - multi-container applications defined using a compose file
+    - [nSpawn OS-Container](#nspawn-container): `systemd-nspawn` - a linux OS in a light-weight container
 
 ### Host Configuration
 
@@ -83,122 +85,117 @@ Environment:
 Containerfile & Build Dependencies:
 
 - `/etc/containers/build/`*instance*`/Containerfile`
-- `/etc/containers/build/`*instance*`/.*`
+- `/etc/containers/build/`*instance*`/*`
 
 Container, Volume and Runtime Dependencies:
 
 - `/etc/containers/systemd/`*instance*`.[container|volume]`
-
-    - Additional Credentials:
+- `/etc/containers/systemd/`*instance*`*`
+- Additional Credentials in *instance*`.container`:
 
     ```toml
     [Container]
     Secret=server.crt
     ```
 
-- Additional Service files recognized as part of service:
-    - `/etc/containers/systemd/`*instance*`*`
-
 #### Compose Container
 
 Environment:
 
-- `/etc/compose/environment/` *instance*`.env`
+- `/etc/compose/environment/`*instance*`.env`
 
 Compose.yml and Build Dependencies:
 
-- `/etc/compose/build/` *instance* `/compose.yml`
-- Additional Build Files:
-    - `/etc/compose/build/` *instance* `/.*`
+- `/etc/compose/build/`*instance*`/compose.yml`
+- `/etc/compose/build/`*instance*`/*`
 
 Additional Credentials:
 
-- `/etc/systemd/system/compose@` *instance*`.service.d/loadcreds.conf`
+- `/etc/systemd/system/compose@`*instance*`.service.d/loadcreds.conf`
 
-```toml
-[Service]
-ImportCredential=server.crt
-```
+    ```toml
+    [Service]
+    ImportCredential=server.crt
+    ```
 
 #### NSpawn Container
 
 Environment:
 
-- `/etc/nspawn/environment/` *instance*`.env`
+- `/etc/nspawn/environment/`*instance*`.env`
 
 .nspawn Configuration:
 
-- `/etc/systemd/nspawn/` *instance*`.nspawn`
+- `/etc/systemd/nspawn/`*instance*`.nspawn`
 
 Build Dependencies:
 
-- `nspawn-build@` *instance*`.service.d/*.conf`
+- `/etc/systemd/system/nspawn-build@`*instance*`.service.d/*.conf`
 
 Provision Files:
 
-- `/etc/nspawn/build/` *instance* `/nspawn.provision.sh`
-- Additional Provision Files:
-    - `/etc/nspawn/build/` *instance* `/.*`
+- `/etc/nspawn/build/`*instance*`/nspawn.provision.sh`
+- `/etc/nspawn/build/`*instance*`/*`
 
 Additional Credentials:
 
-- /etc/systemd/system/systemd-nspawn@` *instance*`.service.d/loadcreds.conf`
+- `/etc/systemd/system/systemd-nspawn@`*instance*`.service.d/loadcreds.conf`
 ```toml
 [Service]
 ImportCredential=server.crt
 ```
 
 Volumes:
-- /var/lib/volumes/` *instance*.*volume*`/`
+- `/var/lib/volumes/`*instance*`.`*volume*`/`
 
 ### Credentials / Secrets
 
 #### Storing
 
-- place credential in /etc/credstore or symlink there
+- place credential in `/etc/credstore` or symlink there
 
 #### Retrieval
 
 ##### Single Container
 
-- /etc/credstore will be available as podman secrets
-- Definition `<instance>.container`
+- `/etc/credstore` will be available as podman secrets
+- Definition in: `<instance>.container`
 ```toml
 [Container]
 # define secret to use, optional mode and path
-Secret=root_ca.crt,mode=0640
+Secret=server.crt,mode=0640
 ```
 - Access in Container: `/run/secrets/*`
-    - `cat /run/secrets/root_ca.crt`
+    - `cat /run/secrets/server.crt`
 
 ##### Compose Container
 compose assumes docker in non swarm mode, which does not support secrets,therfore external secrets are not working. To configure local secrets credentials are configured in a systemd service dropin, that docker can pick up the credentials as local defined secrets.
 
-- Definition `compose@<instance>.service.d/*.conf`
+- Definition in `compose@<instance>.service.d/*.conf`
 ```toml
 [Service]
-ImportCredential=root_bundle.crt
+ImportCredential=server.crt
 ```
 - Defaults
-    - root_bundle.crt, root_ca.crt are already Imported
+    - **root_bundle.crt**, **root_ca.crt** are already imported
 
 - Definition `compose.yml`
 ```yaml
 secrets:
-  root_bundle.crt:
-    file: ${CREDENTIALS_DIRECTORY}/root_bundle.crt
+  server.crt:
+    file: ${CREDENTIALS_DIRECTORY}/server.crt
 
 services:
   backend:
     secrets:
-      - source: root_bundle.crt
+      - source: server.crt
 ```
 
 - Access
     - outside container: `$CREDENTIALS_DIRECTORY/*`
-        - `cat "$CREDENTIALS_DIRECTORY/root_bundle.crt"`
+        - `cat "$CREDENTIALS_DIRECTORY/server.crt"`
     - inside container: `/run/secrets/*`
-        - `cat "/run/secrets/root_bundle.crt"
+        - `cat "/run/secrets/server.crt"`
 
 ##### Nspawn Container
 
@@ -208,6 +205,9 @@ services:
 [Service]
 ImportCredential=server.crt
 ```
+- Defaults
+    - **root_bundle.crt**, **root_ca.crt** are already imported
+
 - Access: `$CREDENTIALS_DIRECTORY/*`
     - `cat "$CREDENTIALS_DIRECTORY/server.crt"`
 
