@@ -2,6 +2,10 @@
 Description=Traefik Edge Router that uses container labels and yaml files for service discovery
 Wants=container-build@%N.service container-secrets.service apiproxy.service
 After=container-build@%N.service container-secrets.service apiproxy.service
+{% if not WEB_FRONTEND %}
+# frontend is disabled, but we are a quadlet, so we try to stop it with a nonexisting path
+ConditionPathExists=/notexisting/frontend_disable
+{% endif%}
 
 [Container]
 Image=localhost/%N:latest
