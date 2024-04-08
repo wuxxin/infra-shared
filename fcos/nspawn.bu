@@ -20,12 +20,13 @@ storage:
       mode: 0700
 
   files:
-    # our systemd-nspawn bridge (configured using systemd-networkd)
+    # configure nspawn bridge using systemd-networkd
     - path: /etc/systemd/network/10-nspawn.netdev
       mode: 420
       contents:
         inline: |
           [NetDev]
+          # our systemd-nspawn bridge device
           Name=nspawn
           Kind=bridge
 
@@ -40,7 +41,7 @@ storage:
           Name=nspawn
 
           [Network]
-          Description=Default Network for systemd-nspawn machines
+          Description=Our default Network Bridge for systemd-nspawn Machines
           Address={{ NSPAWN_CIDR }}
           IPMasquerade=ipv4
           LinkLocalAddressing=no
@@ -50,11 +51,6 @@ storage:
           [DHCPServer]
           ServerAddress={{ NSPAWN_CIDR }}
           DNS={{ cidr2ip(INTERNAL_CIDR) }}
-
-  trees:
-    # unconditional copy containerfiles
-    - path: /etc/containers/build/debian-bookworm
-      local: Containerfile/debian-bookworm
 
   links:
     # symlink systemd-networkd for automatic start, because nspawn.bu uses networkd
@@ -68,17 +64,24 @@ systemd:
 
     - name: systemd-nspawn@.service
       dropins:
-        # add "network-bridge=nspawn" to default parameter
         - name: nspawnargs.conf
           contents: |
             [Service]
+            # add "network-bridge=nspawn" to default parameter
             ExecStart=
             ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-bridge=nspawn -U --settings=override --machine=%i
 
-        # add root_bundle and root_ca to default available credentials
+        - name: wantsunbound.conf
+          contents: |
+            [Unit]
+            # wait for unbound to be started, because name resolution of nspawn machine depends on it
+            After=unbound.service
+            Wants=unbound.service
+
         - name: loadcreds.conf
           contents: |
             [Service]
+            # add root_bundle and root_ca to default available credentials
             ImportCredential=root_bundle.crt
             ImportCredential=root_ca.crt
 
@@ -86,7 +89,7 @@ systemd:
         - name: 10_provision.conf
           contents_local: fcos/nspawn-10_provision.service.conf
 
-        # dns and frontend service discovery
+        # dns and frontend service discovery dropin
         - name: 20_discovery.conf
           contents_local: fcos/nspawn-20_discovery.service.conf
 
