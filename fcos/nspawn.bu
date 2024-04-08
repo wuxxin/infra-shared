@@ -84,9 +84,9 @@ systemd:
 
         # provision machine dropin
         - name: 10_provision.conf
-          contents_local: fcos/nspawn-10_provision.conf
+          contents_local: fcos/nspawn-10_provision.service.conf
 
         # dns and frontend service discovery
         - name: 20_discovery.conf
-          contents_local: fcos/nspawn-20_discovery.conf
+          contents_local: fcos/nspawn-20_discovery.service.conf
 
