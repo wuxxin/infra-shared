@@ -16,36 +16,23 @@ storage:
     # our local frontend (traefik) configuration directory
     - path: /etc/local/frontend
 
-{% if WEB_FRONTEND|d(false) or DNS_RESOLVER|d(false) %}
   files:
-  {% if WEB_FRONTEND|d(false) %}
     # copy apiproxy and frontend configuration
-    {% for f in ["apiproxy.container", "apiproxy.cfg",
-      "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
+{% for f in ["apiproxy.container", "apiproxy.cfg",
+    "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: container/{{ f }}
         template: jinja
-    {% endfor %}
-  {% endif %}
-
-  {% if DNS_RESOLVER|d(false) %}
-    # copy unbound dns-resolver configuration, can be overwritten later
-    {% for f in ["dnsresolver.container", "dnsresolver.volume", "dnsresolver.conf"] %}
-    - path: /etc/containers/systemd/{{ f }}
-      contents:
-        local: container/{{ f }}
-        template: jinja
-    {% endfor %}
-  {% endif %}
-{% endif %}
+{% endfor %}
 
   trees:
-    # unconditional copy containerfiles
-{% for f in ["apiproxy", "frontend", "dnsresolver"] %}
-    - path: /etc/containers/build/{{ f }}
-      local: Containerfile/{{ f }}
-{% endfor %}
+    # copy apiproxy and frontend Containerfile
+    - path: /etc/containers/build/apiproxy
+      local: Containerfile/apiproxy
+
+    - path: /etc/containers/build/frontend
+      local: Containerfile/frontend
 
 systemd:
   units:
@@ -55,9 +42,8 @@ systemd:
     - name: container-build@.service
       contents_local: fcos/container-build@.service
 
-{% if WEB_FRONTEND|d(false) %}
     - name: frontend-post-up.service
-      enabled: true
+      enabled: {{ "true" if WEB_FRONTEND else "false" }}
       contents: |
         [Unit]
         Description=Copy frontend.dynamic.yml into running container on every [re]start
@@ -67,11 +53,15 @@ systemd:
 
         [Service]
         Type=oneshot
-        ExecStart=podman cp /etc/containers/systemd/frontend.dynamic.yml "systemd-frontend:/traefik/frontend.dynamic.yml"
+
+        ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
+          if systemctl -q is-active frontend.service; then \
+            podman cp /etc/containers/systemd/frontend.dynamic.yml \
+              "systemd-frontend:/traefik/frontend.dynamic.yml"; \
+          fi'
+
         ExecStop=true
 
         [Install]
         WantedBy=multi-user.target
-
-{% endif %}
 
