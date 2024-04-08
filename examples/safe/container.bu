@@ -1,8 +1,8 @@
 storage:
   trees:
-    # podman build Containerfile
-    - path: /etc/containers/build
-      local: Containerfile
+    # postgresql Containerfile
+    - path: /etc/containers/build/postgresql
+      local: Containerfile/postgresql
 
     # quadlet container/volume/network configuration files
     - path: /etc/containers/systemd
