@@ -22,7 +22,7 @@ storage:
           # docker additionaly adds "AUDIT_WRITE", "MKNOD" and "NET_RAW"
           # if needed, use the --cap-add option or edit here
 {% if DNS_RESOLVER|d(false) %}
-          dns_servers = ["{{ cidr2ip(INTERNAL_CIDR) }}", ]
+          # dns_servers = ["{{ cidr2ip(INTERNAL_CIDR) }}", ]
 {% endif %}
           [network]
           # make podman alias podman0 a 16Bit Network
