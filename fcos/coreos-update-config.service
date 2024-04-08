@@ -67,9 +67,9 @@ ExecStart=/usr/bin/bash -c \
 # create sls/top.sls, pillar/top.sls, pillar/main.sls
 ExecStart=/usr/bin/bash -c \
     'mkdir -p "${sls_dir}" "${pillar_dir}"; \
-    printf "base:\n  \'*\':\n    - main\n" > "${sls_dir}/top.sls"; \
-    printf "base:\n  \'*\':\n    - main\n" > "${pillar_dir}/top.sls" \
-    printf "\n" > "${pillar_dir}/main.sls"'
+    printf "base:\\n  \\"*\\":\\n    - main\\n" > "${sls_dir}/top.sls"; \
+    printf "base:\\n  \\"*\\":\\n    - main\\n" > "${pillar_dir}/top.sls"; \
+    printf "resource_name: ${resource_name}\\n" > "${pillar_dir}/main.sls"'
 
 # XXX use logdriver=none, to prevent duplicate logging in journald
 # make a salt-call test/mock run, to see if update would abort midways
@@ -111,7 +111,7 @@ ExecStart=/usr/bin/bash -c '\
             torestart=""; \
             templates=""; \
             for i in $changed; do \
-                if test "$(echo $i | sed -r "s/([^@]+)@.*/\1/g")" != "$i"; then \
+                if test "$(echo $i | sed -r "s/([^@]+)@.*/\\1/g")" != "$i"; then \
                     templates="$templates $i"; \
                 else \
                     wantedby=$(systemctl show "$i.service" --property=WantedBy --value); \
