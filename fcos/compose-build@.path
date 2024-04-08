@@ -2,7 +2,7 @@
 Description=Build Compose Images for %I
 
 [Path]
-PathChanged==/etc/compose/build/%i
+PathChanged=/etc/compose/build/%i
 Unit=compose-build@%i.service
 
 [Install]
