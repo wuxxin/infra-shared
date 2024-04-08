@@ -32,7 +32,7 @@ PODMAN_CIDR: 10.88.0.1/16
 PODMAN_POOL_BASE: "10.89"
 
 # SALT_SERVICE_STATUS: true/false, if true:
-#   butane2salt translation will add update service related service states and changes
+#   butane2salt will add files with lists for service enabled, disabled, changed
 SALT_SERVICE_STATUS: true
 
 # DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
