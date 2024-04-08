@@ -15,8 +15,6 @@ Secret=server.key,mode=0640
 
 Volume=dnsresolver.volume:/var/lib/unbound
 Volume=/etc/containers/systemd/%N.conf:/etc/unbound/unbound.conf:ro
-Volume=/etc/containers/systemd/%N_ext.conf:/etc/unbound/unbound_ext.conf:ro
-Volume=/etc/containers/systemd/%N_srv.conf:/etc/unbound/unbound_srv.conf:ro
 
 # publish dns to self.internal:53/tcp,udp:853/tcp
 {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
