@@ -2,7 +2,6 @@
 Description=Traefik Edge Router that uses container labels and yaml files for service discovery
 Wants=container-build@%N.service container-secrets.service apiproxy.service
 After=container-build@%N.service container-secrets.service apiproxy.service
-ConditionPathExists=/etc/local/frontend/enabled
 
 [Container]
 Image=localhost/%N:latest
