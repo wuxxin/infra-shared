@@ -70,7 +70,6 @@ systemd:
         Type=oneshot
         ExecStart=podman cp /etc/containers/systemd/frontend.dynamic.yml "systemd-frontend:/traefik/frontend.dynamic.yml"
         ExecStop=true
-        Restart=always
 
         [Install]
         WantedBy=multi-user.target
