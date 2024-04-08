@@ -31,8 +31,7 @@ storage:
 
   {% if DNS_RESOLVER|d(false) %}
     # copy unbound dns-resolver configuration, can be overwritten later
-    {% for f in ["dnsresolver.container", "dnsresolver.volume",
-      "dnsresolver.conf",  "dnsresolver_srv.conf",  "dnsresolver_ext.conf",] %}
+    {% for f in ["dnsresolver.container", "dnsresolver.volume", "dnsresolver.conf"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: container/{{ f }}
