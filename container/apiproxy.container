@@ -1,7 +1,10 @@
 [Unit]
 Description=Container API Proxy (unix socket to tcp port) based on Haproxy
-Wants=container-build@%N.service container-secrets.service podman.service
 After=container-build@%N.service container-secrets.service podman.service
+Wants=container-build@%N.service container-secrets.service podman.service
+ConditionPathExists=/run/podman/podman.sock
+ConditionPathExists=/etc/containers/systemd/%N.cfg
+
 # upstream socket: a running docker compatible API Server under API_SOCKET
 # downstream tcp: self.internal:API_PORT
 
