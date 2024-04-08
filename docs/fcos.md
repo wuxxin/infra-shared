@@ -156,7 +156,7 @@ Volumes:
 
 #### Retrieval
 
-##### Single Container
+Single Container:
 
 - `/etc/credstore` will be available as podman secrets
 - Definition in: `<instance>.container`
@@ -168,7 +168,8 @@ Secret=server.crt,mode=0640
 - Access in Container: `/run/secrets/*`
     - `cat /run/secrets/server.crt`
 
-##### Compose Container
+Compose Container:
+
 compose assumes docker in non swarm mode, which does not support secrets,therfore external secrets are not working. To configure local secrets credentials are configured in a systemd service dropin, that docker can pick up the credentials as local defined secrets.
 
 - Definition in `compose@<instance>.service.d/*.conf`
@@ -197,7 +198,7 @@ services:
     - inside container: `/run/secrets/*`
         - `cat "/run/secrets/server.crt"`
 
-##### Nspawn Container
+Nspawn Container:
 
 - Definition `systemd-nspawn@<instance>.service.d/*.conf`
 ```toml
