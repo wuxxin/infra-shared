@@ -1,10 +1,13 @@
 ## DNS-Resolver
 
-DNS Resolving is done using `Unbound`
+DNS Resolver for Container, Compose and Nspawn workloads, done using `Unbound`.
 
 - available under `dns.internal` on `udp/53`, `tcp/53` and `DoT:tcp/853`
 - default upstream is **split round robin DoT (DNS over TLS)**
     - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
+- dynamic name and reverse ptr resolution for
+  - `.podman` Container and Compose workloads
+  - `.nspawn` Machine Container
 
 ### Examples
 #### forward custom zones to another dns server

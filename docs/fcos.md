@@ -12,10 +12,10 @@ Library Features:
     - authorized_keys, loads container secrets: tls cert, key, ca_cert, ca_bundle
     - install extensions using rpm-ostree-install or var-local-install
 - Reconfiguration / [Update Configuration](#host-update) using translated butane to saltstack execution
-- Default Services
-    - `apiproxy.service`: haproxy socket to readonly http api proxy for traefik container watching
-    - `frontend.service`: traefik tls termination, middleware, container/compose/nspawn discovery
-    - `dnsresolver.service`: unbound dns recursive caching resolver
+- Services
+    - [`dnsresolver.service`](dnsresolver.md): unbound dns recursive caching resolver
+    - [`frontend.service`](frontend.md): optional traefik tls termination, middleware, container/compose/nspawn discovery
+    - [Credential and Secrets Management](#credentials-and-secrets-management): store and access Credentials
 - Networking
     - `.internal` bridge with dns support
     - `.podman[1-99]` bridge with dns support and dns resolution for `.podman` container
@@ -148,7 +148,7 @@ ImportCredential=server.crt
 Volumes:
 - `/var/lib/volumes/`*instance*`.`*volume*`/`
 
-### Credentials / Secrets
+### Credentials and Secrets Management
 
 #### Storing
 
