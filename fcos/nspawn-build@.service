@@ -2,9 +2,7 @@
 Description=Build Nspawn Image %I
 After=network-online.target
 # systemd-networkd-wait-online.service
-# selinux-custom-policy@nspawn.service
 Wants=network-online.target
-# Requires=selinux-custom-policy@nspawn.service
 ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
 ConditionPathExists=/etc/nspawn/environment/%i.env
 ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
