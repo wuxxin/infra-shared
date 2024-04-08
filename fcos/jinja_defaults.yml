@@ -1,9 +1,5 @@
 # Jinja Default Environment
 
-# DNS_RESOLVER: true/false
-# if true run unbound as recursive nameserver for container, compose and nspawn machines
-DNS_RESOLVER: true
-
 # WEB_FRONTEND: true/false, if true run traefik for tls termination and https routing
 WEB_FRONTEND: true
 
@@ -20,6 +16,8 @@ LOCALE:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
+  # unbound is needed as recursive dnsresolver for container, compose and nspawn workloads
+  - unbound
   # docker compose is needed by compose.bu for compose container
   - docker-compose
   # systemd-networkd is needed by nspawn.bu for network setup
@@ -42,6 +40,7 @@ DEBUG_CONSOLE_AUTOLOGIN: false
 
 # DNS Resolver options, see docs/dnsresolver.md
 DNS:
+  # VERBOSITY: "0-5", 0 = none, 5 = most verbose
   VERBOSITY: "1"
   # UPSTREAM_TLS: boolean, defaults: true
   # UPSTREAM: list, defaults: None
