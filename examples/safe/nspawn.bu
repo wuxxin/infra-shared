@@ -1,19 +1,22 @@
 systemd:
   units:
-    # make nspawn-build depend on container-build@debian-bookworm
-    # container-build@(*) should be the same as NSPAWN_OSNAME
+    # enable build of nspawn machine
     - name: nspawn-build@hello-nspawn.service
       enabled: true
       dropins:
+        # make nspawn-build depend on container-build@debian-bookworm
+        # container-build@(*) should be the same as NSPAWN_OSNAME
         - name: require.conf
           contents: |
             [Unit]
             Wants=container-build@debian-bookworm.service
             After=container-build@debian-bookworm.service
 
-    # load server key as credential into systemd-nspawn
+    # enable execution of nspawn machine
     - name: systemd-nspawn@hello-nspawn.service
+      enabled: true
       dropins:
+        # load server key as credential into systemd-nspawn
         - name: loadcreds.conf
           contents: |
             [Service]
