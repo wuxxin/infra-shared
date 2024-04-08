@@ -128,12 +128,13 @@ systemd:
         Wants=unbound-anchor.service
         Before=nss-lookup.target
         Wants=nss-lookup.target
-        After=NetworkManager.link-active@internal
-        Wants=NetworkManager.link-active@internal
+        After=sys-subsystem-net-devices-internal.device
+        Wants=sys-subsystem-net-devices-internal.device
+        ConditionPathExists=/usr/sbin/unbound
 
         [Service]
         Type=simple
-        EnvironmentFile=-/etc/local/environment/%n
+        EnvironmentFile=-/etc/local/environment/%N
         ExecStartPre=/usr/sbin/unbound-checkconf
         ExecStart=/usr/sbin/unbound -d
         ExecReload=/usr/sbin/unbound-control reload
