@@ -20,6 +20,8 @@ nav:
   - butane.md
   - Services:
     - dnsresolver.md
+    - frontend.md
+    - networking.md
   - Examples:
     - examples/safe/README.md
     - tools.md

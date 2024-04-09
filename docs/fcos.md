@@ -15,11 +15,8 @@ Library Features:
 - Services
     - [`dnsresolver.service`](dnsresolver.md): unbound dns recursive caching resolver
     - [`frontend.service`](frontend.md): optional traefik tls termination, middleware, container/compose/nspawn discovery
-    - [Credential and Secrets Management](#credentials-and-secrets-management): store and access Credentials
-- Networking
-    - `.internal` bridge with dns support
-    - `.podman[1-99]` bridge with dns support and dns resolution for `.podman` container
-    - `.nspawn` bridge with dns support and dns resolution for `.nspawn` container
+    - [Credential and Secrets Management](credentials.md): store and access Credentials
+    - [Networking](networking.md): `.internal`,`.podman[1-99]`,`.nspawn` bridges with dns support
 - Comfortable Deployment of
     - [Single Container](#single-container): `podman-systemd.unit` - systemd container units using podman-quadlet
     - [Compose Container](#compose-container): `compose.yml` - multi-container applications defined using a compose file
@@ -147,70 +144,6 @@ ImportCredential=server.crt
 
 Volumes:
 - `/var/lib/volumes/`*instance*`.`*volume*`/`
-
-### Credentials and Secrets Management
-
-#### Storing
-
-- place credential in `/etc/credstore` or symlink there
-
-#### Retrieval
-
-Single Container:
-
-- `/etc/credstore` will be available as podman secrets
-- Definition in: `<instance>.container`
-```toml
-[Container]
-# define secret to use, optional mode and path
-Secret=server.crt,mode=0640
-```
-- Access in Container: `/run/secrets/*`
-    - `cat /run/secrets/server.crt`
-
-Compose Container:
-
-compose assumes docker in non swarm mode, which does not support secrets,therfore external secrets are not working. To configure local secrets credentials are configured in a systemd service dropin, that docker can pick up the credentials as local defined secrets.
-
-- Definition in `compose@<instance>.service.d/*.conf`
-```toml
-[Service]
-ImportCredential=server.crt
-```
-- Defaults
-    - **root_bundle.crt**, **root_ca.crt** are already imported
-
-- Definition `compose.yml`
-```yaml
-secrets:
-  server.crt:
-    file: ${CREDENTIALS_DIRECTORY}/server.crt
-
-services:
-  backend:
-    secrets:
-      - source: server.crt
-```
-
-- Access
-    - outside container: `$CREDENTIALS_DIRECTORY/*`
-        - `cat "$CREDENTIALS_DIRECTORY/server.crt"`
-    - inside container: `/run/secrets/*`
-        - `cat "/run/secrets/server.crt"`
-
-Nspawn Container:
-
-- Definition `systemd-nspawn@<instance>.service.d/*.conf`
-```toml
-# load server key as credential into systemd-nspawn
-[Service]
-ImportCredential=server.crt
-```
-- Defaults
-    - **root_bundle.crt**, **root_ca.crt** are already imported
-
-- Access: `$CREDENTIALS_DIRECTORY/*`
-    - `cat "$CREDENTIALS_DIRECTORY/server.crt"`
 
 ### Administration
 
