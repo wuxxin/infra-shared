@@ -7,20 +7,38 @@ for dynamic configuration of container, compose and nspawn machines using labels
 
 ### Single Container
 
-- add Label and PublishPort in *instance*`.container`
+- add environment for `instance` in `/etc/containers/environment/` *instance*`.env`
+```sh
+HOSTNAME=instance.hostname.domain
+```
+
+- use **`${HOSTNAME}`** for hostname
+
+- add Label in *instance*`.container`
 
 ```ini
 [Container]
 Label=traefik.enable=true
-Label=traefik.http.routers.instance.rule=Host(`$HOSTNAME`)
+Label=traefik.http.routers.instance.rule=Host(`${HOSTNAME}`)
 Label=traefik.http.routers.instance.entrypoints=https
-PublishPort=9043
+
+# use [Container]EnvironmentFile= ... if you need environment inside the container
+# EnvironmentFile=/etc/containers/environment/%N.env
+
+[Service]
+# use [Service]EnvironmentFile= ... if you need environment in the systemd service
+EnvironmentFile=/etc/containers/environment/%N.env
+
 ```
 
 ### Compose Container
 
+- add environment for `instance` in `/etc/compose/environment/` *instance*`.env`
+```sh
+HOSTNAME=instance.hostname.domain
+```
 - add labels and expose for `instance` in compose.yml
-- use `$HOSTNAME` for hostname
+- use **`$HOSTNAME`** for hostname
 
 ```yaml
 services:
