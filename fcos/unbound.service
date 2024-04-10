@@ -24,22 +24,29 @@ ExecStartPre=/usr/sbin/unbound-checkconf
 ExecStart=/usr/sbin/unbound -d
 
 # set system DNS to self.internal, ignore auto supplied DNS
-ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
-DNS_INITIAL=$(nmcli -t -g IP4.DNS dev show | grep -v "^$"); \
+ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; \
+GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\\2/g"); \
+DNS_CURRENT=$(nmcli -t -g IP4.DNS dev show | grep -v "^$"); \
 DNS_SELF="{{ cidr2ip(INTERNAL_CIDR) }}"; \
-GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\2/g"); \
-if test "$DNS_INITIAL" != "$DNS_SELF"; then \
-    echo "settings dns to self.internal"; \
+echo "Unbound ExecStartPost: GW_DEV=$GW_DEV, DNS_CURRENT=$DNS_CURRENT, DNS_SELF=$DNS_SELF"; \
+if test "$DNS_CURRENT" != "$DNS_SELF"; then \
+    echo "set dns to self.internal"; \
     nmcli device modify "$GW_DEV" ipv4.dns "$DNS_SELF"; \
     nmcli device modify "$GW_DEV" ipv4.ignore-auto-dns yes; \
+    DNS_CURRENT=$(nmcli -t -g IP4.DNS dev show | grep -v "^$"); \
+    echo "status: GW_DEV=$GW_DEV, DNS_CURRENT=$DNS_CURRENT"; \
 fi'
 
 # restore auto supplied system DNS to initial settings
-ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
-GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\2/g"); \
+ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; \
+GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\\2/g"); \
+DNS_CURRENT=$(nmcli -t -g IP4.DNS dev show | grep -v "^$"); \
+echo "Unbound ExecStopPost: GW_DEV=$GW_DEV, DNS_CURRENT=$DNS_CURRENT"; \
 echo "settings dns back to initial"; \
 nmcli device modify "$GW_DEV" ipv4.ignore-auto-dns no; \
 nmcli device modify "$GW_DEV" IPV4.DNS ""; \
+DNS_CURRENT=$(nmcli -t -g IP4.DNS dev show | grep -v "^$"); \
+echo "status: GW_DEV=$GW_DEV, DNS_CURRENT=$DNS_CURRENT"; \
 '
 
 [Install]
