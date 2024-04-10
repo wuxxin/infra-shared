@@ -31,7 +31,7 @@ storage:
           default_subnet="{{ PODMAN_CIDR }}"
           # make podman1 to podman99 a 8Bit Network
           default_subnet_pools=[
-{%- for subnet in range(1,99) %}
+{%- for subnet in range(1,100) %}
             {"base" = "{{ PODMAN_POOL_BASE }}.{{ subnet }}.0/24", "size" = 24},
 {%- endfor %}
           ]
