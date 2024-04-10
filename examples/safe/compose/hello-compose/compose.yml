@@ -16,6 +16,6 @@ services:
       - source: root_ca.crt
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.hello-compose.rule=Host(`$HOSTNAME`)"
+      - "traefik.http.routers.hello-compose.rule=Host(`${HOSTNAME}`)"
       - "traefik.http.routers.hello-compose.entrypoints=https"
       # - "traefik.http.services.hello-compose.loadbalancer.server.port=8080"
