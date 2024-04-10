@@ -16,7 +16,7 @@ LOCALE:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
-  # unbound is needed as recursive dnsresolver for container, compose and nspawn workloads
+  # unbound is needed as recursive dnsresolver for system, container, compose and nspawn workloads
   - unbound
   # docker compose is needed by compose.bu for compose container
   - docker-compose
@@ -52,8 +52,9 @@ DNS:
   # # - name: zone
   # #   addr: addr
   # #   tls: true/false
-  # EXT: |
-  #   # custom text appended to dnsresolver_ext.conf, start with new section
   # SRV: |
-  #   # custom text appended to dnsresolver_srv.conf, placed _inside_ the server section
+  #   # custom text appended to unbound.conf, placed _inside_ the server section
+  #   # eg. zone entries and public dns overrides
+  # EXTRA: |
+  #   # custom text appended to unbound.conf, start with new section
 
