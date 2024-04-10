@@ -30,7 +30,8 @@ storage:
           # NSPAWN_OSNAME   : base container image name, for spawn-build@service
           # NSPAWN_PROVISION: optional input as STDIN to nspawn.provision.sh
           # NSPAWN_TRAEFIK  : optional router and services configuration for systemd-nspawn@.d/traefik.conf
-          # ##NSPAWN_IPADDR## is replaced inside NSPAWN_TRAEFIK with the current machine ip
+          # \\$IPADDR is replaced inside NSPAWN_TRAEFIK with the current machine ip
+          # XXX: "rule: Host":  escape backticks with two backslashes
           NSPAWN_OSNAME=debian-bookworm
           NSPAWN_PROVISION="
           # ---BEGIN OPENSSH AUTHORIZED KEYS---
@@ -41,14 +42,14 @@ storage:
           http:
             routers:
               hello-nspawn:
-                rule: Host(\`hello-nspawn.{{ HOSTNAME }}\`)
+                rule: Host(\\`hello-nspawn.{{ HOSTNAME }}\\`)
                 service: hello-nspawn
                 entrypoints: https
             services:
               hello-nspawn:
                 loadBalancer:
                   servers:
-                    - url: http://##NSPAWN_IPADDR##:80/
+                    - url: http://$IPADDR:80/
           "
 
   trees:
