@@ -1,10 +1,10 @@
 # Jinja Default Environment
 
-# WEB_FRONTEND: true/false, if true run traefik for tls termination and https routing
+# WEB_FRONTEND: true/false, if true traefik is run for tls termination and https routing
 WEB_FRONTEND: true
 
 # FRONTEND_DASHBOARD: string, if set to string of full hostname
-# (eg. "traefik.host.domain") will enable traefik dashboard if WEB_FRONTEND is used
+# (eg. "traefik.host.domain") will enable traefik debug dashboard if WEB_FRONTEND is used
 FRONTEND_DASHBOARD:
 
 # Default locale (lang, keymap, timezone, country_code)
@@ -16,11 +16,11 @@ LOCALE:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
-  # unbound is needed as recursive dnsresolver for system, container, compose and nspawn workloads
+  # unbound, needed as recursive dnsresolver for system, container, compose and nspawn workloads
   - unbound
-  # docker compose is needed by compose.bu for compose container
+  # docker compose, needed by compose.bu for compose container
   - docker-compose
-  # systemd-networkd is needed by nspawn.bu for network setup
+  # systemd-networkd, needed by nspawn.bu for network setup
   - systemd-networkd
   # testing: lightweight alternative to docker-compose
   - podman-compose
@@ -44,7 +44,7 @@ DNS:
   VERBOSITY: "1"
   # UPSTREAM_TLS: boolean, defaults: true
   # UPSTREAM: list, defaults: None
-  # # if not defined upstream is set to 2x google, 2x adguard, 2xcloudflare lookup split using tls
+  # # if undefined upstream will be using tls split on 2x google, 2x adguard, 2xcloudflare
   # # custom upstream forwarder list syntax:
   # # - 1.2.3.4@567#dns.domain
   # FORWARD: list, defaults: None
