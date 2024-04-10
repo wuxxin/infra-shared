@@ -2,8 +2,15 @@
 
 to be used from the systemd service "coreos-update-config.service",
 which executes a saltstack salt-call command, with the output of this translation as main.sls
-this updates the config of the machine to the desired state,
-and tells the coreos-update-config service which services are changed and need restarts.
+this updates the config of the machine to the desired state.
+
+if SALT_SERVICE_STATUS is true, it also writes
+
+service_enabled.list, service_disabled.list, service_masked.list and service_changed.list
+
+to tell the update service which services should be
+enabled or disabled and which are changed and therefore need a restart.
+masked services are masked within the salt-call, and not in the update service.
 
 #}
 {#
@@ -38,32 +45,32 @@ create service change/enable/disable macros and accumulator targets
 {% if SALT_SERVICE_STATUS %}
 {#
 
-write service to service_enable.req/service_disable.req
+write service to service_enabled.list, service_disabled.list, service_masked.list
 
 #}
-{%- macro service_status(service_path, service_name, enabled) -%}
-{%- set status="enabled" if enabled else "disabled" %}
+{%- macro service_status(service_path, service_name, action) -%}
 
-service_{{ status }}_{{ service_path }}:
+service_{{ action }}_{{ service_path }}:
   file.accumulated:
-    - filename: {{ UPDATE_DIR }}/service_{{ status }}.txt
+    - filename: {{ UPDATE_DIR }}/service_{{ action }}.list
     - text: {{ service_name }}
     - require_in:
-      - file: service_{{ status }}
+      - file: service_{{ action }}
 
 {%- endmacro -%}
-{% macro service_enable(p, n) %}{{ service_status(p, n, true) }}{% endmacro %}
-{% macro service_disable(p, n) %}{{ service_status(p, n, false) }}{% endmacro %}
+{% macro service_enable(p, n) %}{{ service_status(p, n, "enabled") }}{% endmacro %}
+{% macro service_disable(p, n) %}{{ service_status(p, n, "disabled") }}{% endmacro %}
+{% macro service_mask(p, n) %}{{ service_status(p, n, "masked") }}{% endmacro %}
 {#
 
-write service to service_changed.req if target changed
+write service to service_changed.list if target changed
 
 #}
 {%- macro service_changed(service, target, target_type) -%}
 
 service_changed_{{ target }}:
   file.accumulated:
-    - filename: {{ UPDATE_DIR }}/service_changed.req
+    - filename: {{ UPDATE_DIR }}/service_changed.list
     - text: {{ service }}
     - onchanges:
       - {{ target_type }}: {{ target }}
@@ -111,16 +118,16 @@ regex_list:
 Accumulator targets for service_ enabled, disabled, changed
 
 #}
-  {% for s in ["enabled", "disabled", "changed"] %}
+  {% for s in ["enabled", "disabled", "masked", "changed"] %}
 create_service_{{ s }}:
   file.managed:
-    - name: {{ UPDATE_DIR }}/service_{{ s }}.txt
+    - name: {{ UPDATE_DIR }}/service_{{ s }}.list
     - user: 1000
     - group: 1000
 
 service_{{ s }}:
   file.blockreplace:
-    - name: {{ UPDATE_DIR }}/service_{{ s }}.txt
+    - name: {{ UPDATE_DIR }}/service_{{ s }}.list
     - marker_start: "# START"
     - marker_end: "# END"
     - content: ""
@@ -136,11 +143,13 @@ service_{{ s }}:
 mask service change/enable/disable macros
 
 #}
-{%- macro service_status(service_path, service_name, enabled) -%}
+{%- macro service_status(service_path, service_name, action) -%}
 {%- endmacro -%}
 {%- macro service_enable(service_path, service_name) -%}
 {%- endmacro -%}
 {%- macro service_disable(service_path, service_name) -%}
+{%- endmacro -%}
+{%- macro service_mask(service_path, service_name) -%}
 {%- endmacro -%}
 {%- macro service_changed(service, target, target_type) -%}
 {%- endmacro -%}
@@ -220,7 +229,7 @@ Main Translation of storage:directories, links, files, systemd units and dropins
   {%- for u in butane.systemd.units %}
     {%- set up= "/etc/systemd/system/" ~ u.name %}
     {%- if u.enabled is defined %}
-{{ service_status(up, u.name, u.enabled) }}
+{{ service_status(up, u.name, "enabled" if u.enabled else "disabled") }}
     {%- endif %}
     {%- if not u.mask|d(false) %}
       {%- if u.contents is defined %}
@@ -240,6 +249,7 @@ Main Translation of storage:directories, links, files, systemd units and dropins
     - force: True
     - target: /dev/null
 {{ target_changed(up) }}
+{{ service_mask(up, u.name) }}
     {%- endif %}
 
     {%- if u.dropins is defined %}
