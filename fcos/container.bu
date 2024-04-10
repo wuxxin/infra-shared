@@ -55,6 +55,7 @@ systemd:
 
         ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
           if systemctl -q is-active frontend.service; then \
+            echo "copying frontend.dynamic.yml to container"; \
             podman cp /etc/containers/systemd/frontend.dynamic.yml \
               "systemd-frontend:/traefik/frontend.dynamic.yml"; \
           fi'
