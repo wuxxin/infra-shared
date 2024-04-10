@@ -26,7 +26,7 @@ tls:
         certFile: /run/secrets/server.crt
         keyFile: /run/secrets/server.key
 
-{% if FRONTEND["DASHBOARD"] is defined %}
+{% if FRONTEND["DASHBOARD"] is not none %}
 http:
  routers:
     # add route to traefik debug dashboard if enabled
