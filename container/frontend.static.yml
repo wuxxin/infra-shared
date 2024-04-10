@@ -4,6 +4,7 @@ global:
   sendAnonymousUsage: false
 
 {% if FRONTEND_DASHBOARD is defined %}
+# define service api@internal if FRONTEND_DASHBOARD is enabled
 api:
   dashboard: true
 {% endif %}
@@ -16,23 +17,26 @@ entryPoints:
         entryPoint:
           to: https
           scheme: https
+
   https:
     address: ":443"
     http:
-      # always use tls for :443
-      tls: true
+      tls:
+        options: default
 
 {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 providers:
   docker:
+    # .container and compose container can be configured for traefik with labels
     endpoint: tcp://{{ cidr2ip(INTERNAL_CIDR) }}:2375
     watch: true
     exposedbydefault: false
 
   file:
-    # frontend-post-up writes frondend.dynamic.yml to /traefik
-    # systemd-nspawn.d/frontend.conf writes service discovery to /traefik volume as *.yml
+    # frontend-post-up.service writes frondend.dynamic.yml to /traefik
+    # systemd-nspawn@.service.d/20_discovery.conf reads NSPAWN_TRAEFIK from env
+    #   /etc/nspawn/environment/%i.env and writes results to /traefik volume as *.yml
     directory: /traefik
     watch: true
 

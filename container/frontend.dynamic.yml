@@ -1,13 +1,27 @@
 # part of traefik "dynamic" config
+
 tls:
   certificates:
+    # our main certificate
     - certFile: /run/secrets/server.crt
       keyFile: /run/secrets/server.key
       stores:
         - default
 
+  options:
+    mtls:
+      # sniStrict: dont allow clients that dont specify server_name or dont match certificates
+      sniStrict: true
+      clientAuth:
+        # in PEM format. each file can contain multiple CAs
+        caFiles:
+          - /run/secrets/root_bundle.crt
+        # RequireAndVerifyClientCert= requires a certificate, must be signed by a CA listed
+        clientAuthType: RequireAndVerifyClientCert
+
   stores:
     default:
+      # defaultCertificate is used if no other certificate matches
       defaultCertificate:
         certFile: /run/secrets/server.crt
         keyFile: /run/secrets/server.key
@@ -15,6 +29,7 @@ tls:
 {% if FRONTEND_DASHBOARD is defined %}
 http:
  routers:
+    # add route to traefik debug dashboard if enabled
     dashboard:
       rule: Host(`{{ FRONTEND_DASHBOARD }}`)
       service: api@internal
