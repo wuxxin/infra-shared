@@ -1,14 +1,20 @@
 storage:
   trees:
-    # postgresql Containerfile
-    - path: /etc/containers/build/postgresql
-      local: Containerfile/postgresql
+    # all Containerfile files
+    - path: /etc/containers/build
+      local: Containerfile
 
-    # quadlet container/volume/network configuration files
+    # all quadlet container/volume/network configuration files
     - path: /etc/containers/systemd
       local: container
 
   files:
+    - path: /etc/containers/environment/tang.env
+      mode: 0600
+      contents:
+        inline: |
+          HOSTNAME=tang.{{ HOSTNAME }}
+
     - path: /etc/containers/environment/postgresql.env
       mode: 0600
       contents:
