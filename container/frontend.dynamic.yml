@@ -26,12 +26,12 @@ tls:
         certFile: /run/secrets/server.crt
         keyFile: /run/secrets/server.key
 
-{% if FRONTEND_DASHBOARD is defined %}
+{% if FRONTEND["DASHBOARD"] is defined %}
 http:
  routers:
     # add route to traefik debug dashboard if enabled
     dashboard:
-      rule: Host(`{{ FRONTEND_DASHBOARD }}`)
+      rule: Host(`{{ FRONTEND["DASHBOARD"] }}`)
       service: api@internal
       entrypoints: https
 {% endif %}
