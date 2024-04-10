@@ -1,4 +1,4 @@
-# tls/http/web FrontEnd
+# tls/http Web-Frontend
 
 `traefik` is used for tls termination, http routing, middleware frontend,
 for dynamic configuration of container, compose and nspawn machines using labels.
@@ -38,7 +38,7 @@ EnvironmentFile=/etc/containers/environment/%N.env
 HOSTNAME=instance.hostname.domain
 ```
 - add labels and expose for `instance` in compose.yml
-- use **`$HOSTNAME`** for hostname
+- use **`${HOSTNAME}`** for hostname
 
 ```yaml
 services:
@@ -47,7 +47,7 @@ services:
       - 8080
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.instance.rule=Host(`$HOSTNAME`)"
+      - "traefik.http.routers.instance.rule=Host(`${HOSTNAME}`)"
       - "traefik.http.routers.instance.entrypoints=https"
       # - "traefik.http.services.instance.loadbalancer.server.port=8080"
       # not needed if exposing a single port
