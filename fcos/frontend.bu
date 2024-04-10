@@ -26,7 +26,7 @@ storage:
 systemd:
   units:
     - name: frontend-post-start.service
-      enabled: {{ "true" if WEB_FRONTEND else "false" }}
+      enabled: {{ "true" if FRONTEND["ENABLED"] else "false" }}
       contents: |
         [Unit]
         Description=Copy frontend.dynamic.yml into running container on every [re]start

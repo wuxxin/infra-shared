@@ -1,11 +1,10 @@
 # Jinja Default Environment
 
-# WEB_FRONTEND: true/false, if true traefik is run for tls termination and https routing
-WEB_FRONTEND: true
-
-# FRONTEND_DASHBOARD: string, if set to string of full hostname
-# (eg. "traefik.host.domain") will enable traefik debug dashboard if WEB_FRONTEND is used
-FRONTEND_DASHBOARD:
+# FRONTEND:ENABLED true/false, if true traefik is run for tls termination and https routing
+FRONTEND:
+  ENABLED: true
+  # DASHBOARD: optional string, set to uniqe hostname eg. "traefik.host.domain" to enable traefik debug dashboard
+  DASHBOARD:
 
 # Default locale (lang, keymap, timezone, country_code)
 LOCALE:
