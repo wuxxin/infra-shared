@@ -115,33 +115,11 @@ systemd:
             ExecStart=-/usr/sbin/agetty --autologin core --noclear %I $TERM
     {% endif %}
 
-    # our dnsresolver service for podman container, compose and nspawn machines
+    # our dnsresolver service for system, podman container, compose and nspawn machines
     - name: unbound.service
       enabled: true
-      contents: |
-        [Unit]
-        Description=Unbound recursive Domain Name Server
-        After=network-online.target
-        After=unbound-keygen.service
-        Wants=unbound-keygen.service
-        After=unbound-anchor.service
-        Wants=unbound-anchor.service
-        Before=nss-lookup.target
-        Wants=nss-lookup.target
-        After=sys-subsystem-net-devices-internal.device
-        Wants=sys-subsystem-net-devices-internal.device
-        ConditionPathExists=/usr/sbin/unbound
-
-        [Service]
-        Type=simple
-        EnvironmentFile=-/etc/local/environment/%N
-        ExecStartPre=/usr/sbin/unbound-checkconf
-        ExecStart=/usr/sbin/unbound -d
-        ExecReload=/usr/sbin/unbound-control reload
-        Restart=on-abnormal
-
-        [Install]
-        WantedBy=multi-user.target
+      contents_local: fcos/unbound.service
+      template: jinja
 
     # custom policy loader, instance with %i.mod/.pp found in /etc/local/selinux
     - name: selinux-custom-policy@.service
