@@ -72,10 +72,10 @@ the saltstack spec file is created from a subset of the final butane yaml
 - append this_dir/coreos-update-config.sls and basedir/*.sls to it
 - additional outputs if {SALT_SERVICE_STATUS} == true:
     - creates a commented, non uniqe, not sorted list of service base names
-        - {UPDATE_DIR}/service_changed.req for services with changed configuration
-        - {UPDATE_DIR}/service_enable.req for services to be enabled
-        - {UPDATE_DIR}/service_disable.req for services to be disabled
-    - see `coreos-update-config.service` for detailed usage of service_*.req
+        - {UPDATE_DIR}/`service_changed.list` for services with changed configuration
+        - {UPDATE_DIR}/`service_enabled.list` for services to be enabled
+        - {UPDATE_DIR}/`service_disabled.list` for services to be disabled
+    - see `coreos-update-config.service` for detailed usage of service_*
 - `podman-systemd`, `compose.yml` and `nspawn` container:
     share the same namespace for service change recognition
     and should therefore not share the same name
