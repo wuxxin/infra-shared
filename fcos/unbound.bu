@@ -1,0 +1,18 @@
+# butane config
+
+storage:
+  files:
+    # our unbound configuration
+    - path: /etc/unbound/unbound.conf
+      contents:
+        local: fcos/unbound.conf
+        template: jinja
+
+systemd:
+  units:
+    # our dnsresolver service for system, podman container, compose and nspawn machines
+    - name: unbound.service
+      enabled: true
+      contents_local: fcos/unbound.service
+      template: jinja
+
