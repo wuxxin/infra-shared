@@ -29,7 +29,7 @@ Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:2375:2375
 
 [Service]
-Restart=always
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
