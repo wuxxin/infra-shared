@@ -5,9 +5,19 @@ for dynamic configuration of container, compose and nspawn machines using labels
 
 ## Examples
 
-### Container Configuration
+### Single Container
 
-### Compose Configuration
+- add Label and PublishPort in *instance*`.container`
+
+```ini
+[Container]
+Label=traefik.enable=true
+Label=traefik.http.routers.instance.rule=Host(`$HOSTNAME`)
+Label=traefik.http.routers.instance.entrypoints=https
+PublishPort=9043
+```
+
+### Compose Container
 
 - add labels and expose for `instance` in compose.yml
 - use `$HOSTNAME` for hostname
@@ -25,7 +35,7 @@ services:
       # not needed if exposing a single port
 ```
 
-### Nspawn Configuration
+### Nspawn Machine
 
 - add labels and expose for `instance` in `/etc/nspawn/environment/` *instance*`.env`
 - use `{{ HOSTNAME }}` for hostname

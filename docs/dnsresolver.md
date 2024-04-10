@@ -1,6 +1,6 @@
 # DNS-Resolver
 
-DNS Resolver for Container, Compose and Nspawn workloads, done using `Unbound`.
+DNS Resolver for System, Container, Compose and Nspawn workloads is done using `Unbound`.
 
 - available under `dns.internal` on `udp/53`, `tcp/53` and `DoT:tcp/853`
 - default upstream is **split round robin DoT (DNS over TLS)**
@@ -56,6 +56,7 @@ DNS:
 ```
 
 #### custom unbound config, must start with [section]
+
 ```yaml
 DNS:
   EXTRA: |

@@ -1,4 +1,4 @@
-# Pulumi - Fedora CoreOS
+# Fedora CoreOS
 
 Fedora CoreOS:
 
@@ -13,11 +13,11 @@ Library Features:
     - install extensions using rpm-ostree-install or var-local-install
 - Reconfiguration / [Update Configuration](#host-update) using translated butane to saltstack execution
 - Services
-    - [`dnsresolver.service`](dnsresolver.md): unbound dns recursive caching resolver
+    - [`unbound.service`](dnsresolver.md): unbound as recursive dns caching resolver
     - [`frontend.service`](frontend.md): optional traefik tls termination, middleware, container/compose/nspawn discovery
     - [Credential and Secrets Management](credentials.md): store and access Credentials
     - [Networking](networking.md): `.internal`,`.podman[1-99]`,`.nspawn` bridges with dns support
-- Comfortable Deployment of
+- Deployment of
     - [Single Container](#single-container): `podman-systemd.unit` - systemd container units using podman-quadlet
     - [Compose Container](#compose-container): `compose.yml` - multi-container applications defined using a compose file
     - [nSpawn OS-Container](#nspawn-container): `systemd-nspawn` - a linux OS in a light-weight container
@@ -90,7 +90,7 @@ Container, Volume and Runtime Dependencies:
 - `/etc/containers/systemd/`*instance*`*`
 - Additional Credentials in *instance*`.container`:
 
-    ```toml
+    ```ini
     [Container]
     Secret=server.crt
     ```
@@ -110,7 +110,7 @@ Additional Credentials:
 
 - `/etc/systemd/system/compose@`*instance*`.service.d/loadcreds.conf`
 
-    ```toml
+    ```ini
     [Service]
     ImportCredential=server.crt
     ```
@@ -121,7 +121,7 @@ Environment:
 
 - `/etc/nspawn/environment/`*instance*`.env`
 
-.nspawn Configuration:
+`.nspawn` Configuration:
 
 - `/etc/systemd/nspawn/`*instance*`.nspawn`
 
@@ -137,7 +137,7 @@ Provision Files:
 Additional Credentials:
 
 - `/etc/systemd/system/systemd-nspawn@`*instance*`.service.d/loadcreds.conf`
-```toml
+```ini
 [Service]
 ImportCredential=server.crt
 ```
