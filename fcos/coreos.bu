@@ -99,7 +99,6 @@ systemd:
   units:
     # opt out of counting telemetry
     - name: rpm-ostree-countme.timer
-      enabled: false
       mask: true
 
     {% if DEBUG_CONSOLE_AUTOLOGIN %}
@@ -123,7 +122,6 @@ systemd:
 
     # custom policy loader, instance with %i.mod/.pp found in /etc/local/selinux
     - name: selinux-custom-policy@.service
-      enabled: true
       contents: |
         [Unit]
         Description=Compile and Load SELinux policy %I
