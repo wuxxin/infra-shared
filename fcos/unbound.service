@@ -7,41 +7,40 @@ After=unbound-anchor.service
 Wants=unbound-anchor.service
 Before=nss-lookup.target
 Wants=nss-lookup.target
+# wait until internal bridge is online
 After=sys-subsystem-net-devices-internal.device
 Wants=sys-subsystem-net-devices-internal.device
+# also, as unbound is not part of base, wait until binary available
 ConditionPathExists=/usr/sbin/unbound
 ConditionPathExists=/etc/unbound/unbound.conf
+
 # {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 [Service]
 Type=simple
+Restart=on-failure
 EnvironmentFile=-/etc/local/environment/%N
 ExecStartPre=/usr/sbin/unbound-checkconf
 ExecStart=/usr/sbin/unbound -d
 
-# save default DNS and set new default to self.internal after start
-ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; \
+# set system DNS to self.internal, ignore auto supplied DNS
+ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
 DNS_INITIAL=$(nmcli -t -g IP4.DNS dev show | grep -v "^$"); \
 DNS_SELF="{{ cidr2ip(INTERNAL_CIDR) }}"; \
 GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\2/g"); \
 if test "$DNS_INITIAL" != "$DNS_SELF"; then \
-    echo "$DNS_INITIAL" > /etc/local/flags/dns_initial.conf; \
     echo "settings dns to self.internal"; \
-    nmcli con mod "$GW_DEV" ipv4.dns "$DNS_SELF"; \
-    nmcli con up "$GW_DEV"; \
+    nmcli device modify "$GW_DEV" ipv4.dns "$DNS_SELF"; \
+    nmcli device modify "$GW_DEV" ipv4.ignore-auto-dns yes; \
 fi'
 
-# if saved initial DNS is available restore DNS to initial settings before start
-ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; \
-if test -e /etc/local/flags/dns_initial.conf; \
-    GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\2/g"); \
-    DNS_INITIAL=$(cat /etc/local/flags/dns_initial.conf); \
-    echo "settings dns back to initial: $DNS_INITIAL"; \
-    nmcli con mod "$GW_DEV" ipv4.dns "$DNS_INITIAL"; \
-    nmcli con up "$GW_DEV"; \
-fi'
-
-Restart=on-failure
+# restore auto supplied system DNS to initial settings
+ExecStopPost=/usr/bin/bash -c 'set -eo pipefail; set -x; \
+GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\2/g"); \
+echo "settings dns back to initial"; \
+nmcli device modify "$GW_DEV" ipv4.ignore-auto-dns no; \
+nmcli device modify "$GW_DEV" IPV4.DNS ""; \
+'
 
 [Install]
 WantedBy=multi-user.target
