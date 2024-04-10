@@ -1,0 +1,22 @@
+[Unit]
+Description=Tang Server
+Wants=network-online.target container-build@%N.service container-secrets.service
+After=network-online.target container-build@%N.service container-secrets.service
+
+[Container]
+Image=localhost/%N:latest
+EnvironmentFile=-/etc/containers/environment/%N.env
+
+Volume=tang.volume:/db
+
+Label=traefik.enable=true
+Label=traefik.http.routers.%N.rule=Host(`$HOSTNAME`)
+# secure our tang behind MTLS
+Label=traefik.http.routers.%N.entrypoints=httpmtls
+# becaue container exposes only one port traefik will auto find it
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,37 @@
+FROM docker.io/library/alpine:3.19.1 AS builder
+# based on https://github.com/padhi-homelab/docker_tang
+
+ARG JOSE_COMMIT_SHA=76ec70ba4875a6ab6ad83b295e3da94685bbacb8
+ARG TANG_COMMIT_SHA=02105756ee2a3afbd7065a47664d202788c9b584
+
+RUN apk add --no-cache --update \
+  bash g++ gawk git gmp gzip meson ninja tar \
+  http-parser-dev isl-dev jansson-dev mpc1-dev mpfr-dev musl-dev openssl-dev zlib-dev
+
+RUN git clone https://github.com/latchset/jose.git \
+  && cd jose && git checkout ${JOSE_COMMIT_SHA} \
+  && mkdir build && cd build && meson .. --prefix=/usr/local && ninja install
+
+RUN git clone https://github.com/latchset/tang.git \
+  && cd tang && git checkout ${TANG_COMMIT_SHA} \
+  && mkdir build && cd build && meson .. --prefix=/usr/local && ninja install
+
+
+FROM docker.io/library/alpine:3.19.1
+
+COPY --from=builder /usr/local/bin/jose /usr/local/bin/jose
+COPY --from=builder /usr/local/lib/libjose.so.0  /usr/local/lib/libjose.so.0
+COPY --from=builder /usr/local/lib/libjose.so.0.0.0 /usr/local/lib/libjose.so.0.0.0
+COPY --from=builder /usr/local/libexec/tangd /usr/local/bin/tangd
+COPY --from=builder /usr/local/libexec/tangd-keygen /usr/local/bin/tangd-keygen
+
+RUN apk add --no-cache --update http-parser jansson openssl socat wget zlib
+
+EXPOSE 9090
+VOLUME [ "/db" ]
+
+CMD "/usr/local/bin/tangd -l -p 9090 /db"
+
+HEALTHCHECK --start-period=5s --timeout=3s \
+    CMD "wget -4qSO /dev/null http://127.0.0.1:9090/adv"
+
