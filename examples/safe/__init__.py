@@ -72,7 +72,9 @@ pg_postgres_client_cert = create_client_cert(
 # jinja environment for butane translation
 host_environment = {
     "RPM_OSTREE_INSTALL": ["mc"],  # enable mc for debug (TODO replace with toolbox)
-    "FRONTEND_DASHBOARD": "traefik.{}".format(hostname),  # enable debug dashboard
+    "FRONTEND": {
+        "DASHBOARD": "traefik.{}".format(hostname),  # enable debug dashboard
+    },
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
     },
