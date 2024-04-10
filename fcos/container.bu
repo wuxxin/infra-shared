@@ -42,14 +42,13 @@ systemd:
     - name: container-build@.service
       contents_local: fcos/container-build@.service
 
-    - name: frontend-post-up.service
+    - name: frontend-post-start.service
       enabled: {{ "true" if WEB_FRONTEND else "false" }}
       contents: |
         [Unit]
         Description=Copy frontend.dynamic.yml into running container on every [re]start
         After=frontend.service
         Wants=frontend.service
-        ConditionPathExists=/etc/containers/systemd/frontend.dynamic.yml
 
         [Service]
         Type=oneshot
