@@ -87,25 +87,30 @@ ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
 # reload systemd daemon to resync with state from disk
 ExecStart=/usr/bin/systemctl daemon-reload
 
-# enable and disable each service that should be enabled/disabled, by list created from butane2salt.jinja
-ExecStart=/usr/bin/bash -c '\
-    for status in enable disable; do \
-        if test -e ${root_dir}/service_$status.req; then \
-            service_list=$(cat ${root_dir}/service_$status.req | \
-                grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
+# enabled/disable by list created from butane2salt.jinja
+# XXX do not -o pipefail because if service_list is empty it would fail on pipe
+ExecStart=/usr/bin/bash -c 'set -e; \
+    echo "enable and disable each service that should be enabled/disabled" ; \
+    for status in enabled disabled; do \
+        if test "$status" = "enabled"; then action="enable"; else action="disable"; fi; \
+        if test -e ${root_dir}/service_$status.list; then \
+            service_list=$(cat ${root_dir}/service_$status.list | \
+                grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq | tr "\\n" " "); \
             if test "$service_list" != ""; then \
-                echo "systemctl $status $service_list"; \
-                systemctl $status $service_list; \
+                echo "systemctl $action $service_list"; \
+                systemctl $action $service_list; \
             fi; \
         fi; \
     done'
 
-# reset failed units and restart each service that got changed, by list created from butane2salt.jinja
-# dont act on template services, dont act on services without [Install] sections
-ExecStart=/usr/bin/bash -c '\
+# reset failed units, restart by list created from butane2salt.jinja
+# XXX dont act on template services, dont act on services without [Install] sections
+# XXX do not -o pipefail because if changed is empty it would fail on pipe
+ExecStart=/usr/bin/bash -c 'set -e; \
+    echo "reset failed units and restart each service that got changed" ; \
     systemctl reset-failed; \
-    if test -e ${root_dir}/service_changed.req; then \
-        changed=$(cat ${root_dir}/service_changed.req | \
+    if test -e ${root_dir}/service_changed.list; then \
+        changed=$(cat ${root_dir}/service_changed.list | \
             grep -v "^#" | grep -v "^[[:space:]]*$" | sort | uniq); \
         if test "$changed" != ""; then \
             torestart=""; \
@@ -116,7 +121,11 @@ ExecStart=/usr/bin/bash -c '\
                 else \
                     wantedby=$(systemctl show "$i.service" --property=WantedBy --value); \
                     if test "$wantedby" != ""; then \
-                        torestart="$torestart $i"; \
+                        if test "$torestart" = ""; then \
+                            torestart="$i"; \
+                        else \
+                            torestart="$torestart $i"; \
+                        fi; \
                     fi; \
                 fi; \
             done; \
