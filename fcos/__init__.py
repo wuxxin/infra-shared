@@ -193,7 +193,7 @@ storage:
         )
 
         # translate butane yaml to saltstack salt yaml config
-        # append this_dir/coreos-update-config.sls and basedir/*.sls to it
+        # append this_dir/update-system-config.sls and basedir/*.sls to it
         self.saltstack_config = pulumi.Output.concat(
             pulumi.Output.all(butane=self.butane_config).apply(
                 lambda args: jinja_run_template(
@@ -202,7 +202,7 @@ storage:
                     {**this_env, "butane": yaml.safe_load(args["butane"])},
                 )
             ),
-            open(os.path.join(this_dir, "coreos-update-config.sls"), "r").read(),
+            open(os.path.join(this_dir, "update-system-config.sls"), "r").read(),
             *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
 
@@ -651,8 +651,8 @@ class FcosConfigUpdate(pulumi.ComponentResource):
 
         child_opts = pulumi.ResourceOptions(parent=self)
         user = "core"
-        root_dir = "/run/user/1000/coreos-update-config"
-        update_fname = "coreos-update-config.service"
+        root_dir = "/run/user/1000/update-system-config"
+        update_fname = "update-system-config.service"
         update_str = open(os.path.join(this_dir, update_fname), "r").read()
 
         # transport update service file and main.sls (translated butane) to root_dir and sls_dir
@@ -679,7 +679,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
             user,
             cmdline="""if test -f {source}; then sudo cp {source} {target}; fi && \
                         sudo systemctl daemon-reload && \
-                        sudo systemctl restart --wait coreos-update-config""".format(
+                        sudo systemctl restart --wait update-system-config""".format(
                 source=os.path.join(root_dir, update_fname),
                 target=os.path.join("/etc/systemd/system", update_fname),
             ),

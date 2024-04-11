@@ -1,3 +1,3 @@
 
-{# optional salt states added after transpiled butane yaml and after coreos-update-config.sls #}
+{# optional salt states added after transpiled butane yaml and after update-system-config.sls #}
 

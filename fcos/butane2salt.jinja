@@ -1,6 +1,6 @@
 {# translates a subset of a one file butane spec into a one file saltstack salt spec
 
-to be used from the systemd service "coreos-update-config.service",
+to be used from the systemd service "update-system-config.service",
 which executes a saltstack salt-call command, with the output of this translation as main.sls
 this updates the config of the machine to the desired state.
 
@@ -40,7 +40,7 @@ replace filename with /host_etc prefix if in /etc/hostname, /etc/hosts, /etc/res
 create service change/enable/disable macros and accumulator targets
 
 #}
-{%- set UPDATE_DIR= "/run/user/1000/coreos-update-config" %}
+{%- set UPDATE_DIR= "/run/user/1000/update-system-config" %}
 {%- set SALT_SERVICE_STATUS=SALT_SERVICE_STATUS|d(true) %}
 {% if SALT_SERVICE_STATUS %}
 {#
@@ -94,9 +94,9 @@ regex_list:
     "/etc/systemd/system/([^/]+)\.[^\.]+",
     "/etc/systemd/system/([^/]+)\.[^\.]+\.d/.+\.conf",
 
-    "/etc/local/environment/([^/]+)\.env",
-    "/etc/containers/environment/([^/]+)\.env",
-    "/etc/compose/environment/([^/]+)\.env",
+    "/etc/local/environment/([^/.]+)\..*env",
+    "/etc/containers/environment/([^/.]+)\..*env",
+    "/etc/compose/environment/([^/.]+)\..*env",
 
     "/etc/containers/systemd/([^/.]+)\..+",
 

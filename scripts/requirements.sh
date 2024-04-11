@@ -51,7 +51,7 @@ jq
 # compression
 xz
 
-# # local build and coreos-update-config
+# # local build and update-system-config
 # CHECK: salt-call
 salt
 

@@ -140,6 +140,6 @@ ExecStart=/usr/bin/bash -c 'set -e; \
     fi'
 
 # delete main.sls and var/cache because of secrets and as flag that update is done
-ExecStart=/usr/bin/bash -c 'rm -f ${sls_dir}/main.sls; rm -rf ${root_dir}/var/cache'
+ExecStart=/usr/bin/bash -c 'rm -f ${sls_dir}/main.sls; rm -rf ${root_dir}/var/cache; rm -rf ${root_dir}/var/log'
 
 # XXX have no [Install] section, because this service is only called from external

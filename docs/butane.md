@@ -69,13 +69,13 @@ the saltstack spec file is created from a subset of the final butane yaml
 - files:contents must be of type inline or source (base64 encoded)
 - systemd:units and systemd:units:dropins must be of type contents
 - filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
-- append this_dir/coreos-update-config.sls and basedir/*.sls to it
+- append this_dir/update-system-config.sls and basedir/*.sls to it
 - additional outputs if {SALT_SERVICE_STATUS} == true:
     - creates a commented, non uniqe, not sorted list of service base names
         - {UPDATE_DIR}/`service_changed.list` for services with changed configuration
         - {UPDATE_DIR}/`service_enabled.list` for services to be enabled
         - {UPDATE_DIR}/`service_disabled.list` for services to be disabled
-    - see `coreos-update-config.service` for detailed usage of service_*
+    - see `update-system-config.service` for detailed usage of service_*
 - `podman-systemd`, `compose.yml` and `nspawn` container:
     share the same namespace for service change recognition
     and should therefore not share the same name

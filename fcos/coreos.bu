@@ -71,9 +71,9 @@ storage:
           {{ cidr2ip(NSPAWN_CIDR) }}    self.nspawn
 
     # copy update service, will be overwritten by actual update call
-    - path: /etc/systemd/system/coreos-update-config.service
+    - path: /etc/systemd/system/update-system-config.service
       contents:
-        local: fcos/coreos-update-config.service
+        local: fcos/update-system-config.service
 
   links:
     # symlink root_ca,root_bundle,server.crt,server.key as systemd credentials
