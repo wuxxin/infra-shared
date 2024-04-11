@@ -66,6 +66,16 @@ Modifications to *.bu and their referenced files will result in a new saltstack 
 - only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
 - additional migration code can be written in basedir/*.sls
     - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
+- service_enabled.list, sevice_disabled.list, service_masked.list, service_changed.list are created
+- service_changed.list detects the following as changes to a service
+    - systemd service `instance.(service|path|...)`
+    - systemd service dropin `instance.service.d/*.conf`
+    - local, containers and compose environment named `instance*.env`
+    - container file and support files named `instance.*`
+    - containers build files
+    - compose build files
+- systemd service
+
 - advantages of this approach
     - it can **update from a broken version of itself**
     - calling a systemd service instead of calling a plain shell script for update
