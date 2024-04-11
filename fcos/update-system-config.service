@@ -1,11 +1,11 @@
 [Unit]
-Description=Update Coreos Configuration by applying (transpiled butane) saltstack config
+Description=Update Configuration by applying (transpiled butane) saltstack config
 After=boot-complete.target
 Wants=boot-complete.target
 ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
 # Run config update by
-# building saltstack in a fedora container,
+# building saltstack in a container,
 # executing salt-call in this container,
 # mounting /etc, /var, /run from host into container, /etc is also mounted as /host_etc
 # butane2salt.jinja remaps files /etc/[hosts,hostname,resolv.conf]# to /host_etc/*
