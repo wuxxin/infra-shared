@@ -1,4 +1,4 @@
-# Credentials and Secrets Management
+# Credentials and Secrets
 
 ## Storing
 
