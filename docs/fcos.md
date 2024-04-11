@@ -56,30 +56,37 @@ to overwrite buildins butane settings or files:
 
 ### Host Update
 
-reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config
+reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config.
 
-Modifications to *.bu and their referenced files will result in a new saltstack config
-
-- Copies systemd.service and a main.sls in combination self sufficent files to the remote target
-- overwrite original update service, reload systemd, start service, build container, configure salt
-- execute main.sls in an saltstack container where /etc, /var, /run is mounted from the host
+- Modifications to *.bu and their referenced files will result in a new saltstack config.
 - only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
-- additional migration code can be written in basedir/*.sls
-    - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
-- service_enabled.list, sevice_disabled.list, service_masked.list, service_changed.list are created
-- service_changed.list detects the following as changes to a service
-    - systemd service `instance.(service|path|...)`
-    - systemd service dropin `instance.service.d/*.conf`
-    - local, containers and compose environment named `instance*.env`
-    - container file and support files named `instance.*`
-    - containers build files
-    - compose build files
-- systemd service
 
-- advantages of this approach
-    - it can **update from a broken version of itself**
-    - calling a systemd service instead of calling a plain shell script for update
-        - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
+Update Execution:
+
+1. Copies systemd.service and a main.sls in combination self sufficent files to the remote target
+1. overwrite original update service, reload systemd, start service, build container, configure salt
+1. execute salt-call of main.sls in an saltstack container where /etc, /var, /run is mounted from the host
+    1. reconfigure of storage:{directories,files,links,trees} systemd:unit[:dropins]
+    1. additional migration code written in basedir/*.sls
+        - use for adding saltstack migration code to cleanup after updates, eg. deleting files and services
+    1. service_enabled.list, sevice_disabled.list, service_masked.list, service_changed.list are created
+1. enable and disable services listed in `service_enabled.list` and `service_disabled.list`
+1. reset failed system services, restart services listed in `service_changed.list`
+
+advantages of this approach:
+
+- it can **update from a broken version of itself**
+- calling a systemd service instead of calling a plain shell script for update
+    - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
+
+the update service counts the following as changes to a service:
+
+- systemd service `instance.(service|path|...)`
+- systemd service dropin `instance.service.d/*.conf`
+- local, containers and compose environment named `instance*.env`
+- container file and support files named `instance.*`
+- any containers build files
+- any compose build files
 
 ### Application Configuration
 
