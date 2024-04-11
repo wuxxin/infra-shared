@@ -18,13 +18,13 @@ markdown_extensions:
 nav:
   - pulumi.md
   - fcos.md
+  - update.md
+  - networking.md
+  - dnsresolver.md
+  - frontend.md
+  - credentials.md
+  - healthchecks.md
   - butane.md
-  - Services:
-    - networking.md
-    - dnsresolver.md
-    - frontend.md
-    - credentials.md
-    - healthchecks.md
   - Examples:
     - examples/safe/README.md
   - architecture.md
