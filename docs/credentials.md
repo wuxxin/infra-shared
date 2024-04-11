@@ -1,4 +1,4 @@
-# Credentials and Secrets
+# Credentials
 
 ## Storing
 

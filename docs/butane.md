@@ -11,11 +11,8 @@ will be rendered through jinja with the described Environment and optional inclu
 - environment defaults available in jinja
 
 ```yaml
-# see fcos/jinja_defaults.yml
+# include fcos/jinja_defaults.yml here
 ```
-
-- see [DNS-Resolver](dnsresolver.md) for DNS Resolver related optional variables examples
-
 
 #### Custom regex filter
 

@@ -1,4 +1,4 @@
-# Healthchecks
+# Health Checks
 
 ### Containerfile
 

@@ -1,7 +1,5 @@
 # Fedora CoreOS
 
-Fedora CoreOS:
-
 - updating, minimal, monolithic, container-focused operating system
 - available for x86 and arm
 
@@ -15,16 +13,16 @@ Library Features:
 - Services
     - [`unbound.service`](networking.md#dns-resolver): unbound as recursive dns caching resolver
     - [`frontend.service`](networking.md#tlshttp-web-frontend): optional traefik tls termination, middleware, container/compose/nspawn discovery
-    - [Credential and Secrets Management](credentials.md): store and access Credentials
+    - [Credential Management](credentials.md): store and access Credentials and other Secrets
     - [Networking](networking.md): `.internal`,`.podman[1-99]`,`.nspawn` bridges with dns support
 - Deployment of
     - [Single Container](#single-container): `podman-systemd.unit` - systemd container units using podman-quadlet
     - [Compose Container](#compose-container): `compose.yml` - multi-container applications defined using a compose file
     - [nSpawn OS-Container](#nspawn-container): `systemd-nspawn` - a linux OS in a light-weight container
 
-### Host Configuration
+## Host Configuration
 
-#### python configuration
+### python configuration
 + `target/example/__init__.py`
 
 ```python
@@ -40,13 +38,13 @@ host_config = ButaneTranspiler(
 )
 ```
 
-#### butane configuration
+### butane configuration
 
 + butane files: `target/example/*.bu`
     + target/example/main.bu
 + butane files_basedir: `target/example/`
 
-##### overwrite of buildins
+#### overwrite of buildins
 
 to overwrite buildins butane settings or files:
 
@@ -55,9 +53,9 @@ to overwrite buildins butane settings or files:
     - see [Butane Yaml - Merge Order](butane.md#merge-order) for detailed ordering
 
 
-### Application Configuration
+## Application Configuration
 
-#### Single Container
+### Single Container
 
 Environment:
 
@@ -79,7 +77,7 @@ Container, Volume and Runtime Dependencies:
     Secret=server.crt
     ```
 
-#### Compose Container
+### Compose Container
 
 Environment:
 
@@ -99,7 +97,7 @@ Additional Credentials:
     ImportCredential=server.crt
     ```
 
-#### NSpawn Container
+### NSpawn Container
 
 Environment:
 
@@ -129,7 +127,7 @@ ImportCredential=server.crt
 Volumes:
 - `/var/lib/volumes/`*instance*`.`*volume*`/`
 
-### Administration
+## Administration
 
 - use `toolbox create` and `toolbox enter` to have a fedora container available.
 - use `dnf install package` to install packages inside toolbox.
