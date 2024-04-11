@@ -4,7 +4,7 @@
 
 with container, compose and nspawn example in < 600 lines, < 1500 words easy to read code
 
-- Hardware: Raspberry Pi4 (arm64)
+- Hardware: Raspberry Pi4 (arm64) 4GB
 - Python Configuration: [_\_init__.py](__init__.py)
 - Storage: [storage.bu](storage.bu)
     - encrypted storage at rest
@@ -13,12 +13,12 @@ with container, compose and nspawn example in < 600 lines, < 1500 words easy to 
     - unattended clevis luks storage unlock for boot via tangd (and tpm2 on libvirt sim)
 - Simulation
     - a libvirt machine with the corresponding features and volumes
-        - on amd64 instead of arch64, 8gb boot, 2 x 8gb usb sticks
+        - 4gb ram, amd64 instead of arch64, 8gb boot, 2 x 8gb usb sticks
 
 ### Single Container Showcases
 
 #### `Postgresql Server`
-lan available `postgresql` with mandatory ssl and optional clientcert auth
+`postgresql` server with mandatory ssl and optional clientcert auth
 
 - [container.bu](container.bu)
 - [container/postgresql.conf](container/postgresql.conf)
@@ -27,7 +27,7 @@ lan available `postgresql` with mandatory ssl and optional clientcert auth
 - [Containerfile/postgresql/Containerfile](Containerfile/postgresql/Containerfile)
 
 #### `Tang Server`
-lan available `tang` server MTLS secured with **mandatory clientcert** auth
+`tang` server MTLS secured with **mandatory clientcert** auth
 
 - [container.bu](container.bu)
 - [container/tang.container](container/tang.container)
