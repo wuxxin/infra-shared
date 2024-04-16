@@ -4,8 +4,9 @@ to be used from the systemd service "update-system-config.service",
 which executes a saltstack salt-call command, with the output of this translation as main.sls
 this updates the config of the machine to the desired state.
 
-if SALT_SERVICE_STATUS is true, it also writes
+Mandatory ENV: SALT_CHANGE_DETECT, SALT_BASE_DIR, SALT_SERVICE_NAME
 
+if SALT_CHANGE_DETECT is true, it also writes SALT_BASE_DIR/SALT_SERVICE_NAME/
 service_enabled.list, service_disabled.list, service_masked.list and service_changed.list
 
 to tell the update service which services should be
@@ -40,9 +41,8 @@ replace filename with /host_etc prefix if in /etc/hostname, /etc/hosts, /etc/res
 create service change/enable/disable macros and accumulator targets
 
 #}
-{%- set UPDATE_DIR= "/run/user/1000/update-system-config" %}
-{%- set SALT_SERVICE_STATUS=SALT_SERVICE_STATUS|d(true) %}
-{% if SALT_SERVICE_STATUS %}
+{% set UPDATE_DIR=SALT_BASE_DIR~ "/"~ SALT_SERVICE_NAME %}
+{% if SALT_CHANGE_DETECT %}
 {#
 
 write service to service_enabled.list, service_disabled.list, service_masked.list
