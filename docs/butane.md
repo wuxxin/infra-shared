@@ -67,8 +67,9 @@ the saltstack spec file is created from a subset of the final butane yaml
 - systemd:units and systemd:units:dropins must be of type contents
 - filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
 - append this_dir/update-system-config.sls and basedir/*.sls to it
-- additional outputs if {SALT_SERVICE_STATUS} == true:
+- additional outputs if {SALT_CHANGE_DETECT} == true:
     - creates a commented, non uniqe, not sorted list of service base names
+        - UPDATE_DIR=SALT_BASE_DIR/SALT_SERVICE_NAME
         - {UPDATE_DIR}/`service_changed.list` for services with changed configuration
         - {UPDATE_DIR}/`service_enabled.list` for services to be enabled
         - {UPDATE_DIR}/`service_disabled.list` for services to be disabled

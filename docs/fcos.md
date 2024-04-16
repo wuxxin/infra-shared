@@ -26,15 +26,15 @@ Library Features:
 + `target/example/__init__.py`
 
 ```python
-this_dir = os.path.dirname(os.path.abspath(__file__))
-files_basedir = this_dir
 shortname = "example"
 dns_names = ["example.lan"]
 hostname = dns_names[0]
 tls = create_host_cert(hostname, hostname, dns_names)
+files_basedir = os.path.dirname(os.path.abspath(__file__))
 butane_yaml = pulumi.Output.format("variant: fcos\nversion: 1.5.0\n")
+jina_env = { "HOSTNAME": hostname}
 host_config = ButaneTranspiler(
-    shotname, hostname, tls, butane_yaml, files_basedir, host_environment
+    shortname, hostname, tls, butane_yaml, files_basedir, jina_env
 )
 ```
 
