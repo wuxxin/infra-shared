@@ -20,6 +20,12 @@ storage:
     - path: /etc/local/flags
 
   files:
+    # standard hostname file
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: {{ HOSTNAME }}
+
     # our internal bridge (configured using networkmanager)
     - path: /etc/NetworkManager/system-connections/internal
       mode: 0600
@@ -70,10 +76,13 @@ storage:
           {{ cidr2ip(PODMAN_CIDR) }}    self.podman
           {{ cidr2ip(NSPAWN_CIDR) }}    self.nspawn
 
+{% if SALT_CHANGE_DETECT %}
     # copy update service, will be overwritten by actual update call
     - path: /etc/systemd/system/update-system-config.service
       contents:
         local: fcos/update-system-config.service
+        template: jinja
+{% endif %}
 
   links:
     # symlink root_ca,root_bundle,server.crt,server.key as systemd credentials
