@@ -2,7 +2,7 @@
 Description=Update Configuration by applying (transpiled butane) saltstack config
 After=boot-complete.target
 Wants=boot-complete.target
-ConditionPathExists=/run/user/1000/%N/sls/main.sls
+ConditionPathExists={{ SALT_BASE_DIR }}/%N/sls/main.sls
 
 # Run config update by
 # building saltstack in a container,
@@ -27,11 +27,11 @@ ExecStart=/usr/bin/bash -c 'cd /etc/containers/build/%N && \
 
 # roughly equal to tools.py:salt_config
 Environment=resource_name="%n"
-Environment=base_dir=/run/user/1000
-Environment=root_dir=/run/user/1000/%N
-Environment=tmp_dir=/run/user/1000/%N/tmp
-Environment=sls_dir=/run/user/1000/%N/sls
-Environment=pillar_dir=/run/user/1000/%N/pillar
+Environment=base_dir={{ SALT_BASE_DIR }}
+Environment=root_dir={{ SALT_BASE_DIR }}/%N
+Environment=tmp_dir={{ SALT_BASE_DIR }}/%N/tmp
+Environment=sls_dir={{ SALT_BASE_DIR }}/%N/sls
+Environment=pillar_dir={{ SALT_BASE_DIR }}/%N/pillar
 
 # create a minion config
 ExecStart=/usr/bin/bash -c \
