@@ -20,11 +20,33 @@ storage:
     - path: /etc/local/flags
 
   files:
-    # standard hostname file
+    # set hostname file
     - path: /etc/hostname
       mode: 0644
       contents:
         inline: {{ HOSTNAME }}
+
+    # set /etc/hosts entries
+    - path: /etc/hosts
+      overwrite: true
+      contents:
+        inline: |
+          # Loopback entries; do not change.
+          # For historical reasons, localhost precedes localhost.localdomain:
+          127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+          ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+          # add lookup for internal, podman and nspawn
+          {{ cidr2ip(INTERNAL_CIDR) }}    dns.internal
+          {{ cidr2ip(INTERNAL_CIDR) }}    self.internal
+          {{ cidr2ip(PODMAN_CIDR) }}    self.podman
+          {{ cidr2ip(NSPAWN_CIDR) }}    self.nspawn
+
+    # set keyboard layout
+    - path: /etc/vconsole.conf
+      mode: 0644
+      contents:
+        inline: |
+          KEYMAP={{ LOCALE["KEYMAP"] }}
 
     # our internal bridge (configured using networkmanager)
     - path: /etc/NetworkManager/system-connections/internal
@@ -48,41 +70,16 @@ storage:
           method=manual
           address={{ INTERNAL_CIDR }}
 
-    # set keyboard layout
-    - path: /etc/vconsole.conf
-      mode: 0644
-      contents:
-        inline: |
-          KEYMAP={{ LOCALE["KEYMAP"] }}
-
     # environment for RPM_OSTREE_INSTALL packages
     - path: /etc/local/environment/rpm-ostree-install.env
       contents:
         inline: |
           RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
 
-    # our /etc/hosts entries
-    - path: /etc/hosts
-      overwrite: true
-      contents:
-        inline: |
-          # Loopback entries; do not change.
-          # For historical reasons, localhost precedes localhost.localdomain:
-          127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
-          ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-          # add lookup for internal, podman and nspawn
-          {{ cidr2ip(INTERNAL_CIDR) }}    dns.internal
-          {{ cidr2ip(INTERNAL_CIDR) }}    self.internal
-          {{ cidr2ip(PODMAN_CIDR) }}    self.podman
-          {{ cidr2ip(NSPAWN_CIDR) }}    self.nspawn
-
-{% if SALT_CHANGE_DETECT %}
     # copy update service, will be overwritten by actual update call
     - path: /etc/systemd/system/update-system-config.service
       contents:
         local: fcos/update-system-config.service
-        template: jinja
-{% endif %}
 
   links:
     # symlink root_ca,root_bundle,server.crt,server.key as systemd credentials
@@ -117,7 +114,7 @@ systemd:
             ExecStart=-/usr/sbin/agetty --autologin core --noclear %I $TERM
     {% endif %}
 
-    # custom policy loader, instance with %i.mod/.pp found in /etc/local/selinux
+    # custom selinux policy loader, instance with %I.mod found in /etc/local/selinux
     - name: selinux-custom-policy@.service
       contents: |
         [Unit]
