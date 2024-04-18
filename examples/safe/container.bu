@@ -45,7 +45,7 @@ storage:
           cat > /var/lib/postgresql/data/pg_ident.conf <<"EOF"
           # MAPNAME       SYSTEM-USERNAME         PG-USERNAME
           # add mapping tlsmap for tls client certificate to postgresql username
-          tlsmap          /^(.*)@{{ ESCAPED_HOSTNAME }}$    \1
+          tlsmap          /^(.*)@{{ HOSTNAME|replace(".", "\.") }}$    \1
           EOF
 
 systemd:
