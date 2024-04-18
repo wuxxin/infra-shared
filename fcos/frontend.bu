@@ -4,6 +4,7 @@ storage:
   directories:
     # our local frontend (traefik) configuration directory
     - path: /etc/local/frontend
+      mode: 0700
 
   files:
     # copy apiproxy and frontend configuration
