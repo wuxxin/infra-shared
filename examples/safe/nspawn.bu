@@ -1,3 +1,5 @@
+{% if SHOWCASE_NSPAWN %}
+
 storage:
   directories:
     # add a "volume", todo: make some service like podman quadlet
@@ -80,3 +82,5 @@ systemd:
           contents: |
             [Service]
             ImportCredential=server.crt
+
+{% endif %}
