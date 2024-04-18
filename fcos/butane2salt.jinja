@@ -4,9 +4,7 @@ to be used from the systemd service "update-system-config.service",
 which executes a saltstack salt-call command, with the output of this translation as main.sls
 this updates the config of the machine to the desired state.
 
-Mandatory ENV: SALT_CHANGE_DETECT, SALT_BASE_DIR, SALT_SERVICE_NAME
-
-if SALT_CHANGE_DETECT is true, it also writes SALT_BASE_DIR/SALT_SERVICE_NAME/
+if SALT_CHANGE_DETECT:false is true, it also writes /run/user/1000/update-system-config/
 service_enabled.list, service_disabled.list, service_masked.list and service_changed.list
 
 to tell the update service which services should be
@@ -41,8 +39,8 @@ replace filename with /host_etc prefix if in /etc/hostname, /etc/hosts, /etc/res
 create service change/enable/disable macros and accumulator targets
 
 #}
-{% set UPDATE_DIR=SALT_BASE_DIR~ "/"~ SALT_SERVICE_NAME %}
-{% if SALT_CHANGE_DETECT %}
+{% set UPDATE_DIR="/run/user/1000/update-system-config" %}
+{% if SALT_CHANGE_DETECT|d(false) %}
 {#
 
 write service to service_enabled.list, service_disabled.list, service_masked.list
@@ -51,7 +49,8 @@ write service to service_enabled.list, service_disabled.list, service_masked.lis
 {%- macro service_status(service_path, service_name, action) -%}
 
 service_{{ action }}_{{ service_path }}:
-  file.accumulated:
+  file:
+    - accumulated
     - filename: {{ UPDATE_DIR }}/service_{{ action }}.list
     - text: {{ service_name }}
     - require_in:
@@ -69,7 +68,8 @@ write service to service_changed.list if target changed
 {%- macro service_changed(service, target, target_type) -%}
 
 service_changed_{{ target }}:
-  file.accumulated:
+  file:
+    - accumulated
     - filename: {{ UPDATE_DIR }}/service_changed.list
     - text: {{ service }}
     - onchanges:
@@ -120,13 +120,15 @@ Accumulator targets for service_ enabled, disabled, changed
 #}
   {% for s in ["enabled", "disabled", "masked", "changed"] %}
 create_service_{{ s }}:
-  file.managed:
+  file:
+    - managed
     - name: {{ UPDATE_DIR }}/service_{{ s }}.list
     - user: 1000
     - group: 1000
 
 service_{{ s }}:
-  file.blockreplace:
+  file:
+    - blockreplace
     - name: {{ UPDATE_DIR }}/service_{{ s }}.list
     - marker_start: "# START"
     - marker_end: "# END"
@@ -165,7 +167,8 @@ Main Translation of storage:directories, links, files, systemd units and dropins
 {%- if "storage" in butane and "directories" in butane.storage %}
   {%- for d in butane.storage.directories %}
 {{ d.path }}:
-  file.directory:
+  file:
+    - directory
     - makedirs: true
 {{ user_group_mode(d) }}
   {% endfor %}
@@ -175,7 +178,8 @@ Main Translation of storage:directories, links, files, systemd units and dropins
 {%- if "storage" in butane and "links" in butane.storage %}
   {%- for l in butane.storage.links %}
 {{ l.path }}:
-  file.symlink:
+  file:
+    - symlink
     - makedirs: True
     {%- if l.target is defined %}
     - target: {{ l.target }}
@@ -193,14 +197,16 @@ Main Translation of storage:directories, links, files, systemd units and dropins
   {%- for f in butane.storage.files %}
     {%- set target_type="file" %}
 {{ tr_etc(f.path) }}:
-  file.managed:
+  file:
+    - managed
     - makedirs: True
 {{ user_group_mode(f) }}
     {%- if f.contents is defined %}
       {%- if f.contents.source is defined %}
         {%- if f.contents.source.startswith("data:") %}
           {%- set target_type="cmd" %}
-  cmd.run:
+  cmd:
+    - run
     - name: |
         cat <<"EOF" | base64 -d > {{ tr_etc(f.path) }}
         {{ f.contents.source|indent(8) }}
@@ -234,7 +240,8 @@ Main Translation of storage:directories, links, files, systemd units and dropins
     {%- if not u.mask|d(false) %}
       {%- if u.contents is defined %}
 {{ up }}:
-  file.managed:
+  file:
+    - managed
     # XXX do not follow_symlinks, because if masked file is symlinked to /dev/null
     - follow_symlinks: False
     - contents: |
@@ -244,7 +251,8 @@ Main Translation of storage:directories, links, files, systemd units and dropins
       {%- endif %}
     {%- else %}
 {{ up }}:
-  file.symlink:
+  file:
+    - symlink
     # XXX force to replace a normal file, because if real file exists beforehand
     - force: True
     - target: /dev/null
@@ -256,7 +264,8 @@ Main Translation of storage:directories, links, files, systemd units and dropins
       {%- for d in u.dropins %}
         {%- set dp="/etc/systemd/system/" ~ u.name ~ ".d/" ~ d.name %}
 {{ dp }}:
-  file.managed:
+  file:
+    - managed
     - makedirs: True
         {%- if d.contents is defined %}
     - contents: |
