@@ -1,14 +1,12 @@
 [Unit]
-Description=Update Configuration by applying (transpiled butane) saltstack config
+Description=Update Configuration by applying a (transpiled butane) saltstack config
 After=boot-complete.target
 Wants=boot-complete.target
-ConditionPathExists={{ SALT_BASE_DIR }}/%N/sls/main.sls
+ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
-# Run config update by
-# building saltstack in a container,
-# executing salt-call in this container,
+# Run config update by building saltstack in a container, executing salt-call in container,
 # mounting /etc, /var, /run from host into container, /etc is also mounted as /host_etc
-# butane2salt.jinja remaps files /etc/[hosts,hostname,resolv.conf]# to /host_etc/*
+# butane_to_salt() remaps files from /etc/[hosts,hostname,resolv.conf]# to /host_etc/*
 
 [Service]
 Type=oneshot
@@ -25,13 +23,13 @@ Environment=PODMAN_BUILD_OPTIONS=
 ExecStart=/usr/bin/bash -c 'cd /etc/containers/build/%N && \
 /usr/bin/podman build $PODMAN_BUILD_OPTIONS --tag localhost/%N:latest . '
 
-# roughly equal to tools.py:salt_config
+# roughly equal to template.py:salt_config()
 Environment=resource_name="%n"
-Environment=base_dir={{ SALT_BASE_DIR }}
-Environment=root_dir={{ SALT_BASE_DIR }}/%N
-Environment=tmp_dir={{ SALT_BASE_DIR }}/%N/tmp
-Environment=sls_dir={{ SALT_BASE_DIR }}/%N/sls
-Environment=pillar_dir={{ SALT_BASE_DIR }}/%N/pillar
+Environment=base_dir=/run/user/1000
+Environment=root_dir=/run/user/1000/%N
+Environment=tmp_dir=/run/user/1000/%N/tmp
+Environment=sls_dir=/run/user/1000/%N/sls
+Environment=pillar_dir=/run/user/1000/%N/pillar
 
 # create a minion config
 ExecStart=/usr/bin/bash -c \
