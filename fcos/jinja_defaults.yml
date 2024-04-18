@@ -32,13 +32,6 @@ NSPAWN_CIDR: 10.87.241.1/24
 PODMAN_CIDR: 10.88.0.1/16
 PODMAN_POOL_BASE: "10.89"
 
-# SALT_CHANGE_DETECT: true/false, if true:
-#   butane2salt will add files with lists to SALT_BASE_DIR/SALT_SERVICE_NAME
-#   for service enabled, disabled, changed. and copy update-system-config
-SALT_CHANGE_DETECT: true
-SALT_BASE_DIR: /run/user/1000
-SALT_SERVICE_NAME: update-system-config
-
 # DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
 DEBUG_CONSOLE_AUTOLOGIN: false
 
