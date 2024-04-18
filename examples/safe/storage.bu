@@ -1,14 +1,4 @@
-boot_device:
-  luks:
-    threshold: 1
-{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
-    tpm2: true
-{%- endif %}
-{%- if tang_url %}
-    tang:
-      - url: {{ tang_url }}
-        thumbprint: {{ tang_fingerprint }}
-{%- endif %}
+# butane config
 
 storage:
   disks:
@@ -33,10 +23,6 @@ storage:
       discard: true
       key_file:
         inline: {{ luks_root_passphrase }}
-    - name: var
-      label: var
-      device: /dev/md/mdvar
-      discard: true
       clevis:
         threshold: 1
 {%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
@@ -47,8 +33,22 @@ storage:
           - url: {{ tang_url }}
             thumbprint: {{ tang_fingerprint }}
 {%- endif %}
+    - name: var
+      label: var
+      device: /dev/md/mdvar
+      discard: true
       key_file:
         inline: {{ luks_var_passphrase }}
+      clevis:
+        threshold: 1
+{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
+        tpm2: true
+{%- endif %}
+{%- if tang_url %}
+        tang:
+          - url: {{ tang_url }}
+            thumbprint: {{ tang_fingerprint }}
+{%- endif %}
   filesystems:
     - device: /dev/mapper/var
       path: /var
