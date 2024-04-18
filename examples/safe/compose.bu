@@ -1,3 +1,5 @@
+{% if SHOWCASE_COMPOSE %}
+
 storage:
   trees:
     # hello-compose build files, including compose.yml
@@ -17,3 +19,5 @@ systemd:
     # enable hello-compose service
     - name: compose@hello-compose.service
       enabled: true
+
+{% endif %}
