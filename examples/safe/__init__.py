@@ -1,10 +1,12 @@
 """
-## Safe - Fedora-CoreOS on Raspberry
+## Safe - Fedora-CoreOS on Raspberry PI
 
 ### config
-- safe_dns_names
-- identifiers["safe"]["storage"]
+- safe_dns_names: defaults to ["*.safe" for each authority.ca_config["ca_permitted_domains_list"]]
+- identifiers["safe"]["storage"]: production storage device serial numbers
 - tang_url
+- safe_showcase_compose: true, if false, dont include compose showcase
+- safe_showcaae_nspawn: true, if false, dont include nspawn showcase
 
 ### host
 - host_environment
@@ -13,7 +15,7 @@
 - host_update
 
 ### provider
-- (postgresql.Provider): pg_server
+- postgresql.Provider: pg_server
 
 """
 
@@ -53,15 +55,19 @@ dns_names = config.get_object(
     ],
 )
 hostname = dns_names[0]
+# create tls host certificate
 tls = create_host_cert(hostname, hostname, dns_names)
 
+# get tang config
 tang_url = config.get("tang_url", None)
 tang_fingerprint = TangFingerprint(tang_url).result if tang_url else None
 
-# create local postgres master password and a client_cert
+# create local postgres master password
 pg_postgres_password = pulumi_random.RandomPassword(
     "{}_POSTGRES_PASSWORD".format(shortname), special=False, length=24
 )
+
+# create a postgres client_cert
 pg_postgres_client_cert = create_client_cert(
     "postgres@{}_POSTGRESQL_CLIENTCERT".format(shortname),
     "postgres@{}".format(hostname),
@@ -78,23 +84,17 @@ host_environment = {
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
     },
-    "HOSTNAME": hostname,
-    "ESCAPED_HOSTNAME": hostname.replace(".", "\."),
+    "DNS": {}
+    if not config.get_object("dns", None)
+    else {key.upper(): value for key, value in config.get_object("dns").items()},
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRES_PASSWORD": pg_postgres_password.result,
+    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose", True),
+    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn", True),
 }
 
-# modify environment from config:dns if available
-if config.get_object("dns", None):
-    host_environment.update(
-        {
-            "DNS": {
-                key.upper(): value for key, value in config.get_object("dns").items()
-            },
-        }
-    )
 
-# modify environment depending stack
+# modify storage and credentials related config depending stack
 if stack_name.endswith("sim"):
     # simulation adds qemu-guest-agent, debug=True, and 123 as disk passphrase
     host_environment["RPM_OSTREE_INSTALL"].append("qemu-guest-agent")
@@ -150,7 +150,6 @@ butane_yaml = pulumi.Output.format(
     """
 variant: fcos
 version: 1.5.0
-
 """
 )
 
@@ -161,7 +160,7 @@ host_config = ButaneTranspiler(
 pulumi.export("{}_butane".format(shortname), host_config)
 
 if stack_name.endswith("sim"):
-    # create libvirt machine simulation
+    # create libvirt machine simulation, same ramsize as PI hardware (on different arch)
     host_machine = LibvirtIgniteFcos(
         shortname, host_config.result, volumes=identifiers["storage"], memory=4096
     )
