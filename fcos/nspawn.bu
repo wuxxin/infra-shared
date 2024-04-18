@@ -4,20 +4,22 @@
 storage:
   directories:
     # standard *.nspawn directory
-    #- path: /etc/systemd/nspawn
+    - path: /etc/systemd/nspawn
 
     # standard nspawn machine image base directory
-    #- path: /var/lib/machines
+    - path: /var/lib/machines
+      mode: 0700
 
     # our nspawn volume storage base directory
     - path: /var/lib/volumes
-
-    # our nspawn build configuration directory
-    - path: /etc/nspawn/build
+      mode: 0700
 
     # our nspawn environment directory
     - path: /etc/nspawn/environment
       mode: 0700
+
+    # our nspawn build configuration directory
+    - path: /etc/nspawn/build
 
   files:
     # configure nspawn bridge using systemd-networkd
