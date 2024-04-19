@@ -23,7 +23,7 @@ Environment=PODMAN_BUILD_OPTIONS=
 ExecStart=/usr/bin/bash -c 'cd /etc/containers/build/%N && \
 /usr/bin/podman build $PODMAN_BUILD_OPTIONS --tag localhost/%N:latest . '
 
-# roughly equal to template.py:salt_config()
+# roughly equal to tools.py:salt_config()
 Environment=resource_name="%n"
 Environment=base_dir=/run/user/1000
 Environment=root_dir=/run/user/1000/%N
@@ -85,7 +85,7 @@ ExecStart=/usr/bin/podman run --rm --privileged --log-driver=none \
 # reload systemd daemon to resync with state from disk
 ExecStart=/usr/bin/systemctl daemon-reload
 
-# enabled/disable by list created from butane2salt.jinja
+# enabled/disable by list created from butane_to_salt() translation
 # XXX do not -o pipefail because if service_list is empty it would fail on pipe
 ExecStart=/usr/bin/bash -c 'set -e; \
     echo "enable and disable each service that should be enabled/disabled" ; \
