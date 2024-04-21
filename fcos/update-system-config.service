@@ -6,7 +6,7 @@ ConditionPathExists=/run/user/1000/%N/sls/main.sls
 
 # Run config update by building saltstack in a container, executing salt-call in container,
 # mounting /etc, /var, /run from host into container, /etc is also mounted as /host_etc
-# butane_to_salt() remaps files from /etc/[hosts,hostname,resolv.conf]# to /host_etc/*
+# butane_to_salt() remaps files from /etc/[hosts,hostname,resolv.conf] to /host_etc/*
 
 [Service]
 Type=oneshot
