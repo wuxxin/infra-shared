@@ -44,13 +44,15 @@ host_config = ButaneTranspiler(
     + target/example/main.bu
 + butane files_basedir: `target/example/`
 
-#### overwrite of buildins
+#### overwrite of buildin files and units
 
-to overwrite buildins butane settings or files:
+the butane loader detects and handles overwrites to
 
-- if it is a systemd service, consider a dropin
-- otherwise redefine the buildin setting or file you want to modify
-    - see [Butane Yaml - Merge Order](butane.md#merge-order) for detailed ordering
+storage:directories,links,files and systemd:units:dropins gracefully.
+
+it possible to overwrite any of these. if it is a systemd service, consider a dropin
+
+see [Butane Yaml - Merge Order](butane.md#merge-order) for detailed merge ordering
 
 
 ## Application Configuration
