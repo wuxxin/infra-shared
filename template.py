@@ -1,19 +1,23 @@
 #!/usr/bin/env python
 """
-## Jinja and other Templating
+## Jinja and Butane Templating
 
 ### Python
 - jinja_run
-- jinja_run_template
-- ToolsExtension(jinja2.ext.Extension)
+- jinja_run_file
+- load_butane_dir
+- butane_to_salt
 
+#### minor
+- ToolsExtension(jinja2.ext.Extension)
 - join_paths
 - is_text
 - load_text
 - load_contents
-
+- merge_butane_dicts
 - merge_dict_struct
-
+- inline_local_files
+- expand_templates
 - compile_selinux_module
 
 """
@@ -29,6 +33,7 @@ import subprocess
 import chardet
 import jinja2
 import jinja2.ext
+import yaml
 
 
 def join_paths(basedir, *filepaths):
@@ -60,7 +65,9 @@ def load_contents(filepath):
 
 
 def merge_dict_struct(struct1, struct2):
-    "recursive merge of two dict like structs into one, struct2 takes precedence over struct1 if entry not None"
+    """recursive merge of two dict like structs into one
+    struct2 takes precedence over struct1 if entry not None
+    """
 
     def is_dict_like(v):
         return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
@@ -213,7 +220,7 @@ def jinja_run(template_str, searchpath, environment={}):
     return rendered
 
 
-def jinja_run_template(template_filename, searchpath, environment={}):
+def jinja_run_file(template_filename, searchpath, environment={}):
     """renders a template file available from searchpath with environment
 
     - searchpath can be a list of strings, template_filename can be from any searchpath
@@ -227,7 +234,437 @@ def jinja_run_template(template_filename, searchpath, environment={}):
     return rendered
 
 
+def load_butane_dir(basedir, environment, subdir="", exclude=[], include=[]):
+    "read basedir/**/*.bu files recursive, jinja template, parse yaml, inline files, merge, return dict"
+
+    merged_dict = {}
+    if include:
+        files = sorted([os.path.join(subdir, fname) for fname in include])
+    else:
+        files = sorted(
+            [
+                fname
+                for fname in glob.glob(
+                    os.path.join(subdir, "**", "*.bu"), recursive=True, root_dir=basedir
+                )
+            ]
+        )
+        files = [
+            f for f in files if f not in [os.path.join(subdir, ex) for ex in exclude]
+        ]
+
+    for fname in files:
+        source_dict = yaml.safe_load(jinja_run_file(fname, basedir, environment))
+        inlined_dict = inline_local_files(source_dict, basedir)
+        expanded_dict = expand_templates(inlined_dict, basedir, environment)
+        merged_dict = merge_butane_dicts(merged_dict, expanded_dict)
+
+    return merged_dict
+
+
+def merge_butane_dicts(struct1, struct2):
+    "butane overwrite aware storage:directories,files,links systemd:units:dropins dict merge"
+    merged = merge_dict_struct(struct1, struct2)
+
+    for section in ["files", "links", "directories"]:
+        uniqitems = []
+        seen = set()
+        allitems = merged.get("storage", {}).get(section, [])
+
+        if allitems:
+            # get items of files, links, dirs in reverse order, take first, skip other
+            for item in allitems[::-1]:
+                if item["path"] not in seen:
+                    seen.add(item["path"])
+                    uniqitems.append(item)
+
+            # reverse order, update dict
+            merged["storage"][section] = uniqitems[::-1]
+
+    uniqunits = {}
+    seenunits = set()
+    seendropins = set()
+    allunits = merged.get("systemd", {}).get("units", [])
+
+    if allunits:
+        # get units in reverse order, take first, record dropins, skip other
+        for unit in allunits[::-1]:
+            if unit["name"] not in seenunits:
+                seenunits.add(unit["name"])
+                uniqunits.update({unit["name"]: unit})
+                alldropins = unit.get("dropins", [])
+                for dropin in alldropins:
+                    unit_dropin = unit["name"] + "_" + dropin["name"]
+                    if unit_dropin not in seendropins:
+                        seendropins.add(unit_dropin)
+
+        # get units in reverse order, get dropins, append if unknown, skip other
+        for unit in allunits[::-1]:
+            alldropins = unit.get("dropins", [])
+            for dropin in alldropins:
+                unit_dropin = unit["name"] + "_" + dropin["name"]
+                if unit_dropin not in seendropins:
+                    seendropins.add(unit_dropin)
+                    uniqunits[unit["name"]]["dropins"].append(dropin)
+
+        # convert units dict back to list, merge back
+        merged["systemd"]["units"] = [v for k, v in uniqunits.items()]
+
+    return merged
+
+
+def inline_local_files(yaml_dict, basedir):
+    """inline all local references
+
+    - for files and trees use source base64 encode if file type = binary, else use inline
+    - storage:trees:[]:local -> files:[]:contents:inline/source
+    - storage:files:[]:contents:local -> []:contents:inline/source
+    - systemd:units:[]:contents_local -> []:contents
+    - systemd:units:[]:dropins:[]:contents_local -> []:contents
+    """
+
+    ydict = copy.deepcopy(yaml_dict)
+
+    if "storage" in ydict and "trees" in ydict["storage"]:
+        if "files" not in ydict["storage"]:
+            ydict["storage"].update({"files": []})
+
+        for tnr in range(len(ydict["storage"]["trees"])):
+            t = ydict["storage"]["trees"][tnr]
+
+            for lf in glob.glob(join_paths(basedir, t["local"], "**"), recursive=True):
+                if os.path.isfile(lf):
+                    rf = join_paths(
+                        t["path"] if "path" in t else "/",
+                        os.path.relpath(lf, join_paths(basedir, t["local"])),
+                    )
+                    is_exec = os.stat(lf).st_mode & stat.S_IXUSR
+
+                    ydict["storage"]["files"].append(
+                        {
+                            "path": rf,
+                            "mode": 0o755 if is_exec else 0o664,
+                            "contents": load_contents(lf),
+                        }
+                    )
+        del ydict["storage"]["trees"]
+
+    if "storage" in ydict and "files" in ydict["storage"]:
+        for fnr in range(len(ydict["storage"]["files"])):
+            f = ydict["storage"]["files"][fnr]
+
+            if "contents" in f and "local" in f["contents"]:
+                fname = f["contents"]["local"]
+                del ydict["storage"]["files"][fnr]["contents"]["local"]
+                ydict["storage"]["files"][fnr]["contents"].update(
+                    load_contents(join_paths(basedir, fname))
+                )
+
+    if "systemd" in ydict and "units" in ydict["systemd"]:
+        for unr in range(len(ydict["systemd"]["units"])):
+            u = ydict["systemd"]["units"][unr]
+
+            if "contents_local" in u:
+                fname = u["contents_local"]
+                del ydict["systemd"]["units"][unr]["contents_local"]
+                ydict["systemd"]["units"][unr].update(
+                    {"contents": load_text(basedir, fname)}
+                )
+
+            if "dropins" in u:
+                for dnr in range(len(u["dropins"])):
+                    d = ydict["systemd"]["units"][unr]["dropins"][dnr]
+
+                    if "contents_local" in d:
+                        fname = d["contents_local"]
+                        del ydict["systemd"]["units"][unr]["dropins"][dnr][
+                            "contents_local"
+                        ]
+                        ydict["systemd"]["units"][unr]["dropins"][dnr].update(
+                            {"contents": load_text(basedir, fname)}
+                        )
+    return ydict
+
+
+def expand_templates(yaml_dict, basedir, environment):
+    """template translation of contents from butane local references where template =! None
+
+    - storage:files[].contents.template
+    - systemd:units[].template
+    - systemd:units[].dropins[].template
+    - template= "jinja": template the source through jinja
+    - template= "selinux": compile selinux text configuration to binary (only storage.files)
+    """
+
+    ydict = copy.deepcopy(yaml_dict)
+
+    if "storage" in ydict and "files" in ydict["storage"]:
+        for fnr in range(len(ydict["storage"]["files"])):
+            f = ydict["storage"]["files"][fnr]
+
+            if "contents" in f and "template" in f["contents"]:
+                if f["contents"]["template"] not in ["jinja", "selinux-te2mod"]:
+                    raise ValueError(
+                        "Invalid option, template must be one of: jinja, selinux-te2mod"
+                    )
+                if "inline" not in f["contents"]:
+                    raise ValueError(
+                        "Invalid option, contents must be != None if template != None"
+                    )
+
+                if f["contents"]["template"] == "jinja":
+                    data = jinja_run(f["contents"]["inline"], basedir, environment)
+                    del ydict["storage"]["files"][fnr]["contents"]["template"]
+                    ydict["storage"]["files"][fnr]["contents"].update({"inline": data})
+
+                elif f["contents"]["template"] == "selinux-te2mod":
+                    data = "data:;base64," + base64.b64encode(
+                        compile_selinux_module(f["contents"]["inline"])
+                    ).decode("utf-8")
+                    del ydict["storage"]["files"][fnr]["contents"]["inline"]
+                    del ydict["storage"]["files"][fnr]["contents"]["template"]
+                    ydict["storage"]["files"][fnr]["contents"].update({"source": data})
+
+    if "systemd" in ydict and "units" in ydict["systemd"]:
+        for unr in range(len(ydict["systemd"]["units"])):
+            u = ydict["systemd"]["units"][unr]
+            if "template" in u and u["template"] not in ["jinja"]:
+                raise ValueError("Invalid option, template must be one of: jinja")
+
+            if "contents" in u and "template" in u:
+                data = jinja_run(u["contents"], basedir, environment)
+                ydict["systemd"]["units"][unr].update({"contents": data})
+                del ydict["systemd"]["units"][unr]["template"]
+
+            if "dropins" in u:
+                for dnr in range(len(u["dropins"])):
+                    d = ydict["systemd"]["units"][unr]["dropins"][dnr]
+                    if "template" in d and d["template"] not in ["jinja"]:
+                        raise ValueError(
+                            "Invalid option, template must be one of: jinja"
+                        )
+
+                    if "contents" in d and "template" in d:
+                        data = jinja_run(d["contents"], basedir, environment)
+                        ydict["systemd"]["units"][unr]["dropins"][dnr].update(
+                            {"contents": data}
+                        )
+                        del ydict["systemd"]["units"][unr]["dropins"][dnr]["template"]
+    return ydict
+
+
+def butane_to_salt(
+    yaml_dict,
+    update_status=False,
+    update_dir="/run/update-system-config",
+    update_user=0,
+    update_group=0,
+):
+    """translates a restricted butane dict into a saltstack dict
+
+    - translation of
+        - storage:[directories,files,links]
+        - sytemd:units[:dropins]
+
+    - replace filename with /host_etc prefix
+        - if in /etc/hostname, /etc/hosts, /etc/resolv.conf
+
+    - if update_service_status=True
+
+        - write list of (enabled|disabled|masked) service names to
+            - service_enabled.list
+            - service_disabled.list
+            - service_masked.list
+
+        - write list of services with any file changed related to the service
+            - to service_changed.list, if saltstack detects changes in
+                - unit in /etc/systemd/system/name.*
+                - dropin in /etc/systemd/system/name.d/*.conf
+                - env in /etc/[local,containers,compose]/environment/name.env
+                - file in /etc/containers/systemd/name*
+                - file in /etc/[containers,compose]/build/name/*
+    """
+
+    src = yaml_dict
+    dest = {}
+    service_list = {"enabled": [], "disabled": [], "masked": [], "changed": []}
+    service_pattern_list = [
+        re.compile("^" + pattern + "$")
+        for pattern in [
+            "/etc/systemd/system/([^/]+)\.[^\.]+",
+            "/etc/systemd/system/([^/]+)\.[^\.]+\.d/.+\.conf",
+            "/etc/local/environment/([^/.]+)\..*env",
+            "/etc/containers/environment/([^/.]+)\..*env",
+            "/etc/compose/environment/([^/.]+)\..*env",
+            "/etc/containers/systemd/([^/.]+)\..+",
+            "/etc/containers/build/([^/]+)/.+",
+            "/etc/compose/build/([^/]+)/.+",
+        ]
+    ]
+
+    def target_changed(target, target_type="file"):
+        for pattern in service_pattern_list:
+            if pattern.match(target):
+                service_changed(pattern.sub("\\1", target), target, target_type)
+
+    def service_changed(service, target, target_type):
+        if service not in service_list["changed"]:
+            service_list["changed"].append(
+                {"service": service, "target": target, "target_type": target_type}
+            )
+
+    def service_status(service, action):
+        if service not in service_list[action]:
+            service_list[action].append(service)
+
+    def tr_etc(path):
+        if path in ["/etc/hostname", "/etc/hosts", "/etc/resolv.conf"]:
+            return path.replace("/etc", "/host_etc")
+        return path
+
+    def ugm_append(dest, x):
+        if "user" in x:
+            if id in x["user"]:
+                dest.append({"user": x["user"]["id"]})
+            elif "name" in x["user"]:
+                dest.append({"user": x["user"]["name"]})
+        if "group" in x:
+            if id in x["group"]:
+                dest.append({"group": x["group"]["id"]})
+            elif "name" in x["group"]:
+                dest.append({"group": x["group"]["name"]})
+        if "mode" in x:
+            dest.append({"mode": "0" + oct(x["mode"])[2:]})
+
+    if "storage" in src and "directories" in src["storage"]:
+        for dnr in range(len(src["storage"]["directories"])):
+            d = src["storage"]["directories"][dnr]
+            dest.update({d["path"]: {"file": ["directory", {"makedirs": True}]}})
+            ugm_append(dest[d["path"]]["file"], d)
+
+    if "storage" in src and "links" in src["storage"]:
+        for lnr in range(len(src["storage"]["links"])):
+            l = src["storage"]["links"][lnr]
+            dest.update({l["path"]: {"file": ["symlink"]}})
+            dest[l["path"]]["file"] += [{"makedirs": True}, {"target": l["target"]}]
+            if "hard" in l and l["hard"]:
+                dest[l["path"]]["file"].append({"hard": True})
+            ugm_append(dest[l["path"]]["file"], l)
+            target_changed(l["path"])
+
+    if "storage" in src and "files" in src["storage"]:
+        for fnr in range(len(src["storage"]["files"])):
+            f = src["storage"]["files"][fnr]
+            fname = tr_etc(f["path"])
+            ftype = "file"
+            dest.update({fname: {"file": ["managed", {"makedirs": True}]}})
+            ugm_append(dest[fname]["file"], f)
+            if "contents" not in f:
+                continue
+
+            if "inline" in f["contents"]:
+                dest[fname]["file"].append({"contents": f["contents"]["inline"]})
+
+            elif "source" in f["contents"]:
+                if f["contents"]["source"].startswith("data:"):
+                    dest[fname].update({"cmd": ["run"]})
+                    create_cmd = 'cat <<"EOF" | base64 -d > ' + fname + "\n"
+                    dest[fname]["cmd"] += [
+                        {"name": create_cmd + f["contents"]["source"] + "\nEOF\n"},
+                        {"unless": "base64 -d < " + fname + "| cmp -s " + fname + " -"},
+                        {"creates": fname},
+                    ]
+                    ftype = "cmd"
+                else:
+                    dest[fname]["file"].append({"source": f["contents"]["source"]})
+
+            if "verification" in f["contents"]:
+                dest[fname]["file"].append(
+                    {"source_hash": f["contents"]["verification"][7:0]}
+                )
+
+            target_changed(fname, ftype)
+
+    if "systemd" in src and "units" in src["systemd"]:
+        for unr in range(len(src["systemd"]["units"])):
+            u = src["systemd"]["units"][unr]
+            ufname = "/etc/systemd/system/" + u["name"]
+
+            if "enabled" in u:
+                service_status(u["name"], "enabled" if u["enabled"] else "disabled")
+            if "mask" not in u or not u["mask"]:
+                if "contents" in u:
+                    dest.update({ufname: {"file": ["managed"]}})
+                    dest[ufname]["file"] += [
+                        {"follow_symlinks": "false"},
+                        {"contents": u["contents"]},
+                    ]
+                    target_changed(ufname)
+            else:
+                dest.update({ufname: {"file": ["symlink"]}})
+                dest[ufname]["file"] += [{"target": "/dev/null"}, {"force": True}]
+                service_status(u["name"], "masked")
+                target_changed(ufname)
+
+            if "dropins" in u:
+                for udnr in range(len(u["dropins"])):
+                    ud = u["dropins"][udnr]
+                    udfname = "/etc/systemd/system/" + u["name"] + ".d/" + ud["name"]
+                    dest.update({udfname: {"file": ["managed"]}})
+                    dest[udfname]["file"] += [
+                        {"makedirs": True},
+                        {"contents": ud["contents"]},
+                    ]
+                    target_changed(udfname)
+
+    if update_status:
+        for status in ["enabled", "disabled", "masked", "changed"]:
+            # create empty files
+            shortname = "create_service_" + status
+            sfname = os.path.join(update_dir, "service_" + status + ".list")
+            dest.update({shortname: {"file": ["managed"]}})
+            dest[shortname]["file"] += [
+                {"name": sfname},
+                {"user": update_user},
+                {"group": update_group},
+            ]
+
+            # write enabled, disabled and masked to *.list
+            if status != "changed":
+                dest[shortname]["file"] += [
+                    {"contents": "\n".join([name for name in service_list[status]])}
+                ]
+
+        # prepare service_changed.list accumulator
+        dest.update({"service_changed": {"file": ["blockreplace"]}})
+        dest["service_changed"]["file"] += [
+            {"name": os.path.join(update_dir, "service_changed.list")},
+            {"marker_start": "# START"},
+            {"marker_end": "# END"},
+            {"content": ""},
+            {"append_if_not_found": True},
+            {"show_changes": True},
+            {"require": [{"file": "create_service_changed"}]},
+        ]
+
+        # write all service related found change accumulators
+        # let saltstack figure out which is changed using "onchanges"
+        for entry in service_list["changed"]:
+            cname = "service_changed_" + entry["target"]
+            dest.update({cname: {"file": ["accumulated"]}})
+            dest[cname]["file"] += [
+                {"filename": os.path.join(update_dir, "service_changed.list")},
+                {"text": entry["service"]},
+                {"onchanges": [{entry["target_type"]: entry["target"]}]},
+                {"require_in": [{"file": "service_changed"}]},
+            ]
+
+    return dest
+
+
 def compile_selinux_module(content):
+    """compile_selinux_module Fixme: think how to change from text stdin to binary stdout"""
+
     timeout_seconds = 10
     chk_process = subprocess.Popen(
         ["checkmodule", "-M", "-m", "-o", "/dev/stdout", "/dev/stdin"],
@@ -246,7 +683,7 @@ def compile_selinux_module(content):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
+        text=False,
     )
     pkg_output, pkg_error = pkg_process.communicate(
         input=chk_output, timeout=timeout_seconds

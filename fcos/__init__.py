@@ -4,20 +4,17 @@
 ### Components
 
 - ButaneTranspiler
+- FcosConfigUpdate
 - FcosImageDownloader
 - LibvirtIgniteFcos
-- FcosConfigUpdate
 - TangFingerprint
 - RemoteDownloadIgnitionConfig
 
 """
 
-import base64
-import copy
 import glob
 import os
 import re
-import stat
 
 import pulumi
 import pulumi_command as command
@@ -28,12 +25,12 @@ import yaml
 from ..tools import log_warn
 from ..template import (
     jinja_run,
-    jinja_run_template,
+    jinja_run_file,
     join_paths,
     merge_dict_struct,
-    load_text,
-    load_contents,
-    compile_selinux_module,
+    merge_butane_dicts,
+    load_butane_dir,
+    butane_to_salt,
 )
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -77,7 +74,6 @@ class ButaneTranspiler(pulumi.ComponentResource):
         this_env = merge_dict_struct(
             default_env, {} if environment is None else environment
         )
-        self.this_env = pulumi.Output.secret(pulumi.Output.from_input(this_env))
 
         # ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -164,10 +160,14 @@ storage:
         )
 
         # jinja template *.bu yaml files from fcosdir
-        fcos_dict = self.load_butane_files(subproject_dir, this_env, subdir="fcos")
+        fcos_dict = pulumi.Output.all(env=this_env).apply(
+            lambda args: load_butane_dir(subproject_dir, args["env"], subdir="fcos")
+        )
 
         # jinja template *.bu yaml files from basedir
-        target_dict = self.load_butane_files(basedir, this_env)
+        target_dict = pulumi.Output.all(env=this_env).apply(
+            lambda args: load_butane_dir(basedir, args["env"])
+        )
 
         # merged_dict= base_dict -> security_dict > target_dict -> fcos_dict
         merged_dict = pulumi.Output.all(
@@ -176,35 +176,38 @@ storage:
             fcos_dict=fcos_dict,
             target_dict=target_dict,
         ).apply(
-            lambda args: merge_dict_struct(
+            lambda args: merge_butane_dicts(
                 args["fcos_dict"],
-                merge_dict_struct(
+                merge_butane_dicts(
                     args["target_dict"],
-                    merge_dict_struct(args["security_dict"], args["base_dict"]),
+                    merge_butane_dicts(args["security_dict"], args["base_dict"]),
                 ),
             )
         )
 
-        # butane config as rendered yaml
+        # convert butane merged_dict to butane yaml and export as butane_config
         self.butane_config = pulumi.Output.all(source_dict=merged_dict).apply(
             lambda args: yaml.safe_dump(args["source_dict"])
         )
+        # self.butane_config.apply(log_warn)
 
-        # translate butane yaml to saltstack salt yaml config
-        # append this_dir/update-system-config.sls and basedir/*.sls to it
+        # translate butane merged_dict to saltstack dict, convert to yaml,
+        # append update-system-config.sls and basedir/*.sls, export as saltstack_config
         self.saltstack_config = pulumi.Output.concat(
-            pulumi.Output.all(butane=self.butane_config).apply(
-                lambda args: jinja_run_template(
-                    "butane2salt.jinja",
-                    [basedir, this_dir],
-                    {**this_env, "butane": yaml.safe_load(args["butane"])},
+            pulumi.Output.all(butane_dict=merged_dict).apply(
+                lambda args: yaml.safe_dump(
+                    butane_to_salt(
+                        args["butane_dict"],
+                        update_status=True,
+                        update_dir="/run/user/1000/update-system-config",
+                        update_user=1000,
+                        update_group=1000,
+                    )
                 )
             ),
             open(os.path.join(this_dir, "update-system-config.sls"), "r").read(),
             *[open(f, "r").read() for f in glob.glob(os.path.join(basedir, "*.sls"))],
         )
-
-        # self.butane_config.apply(log_warn)
 
         # translate merged butane yaml to ignition json config
         # XXX v0.19.0 Add -c/--check option to check config without producing output
@@ -218,187 +221,68 @@ storage:
             ),
         )
 
+        # export used env
+        self.this_env = pulumi.Output.secret(pulumi.Output.from_input(this_env))
+
+        # alias ignition json as result
         self.result = self.ignition_config.stdout
         self.register_outputs({})
 
-    def load_butane_files(self, basedir, environment, subdir=""):
-        "read and jinja template all basedir/*.bu files from basedir recursive, parse as yaml, merge together return dict"
 
-        merged_dict = {}
-        all_files = sorted(
-            [
-                fname
-                for fname in glob.glob(
-                    os.path.join(subdir, "**", "*.bu"), recursive=True, root_dir=basedir
-                )
-            ]
+class FcosConfigUpdate(pulumi.ComponentResource):
+    """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config"""
+
+    def __init__(self, resource_name, host, compiled_config, opts=None):
+        from ..tools import ssh_deploy, ssh_execute
+
+        super().__init__(
+            "pkg:index:FcosConfigUpdate",
+            "{}_fcos_config_update".format(resource_name),
+            None,
+            opts,
         )
 
-        for fname in all_files:
-            source_dict = pulumi.Output.all(fname=fname, env=environment).apply(
-                lambda args: yaml.safe_load(
-                    jinja_run_template(args["fname"], basedir, args["env"])
-                )
-            )
-            inlined_dict = pulumi.Output.all(source_dict=source_dict).apply(
-                lambda args: self.inline_local_files(args["source_dict"], basedir)
-            )
+        child_opts = pulumi.ResourceOptions(parent=self)
+        user = "core"
+        update_fname = "update-system-config.service"
+        update_str = open(join_paths(this_dir, update_fname), "r").read()
+        root_dir = join_paths("/run/user/1000", "update-system-config")
 
-            expanded_dict = pulumi.Output.all(
-                source_dict=inlined_dict, env=environment
-            ).apply(
-                lambda args: self.expand_templates(
-                    args["source_dict"], basedir, args["env"]
-                )
-            )
+        # transport update service file content and main.sls (translated butane) to root_dir and sls_dir
+        config_dict = {
+            update_fname: pulumi.Output.from_input(update_str),
+            os.path.join("sls", "main.sls"): pulumi.Output.from_input(
+                compiled_config.saltstack_config
+            ),
+        }
+        self.config_deployed = ssh_deploy(
+            resource_name,
+            host,
+            user,
+            files=config_dict,
+            remote_prefix=root_dir,
+            simulate=False,
+            opts=child_opts,
+        )
 
-            merged_dict = pulumi.Output.all(
-                yaml1_dict=merged_dict, yaml2_dict=expanded_dict
-            ).apply(
-                lambda args: merge_dict_struct(args["yaml1_dict"], args["yaml2_dict"])
-            )
+        # copy update service to target location, reload systemd daemon, start update
+        self.config_updated = ssh_execute(
+            resource_name,
+            host,
+            user,
+            cmdline="""if test -f {source}; then sudo cp {source} {target}; fi && \
+                        sudo systemctl daemon-reload && \
+                        sudo systemctl restart --wait update-system-config""".format(
+                source=os.path.join(root_dir, update_fname),
+                target=os.path.join("/etc/systemd/system", update_fname),
+            ),
+            simulate=False,
+            triggers=self.config_deployed.triggers,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
+        )
 
-        return merged_dict
-
-    def inline_local_files(self, yaml_dict, basedir):
-        """inline all local references
-
-        - for files and trees use source base64 encode if file type = binary, else use inline
-        - storage:trees:[]:local -> files:[]:contents:inline/source
-        - storage:files:[]:contents:local -> []:contents:inline/source
-        - systemd:units:[]:contents_local -> []:contents
-        - systemd:units:[]:dropins:[]:contents_local -> []:contents
-        """
-
-        ydict = copy.deepcopy(yaml_dict)
-
-        if "storage" in ydict and "trees" in ydict["storage"]:
-            if "files" not in ydict["storage"]:
-                ydict["storage"].update({"files": []})
-            for tnr in range(len(ydict["storage"]["trees"])):
-                t = ydict["storage"]["trees"][tnr]
-                for lf in glob.glob(
-                    join_paths(basedir, t["local"], "**"), recursive=True
-                ):
-                    if os.path.isfile(lf):
-                        rf = join_paths(
-                            t["path"] if "path" in t else "/",
-                            os.path.relpath(lf, join_paths(basedir, t["local"])),
-                        )
-                        is_exec = os.stat(lf).st_mode & stat.S_IXUSR
-
-                        ydict["storage"]["files"].append(
-                            {
-                                "path": rf,
-                                "mode": 0o755 if is_exec else 0o664,
-                                "contents": load_contents(lf),
-                            }
-                        )
-            del ydict["storage"]["trees"]
-
-        if "storage" in ydict and "files" in ydict["storage"]:
-            for fnr in range(len(ydict["storage"]["files"])):
-                f = ydict["storage"]["files"][fnr]
-
-                if "contents" in f and "local" in f["contents"]:
-                    fname = f["contents"]["local"]
-                    del ydict["storage"]["files"][fnr]["contents"]["local"]
-                    ydict["storage"]["files"][fnr]["contents"].update(
-                        load_contents(join_paths(basedir, fname))
-                    )
-
-        if "systemd" in ydict and "units" in ydict["systemd"]:
-            for unr in range(len(ydict["systemd"]["units"])):
-                u = ydict["systemd"]["units"][unr]
-
-                if "contents_local" in u:
-                    fname = u["contents_local"]
-                    del ydict["systemd"]["units"][unr]["contents_local"]
-                    ydict["systemd"]["units"][unr].update(
-                        {"contents": load_text(basedir, fname)}
-                    )
-
-                if "dropins" in u:
-                    for dnr in range(len(u["dropins"])):
-                        d = ydict["systemd"]["units"][unr]["dropins"][dnr]
-
-                        if "contents_local" in d:
-                            fname = d["contents_local"]
-                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
-                                "contents_local"
-                            ]
-                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
-                                {"contents": load_text(basedir, fname)}
-                            )
-        return ydict
-
-    def expand_templates(self, yaml_dict, basedir, environment):
-        """template translation of contents from butane local references where template =! None
-
-        - storage:files[].contents.template
-        - systemd:units[].template
-        - systemd:units[].dropins[].template
-        - template= "jinja": template the source through jinja
-        - template= "selinux": compile selinux text configuration to binary (only storage.files)
-        """
-
-        ydict = copy.deepcopy(yaml_dict)
-
-        if "storage" in ydict and "files" in ydict["storage"]:
-            for fnr in range(len(ydict["storage"]["files"])):
-                f = ydict["storage"]["files"][fnr]
-
-                if "contents" in f and "template" in f["contents"]:
-                    if f["contents"]["template"] not in ["jinja", "selinux-te2mod"]:
-                        raise ValueError(
-                            "Invalid option, template must be one of: jinja, selinux-te2mod"
-                        )
-                    if "inline" not in f["contents"]:
-                        raise ValueError(
-                            "Invalid option, contents must be != None if template != None"
-                        )
-                    if f["contents"]["template"] == "jinja":
-                        data = jinja_run(f["contents"]["inline"], basedir, environment)
-                        del ydict["storage"]["files"][fnr]["contents"]["template"]
-                        ydict["storage"]["files"][fnr]["contents"].update(
-                            {"inline": data}
-                        )
-                    elif f["contents"]["template"] == "selinux-te2mod":
-                        data = "data:;base64," + base64.b64encode(
-                            compile_selinux_module(f["contents"]["inline"])
-                        ).decode("utf-8")
-                        del ydict["storage"]["files"][fnr]["contents"]["inline"]
-                        del ydict["storage"]["files"][fnr]["contents"]["template"]
-                        ydict["storage"]["files"][fnr]["contents"].update(
-                            {"source": data}
-                        )
-
-        if "systemd" in ydict and "units" in ydict["systemd"]:
-            for unr in range(len(ydict["systemd"]["units"])):
-                u = ydict["systemd"]["units"][unr]
-                if "template" in u and u["template"] not in ["jinja"]:
-                    raise ValueError("Invalid option, template must be one of: jinja")
-                if "contents" in u and "template" in u:
-                    data = jinja_run(u["contents"], basedir, environment)
-                    ydict["systemd"]["units"][unr].update({"contents": data})
-                    del ydict["systemd"]["units"][unr]["template"]
-
-                if "dropins" in u:
-                    for dnr in range(len(u["dropins"])):
-                        d = ydict["systemd"]["units"][unr]["dropins"][dnr]
-                        if "template" in d and d["template"] not in ["jinja"]:
-                            raise ValueError(
-                                "Invalid option, template must be one of: jinja"
-                            )
-                        if "contents" in d and "template" in d:
-                            data = jinja_run(d["contents"], basedir, environment)
-                            ydict["systemd"]["units"][unr]["dropins"][dnr].update(
-                                {"contents": data}
-                            )
-                            del ydict["systemd"]["units"][unr]["dropins"][dnr][
-                                "template"
-                            ]
-        return ydict
+        self.result = self.config_updated
+        self.register_outputs({})
 
 
 class FcosImageDownloader(pulumi.ComponentResource):
@@ -631,62 +515,6 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             ),
         )
         self.result = self.vm
-        self.register_outputs({})
-
-
-class FcosConfigUpdate(pulumi.ComponentResource):
-    """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config"""
-
-    def __init__(self, resource_name, host, compiled_config, opts=None):
-        from ..tools import ssh_deploy, ssh_execute
-
-        super().__init__(
-            "pkg:index:FcosConfigUpdate",
-            "{}_fcos_config_update".format(resource_name),
-            None,
-            opts,
-        )
-
-        child_opts = pulumi.ResourceOptions(parent=self)
-        user = "core"
-        root_dir = "/run/user/1000/update-system-config"
-        update_fname = "update-system-config.service"
-        update_str = open(os.path.join(this_dir, update_fname), "r").read()
-
-        # transport update service file and main.sls (translated butane) to root_dir and sls_dir
-        config_dict = {
-            update_fname: pulumi.Output.from_input(update_str),
-            os.path.join("sls", "main.sls"): pulumi.Output.from_input(
-                compiled_config.saltstack_config
-            ),
-        }
-        self.config_deployed = ssh_deploy(
-            resource_name,
-            host,
-            user,
-            files=config_dict,
-            remote_prefix=root_dir,
-            simulate=False,
-            opts=child_opts,
-        )
-
-        # copy update service to target location, reload systemd daemon, start update
-        self.config_updated = ssh_execute(
-            resource_name,
-            host,
-            user,
-            cmdline="""if test -f {source}; then sudo cp {source} {target}; fi && \
-                        sudo systemctl daemon-reload && \
-                        sudo systemctl restart --wait update-system-config""".format(
-                source=os.path.join(root_dir, update_fname),
-                target=os.path.join("/etc/systemd/system", update_fname),
-            ),
-            simulate=False,
-            triggers=self.config_deployed.triggers,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
-        )
-
-        self.result = self.config_updated
         self.register_outputs({})
 
 
