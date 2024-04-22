@@ -1,4 +1,3 @@
-
 # Update Config
 
 reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config.

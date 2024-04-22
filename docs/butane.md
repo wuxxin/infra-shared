@@ -3,7 +3,7 @@
 ### Jinja Templating
 
 in addition to jinja inside butane files,
-files referenced from butane files with attribute template=jinja
+files referenced from butane files with attribute `template=jinja`
 will be rendered through jinja with the described Environment and optional includes from searchpath
 
 #### Environment
@@ -52,7 +52,7 @@ the butane configuration is created from
     - storage:files[].contents.template
     - systemd:units[].template
     - systemd:units[].dropins[].template
-- merge together with additional watching for contents:inline or source
+- merge together
 
 ### Ignition Json
 
@@ -62,18 +62,22 @@ the ignition spec file is created from the merged final butane yaml
 
 the saltstack spec file is created from a subset of the final butane yaml
 
+restrictions:
+
 - only storage:directories/links/files and systemd:units[:dropins] are translated
-- files:contents must be of type inline or source (base64 encoded)
+- files must be inlined, files:contents must be of type inline or source (base64 encoded)
 - systemd:units and systemd:units:dropins must be of type contents
+
+translation:
+
 - filenames /etc/hosts, /etc/hostname, /etc/resolv.conf are translated to /host_etc/*
-- append this_dir/update-system-config.sls and basedir/*.sls to it
-- additional outputs if {SALT_CHANGE_DETECT} == true:
-    - creates a commented, non uniqe, not sorted list of service base names
-        - UPDATE_DIR=/run/user/1000/update-system-config
-        - {UPDATE_DIR}/`service_changed.list` for services with changed configuration
-        - {UPDATE_DIR}/`service_enabled.list` for services to be enabled
-        - {UPDATE_DIR}/`service_disabled.list` for services to be disabled
+- creates a commented, non uniqe, not sorted list of service base names
+    - update_dir=/run/user/1000/update-system-config, update_user=1000 , update_group=1000
+    - {upadate_dir}/`service_changed.list` for services with changed configuration
+    - {upadate_dir}/`service_enabled.list` for services to be enabled
+    - {upadate_dir}/`service_disabled.list` for services to be disabled
     - see `update-system-config.service` for detailed usage of service_*
+- append this_dir/update-system-config.sls and basedir/*.sls to it
 - `podman-systemd`, `compose.yml` and `nspawn` container:
     share the same namespace for service change recognition
     and should therefore not share the same name
