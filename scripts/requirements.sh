@@ -29,7 +29,7 @@ EOF
 
 pkg_defines="
 # # buildenv
-# CHECK: pipenv openssl gpg gpgv age vault pulumi keymgr knotc atftp jq xz
+# CHECK: pipenv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz
 # pipenv - virtual python environment management
 python-pipenv
 # openssl used for random, and hashid of cert
@@ -38,6 +38,8 @@ openssl
 gnupg
 # age - file based encryption with openssh authorized_keys and provision key
 age
+# jose - C-language implementation of Javascript Object Signing and Encryption
+jose
 # vault - used for ca root creation
 vault
 # pulumi - imperativ infrastructure delaration using python
