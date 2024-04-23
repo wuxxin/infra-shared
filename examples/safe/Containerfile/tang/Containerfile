@@ -28,15 +28,12 @@ COPY --from=builder /usr/local/libexec/tangd-keygen /usr/local/bin/tangd-keygen
 RUN apk add --no-cache --update http-parser jansson openssl socat wget zlib
 
 RUN addgroup tang && adduser --disabled-password --system --ingroup tang tang && \
-    install -g tang -o tang -d /var/db
+    install -d /var/db && install -m 0700 -g tang -o tang -d /var/db/tang
 
 USER tang
 
 EXPOSE 9090
-VOLUME [ "/var/db" ]
+VOLUME [ "/var/db/tang" ]
 
-CMD /usr/local/bin/tangd -l -p 9090 /var/db/tang.db
-
-HEALTHCHECK --start-period=5s --timeout=3s \
-    CMD wget -4qSO /dev/null http://127.0.0.1:9090/adv
+CMD /usr/local/bin/tangd -l -p 9090 /var/db/tang
 
