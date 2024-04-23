@@ -7,7 +7,7 @@ After=network-online.target container-build@%N.service container-secrets.service
 Image=localhost/%N:latest
 # EnvironmentFile=/etc/containers/environment/%N.env
 
-Volume=tang.volume:/db
+Volume=tang.volume:/var/db
 
 Label=traefik.enable=true
 # use default available env var "hostname" from frontend
