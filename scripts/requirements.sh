@@ -29,7 +29,7 @@ EOF
 
 pkg_defines="
 # # buildenv
-# CHECK: pipenv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz
+# CHECK: pipenv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
 # pipenv - virtual python environment management
 python-pipenv
 # openssl used for random, and hashid of cert
@@ -52,10 +52,9 @@ atftp
 jq
 # compression
 xz
-
-# # local build and update-system-config
-# CHECK: salt-call
-salt
+# act - run your github actions locally
+act
+# saltstack is installed in python environment, not as system package
 
 # # mkdocs build
 # CHECK: pango-view
@@ -104,9 +103,9 @@ semodule-utils
 checkpolicy
 
 # # esphome build
-# # CHECK: esphome
+# CHECK: esphome
 # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-# esphome
+esphome
 
 "
 

@@ -5,7 +5,7 @@ FROM docker.io/archlinux/archlinux:base-devel
 # cat Containerfile | ../../scripts/requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
 
 RUN pacman-key --init && pacman -Syu --noconfirm base-devel lsb-release git doas && \
-    pacman -Syu --noconfirm age atftp dosfstools esptool gnupg go jose jq knot libarchive openssl pango pulumi python-pipenv rust salt udisks2 vault xz zip gawk git openssl wget unzip python ncurses zlib gettext libxslt  && \
+    pacman -Syu --noconfirm act age atftp dosfstools esptool gnupg go jose jq knot libarchive openssl pango pulumi python-pipenv rust udisks2 vault xz zip gawk git openssl wget unzip python ncurses zlib gettext libxslt  && \
     pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/*
 
@@ -25,7 +25,7 @@ RUN HOME=/home/user && \
     doas -u root pacman --noconfirm -U *.pkg.tar.zst && \
     cd .. && \
     rm -rf yay && \
-    yay -Sy --noconfirm butane checkpolicy coreos-installer libsepol semodule-utils  && \
+    yay -Sy --noconfirm butane checkpolicy coreos-installer esphome libsepol semodule-utils  && \
     yay -Sc --noconfirm && \
     rm -rf $HOME/.cargo/registry $HOME/.cache/go-build $HOME/.cache/yay && \
     doas -u root pacman -Scc --noconfirm && \
