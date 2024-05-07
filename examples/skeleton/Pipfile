@@ -10,27 +10,40 @@ name = "pypi"
 # pulumi - imperativ infrastructure delaration using python
 pulumi = ">=3.0.0,<4.0.0"
 
+# pulumi modules
 pulumi-command = "*"
 pulumi-docker = "*"
+pulumi-gitea = "*"
 pulumi-keycloak = "*"
 pulumi-libvirt = "*"
 pulumi-postgresql = "*"
 pulumi-random = "*"
 pulumi-tls = "*"
-pulumiverse_time = "*"
+# purrl: http get/put/post
 pulumiverse_purrl = "*"
+pulumiverse_time = "*"
 
+# pulumi-azure-native = "*"
 # pulumi-cloudinit = "*"
+# pulumi-gcp = "*"
 # pulumi-github = "*"
 # pulumi-hcloud = "*"
+# pulumi-kubernetes = "*"
 # pulumi-minio = "*"
+# pulumi-mysql = "*"
+# pulumi-nomad = "*"
 # pulumi-vault = "*"
-# pulumi-acme = "*"
-# pulumi-gandi = "*"
+# pulumiverse_acme = "*"
+# pulumiverse_gandi = "*"
+# pulumiverse_matchbox = "*"
+# pulumiverse-harbor = "*"
 # pulumiverse-sentry = "*"
 
 
 ### Tools
+
+# saltstack: local building 
+salt = "*"
 
 # yaml handling
 pyyaml = "*"
@@ -107,4 +120,4 @@ mkdocs_pymdownx_material_extras = "*"
 [dev-packages]
 
 [requires]
-python_version = "3.11"
+python_version = "3.12"
