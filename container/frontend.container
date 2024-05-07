@@ -27,6 +27,9 @@ Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
 # frontend-post-up.service writes frondend.dynamic.yml to /traefik
 Volume=frontend.volume:/traefik
 
+# use the ping api at port 8080 on localhost as a healthcheck
+HealthCmd=wget -4qSO /dev/null http://127.0.0.1:8080/ping
+
 # Publich http and https to [hostip:]hostPort:containerPort
 PublishPort=443:443
 PublishPort=80:80
