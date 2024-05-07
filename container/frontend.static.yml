@@ -9,6 +9,10 @@ api:
   dashboard: true
 {% endif %}
 
+# define service ping@internal, so healthcheck can be done
+ping:
+  entryPoint: "ping-localhost"
+
 entryPoints:
   http:
     address: ":80"
@@ -23,6 +27,9 @@ entryPoints:
     http:
       tls:
         options: default
+
+  ping-localhost:
+    address: "127.0.0.1:8080"
 
 {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
