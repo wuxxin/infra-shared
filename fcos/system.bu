@@ -76,11 +76,6 @@ storage:
         inline: |
           RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
 
-    # copy update service, will be overwritten by actual update call
-    - path: /etc/systemd/system/update-system-config.service
-      contents:
-        local: fcos/update-system-config.service
-
   links:
     # symlink root_ca,root_bundle,server.crt,server.key as systemd credentials
     - path: /etc/credstore/root_ca.crt
