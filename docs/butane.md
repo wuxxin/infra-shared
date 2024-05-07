@@ -35,11 +35,11 @@ the butane configuration is created from
 |----|----|----|
 | `base_dict`    | string butane_input |  basedir
 | `security_dict`| string *generated*  | basedir
-| `fcos_dict`    | *.bu yaml | basedir+"/infra/fcos"
+| `system_dict`  | *.bu yaml | basedir+"/infra/fcos"
 | `target_dict`  | *.bu yaml | targetdir
 
 #### Merge Order
-- `merged_dict  = fcos_dict+ target_dict+ security_dict+ base_dict`
+- `merged_dict  = system_dict+ target_dict+ security_dict+ base_dict`
     - **order** is earlier gets **overwritten by later**
 
 #### for each *.bu in fcosdir, basedir:
@@ -55,10 +55,17 @@ the butane configuration is created from
 | `storage:files:[name]:contents:local` | `[name]:contents:inline/source` |
 | `systemd:units:[name]:contents_local` | `[name]:contents` |
 | `systemd:units:[name]:dropins:[other]:contents_local` | `[other]:contents` |
+
+
 - apply additional filter where **template** != ""
-    - `storage:files[name].contents.template`
-    - `systemd:units[name].template`
-    - `systemd:units[name].dropins[name].template`
+    - `storage:files:[name]:contents:template`
+    - `systemd:units:[name]:template`
+    - `systemd:units:[name]:dropins:[name]:template`
+
+- remove all entries with `storage:files:[name]:drop=true`, including earlier definitions
+
+- delete files on disk with `storage:files:[name]:delete=true`, overwrites earlier definitions
+
 - merge together
 
 ### Ignition Json

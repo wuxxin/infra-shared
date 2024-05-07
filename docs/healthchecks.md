@@ -1,5 +1,16 @@
 # Health Checks
 
+### Containerfile
+
+- Define in: `<instance>/Containerfile`
+```dockerfile
+HEALTHCHECK [OPTIONS] CMD command
+# --interval=DURATION (default: 30s)
+# --timeout=DURATION (default: 30s)
+# --start-period=DURATION (default: 0s)
+# --start-interval=DURATION (default: 5s)
+# --retries=N (default: 3)
+```
 
 ### Single Container
 
