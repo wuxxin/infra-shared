@@ -2,8 +2,8 @@
 Description=Update Configuration by applying a (transpiled butane) saltstack config
 After=boot-complete.target
 Wants=boot-complete.target
-ConditionPathExists=/run/user/1000/%N/sls/main.sls
-
+ConditionPathExists={{ UPDATE_PATH }}/%N/sls/main.sls
+# env from SystemConfigUpdate: UPDATE_USER, UPDATE_UID, UPDATE_SERVICE, UPDATE_PATH, UPDATE_USE_SUDO
 # Run config update by building saltstack in a container, executing salt-call in container,
 # mounting /etc, /var, /run from host into container, /etc is also mounted as /host_etc
 # butane_to_salt() remaps files from /etc/[hosts,hostname,resolv.conf] to /host_etc/*
@@ -25,11 +25,11 @@ ExecStart=/usr/bin/bash -c 'cd /etc/containers/build/%N && \
 
 # roughly equal to tools.py:salt_config()
 Environment=resource_name="%n"
-Environment=base_dir=/run/user/1000
-Environment=root_dir=/run/user/1000/%N
-Environment=tmp_dir=/run/user/1000/%N/tmp
-Environment=sls_dir=/run/user/1000/%N/sls
-Environment=pillar_dir=/run/user/1000/%N/pillar
+Environment=base_dir={{ UPDATE_PATH }}
+Environment=root_dir={{ UPDATE_PATH }}/%N
+Environment=tmp_dir={{ UPDATE_PATH }}/%N/tmp
+Environment=sls_dir={{ UPDATE_PATH }}/%N/sls
+Environment=pillar_dir={{ UPDATE_PATH }}/%N/pillar
 
 # create a minion config
 ExecStart=/usr/bin/bash -c \
