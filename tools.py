@@ -30,7 +30,6 @@ debug:
 - TimedResource
 
 ### Python
-- join_paths
 - sha256sum_file
 - get_default_host_ip
 
@@ -48,7 +47,7 @@ import pulumi_command as command
 import yaml
 
 from pulumi.dynamic import Resource, ResourceProvider, CreateResult, UpdateResult
-
+from .template import join_paths
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.abspath(os.path.join(this_dir, ".."))
@@ -64,12 +63,6 @@ def log_warn(x):
             ]
         )
     )
-
-
-def join_paths(basedir, *filepaths):
-    "combine filepaths with basedir like os.path.join, but remove leading '/' of each filepath"
-    filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
-    return os.path.join(basedir if basedir else "/", *filepaths)
 
 
 def sha256sum_file(filename):
