@@ -48,7 +48,7 @@ UPDATE_CONFIG = {
 class ButaneTranspiler(pulumi.ComponentResource):
     """Translate Jinja templated Butane files to Ignition and a subset to SaltStack Salt format
 
-    renders credentials, butane_input, fcos/*.bu (excluding system_exclude) and basedir/**.bu
+    renders credentials, butane_input, os/*.bu (excluding system_exclude) and basedir/**.bu
 
     Args:
     - resource_name (str): pulumi resource name

@@ -7,7 +7,7 @@ def prepare_serve_secure_ignition(resource_name):
 
 def make_image(resource_name):
     "prepare target image"
-    import infra.fcos
+    import infra.os
     from target.safe import shortname, hostname
     from infra.tools import public_local_export
     from infra.build import finalize_raspberry_image
@@ -15,12 +15,12 @@ def make_image(resource_name):
     serve_config = prepare_serve_secure_ignition(resource_name)
     config = serve_config.config
     remote_url = config.config["remote_url"]
-    public_ign = infra.fcos.RemoteDownloadIgnitionConfig(
+    public_ign = infra.os.RemoteDownloadIgnitionConfig(
         "{}_public_ignition".format(shortname), hostname, remote_url
     )
 
     return finalize_raspberry_image(
-        image=infra.fcos.FcosImageDownloader(
+        image=infra.os.FcosImageDownloader(
             architecture="aarch64", platform="metal", image_format="raw.xz"
         ),
         config=public_local_export(

@@ -11,7 +11,7 @@ will be rendered through jinja with the described Environment and optional inclu
 - environment defaults available in jinja
 
 ```yaml
-# include fcos/jinja_defaults.yml here
+# include os/jinja_defaults.yml here
 ```
 
 #### Custom regex filter

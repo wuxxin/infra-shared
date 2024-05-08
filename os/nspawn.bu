@@ -62,7 +62,7 @@ storage:
 systemd:
   units:
     - name: nspawn-build@.service
-      contents_local: fcos/nspawn-build@.service
+      contents_local: os/nspawn-build@.service
 
     - name: systemd-nspawn@.service
       dropins:
@@ -89,9 +89,9 @@ systemd:
 
         # provision machine dropin
         - name: 10_provision.conf
-          contents_local: fcos/nspawn-10_provision.service.conf
+          contents_local: os/nspawn-10_provision.service.conf
 
         # dns and frontend service discovery dropin
         - name: 20_discovery.conf
-          contents_local: fcos/nspawn-20_discovery.service.conf
+          contents_local: os/nspawn-20_discovery.service.conf
 

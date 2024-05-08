@@ -35,7 +35,7 @@ from infra.authority import (
     exported_ca_cert,
     ssh_factory,
 )
-from infra.fcos import (
+from infra.os import (
     ButaneTranspiler,
     SystemConfigUpdate,
     LibvirtIgniteFcos,

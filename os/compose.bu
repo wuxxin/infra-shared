@@ -12,10 +12,10 @@ storage:
 systemd:
   units:
     - name: compose-build@.path
-      contents_local: fcos/compose-build@.path
+      contents_local: os/compose-build@.path
 
     - name: compose-build@.service
-      contents_local: fcos/compose-build@.service
+      contents_local: os/compose-build@.service
 
     - name: compose@.service
-      contents_local: fcos/compose@.service
+      contents_local: os/compose@.service

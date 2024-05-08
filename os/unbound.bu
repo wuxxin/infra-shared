@@ -5,7 +5,7 @@ storage:
     # our unbound configuration
     - path: /etc/unbound/unbound.conf
       contents:
-        local: fcos/unbound.conf
+        local: os/unbound.conf
         template: jinja
 
 systemd:
@@ -13,6 +13,6 @@ systemd:
     # our dnsresolver service for system, podman container, compose and nspawn machines
     - name: unbound.service
       enabled: true
-      contents_local: fcos/unbound.service
+      contents_local: os/unbound.service
       template: jinja
 

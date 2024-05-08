@@ -61,7 +61,7 @@ systemd:
     # load /etc/credstore/* into podman secrets
     - name: container-secrets.service
       enabled: true
-      contents_local: fcos/container-secrets.service
+      contents_local: os/container-secrets.service
 
     # overwrite podman.service: set explicit socket, dont exit on timeout, always enabled
     - name: podman.service
