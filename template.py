@@ -37,9 +37,20 @@ import yaml
 
 
 def join_paths(basedir, *filepaths):
-    "combine filepaths with basedir like os.path.join, but remove leading '/' of each filepath"
+    """Combine filepaths with a base dir, ensuring the resulting path is within basedir
+
+    - basedir (str): The base directory to combine the filepaths with, defaults to '/' if empty string
+    - *filepaths (str): Variable number of file paths to be combined
+    Returns: str: The absolute path of the combined path within the base directory
+    Raises: ValueError: If the resulting path is outside the base directory.
+    """
+    if not basedir:
+        basedir = "/"
     filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
-    return os.path.join(basedir if basedir else "/", *filepaths)
+    abspath = os.path.abspath(os.path.join(basedir, *filepaths))
+    if not abspath.startswith(basedir):
+        raise ValueError("TargetPath: {} outside Basedir: {}".format(abspath, basedir))
+    return abspath
 
 
 def is_text(filepath):
@@ -544,13 +555,13 @@ def butane_to_salt(
 
     if "storage" in src and "links" in src["storage"]:
         for lnr in range(len(src["storage"]["links"])):
-            l = src["storage"]["links"][lnr]
-            dest.update({l["path"]: {"file": ["symlink"]}})
-            dest[l["path"]]["file"] += [{"makedirs": True}, {"target": l["target"]}]
-            if "hard" in l and l["hard"]:
-                dest[l["path"]]["file"].append({"hard": True})
-            ugm_append(dest[l["path"]]["file"], l)
-            target_changed(l["path"])
+            li = src["storage"]["links"][lnr]
+            dest.update({li["path"]: {"file": ["symlink"]}})
+            dest[li["path"]]["file"] += [{"makedirs": True}, {"target": li["target"]}]
+            if "hard" in li and li["hard"]:
+                dest[li["path"]]["file"].append({"hard": True})
+            ugm_append(dest[li["path"]]["file"], li)
+            target_changed(li["path"])
 
     if "storage" in src and "files" in src["storage"]:
         for fnr in range(len(src["storage"]["files"])):
