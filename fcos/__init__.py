@@ -4,7 +4,7 @@
 ### Components
 
 - ButaneTranspiler
-- FcosConfigUpdate
+- SystemConfigUpdate
 - FcosImageDownloader
 - LibvirtIgniteFcos
 - TangFingerprint
@@ -26,25 +26,47 @@ from ..tools import log_warn
 from ..template import (
     jinja_run,
     jinja_run_file,
+    load_butane_dir,
+    butane_to_salt,
     join_paths,
     merge_dict_struct,
     merge_butane_dicts,
-    load_butane_dir,
-    butane_to_salt,
 )
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
 
+UPDATE_CONFIG = {
+    "UPDATE_USER": "core",
+    "UPDATE_UID": 1000,
+    "UPDATE_SERVICE": "update-system-config",
+    "UPDATE_PATH": "/run/user/1000",
+    "UPDATE_USE_SUDO": True,
+}
+
 
 class ButaneTranspiler(pulumi.ComponentResource):
-    """translate jinja templated butane files to ignition and a subset to saltstack salt format
+    """Translate Jinja templated Butane files to Ignition and a subset to SaltStack Salt format
 
-    - uses `jinja_defaults.yml` for environment defaults available in jinja
-    - returns
-        - butane_config (merged butane yaml)
-        - saltstack_config (butane translated to inlined saltstack yaml with customizations
-        - ignition_config (butane translated to ignition json) -> result
+    renders credentials, butane_input, fcos/*.bu (excluding system_exclude) and basedir/**.bu
+
+    Args:
+    - resource_name (str): pulumi resource name
+    - hostname (str): hostname
+    - hostcert (pulumi object): host certificate
+    - butane_input (str): Butane input string
+    - basedir (str): Butane Basedir path
+    - environment (dict, optional): env available in templating
+        - defaults to `jinja_defaults.yml`
+    - system_exclude (list, optional): list of files to exclude from translation.
+    - update_config (dict, optional): translation update configuration
+        - defaults to UPDATE_CONFIG
+    - opts (pulumi.ResourceOptions): Defaults to None
+
+    Returns: pulumi.ComponentResource: ButaneTranspiler resource results
+    - butane_config (str): The merged Butane YAML configuration
+    - saltstack_config (str): The Butane translated to inlined SaltStack YAML
+    - ignition_config (str): The Butane translated to Ignition JSON
     """
 
     def __init__(
@@ -55,6 +77,8 @@ class ButaneTranspiler(pulumi.ComponentResource):
         butane_input,
         basedir,
         environment=None,
+        system_exclude=[],
+        update_config=UPDATE_CONFIG,
         opts=None,
     ):
         from ..authority import ca_factory, ssh_factory
@@ -160,8 +184,10 @@ storage:
         )
 
         # jinja template *.bu yaml files from fcosdir
-        fcos_dict = pulumi.Output.all(env=this_env).apply(
-            lambda args: load_butane_dir(subproject_dir, args["env"], subdir="fcos")
+        system_dict = pulumi.Output.all(env=this_env).apply(
+            lambda args: load_butane_dir(
+                subproject_dir, args["env"], subdir="fcos", exclude=system_exclude
+            )
         )
 
         # jinja template *.bu yaml files from basedir
@@ -169,15 +195,15 @@ storage:
             lambda args: load_butane_dir(basedir, args["env"])
         )
 
-        # merged_dict= base_dict -> security_dict > target_dict -> fcos_dict
+        # merged_dict= base_dict -> security_dict > target_dict -> system_dict
         merged_dict = pulumi.Output.all(
             base_dict=base_dict,
             security_dict=security_dict,
-            fcos_dict=fcos_dict,
+            system_dict=system_dict,
             target_dict=target_dict,
         ).apply(
             lambda args: merge_butane_dicts(
-                args["fcos_dict"],
+                args["system_dict"],
                 merge_butane_dicts(
                     args["target_dict"],
                     merge_butane_dicts(args["security_dict"], args["base_dict"]),
@@ -199,9 +225,12 @@ storage:
                     butane_to_salt(
                         args["butane_dict"],
                         update_status=True,
-                        update_dir="/run/user/1000/update-system-config",
-                        update_user=1000,
-                        update_group=1000,
+                        update_dir=join_paths(
+                            update_config["UPDATE_PATH"],
+                            update_config["UPDATE_SERVICE"],
+                        ),
+                        update_user=update_config["UPDATE_UID"],
+                        update_group=update_config["UPDATE_UID"],
                     )
                 )
             ),
@@ -229,30 +258,46 @@ storage:
         self.register_outputs({})
 
 
-class FcosConfigUpdate(pulumi.ComponentResource):
-    """reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config"""
+class SystemConfigUpdate(pulumi.ComponentResource):
+    """reconfigure a remote system by executing salt-call on a butane to saltstack translated config
 
-    def __init__(self, resource_name, host, compiled_config, opts=None):
+    if simulate==True: data is not transfered but written out to state/tmp/stack_name
+    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+    """
+
+    def __init__(
+        self,
+        resource_name,
+        host,
+        system_config,
+        update_config=UPDATE_CONFIG,
+        simulate=None,
+        opts=None,
+    ):
         from ..tools import ssh_deploy, ssh_execute
 
         super().__init__(
-            "pkg:index:FcosConfigUpdate",
-            "{}_fcos_config_update".format(resource_name),
+            "pkg:index:SystemConfigUpdate",
+            "{}_system_config_update".format(resource_name),
             None,
             opts,
         )
 
         child_opts = pulumi.ResourceOptions(parent=self)
-        user = "core"
-        update_fname = "update-system-config.service"
-        update_str = open(join_paths(this_dir, update_fname), "r").read()
-        root_dir = join_paths("/run/user/1000", "update-system-config")
+        user = update_config["UPDATE_USER"]
+        update_fname = update_config["UPDATE_SERVICE"] + ".service"
+        update_str = jinja_run_file(
+            join_paths(this_dir, update_fname), subproject_dir, update_config
+        )
+        root_dir = join_paths(
+            update_config["UPDATE_PATH"], update_config["UPDATE_SERVICE"]
+        )
 
         # transport update service file content and main.sls (translated butane) to root_dir and sls_dir
         config_dict = {
             update_fname: pulumi.Output.from_input(update_str),
             os.path.join("sls", "main.sls"): pulumi.Output.from_input(
-                compiled_config.saltstack_config
+                system_config.saltstack_config
             ),
         }
         self.config_deployed = ssh_deploy(
@@ -261,7 +306,7 @@ class FcosConfigUpdate(pulumi.ComponentResource):
             user,
             files=config_dict,
             remote_prefix=root_dir,
-            simulate=False,
+            simulate=simulate,
             opts=child_opts,
         )
 
@@ -270,13 +315,14 @@ class FcosConfigUpdate(pulumi.ComponentResource):
             resource_name,
             host,
             user,
-            cmdline="""if test -f {source}; then sudo cp {source} {target}; fi && \
-                        sudo systemctl daemon-reload && \
-                        sudo systemctl restart --wait update-system-config""".format(
+            cmdline="""if test -f {source}; then {sudo} cp {source} {target}; fi && \
+                        {sudo} systemctl daemon-reload && \
+                        {sudo} systemctl restart --wait update-system-config""".format(
                 source=os.path.join(root_dir, update_fname),
                 target=os.path.join("/etc/systemd/system", update_fname),
+                sudo="sudo" if update_config["UPDATE_USE_SUDO"] else "",
             ),
-            simulate=False,
+            simulate=simulate,
             triggers=self.config_deployed.triggers,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
         )
@@ -301,20 +347,19 @@ class FcosImageDownloader(pulumi.ComponentResource):
         defaults = yaml.safe_load(
             open(os.path.join(this_dir, "..", "build_defaults.yml"), "r")
         )
-
         config = config.get_object("build")
-        fcos_config = merge_dict_struct(defaults["fcos"], config.get("fcos", {}))
+        system_config = merge_dict_struct(defaults["fcos"], config.get("fcos", {}))
 
         if not stream:
-            stream = fcos_config["stream"]
+            stream = system_config["stream"]
         if not architecture:
-            architecture = fcos_config["architecture"]
+            architecture = system_config["architecture"]
         if not platform:
-            platform = fcos_config["platform"]
+            platform = system_config["platform"]
         if not image_format:
-            image_format = fcos_config["format"]
+            image_format = system_config["format"]
 
-        resource_name = "fcos_{s}_{a}_{p}_{f}".format(
+        resource_name = "system_{s}_{a}_{p}_{f}".format(
             s=stream, a=architecture, p=platform, f=image_format
         )
 
