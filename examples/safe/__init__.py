@@ -37,7 +37,7 @@ from infra.authority import (
 )
 from infra.fcos import (
     ButaneTranspiler,
-    FcosConfigUpdate,
+    SystemConfigUpdate,
     LibvirtIgniteFcos,
     TangFingerprint,
 )
@@ -55,6 +55,7 @@ dns_names = config.get_object(
     ],
 )
 hostname = dns_names[0]
+
 # create tls host certificate
 tls = create_host_cert(hostname, hostname, dns_names)
 
@@ -165,15 +166,14 @@ if stack_name.endswith("sim"):
         shortname, host_config.result, volumes=identifiers["storage"], memory=4096
     )
     target = host_machine.vm.network_interfaces[0]["addresses"][0]
+    opts = pulumi.ResourceOptions(depends_on=[host_machine])
 else:
     target = hostname
+    opts = None
 
 # update host to newest config, should be a no-op (zero changes) on machine creation
-host_update = FcosConfigUpdate(
-    shortname,
-    target,
-    host_config,
-    opts=pulumi.ResourceOptions(depends_on=[host_machine]),
+host_update = SystemConfigUpdate(
+    shortname, target, host_config, simulate=False, opts=opts
 )
 pulumi.export("{}_host_update".format(shortname), host_update)
 
