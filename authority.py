@@ -227,6 +227,14 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
 
 
 class CASignedCert(pulumi.ComponentResource):
+    """Pulumi Component Resource representing a certificate signed by a Certificate Authority (CA)
+    Returns:
+    - key: tls.PrivateKey of the certificate
+    - request: tls.CertRequest certificate request that was used to generate the signed certificate
+    - cert: tls.LocallySignedCert resource representing the signed certificate itself
+    - chain: Pulumi Output object that concatenates the signed certificate with the certificate chain
+    """
+
     def __init__(self, name, cert_config, opts=None):
         def undef_or_none_def(struct, entry, default):
             return struct.get(entry) if struct.get(entry) is not None else default
@@ -405,6 +413,21 @@ def create_host_cert(
     custom_provision_ca=None,
     opts=None,
 ):
+    """Creates a host certificate for the given common name and DNS names.
+
+    Args:
+    - resource_name (str): Pulumi resource name
+    - common_name (str): Certificate common name
+    - dns_names (list of str): DNS names for the certificate
+    - ip_addresses (list of str): IP addresses for the certificate
+    - custom_ca_config (dict): Custom CA configuration parameters
+    - custom_ca_factory (dict): Custom CA factory parameters
+    - use_provision_ca (bool): Whether to use the provision CA
+    - custom_provision_ca (dict): Custom provision CA parameters
+    - opts (pulumi.ResourceOptions): Pulumi resource options
+    Returns:
+    - CASignedCert: A `CASignedCert` object representing the created host certificate
+    """
     host_config = {
         "ca_config": ca_config if not custom_ca_config else custom_ca_config,
         "ca_factory": ca_factory if not custom_ca_factory else custom_ca_factory,
@@ -430,6 +453,19 @@ def create_client_cert(
     custom_provision_ca=None,
     opts=None,
 ):
+    """Creates a client certificate for the given common name and DNS names
+
+    Args:
+    - resource_name (str): pulumi resource name
+    - common_name (str): certificate common name
+    - dns_names (list of str): DNS names for the certificate
+    - custom_ca_config (dict): custom CA configuration parameters
+    - custom_ca_factory (dict): custom CA factory parameters
+    - use_provision_ca (bool): whether to use the provision CA
+    - custom_provision_ca (dict): custom provision CA parameters
+    Returns:
+    - a `CASignedCert` object representing the created client certificate
+    """
     client_config = {
         "ca_config": ca_config if not custom_ca_config else custom_ca_config,
         "ca_factory": ca_factory if not custom_ca_factory else custom_ca_factory,
@@ -453,6 +489,20 @@ def create_selfsigned_cert(
     allowed_uses=["client_auth", "server_auth"],
     opts=None,
 ):
+    """Creates a self-signed certificate for the given common name and DNS names
+
+    Args:
+    - resource_name (str): Pulumi resource name
+    - common_name (str): Certificate common name
+    - dns_names (list of str): DNS names for the certificate
+    - ip_addresses (list of str): IP addresses for the certificate
+    - org_name (str): Organization name for the certificate. Defaults to common_name
+    - allowed_uses (list of str): Allowed uses for the certificate.
+        Defaults to ['client_auth', 'server_auth']
+    - opts (pulumi.ResourceOptions): Pulumi resource options. Defaults to None.
+    Returns:
+    - SelfSignedCert object
+    """
     self_config = {
         "common_name": common_name,
         "dns_names": dns_names,
