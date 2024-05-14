@@ -42,11 +42,13 @@ def join_paths(basedir, *filepaths):
     - basedir (str): The base directory to combine the filepaths with, defaults to '/' if empty string
     - *filepaths (str): Variable number of file paths to be combined
     Returns: str: The absolute path of the combined path within the base directory
-    Raises: ValueError: If the resulting path is outside the base directory.
+    Raises: ValueError: If the resulting path is outside the base directory
     """
     if not basedir:
         basedir = "/"
+    # remove optional leading "/" of filepaths entries, because path.join cuts out parts before "/"
     filepaths = [path[1:] if path.startswith("/") else path for path in filepaths]
+    # check if absolute path still startswith basedir, raise ValueError if not
     abspath = os.path.abspath(os.path.join(basedir, *filepaths))
     if not abspath.startswith(basedir):
         raise ValueError("TargetPath: {} outside Basedir: {}".format(abspath, basedir))
