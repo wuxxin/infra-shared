@@ -197,7 +197,7 @@ docs-infra: build-env ## Build infra/docs for local usage and open in browser
 	@mkdir -p state/docs/infra
 	@pipenv run mkdocs build --no-directory-urls -d ../state/docs/infra -f infra/mkdocs.yml
 	@echo "finished. browse documentation at state/docs/infra/index.html"
-	@$(BROWSER) state/docs/infra/fcos.html
+	@$(BROWSER) state/docs/infra/index.html
 
 .PHONY: docs-clean
 docs-clean: ## Remove all generated docs
