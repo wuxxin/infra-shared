@@ -16,13 +16,13 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
 
 nav:
-  - pulumi.md
   - os.md
+  - update.md
   - networking.md
   - credentials.md
   - healthchecks.md
-  - update.md
   - butane.md
+  - pulumi.md
   - scripts.md
   - Examples:
     - examples/safe/README.md

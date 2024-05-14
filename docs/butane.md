@@ -22,6 +22,7 @@ will be rendered through jinja with the described Environment and optional inclu
 - `"text"|regex_replace(pattern, replacement)`
 
 search,match,replace support additional args
+
 - `ignorecase=True/*False`
 - `multiline=True/*False`
 
@@ -91,6 +92,7 @@ Translation:
 - `this_dir/update-system-config.sls` and `basedir/*.sls`are appended to output
 
 Notes:
+
 - `podman-systemd`, `compose.yml` and `nspawn` container:
     share the same namespace for service change recognition
     and should therefore not share the same name

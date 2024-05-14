@@ -1,4 +1,4 @@
-# CoreOS centric system: Config, Deployment, Update
+# Config and Deploy OS
 
 Library Features:
 
@@ -124,9 +124,4 @@ ImportCredential=server.crt
 
 Volumes:
 - `/var/lib/volumes/`*instance*`.`*volume*`/`
-
-## Administration
-
-- use `toolbox create` and `toolbox enter` to have a fedora container available.
-- use `dnf install package` to install packages inside toolbox.
 
