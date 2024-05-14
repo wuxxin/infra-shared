@@ -2,14 +2,14 @@
 
 ### Showcase: a self-updating rolling release encrypted storage appliance
 
-with container, compose and nspawn example in < 600 lines, < 1500 words easy to read code
+with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
 
-- Hardware: Raspberry Pi4 (arm64) 4GB
+- Hardware: Raspberry Pi4 (arm64) 4GB, 1 sdcard, 2 x usb stick
 - Python Configuration: [_\_init__.py](__init__.py)
 - Storage: [storage.bu](storage.bu)
     - encrypted storage at rest
-    - `boot` and luks encrypted `root` on sdcard
-    - luks encrypted raid1 mirrored `/var`
+    - `boot`, luks encrypted `root` on sdcard
+    - luks encrypted raid1 mirrored `/var` on usb sticks
     - unattended `clevis` luks storage unlock for boot via tangd (and tpm2 on libvirt sim)
 - Simulation
     - a libvirt machine with the corresponding features and volumes
