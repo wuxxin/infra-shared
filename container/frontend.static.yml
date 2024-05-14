@@ -1,4 +1,7 @@
 # static traefik config
+
+{% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
@@ -31,7 +34,11 @@ entryPoints:
   ping-localhost:
     address: "127.0.0.1:8080"
 
-{% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
+# add custom entrypoints
+{% for key, value in FRONTEND["ENTRYPOINTS"]|d({}).items() %}
+{% set entry={key: value} %}
+{{ entry|yaml|indent(2,True)}}
+{% endfor %}
 
 providers:
   docker:
@@ -47,3 +54,13 @@ providers:
     directory: /traefik
     watch: true
 
+# add custom providers
+{% for key, value in FRONTEND["PROVIDERS"]|d({}).items() %}
+{% set provider={key: value} %}
+{{ provider|yaml|indent(2,True)}}
+{% endfor %}
+
+# add additional traefik static config string
+{% if "EXTRA" in FRONTEND %}
+{{ FRONTEND["EXTRA"] }}
+{% endif %}
