@@ -37,7 +37,7 @@ import yaml
 
 
 def join_paths(basedir, *filepaths):
-    """Combine filepaths with a base dir, ensuring the resulting path is within basedir
+    """Combine filepaths with a base dir, ensuring the resulting absolute path is within basedir
 
     - basedir (str): The base directory to combine the filepaths with, defaults to '/' if empty string
     - *filepaths (str): Variable number of file paths to be combined
@@ -126,6 +126,7 @@ class ToolsExtension(jinja2.ext.Extension):
         self.environment.filters["regex_search"] = self.regex_search
         self.environment.filters["regex_match"] = self.regex_match
         self.environment.filters["regex_replace"] = self.regex_replace
+        self.environment.filters["yaml"] = self.yaml_dump
 
     def list_files(self, value):
         "returns available files in searchpath[0]/value as string, newline seperated"
@@ -217,6 +218,12 @@ class ToolsExtension(jinja2.ext.Extension):
             flags |= re.M
         compiled_pattern = re.compile(pattern, flags)
         return compiled_pattern.sub(replacement, value)
+
+    def yaml(self, value, inline=False):
+        """converts a python object to a YAML string
+        inline: boolean indicating whether to use inline style for the YAML output
+        """
+        return yaml.safe_dump(value, flow_style=inline)
 
 
 def jinja_run(template_str, searchpath, environment={}):
