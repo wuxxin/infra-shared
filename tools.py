@@ -242,7 +242,7 @@ class SSHDeployer(pulumi.ComponentResource):
         self.register_outputs({})
 
     def __deploy(self, name, remote_path, data):
-        resource_name = "deploy_{}".format(remote_path.replace("/", "_"))
+        resource_name = "{}_deploy_{}".format(name, remote_path.replace("/", "_"))
         cat_cmd = (
             'x="{}" && mkdir -p $(dirname "$x") && umask 066 && cat - > "$x"'
             if self.props["secret"]
