@@ -1,13 +1,13 @@
-# Update Config
+# Update System Config
 
-reconfigure a remote CoreOS System by executing salt-call on a butane to saltstack translated config.
+reconfigure a remote System by executing salt-call on a butane to saltstack translated config.
 
-- Modifications to *.bu and their referenced files will result in a new saltstack config.
-- only the butane sections: storage:{directories,files,links,trees} systemd:unit[:dropins] are translated
+- Modifications to `*.bu` and their **referenced files** will result in a new config
+- only the butane sections: `storage:{directories,files,links,trees}` and `systemd:unit[:dropins]` are translated
 
 Update Execution:
 
-1. provision: Copies systemd.service and a main.sls in combination self sufficent files to the remote target
+1. provision: Copies systemd service and a main.sls in combination self sufficent files to the remote target
 1. target: overwrite original update service, reload systemd, start update service
 1. service: build update container, configure saltstack
 1. service: execute salt-call of main.sls in saltstack container with mounts /etc, /var, /run from host
@@ -27,7 +27,7 @@ advantages of this approach:
 - calling a systemd service instead of calling a plain shell script for update
     - life cycle managment, independent of the calling shell, doesn't die on disconnect, has logs
 
-the update service counts the following as changes to a service:
+the update service detects the following as changes to a service:
 
 - systemd service `instance.(service|path|...)`
 - systemd service dropin `instance.service.d/*.conf`

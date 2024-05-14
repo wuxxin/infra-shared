@@ -17,12 +17,13 @@ markdown_extensions:
 
 nav:
   - pulumi.md
-  - fcos.md
+  - os.md
   - networking.md
   - credentials.md
   - healthchecks.md
   - update.md
   - butane.md
+  - scripts.md
   - Examples:
     - examples/safe/README.md
   - architecture.md
