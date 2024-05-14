@@ -36,6 +36,8 @@ DNS:
 ```yaml
 DNS:
   SRV: |
+    # STRING, appended to SRV section
+
     # A Record
     local-data: 'somecomputer.local. A 192.168.1.1'
 
@@ -59,15 +61,17 @@ DNS:
 ```yaml
 DNS:
   UPSTREAM:
+    # list of ip@port
     - 1.2.3.4@53
   UPSTREAM_TLS: false
 ```
 
-#### custom unbound config, must start with [section]
+#### custom unbound config string
 
 ```yaml
 DNS:
   EXTRA: |
+    # STRING, appended to config file must start with a section
     [section-of-unbound.conf]
     # see https://unbound.docs.nlnetlabs.nl/en/latest/
 
@@ -79,7 +83,40 @@ DNS:
 `traefik` is used for tls termination, http routing, middleware frontend,
 for dynamic configuration of container, compose and nspawn machines using labels.
 
-### Examples
+### Customization
+
+#### custom entrypoints
+
+```yaml
+FRONTEND:
+  ENTRYPOINTS:
+    tang_https:
+      address: ":9443"
+      http:
+        tls:
+          options: default
+```
+
+#### custom providers
+
+```yaml
+FRONTEND:
+  PROVIDERS:
+    file:
+      directory: /traefik
+      watch: true
+```
+
+#### additional traefik config string
+
+```yaml
+FRONTEND:
+  EXTRA: |
+    # STRING, appended to traefik.static.yml
+
+```
+
+### Web Usage Examples
 
 #### Single Container
 

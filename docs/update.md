@@ -1,4 +1,4 @@
-# Update OS
+# Reconfigure OS
 
 reconfigure a remote System by executing salt-call on a butane to saltstack translated config.
 

@@ -17,11 +17,11 @@ markdown_extensions:
 
 nav:
   - os.md
+  - butane.md
   - update.md
   - networking.md
   - credentials.md
   - healthchecks.md
-  - butane.md
   - pulumi.md
   - scripts.md
   - Examples:

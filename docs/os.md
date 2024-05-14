@@ -3,8 +3,8 @@
 Library Features:
 
 - [Jinja templating of butane](butane.md) yaml content with env vars replacement and default vars
-- [Configuration](#host-configuration) and Initial Boot
-    - updating, minimal, monolithic, container-focused operating system, available for x86 and arm
+- [Configuration](#host-configuration) and Initial Boot of CoreOS
+    - coreos: updating, minimal, monolithic, container-focused os, available for x86 and arm
     - authorized_keys, loads container secrets: tls cert, key, ca_cert, ca_bundle
     - install extensions using rpm-ostree-install
 - Reconfiguration / [Update Configuration](update.md) using translated butane to saltstack execution

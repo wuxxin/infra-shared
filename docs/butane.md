@@ -14,14 +14,15 @@ will be rendered through jinja with the described Environment and optional inclu
 # include os/jinja_defaults.yml here
 ```
 
-#### available custom regex filter
+#### available custom filter
 
 - `"text"|regex_escape()`
 - `"text"|regex_search(pattern)`
 - `"text"|regex_match(pattern)`
 - `"text"|regex_replace(pattern, replacement)`
+- `{"key": "value"}|yaml(inline=False)`
 
-search,match,replace support additional args
+regex_ search,match,replace support additional args
 
 - `ignorecase=True/*False`
 - `multiline=True/*False`
