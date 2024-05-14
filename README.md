@@ -54,9 +54,11 @@ See the [examples](examples/) for code of what else can be done with it
 ### Technologies
 
 **Need to know** technologies (to write Deployment and Docs):
+
 - Basic Knowledge of `Python, Yaml, Jinja, Systemd Service, Containerfile, Markdown`
 
 **Advanced functionality** available with knowledge of:
+
 - Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Jupyter Notebooks
 
 Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
