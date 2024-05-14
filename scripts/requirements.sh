@@ -50,7 +50,7 @@ knot
 atftp
 # json manipulation
 jq
-# compression
+# decompression for coreos images
 xz
 # act - run your github actions locally
 act
