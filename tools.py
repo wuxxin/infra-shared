@@ -244,7 +244,7 @@ class SSHDeployer(pulumi.ComponentResource):
     def __deploy(self, name, remote_path, data):
         resource_name = "{}_deploy_{}".format(name, remote_path.replace("/", "_"))
         cat_cmd = (
-            'x="{}" && mkdir -p $(dirname "$x") && umask 066 && cat - > "$x"'
+            'x="{}" && mkdir -m 0700 -p $(dirname "$x") && umask 066 && cat - > "$x"'
             if self.props["secret"]
             else 'x="{}" && mkdir -p $(dirname "$x") && cat - > "$x"'
         )
@@ -409,7 +409,7 @@ def ssh_deploy(
 ):
     """deploy a set of strings as small files to a ssh target
 
-    if secret==True: data is considered a secret
+    if secret==True: data is considered a secret, file mode will be 0600, dir mode will be 0700
     if delete==True: files will be deleted from target on deletion of resource
     if simulate==True: data is not transfered but written out to state/tmp/stack_name
     if simulate==None: simulate=pulumi.get_stack().endswith("sim")
