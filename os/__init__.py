@@ -1,5 +1,5 @@
 """
-## Pulumi - Fedora CoreOS
+## Pulumi - CoreOS Centric System Config, Deployment, Operation, Update
 
 ### Components
 
@@ -183,10 +183,10 @@ storage:
             )
         )
 
-        # jinja template *.bu yaml files from fcosdir
+        # jinja template *.bu yaml files from os/ , exclude files from system_exclude
         system_dict = pulumi.Output.all(env=this_env).apply(
             lambda args: load_butane_dir(
-                subproject_dir, args["env"], subdir="fcos", exclude=system_exclude
+                subproject_dir, args["env"], subdir="os", exclude=system_exclude
             )
         )
 
@@ -286,9 +286,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
         child_opts = pulumi.ResourceOptions(parent=self)
         user = update_config["UPDATE_USER"]
         update_fname = update_config["UPDATE_SERVICE"] + ".service"
-        update_str = jinja_run_file(
-            join_paths(this_dir, update_fname), subproject_dir, update_config
-        )
+        update_str = jinja_run_file(update_fname, this_dir, update_config)
         root_dir = join_paths(
             update_config["UPDATE_PATH"], update_config["UPDATE_SERVICE"]
         )
