@@ -32,7 +32,7 @@ See the [examples](examples/) for code of what else can be done with it
 - **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
     - **Setup**: Bootstrap and Reconfiguration of CoreOS with **Jinja templated butane** files
     - **Reconfiguration**: `update-system-config*`
-        - Fast (~4s) reconfiguration based on `butane2salt.jinja` translation
+        - Fast (~4s) reconfiguration using saltstack and butane to salt translation
     - **Single Container**: `podman-systemd.unit`
         - `container*` - run systemd container units using podman-quadlet
     - **Compose Container**: `compose.yml`
