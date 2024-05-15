@@ -18,7 +18,7 @@ with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
 ### Single Container Showcases
 
 #### `Postgresql Server`
-`postgresql` server with mandatory ssl and optional clientcert auth
+public available `postgresql` server with mandatory ssl and optional clientcert auth
 
 - [container.bu](container.bu)
 - [container/postgresql.conf](container/postgresql.conf)
@@ -27,7 +27,7 @@ with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
 - [Containerfile/postgresql/Containerfile](Containerfile/postgresql/Containerfile)
 
 #### `Tang Server`
-`tang` server MTLS secured with **mandatory clientcert** auth
+public available `tang` server MTLS secured with **mandatory clientcert** auth on port 9443
 
 - [container.bu](container.bu)
 - [container/tang.container](container/tang.container)
