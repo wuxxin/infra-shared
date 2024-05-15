@@ -105,7 +105,7 @@ class SSHPut(pulumi.ComponentResource):
         self.register_outputs({})
 
     def __transfer(self, name, remote_path, local_path):
-        resource_name = "put_{}".format(remote_path.replace("/", "_"))
+        resource_name = "{}_put_{}".format(name, remote_path.replace("/", "_"))
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
         full_local_path = join_paths(self.props["local_prefix"], local_path)
         triggers = [
