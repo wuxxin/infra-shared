@@ -15,7 +15,7 @@ HealthCmd=wget -4qSO /dev/null http://127.0.0.1:9090/adv
 Label=traefik.enable=true
 # use default available env var "hostname" from frontend
 Label=traefik.http.routers.%N.rule=Host(`${HOSTNAME}`)
-Label=traefik.http.routers.%N.entrypoints=https
+Label=traefik.http.routers.%N.entrypoints=tang_https
 # secure our tang behind mandatory mutal TLS authentification
 Label=traefik.http.routers.%N.tls.options=mtls@file
 # becaue container exposes only one port traefik will auto find it
