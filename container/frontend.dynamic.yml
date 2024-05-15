@@ -9,11 +9,23 @@ tls:
         - default
 
   options:
-    mtls:
+    default:
       # sniStrict: dont allow clients that dont specify server_name or dont match certificates
       sniStrict: true
+
+    mtls:
+      # require mandatory client certificate
       clientAuth:
-        # in PEM format. each file can contain multiple CAs
+        # cafiles: list of files in PEM format, each file can contain multiple CAs
+        caFiles:
+          - /run/secrets/root_bundle.crt
+        # RequireAndVerifyClientCert= requires a certificate, must be signed by a CA listed
+        clientAuthType: RequireAndVerifyClientCert
+
+    mtls_sni:
+      # require mandatory client certificate and matching server_name to server certificate
+      sniStrict: true
+      clientAuth:
         caFiles:
           - /run/secrets/root_bundle.crt
         # RequireAndVerifyClientCert= requires a certificate, must be signed by a CA listed
