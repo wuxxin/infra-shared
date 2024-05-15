@@ -123,7 +123,7 @@ vault server -dev -dev-no-store-token \
   -dev-root-token-id="$VAULT_TOKEN" \
   -dev-listen-address="${VAULT_ADDR#http://}" &>/dev/null &
 vault_pid=$!
-trap 'if test "$vault_pid" != ""; then kill -1 $vault_pid &>/dev/null || true; kill -9 $vault_pid &>/dev/null || true; exit 1; fi; exit 0' EXIT
+trap 'if test "$vault_pid" != ""; then kill -1 $vault_pid &>/dev/null || true; kill -9 $vault_pid &>/dev/null || true; exit 9; fi; exit 0' EXIT
 
 waitfor_port "$vault_host" "$vault_port"
 vault secrets enable pki &>/dev/null
@@ -188,5 +188,6 @@ $ca_prov_cert_json" | jq -s 'add')
 echo "$vault_result"
 
 kill -1 $vault_pid &>/dev/null || true
+sleep 1
 kill -9 $vault_pid &>/dev/null || true
 vault_pid=""
