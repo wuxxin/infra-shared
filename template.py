@@ -126,7 +126,7 @@ class ToolsExtension(jinja2.ext.Extension):
         self.environment.filters["regex_search"] = self.regex_search
         self.environment.filters["regex_match"] = self.regex_match
         self.environment.filters["regex_replace"] = self.regex_replace
-        self.environment.filters["yaml"] = self.yaml_dump
+        self.environment.filters["yaml"] = self.yaml
 
     def list_files(self, value):
         "returns available files in searchpath[0]/value as string, newline seperated"
@@ -223,7 +223,7 @@ class ToolsExtension(jinja2.ext.Extension):
         """converts a python object to a YAML string
         inline: boolean indicating whether to use inline style for the YAML output
         """
-        return yaml.safe_dump(value, flow_style=inline)
+        return yaml.safe_dump(value, default_flow_style=inline)
 
 
 def jinja_run(template_str, searchpath, environment={}):
@@ -511,14 +511,14 @@ def butane_to_salt(
     service_pattern_list = [
         re.compile("^" + pattern + "$")
         for pattern in [
-            "/etc/systemd/system/([^/]+)\.[^\.]+",
-            "/etc/systemd/system/([^/]+)\.[^\.]+\.d/.+\.conf",
-            "/etc/local/environment/([^/.]+)\..*env",
-            "/etc/containers/environment/([^/.]+)\..*env",
-            "/etc/compose/environment/([^/.]+)\..*env",
-            "/etc/containers/systemd/([^/.]+)\..+",
-            "/etc/containers/build/([^/]+)/.+",
-            "/etc/compose/build/([^/]+)/.+",
+            r"/etc/systemd/system/([^/]+)\.[^\.]+",
+            r"/etc/systemd/system/([^/]+)\.[^\.]+\.d/.+\.conf",
+            r"/etc/local/environment/([^/.]+)\..*env",
+            r"/etc/containers/environment/([^/.]+)\..*env",
+            r"/etc/compose/environment/([^/.]+)\..*env",
+            r"/etc/containers/systemd/([^/.]+)\..+",
+            r"/etc/containers/build/([^/]+)/.+",
+            r"/etc/compose/build/([^/]+)/.+",
         ]
     ]
 
