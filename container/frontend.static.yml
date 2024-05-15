@@ -14,7 +14,7 @@ api:
 
 # define service ping@internal, so healthcheck can be done
 ping:
-  entryPoint: "ping-localhost"
+  entryPoint: "healthcheck"
 
 entryPoints:
   http:
@@ -31,8 +31,8 @@ entryPoints:
       tls:
         options: default
 
-  ping-localhost:
-    address: "127.0.0.1:8080"
+  healthcheck:
+    address: ":8080"
 
 {% if "ENTRYPOINTS" in FRONTEND %}
   # add custom entrypoints
