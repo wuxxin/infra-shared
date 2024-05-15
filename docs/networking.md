@@ -12,12 +12,13 @@ DNS Resolver for System, Container, Compose and Nspawn workloads is done using `
 
 - available under `dns.internal` on `udp/53`, `tcp/53` and `DoT:tcp/853`
 - default upstream is **split round robin DoT (DNS over TLS)**
-    - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
+  - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
 - dynamic name and reverse ptr resolution for
-    - `.podman` Container and Compose workloads
-    - `.nspawn` Machine Container
+  - `.podman` Container and Compose workloads
+  - `.nspawn` Machine Container
 
 ### Examples
+
 #### forward custom zones to another dns server
 
 ```yaml
@@ -77,7 +78,6 @@ DNS:
 
 ```
 
-
 ## tls/http Web-Frontend
 
 `traefik` is used for tls termination, http routing, middleware frontend,
@@ -94,7 +94,7 @@ FRONTEND:
       address: ":9443"
       http:
         tls:
-          options: default
+          options: mtls
 ```
 
 #### custom providers
@@ -121,6 +121,7 @@ FRONTEND:
 #### Single Container
 
 - add environment for `instance` in `/etc/containers/environment/` *instance*`.env`
+
 ```sh
 HOSTNAME=instance.hostname.domain
 ```
@@ -147,9 +148,11 @@ EnvironmentFile=/etc/containers/environment/%N.env
 #### Compose Container
 
 - add environment for `instance` in `/etc/compose/environment/` *instance*`.env`
+
 ```sh
 HOSTNAME=instance.hostname.domain
 ```
+
 - add labels and expose for `instance` in compose.yml
 - use **`${HOSTNAME}`** for hostname
 
@@ -172,7 +175,6 @@ services:
 - use `{{ HOSTNAME }}` for hostname
 - use `$IPADDR` inside NSPAWN_TRAEFIK to replace with the current machine ip
 - escape backticks ` with two backslashes \\\\
-
 
 ```sh
 NSPAWN_TRAEFIK="
