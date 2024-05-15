@@ -34,11 +34,13 @@ entryPoints:
   ping-localhost:
     address: "127.0.0.1:8080"
 
-# add custom entrypoints
-{% for key, value in FRONTEND["ENTRYPOINTS"]|d({}).items() %}
-{% set entry={key: value} %}
-{{ entry|yaml|indent(2,True)}}
-{% endfor %}
+{% if "ENTRYPOINTS" in FRONTEND %}
+  # add custom entrypoints
+  {% for key, value in FRONTEND["ENTRYPOINTS"].items() %}
+    {% set entry={key: value} %}
+{{ entry|yaml|indent(2,True) }}
+  {% endfor %}
+{% endif %}
 
 providers:
   docker:
@@ -54,13 +56,15 @@ providers:
     directory: /traefik
     watch: true
 
-# add custom providers
-{% for key, value in FRONTEND["PROVIDERS"]|d({}).items() %}
-{% set provider={key: value} %}
-{{ provider|yaml|indent(2,True)}}
-{% endfor %}
+{% if "PROVIDERS" in FRONTEND %}
+  # add custom providers
+  {% for key, value in FRONTEND["PROVIDERS"].items() %}
+    {% set provider={key: value} %}
+{{ provider|yaml|indent(2,True) }}
+  {% endfor %}
+{% endif %}
 
-# add additional traefik static config string
 {% if "EXTRA" in FRONTEND %}
+# add additional traefik static config string
 {{ FRONTEND["EXTRA"] }}
 {% endif %}
