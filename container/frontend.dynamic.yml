@@ -22,7 +22,7 @@ tls:
         # RequireAndVerifyClientCert= requires a certificate, must be signed by a CA listed
         clientAuthType: RequireAndVerifyClientCert
 
-    mtls_sni:
+    mtls-sni:
       # require mandatory client certificate and matching server_name to server certificate
       sniStrict: true
       clientAuth:

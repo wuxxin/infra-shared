@@ -17,8 +17,8 @@ Label=traefik.enable=true
 
 # make tang available on tang_mtls port, do mtls without sni
 # secure our tang behind mandatory mutal TLS authentification
-Label=traefik.http.routers.%N_direct.entrypoints=tang_mtls
-Label=traefik.http.routers.%N_direct.rule=PathPrefix(`/`)
+Label=traefik.http.routers.%N-direct.entrypoints=tang-mtls
+Label=traefik.http.routers.%N-direct.rule=PathPrefix(`/`)
 
 # make tang available on https port, do mtls, needs matching hostname
 Label=traefik.http.routers.%N.entrypoints=https

@@ -17,7 +17,7 @@ ping:
   entryPoint: "healthcheck"
 
 entryPoints:
-  http:
+  http-plain:
     address: ":80"
     http:
       redirections:
