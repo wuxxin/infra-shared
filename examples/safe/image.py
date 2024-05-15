@@ -1,7 +1,7 @@
 def prepare_serve_secure_ignition(resource_name):
     from infra.tools import serve_prepare
 
-    serve_config = serve_prepare(resource_name)
+    serve_config = serve_prepare(resource_name, timeout_sec=120)
     return serve_config
 
 
