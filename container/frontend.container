@@ -28,7 +28,7 @@ Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
 Volume=frontend.volume:/traefik
 
 # use the ping api at port 8080 on localhost as a healthcheck
-HealthCmd=wget -4qSO /dev/null http://127.0.0.1:8080/ping
+HealthCmd=wget -qSO /dev/null http://127.0.0.1:8080/ping
 
 # Publish http and https to [hostip:]hostPort:containerPort
 PublishPort=443:443
