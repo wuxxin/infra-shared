@@ -81,6 +81,13 @@ host_environment = {
     "RPM_OSTREE_INSTALL": ["mc"],  # enable mc for debug (TODO replace with toolbox)
     "FRONTEND": {
         "DASHBOARD": "traefik.{}".format(hostname),  # enable debug dashboard
+        "ENTRYPOINTS": yaml.safe_load("""
+tang_https:
+  address: ":9443"
+  http:
+    tls:
+      options: mtls
+"""),
     },
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
