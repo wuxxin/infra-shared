@@ -94,7 +94,7 @@ FRONTEND:
       address: ":9443"
       http:
         tls:
-          options: mtls
+          options: mtls@file
   PUBLISHPORTS:
     - "9943:9943"
 ```
