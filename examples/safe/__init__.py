@@ -83,11 +83,11 @@ host_environment = {
         "DASHBOARD": "traefik.{}".format(hostname),  # enable debug dashboard
         "PUBLISHPORTS": ["9443:9443"],
         "ENTRYPOINTS": yaml.safe_load("""
-tang_https:
+tang_mtls:
   address: ":9443"
   http:
     tls:
-      options: mtls
+      options: mtls@file
 """),
     },
     "LOCALE": {
