@@ -1,5 +1,18 @@
 # butane config
 
+# XXX: if root is encrypted, boot_device must define luks/clevis, not storage:luks:clevis
+boot_device:
+  luks:
+    threshold: 1
+{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
+    tpm2: true
+{%- endif %}
+{%- if tang_url %}
+    tang:
+      - url: {{ tang_url }}
+        thumbprint: {{ tang_fingerprint }}
+{%- endif %}
+
 storage:
   disks:
     - device: {{ boot_device }}
@@ -23,16 +36,6 @@ storage:
       discard: true
       key_file:
         inline: {{ luks_root_passphrase }}
-      clevis:
-        threshold: 1
-{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
-        tpm2: true
-{%- endif %}
-{%- if tang_url %}
-        tang:
-          - url: {{ tang_url }}
-            thumbprint: {{ tang_fingerprint }}
-{%- endif %}
     - name: var
       label: var
       device: /dev/md/mdvar
