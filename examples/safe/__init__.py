@@ -81,6 +81,7 @@ host_environment = {
     "RPM_OSTREE_INSTALL": ["mc"],  # enable mc for debug (TODO replace with toolbox)
     "FRONTEND": {
         "DASHBOARD": "traefik.{}".format(hostname),  # enable debug dashboard
+        "PUBLISHPORTS": ["9443:9443"],
         "ENTRYPOINTS": yaml.safe_load("""
 tang_https:
   address: ":9443"

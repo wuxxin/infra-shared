@@ -85,7 +85,7 @@ for dynamic configuration of container, compose and nspawn machines using labels
 
 ### Customization
 
-#### custom entrypoints
+#### custom entrypoints and published ports
 
 ```yaml
 FRONTEND:
@@ -95,6 +95,8 @@ FRONTEND:
       http:
         tls:
           options: mtls
+  PUBLISHPORTS:
+    - "9943:9943"
 ```
 
 #### custom providers
