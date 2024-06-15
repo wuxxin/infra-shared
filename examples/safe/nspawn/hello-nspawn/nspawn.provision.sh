@@ -65,5 +65,5 @@ cat >/var/www/html/index.html <<"EOF"
 </body>
 </html>
 EOF
-systemctl start openssh-server
+systemctl start ssh
 systemctl start nginx
