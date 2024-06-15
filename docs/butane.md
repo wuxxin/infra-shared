@@ -6,6 +6,10 @@ in addition to jinja inside butane files,
 files referenced from butane files with attribute `template=jinja`
 will be rendered through jinja with the described Environment and optional includes from searchpath
 
+Documentation:
+
+- [Jinja Template Documentation](https://jinja.palletsprojects.com/en/3.1.x/templates/)
+
 ### Environment
 
 - environment defaults available in jinja

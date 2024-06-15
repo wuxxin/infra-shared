@@ -19,6 +19,10 @@ DNS Resolver for System, Container, Compose and Nspawn workloads is done using `
     - `.podman` Container and Compose workloads
     - `.nspawn` Machine Container
 
+Documentation:
+
+- [Unbound Documentation](https://unbound.docs.nlnetlabs.nl/en/latest/)
+
 ### Examples
 
 #### forward custom zones to another dns server
@@ -84,6 +88,10 @@ DNS:
 
 `traefik` is used for tls termination, http routing, middleware frontend,
 for dynamic configuration of container, compose and nspawn machines using labels.
+
+Documentation:
+
+- [Traefik Documentation](https://doc.traefik.io/traefik/)
 
 ### Customization
 

@@ -39,9 +39,11 @@ host_config = ButaneTranspiler(
 
 ### butane configuration
 
-- butane files: `target/example/*.bu`
-    - target/example/main.bu
-- butane files_basedir: `target/example/`
+create butane files in: `target/example/*.bu`
+
+Documentation:
+
+- [Fedora CoreOS Specification v1.5.0](https://coreos.github.io/butane/config-fcos-v1_5/)
 
 #### overwrite of buildin files and units
 
@@ -53,6 +55,10 @@ See [Butane Yaml - Merge Order](butane.md#merge-order) for detailed merge orderi
 ## Application Configuration
 
 ### Single Container
+
+Documentation:
+
+- [Podman Quadlet Systemd Units](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
 
 Environment:
 
@@ -76,6 +82,10 @@ Container, Volume and Runtime Dependencies:
 
 ### Compose Container
 
+Documentation:
+
+- [Compose File Reference](https://docs.docker.com/compose/compose-file/)
+
 Environment:
 
 - `/etc/compose/environment/`*instance*`.env`
@@ -95,6 +105,10 @@ Additional Credentials:
     ```
 
 ### NSpawn Container
+
+Documentation:
+
+- [systemd.nspawn — Container settings](https://www.freedesktop.org/software/systemd/man/latest/systemd.nspawn.html)
 
 Environment:
 
