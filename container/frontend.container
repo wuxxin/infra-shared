@@ -9,6 +9,8 @@ ConditionPathExists=/notexisting/frontend_disable
 
 [Container]
 Image=localhost/%N:latest
+
+# environment loaded here is available for container scope, mind quadlet bug "=-"
 # EnvironmentFile=/etc/containers/environment/%N.env
 
 # allow ports < 1024
@@ -40,6 +42,8 @@ PublishPort={{ portdef }}
 {% endif %}
 
 [Service]
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
 Restart=on-failure
 
 [Install]

@@ -30,6 +30,8 @@ Volume=/etc/containers/systemd/postgresql.bootstrap.sh:/docker-entrypoint-initdb
 PublishPort=5432:5432
 
 [Service]
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
 Restart=on-failure
 
 [Install]

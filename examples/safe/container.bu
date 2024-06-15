@@ -11,7 +11,7 @@ storage:
       local: container
 
   files:
-    - path: /etc/containers/environment/tang.env
+    - path: /etc/containers/environment/tang-systemd.env
       mode: 0600
       contents:
         inline: |

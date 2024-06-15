@@ -10,13 +10,14 @@ ConditionPathExists=/etc/containers/systemd/%N.cfg
 [Container]
 Image=localhost/%N:latest
 
-# EnvironmentFile=-/etc/containers/environment/%N.env
 # Enable CONTAINERS, so traefik can get labels for frontend router configuration
 Environment=CONTAINERS=1
 Environment=API_PORT=2375
 # avoid legacy docker.sock
 Environment=API_SOCKET=/run/podman/podman.sock
 # Environment=LOG_LEVEL=debug
+# environment loaded here is available for container scope, mind quadlet bug "=-"
+# EnvironmentFile=-/etc/containers/environment/%N.env
 
 # disable selinux labels for accessing podman.sock
 PodmanArgs=--security-opt label=disable
@@ -28,6 +29,8 @@ Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:2375:2375
 
 [Service]
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
 Restart=on-failure
 
 [Install]
