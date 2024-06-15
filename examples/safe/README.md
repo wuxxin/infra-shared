@@ -1,6 +1,6 @@
 # Safe - Fedora-CoreOS on Raspberry Pi Appliance
 
-### Showcase: a self-updating rolling release encrypted storage appliance
+## Showcase: a self-updating rolling release encrypted storage appliance
 
 with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
 
@@ -18,6 +18,7 @@ with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
 ### Single Container Showcases
 
 #### `Postgresql Server`
+
 public available `postgresql` server with mandatory ssl and optional clientcert auth
 
 - [container.bu](container.bu)
@@ -27,6 +28,7 @@ public available `postgresql` server with mandatory ssl and optional clientcert 
 - [Containerfile/postgresql/Containerfile](Containerfile/postgresql/Containerfile)
 
 #### `Tang Server`
+
 public available `tang` server MTLS secured with **mandatory clientcert** auth on port 9443
 
 - [container.bu](container.bu)
@@ -37,6 +39,7 @@ public available `tang` server MTLS secured with **mandatory clientcert** auth o
 ### Compose Showcase
 
 #### `hello-compose`
+
 simple `compose` file for building and running a go application returning some ascii fishes
 
 - [compose.bu](compose.bu)
@@ -47,8 +50,8 @@ simple `compose` file for building and running a go application returning some a
 ### Nspawn Showcase
 
 #### `hello-nspawn`
+
 debian based `nspawn` machine serving a static file using nginx returning some ascii fishes
 
 - [nspawn.bu](nspawn.bu)
 - [nspawn/hello-nspawn/nspawn.provision.sh](nspawn/hello-nspawn/nspawn.provision.sh)
-
