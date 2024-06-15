@@ -78,17 +78,14 @@ pg_postgres_client_cert = create_client_cert(
 
 # jinja environment for butane translation
 host_environment = {
-    "RPM_OSTREE_INSTALL": ["mc"],  # enable mc for debug (TODO replace with toolbox)
+    # install mc on sim, prod should use toolbox
+    "RPM_OSTREE_INSTALL": ["mc"] if stack_name.endswith("sim") else [],
     "FRONTEND": {
-        "DASHBOARD": "traefik.{}".format(hostname),  # enable debug dashboard
+        # enable debug dashboard
+        "DASHBOARD": "traefik.{}".format(hostname),
+        # enable mtls for tang at port :9443
         "PUBLISHPORTS": ["9443:9443"],
-        "ENTRYPOINTS": yaml.safe_load("""
-tang-mtls:
-  address: ":9443"
-  http:
-    tls:
-      options: mtls@file
-"""),
+        "ENTRYPOINTS": {"tang-mtls": {"address": ":9443"}},
     },
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
