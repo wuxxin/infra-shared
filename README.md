@@ -1,4 +1,5 @@
 # infra-shared
+
 ## Software Defined Git Operated Infrastructure
 
 Reusables of a learning project by rewriting parts of my home infrastructure as
@@ -25,7 +26,6 @@ make sim-up
 You have just created two TLS Certificates and an SSH Keypair in a very fancy way!
 
 See the [examples](examples/) for code of what else can be done with it
-
 
 ### Features
 
@@ -64,6 +64,7 @@ See the [examples](examples/) for code of what else can be done with it
 Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
 
 #### Tools used
+
 - `pulumi` - imperativ infrastructure delaration using python
 - `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
 - `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
@@ -80,7 +81,6 @@ Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Imag
 - `pipenv` - virtualenv management using Pipfile and Pipfile.lock
 
 ### Usage
-
 
 #### List available Makefile targets/commands
 
@@ -113,13 +113,13 @@ infra/create_skeleton.sh --yes
 
 #### Install build requirements
 
-+ on arch or manjaro linux
+- on arch or manjaro linux
 
 ```sh
 make install-requirements
 ```
 
-+ on other linux, use a provision container.
+- on other linux, use a provision container.
 
 This needs podman or docker already installed on host.
 
@@ -140,7 +140,6 @@ DOCKER=docker infra/scripts/provision_shell.sh
 # use exit to return to base shell
 ```
 
-
 #### Build documentation
 
 ```sh
@@ -150,11 +149,13 @@ make docs-infra
 ```
 
 #### Create/build/install simulation target
+
 ```sh
 make sim-up
 ```
 
 #### Show/use root and provision cert
+
 ```sh
 make sim-show args="ca_factory" | jq ".root_cert_pem" -r | \
     openssl x509 -in /dev/stdin -noout -text
@@ -163,6 +164,7 @@ make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
 ```
 
 #### Manual pulumi invocation
+
 ```sh
 export PULUMI_SKIP_UPDATE_CHECK=1
 export PULUMI_CONFIG_PASSPHRASE=sim
@@ -172,17 +174,20 @@ pulumi about
 ```
 
 #### Execute in provision python environment
+
 ```sh
 pipenv run ipython
 ```
 
 #### Sim stack: destroy, cleanup, re/create
+
 ```sh
 make sim-clean
 make sim-create
 ```
 
 #### test if changes would compute before applying
+
 ```sh
 make sim-preview
 # if list of changes looks good, apply them
@@ -191,6 +196,7 @@ make sim-up
 ```
 
 #### cancel an currently running/stuck pulumi update
+
 ```sh
 # "error: the stack is currently locked by 1 lock(s)."
 # "Either wait for the other process(es) to end or delete the lock file with `pulumi cancel`."
@@ -198,16 +204,19 @@ make sim__ args="cancel"
 ```
 
 #### show resource output as json
+
 ```sh
 make sim-show
 ```
 
 #### show resource output key list as yaml
+
 ```sh
 make sim-list
 ```
 
 #### show resource output data as colorized formatted json or yaml
+
 ```sh
 # use highlight and less
 make sim-show | highlight --syntax json -O ansi | less
@@ -218,6 +227,7 @@ make sim-show | bat -l json
 ### Production
 
 #### Add SSH Keys of GitOps Developer
+
 ```sh
 # eg. add the own ssh public key in project_dir/authorized_keys
 cat ~/.ssh/id_rsa.pub >> authorized_keys
@@ -230,10 +240,9 @@ make prod__ args="preview --suppress-outputs"
 make prod__ args=up
 ```
 
-
 ### License
 
-```
+```text
 All code in this repository is covered by the terms of the Apache 2.0 License,
 the full text of which can be found in the LICENSE file.
 ```

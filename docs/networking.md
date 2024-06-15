@@ -2,6 +2,8 @@
 
 ## Internal Networks
 
+**10.87.X.X - 10.89.X.X** are used for internal networking
+
 - `.internal` bridge with dns support
 - `.podman[1-99]` bridge with dns support and dns resolution for `.podman` container
 - `.nspawn` bridge with dns support and dns resolution for `.nspawn` container

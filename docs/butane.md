@@ -22,7 +22,7 @@ will be rendered through jinja with the described Environment and optional inclu
 - `"text"|regex_replace(pattern, replacement)`
 - `{"key": "value"}|yaml(inline=False)`
     - dump dict structure to yaml string
-    - if inline=True use compact representation default is multiline
+    - set inline=True for compact representation, default is multiline
 
 regex_ search,match,replace support additional args
 
@@ -37,10 +37,10 @@ the butane configuration is created from
 
 | Name | source |  searchpath
 |----|----|----
-| `base_dict`    | string butane_input | basedir
-| `security_dict`| string *generated*  | basedir
-| `system_dict`  | *.bu yaml | basedir + "/infra/os"
-| `target_dict`  | *.bu yaml | targetdir
+| `base_dict`    | butane_input:string | basedir
+| `security_dict`| *generated*:string  | basedir
+| `system_dict`  | `*.bu` yaml | basedir + `/infra/os`
+| `target_dict`  | `*.bu` yaml | targetdir
 
 #### Merge Order
 
