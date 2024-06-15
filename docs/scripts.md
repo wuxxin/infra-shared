@@ -5,7 +5,7 @@
 - `write_removeable.py` - write image to removable storage specified by serial_number
 - `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
 
-### CoreOS Administration
+## CoreOS Administration
 
 - use `toolbox create` and `toolbox enter` to have a fedora container available.
 - use `dnf install package` to install packages inside toolbox.

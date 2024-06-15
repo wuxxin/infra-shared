@@ -1,6 +1,6 @@
 # Health Checks
 
-### Single Container
+## Single Container
 
 - Define in: `<instance>.container`
 
@@ -21,7 +21,7 @@ HealthStartupTimeout=1m33s
 HealthTimeout=20s
 ```
 
-### Compose Container
+## Compose Container
 
 - Define in: `compose.yml`
 
@@ -38,7 +38,7 @@ services:
 
 ```
 
-### Containerfile (deprecated)
+## Containerfile (deprecated)
 
 - Define in: `<instance>/Containerfile`
 

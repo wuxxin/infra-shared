@@ -232,6 +232,7 @@ make sim-show | bat -l json
 # eg. add the own ssh public key in project_dir/authorized_keys
 cat ~/.ssh/id_rsa.pub >> authorized_keys
 ```
+
 #### Create stack
 
 ```sh

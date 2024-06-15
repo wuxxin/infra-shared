@@ -1,12 +1,12 @@
 # Butane Translation
 
-### Jinja Templating
+## Jinja Templating
 
 in addition to jinja inside butane files,
 files referenced from butane files with attribute `template=jinja`
 will be rendered through jinja with the described Environment and optional includes from searchpath
 
-#### Environment
+### Environment
 
 - environment defaults available in jinja
 
@@ -14,7 +14,7 @@ will be rendered through jinja with the described Environment and optional inclu
 # include os/jinja_defaults.yml here
 ```
 
-#### available custom filter
+### available custom filter
 
 - `"text"|regex_escape()`
 - `"text"|regex_search(pattern)`
@@ -29,7 +29,7 @@ regex_ search,match,replace support additional args
 - `ignorecase=True/*False`
 - `multiline=True/*False`
 
-### Butane Yaml
+## Butane Yaml
 
 the butane configuration is created from
 
@@ -42,12 +42,12 @@ the butane configuration is created from
 | `system_dict`  | `*.bu` yaml | basedir + `/infra/os`
 | `target_dict`  | `*.bu` yaml | targetdir
 
-#### Merge Order
+### Merge Order
 
 - `merged_dict  = system_dict+ target_dict+ security_dict+ base_dict`
     - **order** is earlier gets **overwritten by later**
 
-#### for each "*.bu" in basedir+"infra/os", targetdir
+### for each "*.bu" in basedir+"infra/os", targetdir
 
 - `*.bu` recursive read and execute **jinja** with **environment** available
 - parse result as yaml
@@ -68,14 +68,16 @@ the butane configuration is created from
 
 - merge together
 
-### Ignition Json
+## Ignition Json
 
 the ignition spec file is created from the merged final butane yaml.
 
-### Saltstack Yaml
+## Saltstack Yaml
 
 The saltstack file is created from the resulting merged final butane yaml.
 It meets all restrictions for the saltstack conversion.
+
+- `this_dir/update-system-config.sls` and `basedir/*.sls`are appended to input
 
 Restrictions:
 
@@ -85,14 +87,17 @@ Restrictions:
 
 Translation:
 
-- [`/etc/hosts`, `/etc/hostname`, `/etc/resolv.conf`] are translated to `/host_etc/*`
-- creates a commented, non uniqe, not sorted list of service base names
+- Files [`/etc/hosts`, `/etc/hostname`, `/etc/resolv.conf`] are translated to `/host_etc/*`
+
+Changed Services:
+
+- execution creates a commented, non uniqe, not sorted list of service base names
     - `update_dir=/run/user/1000/update-system-config`
     - `{upadate_dir}/service_changed.list` for services with changed configuration
     - `{upadate_dir}/service_enabled.list` for services to be enabled
     - `{upadate_dir}/service_disabled.list` for services to be disabled
-    - see `update-system-config.service` for detailed usage of service_*
-- `this_dir/update-system-config.sls` and `basedir/*.sls`are appended to output
+
+see `update-system-config.service` for detailed usage of service_*
 
 Notes:
 
