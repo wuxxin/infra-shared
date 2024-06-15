@@ -12,10 +12,10 @@ DNS Resolver for System, Container, Compose and Nspawn workloads is done using `
 
 - available under `dns.internal` on `udp/53`, `tcp/53` and `DoT:tcp/853`
 - default upstream is **split round robin DoT (DNS over TLS)**
-  - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
+    - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
 - dynamic name and reverse ptr resolution for
-  - `.podman` Container and Compose workloads
-  - `.nspawn` Machine Container
+    - `.podman` Container and Compose workloads
+    - `.nspawn` Machine Container
 
 ### Examples
 
@@ -32,7 +32,7 @@ DNS:
       tls: false
 ```
 
-#### custom zone entries and public dns overrides
+#### add custom zone entries and public dns overrides
 
 ```yaml
 DNS:
@@ -57,7 +57,7 @@ DNS:
 
 ```
 
-#### non tls custom upstream
+#### use non tls custom upstream
 
 ```yaml
 DNS:
@@ -67,7 +67,7 @@ DNS:
   UPSTREAM_TLS: false
 ```
 
-#### custom unbound config string
+#### add custom unbound config string
 
 ```yaml
 DNS:

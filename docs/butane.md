@@ -21,6 +21,8 @@ will be rendered through jinja with the described Environment and optional inclu
 - `"text"|regex_match(pattern)`
 - `"text"|regex_replace(pattern, replacement)`
 - `{"key": "value"}|yaml(inline=False)`
+    - dump dict structure to yaml string
+    - if inline=True use compact representation default is multiline
 
 regex_ search,match,replace support additional args
 
@@ -34,30 +36,30 @@ the butane configuration is created from
 `ButaneTranspiler(butane_input, basedir, environment)`
 
 | Name | source |  searchpath
-|----|----|----|
+|----|----|----
 | `base_dict`    | string butane_input | basedir
 | `security_dict`| string *generated*  | basedir
-| `system_dict`  | *.bu yaml | basedir+"/infra/os"
+| `system_dict`  | *.bu yaml | basedir + "/infra/os"
 | `target_dict`  | *.bu yaml | targetdir
 
 #### Merge Order
+
 - `merged_dict  = system_dict+ target_dict+ security_dict+ base_dict`
     - **order** is earlier gets **overwritten by later**
 
-#### for each "*.bu" in basedir+"infra/os", targetdir:
+#### for each "*.bu" in basedir+"infra/os", targetdir
 
 - `*.bu` recursive read and execute **jinja** with **environment** available
 - parse result as yaml
 - **inline** all local references
     - for files and trees use source with base64 encode if file type = binary
 
-| source | dest |
-|----|----|
-| `storage:trees:[name]:local` | `files:[name]:contents:inline/source` |
-| `storage:files:[name]:contents:local` | `[name]:contents:inline/source` |
-| `systemd:units:[name]:contents_local` | `[name]:contents` |
-| `systemd:units:[name]:dropins:[other]:contents_local` | `[other]:contents` |
-
+| source | dest
+|----|----
+| `storage:trees:[name]:local` | `files:[name]:contents:inline/source`
+| `storage:files:[name]:contents:local` | `[name]:contents:inline/source`
+| `systemd:units:[name]:contents_local` | `[name]:contents`
+| `systemd:units:[name]:dropins:[other]:contents_local` | `[other]:contents`
 
 - apply additional filter where **template** != ""
     - `storage:files:[name]:contents:template`

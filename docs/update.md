@@ -20,7 +20,6 @@ Update Execution:
 1. service: systemctl reset-failed, restart services listed in `service_changed.list`
 1. service: delete main.sls and var/cache|log because of secrets and as flag that update is done
 
-
 advantages of this approach:
 
 - it can **update from a broken version of itself**

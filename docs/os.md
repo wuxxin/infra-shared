@@ -18,11 +18,11 @@ Library Features:
     - [Compose Container](#compose-container): `compose.yml` - multi-container applications defined using a compose file
     - [nSpawn OS-Container](#nspawn-container): `systemd-nspawn` - a linux OS in a light-weight container
 
-
 ## Host Configuration
 
 ### python configuration
-+ `target/example/__init__.py`
+
+- `target/example/__init__.py`
 
 ```python
 shortname = "example"
@@ -39,9 +39,9 @@ host_config = ButaneTranspiler(
 
 ### butane configuration
 
-+ butane files: `target/example/*.bu`
-    + target/example/main.bu
-+ butane files_basedir: `target/example/`
+- butane files: `target/example/*.bu`
+    - target/example/main.bu
+- butane files_basedir: `target/example/`
 
 #### overwrite of buildin files and units
 
@@ -49,7 +49,6 @@ it is possible to overwrite any `storage:directories,links,files` and `systemd:u
 if it is a systemd service, you can also consider a dropin.
 
 See [Butane Yaml - Merge Order](butane.md#merge-order) for detailed merge ordering
-
 
 ## Application Configuration
 
@@ -117,11 +116,12 @@ Provision Files:
 Additional Credentials:
 
 - `/etc/systemd/system/systemd-nspawn@`*instance*`.service.d/loadcreds.conf`
+
 ```ini
 [Service]
 ImportCredential=server.crt
 ```
 
 Volumes:
-- `/var/lib/volumes/`*instance*`.`*volume*`/`
 
+- `/var/lib/volumes/`*instance*`.`*volume*`/`

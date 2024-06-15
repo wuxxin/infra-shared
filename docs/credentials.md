@@ -1,20 +1,29 @@
 # Credentials
 
-## Storing
+## Environment based Secrets
+
+TODO: write how to add
+
+- systemd-container ENV
+_ compose container ENV
+- nspawn ENV
+
+
+## File based Credentials
 
 - place credential in `/etc/credstore` or symlink there
-
-## Retrieving
 
 ### Single Container
 
 - `/etc/credstore` will be available as podman secrets
 - Define in: `<instance>.container`
+
 ```ini
 [Container]
 # define secret to use, optional mode and path
 Secret=server.crt,mode=0640
 ```
+
 - Access in Container: `/run/secrets/*`
     - `cat /run/secrets/server.crt`
 
@@ -23,14 +32,17 @@ Secret=server.crt,mode=0640
 compose assumes docker in non swarm mode, which does not support secrets,therfore external secrets are not working. To configure local secrets credentials are configured in a systemd service dropin, that docker can pick up the credentials as local defined secrets.
 
 - Definition in `compose@<instance>.service.d/*.conf`
+
 ```ini
 [Service]
 ImportCredential=server.crt
 ```
+
 - Defaults
     - **root_bundle.crt**, **root_ca.crt** are already imported
 
 - Define in: `compose.yml`
+
 ```yaml
 secrets:
   server.crt:

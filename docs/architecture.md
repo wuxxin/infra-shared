@@ -1,4 +1,5 @@
 # Architecture
+
 ## Objectives
 
 - **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest

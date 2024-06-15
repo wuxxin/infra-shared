@@ -3,6 +3,7 @@
 ### Single Container
 
 - Define in: `<instance>.container`
+
 ```ini
 [Container]
 HealthCmd=/usr/bin/command
@@ -23,6 +24,7 @@ HealthTimeout=20s
 ### Compose Container
 
 - Define in: `compose.yml`
+
 ```yaml
 services:
   backend:
@@ -39,6 +41,7 @@ services:
 ### Containerfile (deprecated)
 
 - Define in: `<instance>/Containerfile`
+
 ```dockerfile
 HEALTHCHECK [OPTIONS] CMD command
 # --interval=DURATION (default: 30s)
