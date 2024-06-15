@@ -13,7 +13,7 @@ Type=oneshot
 
 # create config for saltstack container
 ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/%N && printf \
-"FROM docker.io/library/fedora:39\
+"FROM docker.io/library/fedora:40\
 \nRUN dnf -y install salt salt-minion lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
 \nCMD lsb_release -a\
 \n" > /etc/containers/build/%N/Containerfile'
