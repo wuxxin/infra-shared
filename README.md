@@ -7,7 +7,6 @@ Reusables of a learning project by rewriting parts of my home infrastructure as
 a **Pulumi** and **Fedora Coreos** based **Gitops** Project in **Python**.
 
 - See [safe](examples/safe) for usage in an example project
-- Inspired and impressed by [deuill/coreos-home-server](https://github.com/deuill/coreos-home-server)
 
 ### Quick start
 
@@ -240,6 +239,10 @@ make prod-create
 make prod__ args="preview --suppress-outputs"
 make prod__ args=up
 ```
+
+### Credits
+
+- Inspired and impressed by [deuill/coreos-home-server](https://github.com/deuill/coreos-home-server)
 
 ### License
 
