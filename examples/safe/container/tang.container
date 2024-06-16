@@ -1,11 +1,13 @@
 [Unit]
-Description=Tang Server
+Description=Tang Service
 Wants=network-online.target container-build@%N.service container-secrets.service
 After=network-online.target container-build@%N.service container-secrets.service
 
 [Container]
 Image=localhost/%N:latest
 Volume=tang.volume:/var/db/tang
+
+# environment loaded here is available for container scope, mind quadlet bug "=-"
 # EnvironmentFile=/etc/containers/environment/%N.env
 
 HealthStartPeriod=5s
@@ -15,21 +17,22 @@ HealthCmd=wget -qSO /dev/null http://127.0.0.1:9090/adv
 # frontend config
 Label=traefik.enable=true
 
-# make tang available on tang_mtls port, do mtls without sni
-# secure our tang behind mandatory mutal TLS authentification
-Label=traefik.http.routers.%N-direct.entrypoints=tang-mtls
-Label=traefik.http.routers.%N-direct.rule=PathPrefix(`/`)
-
-# make tang available on https port, do mtls, needs matching hostname
+# make service available on https port
+# do mandatory mutal TLS authentification, needs matching hostname
 Label=traefik.http.routers.%N.entrypoints=https
 Label=traefik.http.routers.%N.rule=Host(`${HOSTNAME}`)
-# secure our tang behind mandatory mutal TLS authentification
 Label=traefik.http.routers.%N.tls.options=mtls@file
+Label=traefik.http.routers.%N.middlewares=mtls-passtlsclientcert@file
 
+# make service available on tang-mtls port, do mtls, ignoring send hostname
+Label=traefik.http.routers.%N-direct.entrypoints=tang-mtls
+Label=traefik.http.routers.%N-direct.rule=PathPrefix(`/`)
+Label=traefik.http.routers.%N-direct.tls.options=mtls-nosni@file
+Label=traefik.http.routers.%N-direct.middlewares=mtls-passtlsclientcert@file
 
 [Service]
-# environment loaded here is available for systemd-quadlet scope, eg. HOSTNAME in Label
-EnvironmentFile=/etc/containers/environment/%N.env
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
 Restart=on-failure
 
 [Install]

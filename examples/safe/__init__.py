@@ -85,7 +85,12 @@ host_environment = {
         "DASHBOARD": "traefik.{}".format(hostname),
         # enable mtls for tang at port :9443
         "PUBLISHPORTS": ["9443:9443"],
-        "ENTRYPOINTS": {"tang-mtls": {"address": ":9443"}},
+        "ENTRYPOINTS": {
+            "tang-mtls": {
+                "address": ":9443",
+                "http": {"tls": {}},
+            }
+        },
     },
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
