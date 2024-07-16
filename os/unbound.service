@@ -10,7 +10,7 @@ Wants=nss-lookup.target
 # wait until internal bridge is online
 After=sys-subsystem-net-devices-internal.device
 Wants=sys-subsystem-net-devices-internal.device
-# also, as unbound is not part of base, wait until binary available
+# also, as unbound is not part of base image, wait until binary is available
 ConditionPathExists=/usr/sbin/unbound
 ConditionPathExists=/etc/unbound/unbound.conf
 
