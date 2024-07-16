@@ -41,7 +41,7 @@ tls:
 
 http:
   middlewares:
-    mtls-passtlsclientcert:
+    passtlsclientcert:
       passTLSClientCert:
         info:
           sans: true
