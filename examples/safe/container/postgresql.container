@@ -3,11 +3,20 @@ Description=Postgresql Server
 Wants=network-online.target container-build@%N.service container-secrets.service
 After=network-online.target container-build@%N.service container-secrets.service
 
-[Container]
-Image=localhost/%N:latest
-EnvironmentFile=/etc/containers/environment/%N.env
+[Service]
+# environment loaded here is available in systemd-quadlet scope
+Environment=VERSION=16.3
+Environment=PG_MAJOR=${VERSION%.*}
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
+Restart=on-failure
 
-PodmanArgs=--shm-size=256MB
+[Container]
+Image=localhost/%N:$PG_MAJOR-latest
+# If an image is updated in local storage, Podman restarts the systemd unit
+AutoUpdate=local
+
+# environment loaded here is available for container scope, mind quadlet bug "=-"
+EnvironmentFile=/etc/containers/environment/%N.env
 
 # container wants gid 999 as group for secrets access
 Secret=root_ca.crt,mode=0640,gid=999
@@ -15,6 +24,7 @@ Secret=root_bundle.crt,mode=0640,gid=999
 Secret=server.crt,mode=0640,gid=999
 Secret=server.key,mode=0640,gid=999
 
+PodmanArgs=--shm-size=256MB
 Exec=docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf
 
 HealthCmd=/usr/bin/bash -c ' \
@@ -22,17 +32,16 @@ HealthCmd=/usr/bin/bash -c ' \
     runuser -u postgres -- psql -h /var/run/postgresql template1 postgres \
         -c "select 1;" > /dev/null'
 
-Volume=postgresql.volume:/var/lib/postgresql/data
+# make postgres data volume postfixed with PG_MAJOR, so 1 data volume to 1 major version
+Volume=%N$PG_MAJOR.volume:/var/lib/postgresql/data
+# have an migrate volume ready for dump and reimport
+Volume=postgresql-migrate:/migrate
+# listen address and tls configuration
 Volume=/etc/containers/systemd/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-# postgresql.bootstrap.sh is part of ../container.bu
+# pg_ident.conf and pg_hba.conf overwrite configuration script
 Volume=/etc/containers/systemd/postgresql.bootstrap.sh:/docker-entrypoint-initdb.d/postgresql.bootstrap.sh:ro
 
 PublishPort=5432:5432
-
-[Service]
-# environment loaded here is available in systemd-quadlet scope
-EnvironmentFile=-/etc/containers/environment/%N-systemd.env
-Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
