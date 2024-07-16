@@ -83,12 +83,12 @@ host_environment = {
     "FRONTEND": {
         # enable debug dashboard
         "DASHBOARD": "traefik.{}".format(hostname),
-        # enable mtls for tang at port :9443
+        # enable tls for tang at port :9443
         "PUBLISHPORTS": ["9443:9443"],
         "ENTRYPOINTS": {
-            "tang-mtls": {
+            "tang-mtls-nosni": {
                 "address": ":9443",
-                "http": {"tls": {}},
+                "http": {"tls": {"options": "mtls-nosni@file"}},
             }
         },
     },
