@@ -1,14 +1,21 @@
 [Unit]
-Description=Container API Proxy (unix socket to tcp port) based on Haproxy
+Description=Container API Proxy (unix socket to tcp port) based on Haproxy \
+    upstream socket: a running docker compatible API Server under API_SOCKET \
+    downstream tcp: self.internal:API_PORT
+
 After=container-build@%N.service container-secrets.service podman.service
 Wants=container-build@%N.service container-secrets.service podman.service
 ConditionPathExists=/etc/containers/systemd/%N.cfg
 
-# upstream socket: a running docker compatible API Server under API_SOCKET
-# downstream tcp: self.internal:API_PORT
+[Service]
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
+Restart=on-failure
 
 [Container]
 Image=localhost/%N:latest
+# If an image is updated in local storage, Podman restarts the systemd unit
+AutoUpdate=local
 
 # Enable CONTAINERS, so traefik can get labels for frontend router configuration
 Environment=CONTAINERS=1
@@ -28,11 +35,5 @@ Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 PublishPort={{ cidr2ip(INTERNAL_CIDR) }}:2375:2375
 
-[Service]
-# environment loaded here is available in systemd-quadlet scope
-EnvironmentFile=-/etc/containers/environment/%N-systemd.env
-Restart=on-failure
-
 [Install]
 WantedBy=multi-user.target
-

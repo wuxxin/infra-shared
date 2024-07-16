@@ -7,8 +7,16 @@ After=container-build@%N.service container-secrets.service apiproxy.service
 ConditionPathExists=/notexisting/frontend_disable
 {% endif%}
 
+[Service]
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
+Restart=on-failure
+
 [Container]
 Image=localhost/%N:latest
+
+# If an image is updated in local storage, Podman restarts the systemd unit
+AutoUpdate=local
 
 # environment loaded here is available for container scope, mind quadlet bug "=-"
 # EnvironmentFile=/etc/containers/environment/%N.env
@@ -40,11 +48,6 @@ PublishPort=80:80
 PublishPort={{ portdef }}
   {% endfor %}
 {% endif %}
-
-[Service]
-# environment loaded here is available in systemd-quadlet scope
-EnvironmentFile=-/etc/containers/environment/%N-systemd.env
-Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
