@@ -29,7 +29,7 @@ public available `postgresql` server with mandatory ssl and optional clientcert 
 
 #### `Tang Server`
 
-public available `tang` server MTLS secured with **mandatory clientcert** auth on port 9443
+public available `tang` server MTLS secured with **mandatory clientcert** on https and on port 9443
 
 - [container.bu](container.bu)
 - [container/tang.container](container/tang.container)
