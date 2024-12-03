@@ -1,12 +1,12 @@
 {# Raspberry PI Extras for Fedora-CoreOS Boot
 
-- available for rpi3 and rpi4
+- available for rpi (3), 4, (5)
 
 - outputs
   - raspberry/uboot
     - uboot bios boot files for rpi[34]
-  - raspberry/uefi_rpi[34]
-    - uefi bios boot files for rpi[34]
+  - raspberry/uefi_rpi[345]
+    - uefi bios boot files for rpi[345]
   - raspberry/eeprom_rpi4
     - eeprom update for rpi4
 
@@ -112,8 +112,8 @@ rpi_fcos_uboot_copy_rpi_{{ r }}:
 {% endfor %}
 
 
-{# ### uefi bios for rpi3 and rpi4 #}
-{% for uefi_rpi in ["uefi_rpi3", "uefi_rpi4"] %}
+{# ### uefi bios for rpi3,rpi4 and rpi5 #}
+{% for uefi_rpi in ["uefi_rpi3", "uefi_rpi4", "uefi_rpi5"] %}
   {% set dest_dir = tmp_dir ~ "/" ~ uefi_rpi %}
 
 rpi_fcos_{{ uefi_rpi }}_dir:
