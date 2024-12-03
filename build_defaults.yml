@@ -6,26 +6,35 @@ fcos:
   format: raw.xz
 
 raspberry:
-  # raspberry pi 3,4: uboot, uefi bios, eeprom
+  # raspberry pi (3), 4, (5): eeprom, uboot, uefi
   eeprom_rpi4:
-    version: 2023.12.06-2712
-    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v2023.12.06-2712/rpi-boot-eeprom-recovery-2023-12-06-2712-sd.zip
+    # Raspberry Pi 4 and 5 first stage bootloader EEPROMs
+    version: 2024-11-12-2712
+    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/2024-11-12-2712/rpi-boot-eeprom-recovery-2024-11-12-2712-sd.zip
     sha256sum: 156ee1657f9b744e3794ef3d3d97394c07d296c87e568f88297ed97358535a64
   uboot:
-    version: 2023.07-3.fc39
-    fileurl: https://kojipkgs.fedoraproject.org/packages/uboot-tools/2023.07/3.fc39/noarch/uboot-images-armv8-{VERSION}.noarch.rpm
-    sha256sum: 8d6ab27c73f05364edce170f44bca478fea593ccff1f3d63f1aef44726910956
+    # second stage U-Boot firmware Images
+    version: 2024.10-1.fc41
+    fileurl: https://kojipkgs.fedoraproject.org/packages/uboot-tools/2024.10/1.fc41/noarch/uboot-images-armv8-2024.10-1.fc41.noarch.rpm
+    sha256sum: 4e394b9e5b8a0add992c040f0fa78c3c2299c6e58343fb2651aa623b368e872d
   uefi_rpi3:
+    # alt. second stage Pi 3 UEFI Firmware Images
     version: "1.39"
     fileurl: https://github.com/pftf/RPi3/releases/download/v{VERSION}/RPi3_UEFI_Firmware_v{VERSION}.zip
     sha256sum: 9d2bae7868027997c59663d2a29c5a5573c4a846d67d0cd42cdddb5280ee22d8
   uefi_rpi4:
-    version: "1.35"
+    # alt. second stage Pi 4 UEFI Firmware Images
+    version: "v1.38"
     fileurl: https://github.com/pftf/RPi4/releases/download/v{VERSION}/RPi4_UEFI_Firmware_v{VERSION}.zip
-    sha256sum: 3ea16d6bc4f8f122527ad6a84c0fe84ad80d85fd43a868d99c360ad9e93d3f6e
+    sha256sum: f07d8c5f1e86ac33830ebb45ebf849fd253d013d634824773d89ec41eb0a6624
+  uefi_rpi5:
+    # alt. second stage Pi 5 UEFI Firmware Images
+    version: "0.3"
+    fileurl: https://github.com/worproject/rpi5-uefi/releases/download/v{VERSION}/RPi5_UEFI_Release_v{VERSION}.zip
+    sha256sum: 2337df318845448ebcc8a6a587d15dccec44b54c665ece21250d2f6170732724
 
 openwrt:
-  version: "23.05.2"
+  version: "23.05.5"
   target: x86-64
   model: generic
   baseurl: https://downloads.openwrt.org/releases
@@ -35,7 +44,7 @@ openwrt:
     sha256sum: cc745af6043fd33b3407cd83d0f5e7476a01fc15328cacf576c083bd7987fcbd
     baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
     comment: |
-      23.05.0, 23.05.2 are signed with PGP key for unattended snapshot builds
+      23.05.0 and newer builds are signed with PGP key for unattended snapshot builds
       User ID: OpenWrt Build System pgpsign-snapshots@openwrt.org
       see https://openwrt.org/docs/guide-user/security/signatures
   disabled_services:
@@ -100,7 +109,7 @@ openwrt:
     - luci-theme-openwrt-2020
 
 homeassistant:
-  version: "11.5"
+  version: "13.2"
   baseurl: https://github.com/home-assistant/operating-system/releases/download
   target: generic-x86-64
 
@@ -117,7 +126,7 @@ esphome:
 android:
   emulator:
     magisk:
-      app: https://github.com/topjohnwu/Magisk/releases/download/v27.0/Magisk-v27.0.apk
+      app: https://github.com/topjohnwu/Magisk/releases/download/v28.0/Magisk-v28.0.apk
       modules:
         - https://github.com/kdrag0n/safetynet-fix/releases/download/v2.4.0/safetynet-fix-v2.4.0.zip
         - https://gitlab.com/newbit/usbhostpermissions/-/releases/v1.0.2/downloads/usbhostpermissions
