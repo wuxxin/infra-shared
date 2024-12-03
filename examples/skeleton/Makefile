@@ -5,14 +5,11 @@ TMPDIR  := $(shell ls -d /var/tmp/build.???? 2>/dev/null || mktemp -d /var/tmp/b
 # Find and return full path to command by name, or throw error if none can be found in PATH.
 find-cmd = $(or $(firstword $(wildcard $(addsuffix /$(1),$(subst :, ,$(PATH))))),$(error "Command '$(1)' not found in PATH"))
 
-# build-time dependency, abort if not found
-PIPENV ?= $(call find-cmd,pipenv)
-
-# set default target
+# default target, calling make without args will show help
 .DEFAULT_GOAL := help
 
-# default to use root podman as docker command
-DOCKER := podman
+# default DOCKER_CMD, will use podman instead of docker as default
+DOCKER_CMD := podman
 
 # skip annoying version information
 PULUMI_SKIP_UPDATE_CHECK=1
@@ -67,7 +64,7 @@ submodules: ## Pull and update git submodules recursively
 .PHONY: provision-client
 provision-client: ## Build provision client container
 	@echo "+ $@"
-	@cd infra/Containerfile/provision-client && $(DOCKER) build -t provision-client:latest $$(pwd)
+	@cd infra/Containerfile/provision-client && $(DOCKER_CMD) build -t provision-client:latest $$(pwd)
 
 .PHONY: install-requirements
 install-requirements: ## Install tools used for devop tasks
@@ -75,21 +72,24 @@ install-requirements: ## Install tools used for devop tasks
 	@./infra/scripts/requirements.sh --install
 	@./infra/scripts/requirements.sh --install-aur
 
-Pipfile.lock: Pipfile
-	@echo "+ $@"
-	@$(PIPENV) lock
-
-state/venv: Pipfile.lock
+uv.lock: pyproject.toml
 	@echo "+ $@"
 	@./infra/scripts/requirements.sh --check
-	@$(PIPENV) sync
+	@uv lock
+
+.venv/bin/activate: uv.lock
+	@echo "+ $@"
+	@./infra/scripts/requirements.sh --check
+	# create venv
+	@if test -d .venv; then rm -rf .venv; fi
+	@uv venv
+	# sync with locked dependencies from uv.lock
+	@uv sync
 	# register environment with local ipykernel environment
-	@$(PIPENV) run python -m ipykernel install --user --name=$$(basename $(ROOTDIR))
-	# create symlink of virtualenv to state/venv
-	@if test -e ./state/venv; then rm ./state/venv; fi; ln -s $$($(PIPENV) --venv -q) ./state/venv
+	@uv run python -m ipykernel install --user --name=$$(basename $(ROOTDIR))
 
 .PHONY: build-env
-build-env: state/venv ## Build python environment
+build-env: .venv/bin/activate ## Build python environment
 
 .PHONY: py-clean
 py-clean: ## Remove python related artifacts
@@ -101,9 +101,7 @@ py-clean: ## Remove python related artifacts
 .PHONY: build-env-clean
 build-env-clean: py-clean ## Remove build environment artifacts
 	@echo "+ $@"
-	@if readlink -e state/venv; then rm -rf $$(readlink -e state/venv); fi
-	@rm -f state/venv
-
+	@rm -rf .venv
 
 
 Pulumi.sim.yaml: build-env

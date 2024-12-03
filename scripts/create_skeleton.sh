@@ -42,11 +42,12 @@ for d in docs state target; do
   create_ifnotexist ${d}/.gitkeep </dev/null
 done
 
-# copy and rename examples: Makefile, Pipfile
-for f in Makefile Pipfile; do
-  # replace hardcoded instances of infra/ to support different submodule naming
+# copy and template: Makefile, pyproject.toml
+for f in Makefile pyproject.toml; do
+  # replace hardcoded instances of infra/ and project_name for custom naming
   cat ${shared_dir}/examples/skeleton/${f} |
     sed -r "s#infra/#${shared_dir_short}/#g" |
+    sed -r "s#project_name#${project_name}#g" |
     create_ifnotexist ${f}
 done
 
@@ -76,7 +77,7 @@ name: ${project_name}
 runtime:
   name: python
   options:
-    virtualenv: ./state/venv
+    virtualenv: .venv
 description: ${project_name} pulumi infrastructure
 
 EOF
@@ -93,9 +94,8 @@ config:
 EOF
 
 create_ifnotexist .gitignore <<EOF
-
-# python virtualenv symlink
-state/venv
+# python virtualenv
+.venv
 
 # directory for temporary files
 state/tmp
@@ -120,6 +120,9 @@ state/files/*sim
 
 # interactive python checkpoints
 .ipynb_checkpoints
+
+# python package info
+${project_name}.egg-info
 
 # compiled python
 *.pyc

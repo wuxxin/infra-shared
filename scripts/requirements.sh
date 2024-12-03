@@ -29,9 +29,9 @@ EOF
 
 pkg_defines="
 # # buildenv
-# CHECK: pipenv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
-# pipenv - virtual python environment management
-python-pipenv
+# CHECK: uv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
+# uv - extremely fast Python package installer and resolver written in Rust
+uv
 # openssl used for random, and hashid of cert
 openssl
 # gnupg used for gpg signed hash sums of os images
@@ -103,9 +103,9 @@ semodule-utils
 checkpolicy
 
 # # esphome build
-# CHECK: esphome
+# DISABLED CHECK: esphome
 # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-esphome
+# esphome
 
 "
 

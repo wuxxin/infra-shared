@@ -77,7 +77,7 @@ Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Imag
 - `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
 - `mkosi` - build nspawn OS container images
 - `age` - ssh keys based encryption of production files and pulumi master password
-- `pipenv` - virtualenv management using Pipfile and Pipfile.lock
+- `uv`- virtualenv management using pyproject.toml and uv.lock
 
 ### Usage
 
@@ -134,8 +134,8 @@ cd infra/Containerfile/provision-client && \
     docker build -t provision-client:latest $(pwd)
 
 # call provision shell(defaults to /usr/bin/bash interactive shell)
-# defaults to podman, but can be overriden with DOCKER=executable
-DOCKER=docker infra/scripts/provision_shell.sh
+# defaults to podman, but can be overriden with DOCKER_CMD=executable
+DOCKER_CMD=docker infra/scripts/provision_shell.sh
 # use exit to return to base shell
 ```
 
@@ -175,13 +175,16 @@ pulumi about
 #### Execute in provision python environment
 
 ```sh
-pipenv run ipython
+uv run ipython
 ```
 
 #### Sim stack: destroy, cleanup, re/create
 
 ```sh
 make sim-clean
+# in case something happend while destroying sim stack
+make sim__ args="stack rm --force"; rm Pulumi.sim.yaml
+# recreate stack
 make sim-create
 ```
 

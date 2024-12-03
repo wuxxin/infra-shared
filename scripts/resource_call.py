@@ -2,7 +2,7 @@
 """
 ## resource_call.py
 
-- `pipenv $0 [--stack sim] library function *stringargs`
+- `uv run $0 [--stack sim] library function *stringargs`
 
 """
 
@@ -26,7 +26,7 @@ def main():
         description="""
 Equivalent to calling `pulumi up` on the selected library.function on the selected stack.
 useful for oneshots like image building or transfer. calling example:
-`pipenv run {shared_dir_short}/scripts/resource_call.py --stack sim {shared_dir_short}.build build_openwrt`""".format(
+`uv run {shared_dir_short}/scripts/resource_call.py --stack sim {shared_dir_short}.build build_openwrt`""".format(
             shared_dir_short=os.path.basename(shared_dir)
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
