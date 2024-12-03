@@ -10,7 +10,7 @@ RemainAfterExit=yes
 Environment=COMPOSE_BUILD_OPTIONS=
 Environment=DOCKER_HOST=unix:///run/podman/podman.sock
 WorkingDirectory=/etc/compose/build/%i
-ExecStart=/usr/bin/docker-compose -f compose.yml build $COMPOSE_BUILD_OPTIONS
+ExecStart=/usr/bin/podman-compose -f compose.yml build $COMPOSE_BUILD_OPTIONS
 
 [Install]
 WantedBy=multi-user.target
