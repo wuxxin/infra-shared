@@ -63,12 +63,8 @@ def build_openwrt():
 
 
 def build_raspberry_extras():
-    "build raspberry 3/4 extra boot files"
+    "build raspberry extra files"
     return build_this("build_raspberry_extras", "build_raspberry_extras", "raspberry")
-
-
-def finalize_raspberry_image(fcos_image, fcos_config, extras="pi4-uboot"):
-    build_raspberry_extras()
 
 
 def build_homeassistant():

@@ -40,7 +40,12 @@ from infra.os import (
     SystemConfigUpdate,
     LibvirtIgniteFcos,
     TangFingerprint,
+    FcosImageDownloader,
+    RemoteDownloadIgnitionConfig,
 )
+
+from infra.tools import serve_prepare, serve_once, write_removeable, public_local_export
+from infra.build import build_raspberry_extras
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 files_basedir = os.path.join(this_dir)
@@ -178,8 +183,36 @@ if stack_name.endswith("sim"):
     target = host_machine.vm.network_interfaces[0]["addresses"][0]
     opts = pulumi.ResourceOptions(depends_on=[host_machine])
 else:
+    # configure later used remote url for remote controlled setup with encrypted config
+    serve_config = serve_prepare(shortname, timeout_sec=120)
+    remote_url = serve_config.config.config["remote_url"]
+
+    # create public config to be copied to the removeable storage device
+    public_config = RemoteDownloadIgnitionConfig(
+        "{}_public_ignition".format(shortname), hostname, remote_url
+    )
+    public_config_file = public_local_export(
+        shortname, "{}_public.ign".format(shortname), public_config.result
+    )
+
+    # download base image
+    image = FcosImageDownloader(
+        architecture="aarch64", platform="metal", image_format="raw.xz"
+    )
+    # download bios and other extras for customization
+    extras = build_raspberry_extras()
+
+    # customize image, combine extras and config onto it
+    host_image = None
+
+    # write customized image to removeable storage device
+    host_boot_media = write_removeable(shortname, host_image.result, bootmedia_serial)
+
+    # serve secret part of ign config via serve_once and mandatory client certificate
+    serve_data = serve_once(shortname, host_config, config=serve_config)
+
     target = hostname
-    opts = None
+    opts = pulumi.ResourceOptions(depends_on=[serve_data])
 
 # update host to newest config, should be a no-op (zero changes) on machine creation
 host_update = SystemConfigUpdate(

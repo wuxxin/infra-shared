@@ -14,41 +14,48 @@ import dbus
 
 
 def list_drives(udisks_interface):
-    """Prints a list of removeable devices"""
+    """Prints a list of storage devices (and if they are removeable)"""
 
-    drives = udisks_interface.GetDrives()
-    for drive in drives:
-        device_info = udisks_interface.GetDriveInfo(drive)
-        print(
-            "{} {} {}".format(
-                udisks_interface.GetDriveByPath(drive),
-                "Removeable" if device_info["type"] == "removeable" else "Fixed",
-                device_info["serial"],
+    managed_objects = udisks_interface.GetManagedObjects()
+    for path, interfaces in managed_objects.items():
+        if "org.freedesktop.UDisks2.Drive" in interfaces:
+            device_info = interfaces["org.freedesktop.UDisks2.Drive"]
+            print(
+                "{} {} {} {} {}".format(
+                    os.path.basename(path),
+                    "Removeable" if device_info["MediaRemovable"] else "Fixed",
+                    device_info["Serial"],
+                    device_info["Size"],  # 0 = if no medium inserted
+                    device_info["TimeMediaDetected"],  # 0 if no medium inserted
+                )
             )
-        )
 
 
 def get_removeable_drive(serial_number, udisks_interface):
-    """Returns devicename of an external attached USB device with the specified serial number"""
+    """Returns UDisks2.Drive Interface of an external attached storage device with the specified serial number"""
 
-    drives = udisks_interface.GetDrives()
-    for drive in drives:
-        device_info = udisks_interface.GetDriveInfo(drive)
-        if (
-            device_info["serial"] == serial_number
-            and device_info["type"] == "removable"
-        ):
-            device_name = udisks_interface.GetDriveByPath(drive)
-            return device_name
-
+    managed_objects = udisks_interface.GetManagedObjects()
+    for path, interfaces in managed_objects.items():
+        if "org.freedesktop.UDisks2.Drive" in interfaces:
+            drive_info = interfaces["org.freedesktop.UDisks2.Drive"]
+            if drive_info["Serial"] == serial_number and drive_info["MediaRemovable"]:
+                drive_obj = bus.get_object("org.freedesktop.UDisks2", path)
+                drive_iface = dbus.Interface(drive_obj, "org.freedesktop.UDisks2.Drive")
+                return path, drive_info
     return None  # Device not found
 
 
-def write_to_device(device_name, image_file, mount_interface):
-    if not device_name:
-        print("No serial number matching USB device found or device not removeable")
-        return 2
+def get_block_device(drive_object_path, udisks_interface):
+    managed_objects = udisks_interface.GetManagedObjects()
+    for path, interfaces in managed_objects.items():
+        if "org.freedesktop.UDisks2.Block" in interfaces:
+            interface = interfaces["org.freedesktop.UDisks2.Block"]
+            if interface["Drive"] == drive_object_path:
+                return interface
+    return None
 
+
+def write_to_device(device_name, image_file, mount_interface):
     mount_options = [
         "fstype=iso9660"
         if os.path.splitext(image_file)[-1] == ".iso"
@@ -62,7 +69,6 @@ def write_to_device(device_name, image_file, mount_interface):
                 destination.write(chunk)
 
     mount_interface.Unmount()
-    return 0
 
 
 def main():
@@ -72,24 +78,25 @@ def main():
     args = parser.parse_args()
 
     bus = dbus.SystemBus()
-    udisks = bus.get_object("org.freedesktop.udisks2", "/", introspect=False)
-    udisks_interface = dbus.Interface(udisks, "org.freedesktop.udisks2")
-
-    list_drives(udisks_interface)
+    udisks = bus.get_object(
+        "org.freedesktop.UDisks2", "/org/freedesktop/UDisks2", introspect=False
+    )
+    udisks_manager = dbus.Interface(udisks, "org.freedesktop.DBus.ObjectManager")
+    list_drives(udisks_manager)
     sys.exit()
 
     device_name = get_removeable_drive(args.serial_number)
     if not device_name:
-        result = 2
-        print("Device not found", file=sys.stderr)
+        print("No serial number matching removeable device found", file=sys.stderr)
+        exitcode = 2
     else:
-        mount = bus.get_object("org.freedesktop.udisks2", device_name, introspect=False)
-        mount_interface = dbus.Interface(mount, "org.freedesktop.udisks2.Mount")
-        result = write_to_device(device_name, args.image_path, mount_interface)
-        if result != 0:
-            print("Error {} occurred".format(result), file=sys.stderr)
+        mount = bus.get_object("org.freedesktop.UDisks2", device_name, introspect=False)
+        mount_interface = dbus.Interface(mount, "org.freedesktop.UDisks2.Mount")
+        exitcode = write_to_device(device_name, args.image_path, mount_interface)
+        if exitcode != 0:
+            print("Error {} while writing occurred".format(exitcode), file=sys.stderr)
 
-    sys.exit(result)
+    sys.exit(exitcode)
 
 
 if __name__ == "__main__":
