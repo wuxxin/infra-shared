@@ -4,31 +4,38 @@ FROM docker.io/archlinux/archlinux:base-devel
 # to update package lists, execute from here:
 # cat Containerfile | ../../scripts/requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
 
-RUN pacman-key --init && pacman -Syu --noconfirm base-devel lsb-release git doas && \
-    pacman -Syu --noconfirm act age atftp dosfstools esptool gnupg go jose jq knot libarchive openssl pango pulumi python-pipenv rust udisks2 vault xz zip gawk git openssl wget unzip python ncurses zlib gettext libxslt  && \
+RUN pacman-key --init && pacman -Syu --noconfirm base-devel git doas && \
+    pacman -Syu --noconfirm act age atftp dosfstools esptool gnupg go jose jq knot libarchive openssl pango pulumi rust udisks2 uv vault xz zip gawk git openssl wget unzip python ncurses zlib gettext libxslt  && \
     pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/*
 
 RUN useradd -u 1000 -U -m -d /home/user user && \
-    echo 'permit nopass user as root' >> /etc/doas.conf && \
-    echo 'user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+    echo 'permit nopass user as root' >> /etc/doas.conf
 
 USER user
-
 RUN HOME=/home/user && \
     cd $HOME && \
     mkdir -p $HOME/.config/yay && \
-    echo '{ "SUDOCMD": "doas" }' > $HOME/.config/yay/config.json && \
+    echo '{ "sudobin": "doas" }' > $HOME/.config/yay/config.json && \
     git clone https://aur.archlinux.org/yay.git && \
     cd yay && \
     makepkg --noconfirm && \
     doas -u root pacman --noconfirm -U *.pkg.tar.zst && \
     cd .. && \
-    rm -rf yay && \
-    yay -Sy --noconfirm butane checkpolicy coreos-installer esphome libsepol semodule-utils  && \
-    yay -Sc --noconfirm && \
-    rm -rf $HOME/.cargo/registry $HOME/.cache/go-build $HOME/.cache/yay && \
+    doas -u root rm -rf $HOME/yay $HOME/.cargo/registry $HOME/.cache/go-build $HOME/.cache/yay && \
     doas -u root pacman -Scc --noconfirm && \
     doas -u root rm -rf /var/cache/pacman/pkg/*
 
+RUN HOME=/home/user && \
+    cd $HOME && \
+    yay -Sy --noconfirm butane checkpolicy coreos-installer libsepol semodule-utils  && \
+    yay -Sc --noconfirm && \
+    doas -u root rm -rf $HOME/.cargo/registry $HOME/.cache/go-build $HOME/.cache/yay && \
+    doas -u root pacman -Scc --noconfirm && \
+    doas -u root rm -rf /var/cache/pacman/pkg/*
+
+USER root
+RUN rm  /etc/doas.conf
+
+USER user
 CMD ["/usr/bin/bash"]
