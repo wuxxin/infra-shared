@@ -116,7 +116,7 @@ build_openwrt_image:
         packages=" ".join(settings.openwrt.packages)) }}
     - cwd: {{ tmp_dir ~ "/" ~ basename }}
     - creates: {{ tmp_dir ~ "/build/openwrt-{ver}-{major}-{minor}-{model}.manifest".format(
-      ver=settings.openwrt.version, major=major, minor=minor, model=settings.openwrt.model) }}
+        ver=settings.openwrt.version, major=major, minor=minor, model=settings.openwrt.model) }}
     - output_loglevel: quiet
     - require:
       - archive: imgbuilder_source_extracted
