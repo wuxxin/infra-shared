@@ -30,7 +30,7 @@ Label=traefik.http.routers.%N.tls.options=mtls@file
 Label=traefik.http.routers.%N.middlewares=passtlsclientcert@file
 
 # make service also available on tang-mtls port
-# ignor send hostname on ip:port connection, do mtls
+# ignore any send hostname on ip:port connection, do mtls
 Label=traefik.http.routers.%N-direct.entrypoints=tang-mtls-nosni
 Label=traefik.http.routers.%N-direct.rule=PathPrefix(`/`)
 Label=traefik.http.routers.%N-direct.middlewares=passtlsclientcert@file
