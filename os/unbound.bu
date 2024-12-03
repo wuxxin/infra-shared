@@ -16,3 +16,10 @@ systemd:
       contents_local: os/unbound.service
       template: jinja
 
+    # make sure /var/lib/unbound exists before anchor file is written there
+    - name: unbound-anchor.service
+      dropins:
+        - name: mkdir_lib_unbound.conf
+          contents: |
+            [Service]
+            ExecStartPre=install -o unbound -g unbound -m "0700" -d /var/lib/unbound
