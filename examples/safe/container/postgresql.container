@@ -27,9 +27,8 @@ PodmanArgs=--shm-size=256MB
 Exec=postgres -c config_file=/etc/postgresql/postgresql.conf
 
 HealthCmd=/usr/bin/bash -c '\
-    pg_isready -h /var/run/postgresql && \
-    runuser -u postgres -- \
-        psql -h /var/run/postgresql template1 postgres -c "select 1;" > /dev/null'
+    pg_isready -U postgres -h /var/run/postgresql && \
+        psql -U postgres -h /var/run/postgresql template1 -c "select 1;" > /dev/null'
 
 Volume=postgresql.volume:/var/lib/postgresql/data
 # have an migrate volume ready for dump and reimport
@@ -41,3 +40,4 @@ PublishPort=5432:5432
 
 [Install]
 WantedBy=multi-user.target
+
