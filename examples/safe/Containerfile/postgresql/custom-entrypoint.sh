@@ -46,6 +46,7 @@ if [ -z "$DATABASE_ALREADY_EXISTS" ]; then
 	ls /docker-entrypoint-initdb.d/ > /dev/null
 
 	docker_init_database_dir
+	# our custom auth setup
 	pg_setup_auth
 
 	# PGPASSWORD is required for psql when authentication is required for 'local' connections via pg_hba.conf and is otherwise harmless
@@ -59,8 +60,7 @@ if [ -z "$DATABASE_ALREADY_EXISTS" ]; then
 	docker_temp_server_stop
 	unset PGPASSWORD
 else
-	echo >&2 "$self: note: database already initialized in '$PGDATA'!"
-	pg_setup_auth
+	echo >&2 "note: database already initialized in '$PGDATA'!"
 fi
 
 exec "$@"

@@ -24,7 +24,7 @@ Secret=server.key,mode=0640,gid=999
 
 # set shared memory size for postgresql
 PodmanArgs=--shm-size=256MB
-Exec=docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf
+Exec=postgres -c config_file=/etc/postgresql/postgresql.conf
 
 HealthCmd=/usr/bin/bash -c '\
     pg_isready -h /var/run/postgresql && \
