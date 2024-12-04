@@ -15,8 +15,8 @@ EOF
 
 	cat > "$PGDATA/pg_ident.conf" <<"EOF"
 # MAPNAME       SYSTEM-USERNAME         PG-USERNAME
-# add mapping tlsmap for tls client certificate to postgresql username
-tlsmap          /^(.*)@{{ HOSTNAME|replace(".", "\.") }}$    \1
+# map tls client certificate san from x@y to x_y for postgresql username
+tlsmap          /^(.*)@(.*)$   \1_\2
 EOF
 }
 
