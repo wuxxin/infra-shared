@@ -180,9 +180,17 @@ if stack_name.endswith("sim"):
     host_machine = LibvirtIgniteFcos(
         shortname, host_config.result, volumes=identifiers["storage"], memory=4096
     )
+    # write out ip of simulated host as target
     target = host_machine.vm.network_interfaces[0]["addresses"][0]
     opts = pulumi.ResourceOptions(depends_on=[host_machine])
 else:
+    # download base image
+    image = FcosImageDownloader(
+        architecture="aarch64", platform="metal", image_format="raw.xz"
+    )
+    # download bios and other extras for customization
+    extras = build_raspberry_extras()
+
     # configure later used remote url for remote controlled setup with encrypted config
     serve_config = serve_prepare(shortname, timeout_sec=120)
     remote_url = serve_config.config.config["remote_url"]
@@ -195,24 +203,23 @@ else:
         shortname, "{}_public.ign".format(shortname), public_config.result
     )
 
-    # download base image
-    image = FcosImageDownloader(
-        architecture="aarch64", platform="metal", image_format="raw.xz"
-    )
-    # download bios and other extras for customization
-    extras = build_raspberry_extras()
-
-    # customize image, combine extras and config onto it
+    # customize image, combine extras and config onto it (config, base_image, extras)
     host_image = None
 
     # write customized image to removeable storage device
-    host_boot_media = write_removeable(shortname, host_image.result, bootmedia_serial)
+    host_boot_media = write_removeable(
+        shortname,
+        host_image.result,
+        host_environment["bootdevice"].strip("/dev/disk/by-uuid/"),
+    )
 
     # serve secret part of ign config via serve_once and mandatory client certificate
     serve_data = serve_once(shortname, host_config, config=serve_config)
 
+    # target is metal, write out real dns name
     target = hostname
     opts = pulumi.ResourceOptions(depends_on=[serve_data])
+
 
 # update host to newest config, should be a no-op (zero changes) on machine creation
 host_update = SystemConfigUpdate(
