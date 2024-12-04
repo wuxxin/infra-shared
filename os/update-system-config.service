@@ -12,8 +12,9 @@ ConditionPathExists={{ UPDATE_PATH }}/%N/sls/main.sls
 Type=oneshot
 
 # create config for saltstack container, use same fedora version as current coreos base
+# $(cat /etc/system-release-cpe | sed -r "s/.+:([^:]+)$/\1/g")
 ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/%N && printf \
-"FROM docker.io/library/fedora:$(cat /etc/system-release-cpe | sed -r "s/.+:([^:]+)$/\1/g")\
+"FROM docker.io/library/fedora:42\
 \nRUN dnf -y install salt salt-minion lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
 \nCMD lsb_release -a\
 \n" > /etc/containers/build/%N/Containerfile'
