@@ -11,9 +11,9 @@ ConditionPathExists={{ UPDATE_PATH }}/%N/sls/main.sls
 [Service]
 Type=oneshot
 
-# create config for saltstack container
+# create config for saltstack container, use same fedora version as current coreos base
 ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/%N && printf \
-"FROM docker.io/library/fedora:40\
+"FROM docker.io/library/fedora:$(cat /etc/system-release-cpe | sed -r "s/.+:([^:]+)$/\1/g")\
 \nRUN dnf -y install salt salt-minion lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
 \nCMD lsb_release -a\
 \n" > /etc/containers/build/%N/Containerfile'
@@ -32,35 +32,34 @@ Environment=sls_dir={{ UPDATE_PATH }}/%N/sls
 Environment=pillar_dir={{ UPDATE_PATH }}/%N/pillar
 
 # create a minion config
-ExecStart=/usr/bin/bash -c \
-'printf "id: ${resource_name}\
-\nlocal: True\
-\nlog_level_logfile: info\
-\nfile_client: local\
-\nfileserver_backend:\
-\n- roots\
-\nfile_roots:\
-\n  base:\
-\n  - ${sls_dir}\
-\npillar_roots:\
-\n  base:\
-\n  - ${pillar_dir}\
-\ngrains:\
-\n  resource_name: ${resource_name}\
-\n  base_dir: ${base_dir}\
-\n  root_dir: ${root_dir}\
-\n  tmp_dir: ${tmp_dir}\
-\n  sls_dir: ${sls_dir}\
-\n  pillar_dir: ${pillar_dir}\
-\nroot_dir: ${root_dir}\
-\nconf_file: ${root_dir}/minion\
-\npki_dir: ${root_dir}/etc/salt/pki/minion\
-\npidfile: ${root_dir}/var/run/salt-minion.pid\
-\nsock_dir: ${root_dir}/var/run/salt/minion\
-\ncachedir: ${root_dir}/var/cache/salt/minion\
-\nextension_modules: ${root_dir}/var/cache/salt/minion/extmods\
-\nlog_file: ${root_dir}/var/log/salt/minion\
-\n" > ${root_dir}/minion'
+ExecStart=/usr/bin/bash -c '(\
+  printf "id: ${resource_name}\\n"; \
+  printf "local: True\\n"; \
+  printf "file_client: local\\n"; \
+  printf "log_level_logfile: debug\\n"; \
+  printf "default_top: base\\n"; \
+  printf "state_top: top.sls\\n"; \
+  printf "fileserver_followsymlinks: True\\n"; \
+  printf "fileserver_ignoresymlinks: False\\n"; \
+  printf "fileserver_backend:\\n  - roots\\n"; \
+  printf "file_roots:\\n  base:\\n    - ${sls_dir}\\n"; \
+  printf "pillar_roots:\\n  base:\\n    - ${pillar_dir}\\n"; \
+  printf "grains:\\n"; \
+  printf "  resource_name: ${resource_name}\\n"; \
+  printf "  base_dir: ${base_dir}\\n"; \
+  printf "  root_dir: ${root_dir}\\n"; \
+  printf "  tmp_dir: ${tmp_dir}\\n"; \
+  printf "  sls_dir: ${sls_dir}\\n"; \
+  printf "  pillar_dir: ${pillar_dir}\\n"; \
+  printf "root_dir: ${root_dir}\\n"; \
+  printf "conf_file: ${root_dir}/minion\\n"; \
+  printf "pki_dir: ${root_dir}/etc/salt/pki/minion\\n"; \
+  printf "pidfile: ${root_dir}/var/run/salt-minion.pid\\n"; \
+  printf "sock_dir: ${root_dir}/var/run/salt/minion\\n"; \
+  printf "cachedir: ${root_dir}/var/cache/salt/minion\\n"; \
+  printf "extension_modules: ${root_dir}/var/cache/salt/minion/extmods\\n"; \
+  printf "log_file: ${root_dir}/var/log/salt/minion\\n"; \
+) > ${root_dir}/minion'
 
 # create sls/top.sls, pillar/top.sls, pillar/main.sls
 ExecStart=/usr/bin/bash -c \
