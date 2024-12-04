@@ -1,7 +1,14 @@
 ARG DEFAULTLANG
-ARG VERSION=16.3
+ARG VERSION=17.2
 FROM docker.io/library/postgres:${VERSION}
 
 ENV LANG=${DEFAULTLANG:-en_US.UTF-8}
 ENV PG_MAJOR=${VERSION%.*}
 RUN localedef -i ${LANG%.UTF-8} -c -f UTF-8 -A /usr/share/locale/locale.alias ${LANG}
+
+COPY custom-entrypoint.sh /usr/local/bin/
+ENTRYPOINT ["custom-entrypoint.sh"]
+
+# base container repetition for clarity
+EXPOSE 5432
+CMD ["postgres"]
