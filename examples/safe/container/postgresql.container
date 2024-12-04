@@ -5,13 +5,11 @@ After=network-online.target container-build@%N.service container-secrets.service
 
 [Service]
 # environment loaded here is available in systemd-quadlet scope
-Environment=VERSION=17.2
-Environment=PG_MAJOR=${VERSION%.*}
 EnvironmentFile=-/etc/containers/environment/%N-systemd.env
 Restart=on-failure
 
 [Container]
-Image=localhost/%N:${VERSION%.*}-latest
+Image=localhost/%N:latest
 # If an image is updated in local storage, Podman restarts the systemd unit
 AutoUpdate=local
 
@@ -33,8 +31,7 @@ HealthCmd=/usr/bin/bash -c '\
     runuser -u postgres -- \
         psql -h /var/run/postgresql template1 postgres -c "select 1;" > /dev/null'
 
-# make postgres data volume postfixed with PG_MAJOR, so 1 data volume to 1 major version
-Volume=%N.volume:/var/lib/postgresql/data
+Volume=postgresql.volume:/var/lib/postgresql/data
 # have an migrate volume ready for dump and reimport
 Volume=postgresql-migrate:/migrate
 # listen address and tls configuration
