@@ -24,7 +24,7 @@ storage:
           PGDATA=/var/lib/postgresql/data
           POSTGRES_PASSWORD={{ POSTGRES_PASSWORD }}
           POSTGRES_HOST_AUTH_METHOD=reject
-          POSTGRES_IDENT="tlsmap /^(.*)@{{ HOSTNAME }} \1"
+          POSTGRES_IDENT=tlsmap /^(.*)@{{ HOSTNAME }} \1
           LANG={{ LOCALE["LANG"] }}
 
 systemd:
