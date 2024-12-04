@@ -3,21 +3,32 @@ set -Eeuo pipefail
 
 # configure access to database only with ssl and scram-sha-256 or tls client certs
 pg_setup_auth() {
-	cat > "$PGDATA/pg_hba.conf" <<"EOF"
-# TYPE  DATABASE        USER            ADDRESS                 METHOD
+	local pg_hba_current pg_hba_default pg_hba
+	pg_hba_current=""
+	pg_hba_default="# TYPE  DATABASE        USER            ADDRESS                 METHOD
 local   all             all                                     trust
 local   replication     all                                     trust
 # reject nossl, ssl connect with scram-sha-256 or clientcert:verify-full using map:tlsmap
 hostnossl all all 0.0.0.0/0 reject
 hostssl all all 0.0.0.0/0 scram-sha-256
 hostssl all all 0.0.0.0/0 cert clientcert=verify-full map=tlsmap
-EOF
+"
+	pg_hba=pg_hba_default
+	if test -e "$PGDATA/pg_hba.conf"; then pg_hba_current="$(cat $PGDATA/pg_hba.conf)"; fi
+	if test "$pg_hba" != "$pg_hba_current"; then echo "$pg_hba" > "$PGDATA/pg_hba.conf"; fi
+}
 
-	cat > "$PGDATA/pg_ident.conf" <<"EOF"
-# MAPNAME       SYSTEM-USERNAME         PG-USERNAME
-# map tls client certificate san from x@y to x_y for postgresql username
-tlsmap          /^(.*)@(.*)$   \1_\2
-EOF
+
+# configure mapping from tls-client-certificate names to postgresql-username
+pg_setup_ident() {
+	local pg_ident_current pg_ident_default pg_ident
+	pg_ident_current=""
+	pg_ident_default="tlsmap          /^(.*)@(.*)$   \1_\2"
+	pg_ident="# MAPNAME       SYSTEM-USERNAME         PG-USERNAME
+# tlsmap tls-client-certificate-name to-postgresql-username
+${POSTGRES_IDENT:-${pg_ident_default}}"
+	if test -e "$PGDATA/pg_ident.conf"; then pg_ident_current="$(cat $PGDATA/pg_ident.conf)"; fi
+	if test "$pg_ident" != "$pg_ident_current"; then echo "$pg_ident" > "$PGDATA/pg_ident.conf"; fi
 }
 
 # see also "_main" in "docker-entrypoint.sh"
@@ -48,6 +59,7 @@ if [ -z "$DATABASE_ALREADY_EXISTS" ]; then
 	docker_init_database_dir
 	# our custom auth setup
 	pg_setup_auth
+	pg_setup_ident
 
 	# PGPASSWORD is required for psql when authentication is required for 'local' connections via pg_hba.conf and is otherwise harmless
 	# e.g. when '--auth=md5' or '--auth-local=md5' is used in POSTGRES_INITDB_ARGS
@@ -62,5 +74,8 @@ if [ -z "$DATABASE_ALREADY_EXISTS" ]; then
 else
 	echo >&2 "note: database already initialized in '$PGDATA'!"
 fi
+
+# reassure tlsmap is set
+pg_setup_ident
 
 exec "$@"
