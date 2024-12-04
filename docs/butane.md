@@ -3,8 +3,13 @@
 ## Jinja Templating
 
 in addition to jinja inside butane files,
-files referenced from butane files with attribute `template=jinja`
-will be rendered through jinja with the described Environment and optional includes from searchpath
+files referenced with attribute `template=jinja` in
+
+- storage:files[].contents.template
+- systemd:units[].template
+- systemd:units[].dropins[].template
+
+will be rendered through jinja with the described Environment and optional includes from searchpath.
 
 Documentation:
 
