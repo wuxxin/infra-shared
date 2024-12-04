@@ -73,7 +73,7 @@ pg_postgres_password = pulumi_random.RandomPassword(
     "{}_POSTGRES_PASSWORD".format(shortname), special=False, length=24
 )
 
-# create a postgres client_cert
+# create a postgres master client_cert
 pg_postgres_client_cert = create_client_cert(
     "postgres@{}_POSTGRESQL_CLIENTCERT".format(shortname),
     "postgres@{}".format(hostname),
@@ -233,6 +233,11 @@ pg_server = postgresql.Provider(
     host=target,
     username="postgres",
     password=pg_postgres_password.result,
+    # clientcert=postgresql.ProviderClientcertArgs(
+    #     key=pg_postgres_client_cert.key.private_key_pem,
+    #     cert=pg_postgres_client_cert.chain,
+    #     sslinline=True,
+    # ),
     superuser=True,
     sslrootcert=exported_ca_cert.filename,
     sslmode="require",
