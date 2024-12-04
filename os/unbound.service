@@ -51,3 +51,4 @@ echo "status: GW_DEV=$GW_DEV, DNS_CURRENT=$DNS_CURRENT"; \
 
 [Install]
 WantedBy=multi-user.target
+
