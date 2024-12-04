@@ -13,7 +13,7 @@ hostnossl all all 0.0.0.0/0 reject
 hostssl all all 0.0.0.0/0 scram-sha-256
 hostssl all all 0.0.0.0/0 cert clientcert=verify-full map=tlsmap
 "
-	pg_hba=pg_hba_default
+	pg_hba="$pg_hba_default"
 	if test -e "$PGDATA/pg_hba.conf"; then pg_hba_current="$(cat $PGDATA/pg_hba.conf)"; fi
 	if test "$pg_hba" != "$pg_hba_current"; then echo "$pg_hba" > "$PGDATA/pg_hba.conf"; fi
 }
@@ -57,6 +57,7 @@ if [ -z "$DATABASE_ALREADY_EXISTS" ]; then
 	ls /docker-entrypoint-initdb.d/ > /dev/null
 
 	docker_init_database_dir
+
 	# our custom auth setup
 	pg_setup_auth
 	pg_setup_ident
@@ -73,9 +74,10 @@ if [ -z "$DATABASE_ALREADY_EXISTS" ]; then
 	unset PGPASSWORD
 else
 	echo >&2 "note: database already initialized in '$PGDATA'!"
-fi
 
-# reassure tlsmap is set
-pg_setup_ident
+	# our custom auth setup
+	pg_setup_auth
+	pg_setup_ident
+fi
 
 exec "$@"
