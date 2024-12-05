@@ -96,6 +96,7 @@ host_environment = {
                 "http": {"tls": {"options": "mtls-nosni@file"}},
             }
         },
+        "EXTRA": 'accessLog:\n  format: "common"',
     },
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()

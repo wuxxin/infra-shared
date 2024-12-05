@@ -3,9 +3,9 @@ set -Eeuo pipefail
 
 # configure access to database only with ssl and scram-sha-256 or tls client certs
 pg_setup_auth() {
-	local pg_hba_current pg_hba_default pg_hba
+	local pg_hba_current pg_hba
 	pg_hba_current=""
-	pg_hba_default="# TYPE  DATABASE        USER            ADDRESS                 METHOD
+	pg_hba="# TYPE  DATABASE        USER            ADDRESS                 METHOD
 local   all             all                                     trust
 local   replication     all                                     trust
 # reject nossl, ssl connect with scram-sha-256 or clientcert:verify-full using map:tlsmap
@@ -13,20 +13,20 @@ hostnossl all all 0.0.0.0/0 reject
 hostssl all all 0.0.0.0/0 scram-sha-256
 hostssl all all 0.0.0.0/0 cert clientcert=verify-full map=tlsmap
 "
-	pg_hba="$pg_hba_default"
 	if test -e "$PGDATA/pg_hba.conf"; then pg_hba_current="$(cat $PGDATA/pg_hba.conf)"; fi
 	if test "$pg_hba" != "$pg_hba_current"; then echo "$pg_hba" > "$PGDATA/pg_hba.conf"; fi
 }
 
 
-# configure mapping from tls-client-certificate names to postgresql-username
+# map tls-client-certificate-name to postgresql-username, translate x.y@z.org to x.y_z.org
 pg_setup_ident() {
-	local pg_ident_current pg_ident_default pg_ident
+	local pg_ident_current pg_ident
 	pg_ident_current=""
-	pg_ident_default="tlsmap          /^(.*)@(.*)$   \1_\2"
 	pg_ident="# MAPNAME       SYSTEM-USERNAME         PG-USERNAME
 # tlsmap tls-client-certificate-name to-postgresql-username
-${POSTGRES_IDENT:-${pg_ident_default}}"
+${POSTGRES_EXTRA_IDENT}
+tlsmap /^(.*)@(.*)$ \1_\2
+"
 	if test -e "$PGDATA/pg_ident.conf"; then pg_ident_current="$(cat $PGDATA/pg_ident.conf)"; fi
 	if test "$pg_ident" != "$pg_ident_current"; then echo "$pg_ident" > "$PGDATA/pg_ident.conf"; fi
 }
