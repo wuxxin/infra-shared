@@ -88,7 +88,7 @@ def pem_to_pkcs12_base64(
     key = load_pem_private_key(pem_key.encode("utf-8"), password=None)
     # Create a PKCS#12 blob
     p12_data = pkcs12.serialize_key_and_certificates(
-        friendlyname,
+        friendlyname.encode("utf-8"),
         key,
         cert,
         None,
