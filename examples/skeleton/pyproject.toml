@@ -80,6 +80,12 @@ dependencies = [
 # additional ssh connectivity
 "paramiko",
 
+# cryptographic toolbox for ClientCertPEM to PKCS12 conversion
+# "pyOpenSSL",
+
+# authority.py, scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
+"cryptography",
+
 # scripts/write_removeable.py: dbus handling for gdisk2 support
 "dbus-python",
 
@@ -100,9 +106,6 @@ dependencies = [
 
 # Python implementation of Pulumi passphrase encryption and decryption
 # "pulumi-crypto = {url = "https://github.com/sammck/pulumi-crypto/archive/refs/tags/v1.1.0.tar.gz"}
-
-# scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
-"cryptography",
 
 # /scripts/port_forward.py; NAT-PMP - interact with NAT-PMP version 0 draft specification gateways
 "NAT-PMP",

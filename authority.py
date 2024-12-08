@@ -25,6 +25,7 @@
 - create_client_cert
 - create_selfsigned_cert
 - create_sub_ca
+- pem_to_pkcs12_base64
 
 ### Components
 - SSHFactory
@@ -38,10 +39,19 @@
 import os
 import json
 import copy
+import base64
+
 import pulumi
 import pulumi_tls as tls
+import pulumi_random as random
 import pulumi_command as command
 
+from cryptography import x509
+from cryptography.hazmat.primitives.serialization import (
+    BestAvailableEncryption,
+    load_pem_private_key,
+    pkcs12,
+)
 from pulumi import Output, Alias
 
 from .tools import public_local_export, get_default_host_ip
@@ -59,6 +69,36 @@ default_hours_ca = 24 * 365 * 8
 default_hours_public_cert = 24 * 397
 default_hours_private_cert = 24 * 824
 default_early_renewal_hours = 48
+
+
+def pem_to_pkcs12_base64(
+    pem_cert: str, pem_key: str, password: str, friendlyname: str = ""
+) -> str:
+    """Converts a TLS client certificate and its associated private key in PEM format
+    into a password-protected PKCS#12 file, encoded as a base64 string
+
+    :param pem_cert: The TLS client certificate in PEM format as a string
+    :param pem_key: The private key in PEM format as a string
+    :param password: The password to protect the PKCS#12 archive
+    :return: Base64 encoded string of the PKCS#12 archive, formatted with line breaks
+    """
+    # Load the certificate from PEM
+    cert = x509.load_pem_x509_certificate(pem_cert.encode("utf-8"))
+    # Load the private key from PEM
+    key = load_pem_private_key(pem_key.encode("utf-8"), password=None)
+    # Create a PKCS#12 blob
+    p12_data = pkcs12.serialize_key_and_certificates(
+        friendlyname,
+        key,
+        cert,
+        None,
+        BestAvailableEncryption(password.encode("utf-8")),
+    )
+    # Base64 encode the binary PKCS#12 data
+    base64_data = base64.encodebytes(p12_data).decode("utf-8")
+    # Format the base64 data (e.g., multiline string)
+    formatted_base64_data = "".join([f"{line}\n" for line in base64_data.splitlines()])
+    return formatted_base64_data
 
 
 class SSHFactory(pulumi.ComponentResource):
@@ -233,6 +273,9 @@ class CASignedCert(pulumi.ComponentResource):
     - request: tls.CertRequest certificate request that was used to generate the signed certificate
     - cert: tls.LocallySignedCert resource representing the signed certificate itself
     - chain: Pulumi Output object that concatenates the signed certificate with the certificate chain
+    if "client_auth" in allowed_uses:
+    - pkcs12: base64 encoded transport password secured pkcs12 client certificate file data
+    - pkcs12_password: Pulumi Output object of random password generator
     """
 
     def __init__(self, name, cert_config, opts=None):
@@ -303,6 +346,23 @@ class CASignedCert(pulumi.ComponentResource):
             validity_period_hours=validity_period_hours,
             opts=pulumi.ResourceOptions(parent=self),
         )
+
+        if "client_auth" in allowed_uses:
+            pkcs12_password = random.RandomPassword(
+                "{}_pkcs12_password".format(name), special=False, length=24
+            )
+            # Create a password encrypted PKCS#12 object
+            pkcs12 = pulumi.Output.all(
+                cert=resource_cert.cert_pem,
+                key=resource_key.private_key_pem,
+                password=pkcs12_password.result,
+            ).apply(
+                lambda args: pem_to_pkcs12_base64(
+                    str(args["cert"]), str(args["key"]), str(args["password"])
+                )
+            )
+            self.pkcs12_password = pkcs12_password
+            self.pkcs12 = pkcs12
 
         self.key = resource_key
         self.request = resource_request
