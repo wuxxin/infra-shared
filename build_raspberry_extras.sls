@@ -1,14 +1,15 @@
-{# Raspberry PI Extras for Fedora-CoreOS Boot
+{# Raspberry PI Extras
 
-- available for rpi (3), 4, (5)
+- support for rasberry 4
+- limited support for 3 and 5
 
 - outputs
-  - raspberry/uboot
-    - uboot bios boot files for rpi[34]
-  - raspberry/uefi_rpi[345]
-    - uefi bios boot files for rpi[345]
   - raspberry/eeprom_rpi4
     - eeprom update for rpi4
+  - raspberry/uboot
+    - uboot bios boot for rpi4
+  - raspberry/uefi_rpi[345]
+    - uefi bios boot for rpi[345]
 
 #}
 
@@ -61,7 +62,7 @@ rpi_eeprom_rpi4_extracted:
       - file: rpi_eeprom_rpi4_dir
 
 
-{# ### uboot bios for rpi3 and rpi4 #}
+{# ### uboot bios for rpi4 #}
 {% set dest_dir = tmp_dir ~ "/uboot" %}
 
 rpi_fcos_uboot_download:
@@ -84,11 +85,9 @@ rpi_fcos_uboot_extracted:
     - name: |
         bsdtar -xf {{ download_dir ~ "/uboot-images-armv8.rpm" }} \
             -C {{ download_dir ~ "/uboot_extracted" }} \
-            usr/share/uboot/rpi_3/u-boot.bin \
-            usr/share/uboot/rpi_4/u-boot.bin
+            usr/share/uboot/rpi_arm64/u-boot.bin
     - creates:
-      - {{ download_dir ~ "/uboot_extracted" }}/usr/share/uboot/rpi_3/u-boot.bin
-      - {{ download_dir ~ "/uboot_extracted" }}/usr/share/uboot/rpi_4/u-boot.bin
+      - {{ download_dir ~ "/uboot_extracted" }}/usr/share/uboot/rpi_arm64/u-boot.bin
     - onchanges:
       - file: rpi_fcos_uboot_download
     - requires:
@@ -100,11 +99,10 @@ rpi_fcos_uboot_dir:
     - name: {{ dest_dir }}/boot/efi
     - makedirs: True
 
-{% for r in ["3", "4"]%}
-rpi_fcos_uboot_copy_rpi_{{ r }}:
+rpi_fcos_uboot_copy_rpi4_bin:
   file.copy:
-    - name: {{ dest_dir }}/boot/efi/rpi{{ r }}-u-boot.bin
-    - source: {{ download_dir ~ "/uboot_extracted" }}/usr/share/uboot/rpi_{{ r }}/u-boot.bin
+    - name: {{ dest_dir }}/boot/efi/u-boot.bin
+    - source: {{ download_dir ~ "/uboot_extracted" }}/usr/share/uboot/rpi_arm64/u-boot.bin
     - force: true
     - requires:
       - file: rpi_fcos_uboot_dir
@@ -112,7 +110,7 @@ rpi_fcos_uboot_copy_rpi_{{ r }}:
 {% endfor %}
 
 
-{# ### uefi bios for rpi3,rpi4 and rpi5 #}
+{# ### uefi bios for rpi3, rpi4 and rpi5 #}
 {% for uefi_rpi in ["uefi_rpi3", "uefi_rpi4", "uefi_rpi5"] %}
   {% set dest_dir = tmp_dir ~ "/" ~ uefi_rpi %}
 
