@@ -347,11 +347,11 @@ class CASignedCert(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        if "client_auth" in allowed_uses:
+        if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
+            # Create a password encrypted PKCS#12 object if only client_auth
             pkcs12_password = random.RandomPassword(
                 "{}_pkcs12_password".format(name), special=False, length=24
             )
-            # Create a password encrypted PKCS#12 object
             pkcs12 = pulumi.Output.all(
                 cert=resource_cert.cert_pem,
                 key=resource_key.private_key_pem,
