@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.8.0"
+__generated_with = "0.9.33"
 app = marimo.App(width="medium")
 
 
@@ -12,43 +12,64 @@ def __():
     import textwrap
 
     import dbus
+    import pandas as pd
     import marimo as mo
-    return argparse, dbus, mo, os, sys, textwrap
+    return argparse, dbus, mo, os, pd, sys, textwrap
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.md("""
-    # Write image to removable storage device as User App
+    mo.md(
+        """
+        # Write image to removable storage device as User App
 
-    Uses image from image_path to write to a removable storage device specified by serial_number.
+        Uses image from image_path to write to a removable storage device specified by serial_number.
 
-    - Uses Udisks2 and DBus to access the storage devices as user interactive
-    - Returns 0 for success, 1 for errors, and 2 for device not found or non-removable
-    """)
+        - Uses Udisks2 and DBus to access the storage devices as user interactive
+        - Returns 0 for success, 1 for errors, and 2 for device not found or non-removable
+        """
+    )
     return
 
 
 @app.cell
+def __(dbus):
+    args = None
+    # {
+    #    "serial": "20220100016184",
+    #    "imagefile": "state/tmp/sim/fcos/fedora-coreos-41.20241122.1.0-metal.aarch64.raw",
+    # }
+    bus = dbus.SystemBus()
+    udisks = bus.get_object(
+        "org.freedesktop.UDisks2", "/org/freedesktop/UDisks2", introspect=False
+    )
+    udisks_manager = dbus.Interface(udisks, "org.freedesktop.DBus.ObjectManager")
+    return args, bus, udisks, udisks_manager
+
+
+@app.cell(hide_code=True)
 def __(device_name, os):
     def list_drives(udisks_interface):
         """Prints a list of storage devices (and if they are removeable)"""
 
         managed_objects = udisks_interface.GetManagedObjects()
-        print("Pathname Removeable/Fixed Serial Size TimeMediaDetected")
 
+        drives_dataset = []
         for path, interfaces in managed_objects.items():
             if "org.freedesktop.UDisks2.Drive" in interfaces:
                 device_info = interfaces["org.freedesktop.UDisks2.Drive"]
-                print(
-                    "{} {} {} {} {}".format(
-                        os.path.basename(path),
-                        "Removeable" if device_info["MediaRemovable"] else "Fixed",
-                        device_info["Serial"],
-                        device_info["Size"],  # 0 = if no medium inserted
-                        device_info["TimeMediaDetected"],  # 0 if no medium inserted
-                    )
+                drives_dataset.append(
+                    {
+                        "path": os.path.basename(path),
+                        "serial": device_info["Serial"],
+                        "size": device_info["Size"],
+                        "removeable": "Removeable"
+                        if device_info["MediaRemovable"]
+                        else "Fixed",
+                        "present": device_info["TimeMediaDetected"],
+                    }
                 )
+        return drives_dataset
 
 
     def get_removeable_drive(serial_number, udisks_interface):
@@ -61,7 +82,7 @@ def __(device_name, os):
                 drive_info = interfaces["org.freedesktop.UDisks2.Drive"]
                 if drive_info["Serial"] == serial_number and drive_info["MediaRemovable"]:
                     return path, drive_info
-        return None
+        return None, None
 
 
     def get_block_device(drive_object_path, udisks_interface):
@@ -89,38 +110,35 @@ def __(device_name, os):
 
 
 @app.cell
-def __(dbus):
-    args = {"serial": "20220100016184", "imagepath": "state/"}
-
-    bus = dbus.SystemBus()
-    udisks = bus.get_object(
-        "org.freedesktop.UDisks2", "/org/freedesktop/UDisks2", introspect=False
-    )
-    udisks_manager = dbus.Interface(udisks, "org.freedesktop.DBus.ObjectManager")
-    return args, bus, udisks, udisks_manager
+def __(list_drives, pd, udisks_manager):
+    drives_df = pd.DataFrame(list_drives(udisks_manager))
+    return (drives_df,)
 
 
 @app.cell
-def __(
-    args,
-    get_block_device,
-    get_removeable_drive,
-    list_drives,
-    sys,
-    udisks_manager,
-):
-    if not args:
-        list_drives(udisks_manager)
-    else:
+def __(drives_df, mo):
+    mo.ui.table(drives_df)
+    return
+
+
+@app.cell
+def __(args, get_block_device, get_removeable_drive, sys, udisks_manager):
+    if args:
         path, drive_interface = get_removeable_drive(args["serial"], udisks_manager)
-        if drive_interface["Size"] == 0 or drive_interface["TimeMediaDetected"] == 0:
-            print("ERROR: Size 0 or TimeMediaDetected 0", file=sys.stderr)
+        if not path or not drive_interface:
+            print(
+                "ERROR: No Device with serial {} found".format(args["serial"]),
+                file=sys.stderr,
+            )
         else:
-            block_interface = get_block_device(path, udisks_manager)
-            if block_interface["Size"] == 0:
+            if drive_interface["Size"] == 0 or drive_interface["TimeMediaDetected"] == 0:
                 print("ERROR: Size 0 or TimeMediaDetected 0", file=sys.stderr)
             else:
-                print("Would write To Storage Device")
+                block_interface = get_block_device(path, udisks_manager)
+                if block_interface["Size"] == 0:
+                    print("ERROR: Size 0 or TimeMediaDetected 0", file=sys.stderr)
+                else:
+                    print("Would write To Storage Device at {}".format(path))
     return block_interface, drive_interface, path
 
 
