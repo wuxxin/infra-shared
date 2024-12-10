@@ -38,50 +38,53 @@ dependencies = [
 "pulumi-postgresql",
 "pulumi-random",
 "pulumi-tls",
+# pulumi_synced_folder - synchronizes local folder to S3, Azure Storage, Google Storage
+"pulumi_synced_folder",
 # pulumiverse_purrl - make HTTP get/put/post API calls to your target endpoint
 "pulumiverse_purrl",
 "pulumiverse_time",
 
-# pulumi-azure-native",
-# pulumi-cloudinit",
-# pulumi-gcp",
-# pulumi-github",
+# pulumi-azure-native - Native Azure Pulumi Provider
+# "pulumi-azure-native",
+# pulumi-gcp - Google Cloud Platform (GCP) Pulumi resource
+# "pulumi-gcp",
+# pulumi-hcloud - manage Hetzner Cloud resources
+# "pulumi-hcloud",
+# pulumiverse_gandi - Pulumi provider for Gandi domains / cloud
+# "pulumiverse_gandi",
+# pulumi-github - Pulumi package to facilitate interacting with GitHub
+# "pulumi-github",
 # pulumiverse-harbor - manage Harbor (artifacts registry) resources
-# pulumiverse-harbor
-# pulumi-hcloud",
-# pulumi-kubernetes",
-# pulumi-minio",
-# pulumi-mysql",
-# pulumi-nomad",
-# pulumi-vault",
-# pulumi_synced_folder - synchronizes local folder to S3, Azure Storage, Google Storage
-# pulumi_synced_folder",
-# pulumiverse_acme",
-# pulumiverse_gandi",
-# pulumiverse_matchbox",
-# pulumiverse-harbor",
-# pulumiverse-sentry",
+# "pulumiverse-harbor",
+# "pulumi-cloudinit",
+# "pulumi-kubernetes",
+# "pulumi-minio",
+# "pulumi-mysql",
+# "pulumi-nomad",
+# "pulumi-vault",
+# "pulumiverse_acme",
+# "pulumiverse_matchbox",
+# "pulumiverse-sentry",
 
 
 ### Tools
 
 # saltstack: local building
-"salt",
+# try to pin a working version
+"salt>=3007.1",
+# "backports.ssl_match_hostname",
 
 # yaml handling
 "pyyaml",
 
-# templating library
+# jinja templating library
 "jinja2",
 
 # detection of text or binary
 "chardet",
 
-# additional ssh connectivity
+# tools.py: additional ssh/sftp connectivity
 "paramiko",
-
-# cryptographic toolbox for ClientCertPEM to PKCS12 conversion
-# "pyOpenSSL",
 
 # authority.py, scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
 "cryptography",
