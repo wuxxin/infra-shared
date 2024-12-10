@@ -35,5 +35,5 @@ systemd:
         - name: dropin.conf
           contents: |
             [Service]
-            Environment=PODMAN_BUILD_OPTIONS='--build-arg ADDLOCALE={{ LOCALE["LANG"] }}'
+            Environment="PODMAN_BUILD_OPTIONS=--build-arg ADDLOCALES={{ LOCALE["LANG"] }}"
 

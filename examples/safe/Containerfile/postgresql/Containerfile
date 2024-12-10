@@ -1,12 +1,20 @@
 ARG VERSION=17.2
 FROM docker.io/library/postgres:${VERSION}
 
-ARG ADDLOCALE=de_DE.UTF-8
-RUN localedef -i ${ADDLOCALE%.UTF-8} -c -f UTF-8 -A /usr/share/locale/locale.alias ${ADDLOCALE}
+# add additional locales space seperated to "ADDLOCALES"
+ARG ADDLOCALES
+RUN echo "ADDLOCALES: ${ADDLOCALES}"; \
+    for l in ${ADDLOCALES}; do \
+      if test "${l}" != "en_US.UTF-8"; then \
+        echo "adding locale $l"; \
+        localedef -i ${l%.UTF-8} -c -f UTF-8 -A /usr/share/locale/locale.alias ${l}; \
+      fi; \
+    done
 
+# entry point for customized auth
 COPY custom-entrypoint.sh /usr/local/bin/
 ENTRYPOINT ["custom-entrypoint.sh"]
 
-# base container repetition for clarity
+# also defined in base container, for clarity
 EXPOSE 5432
 CMD ["postgres"]
