@@ -10,4 +10,4 @@
 - `tools.py` - SSH copy/deploy/execute functions, local and remote Salt-Call
 - `build.py` - build Embedded-OS Images and IOT Images
     - Openwrt Linux - Network Device Distribution for Router and other network devices
-    - Raspberry Extras - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
+    - Raspberry PI Extras - Eeprom, U-Boot and UEFI bios files
