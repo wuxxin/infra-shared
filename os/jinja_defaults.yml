@@ -19,12 +19,10 @@ LOCALE:
 RPM_OSTREE_INSTALL:
   # unbound, needed as recursive dnsresolver for system, container, compose and nspawn workloads
   - unbound
-  # docker compose, needed by compose.bu for compose container
-  - docker-compose
-  # systemd-networkd, needed by nspawn.bu for network setup
-  - systemd-networkd
-  # testing: lightweight alternative to docker-compose
+  # podman-compose, needed by compose.bu for compose container
   - podman-compose
+  # systemd-networkd, needed by nspawn.bu for nspawn container network setup
+  - systemd-networkd
 
 # Network CIDR of Internal, Podman and Nspawn Network
 INTERNAL_CIDR: 10.87.240.1/24
