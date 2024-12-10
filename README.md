@@ -47,7 +47,7 @@ See the [examples](examples/) for code of what else can be done with it
 - **serve** configuration **HTTPS** payloads, request a port forwarding
 - **write** image to **removable storage** specified by serial_number
 - build Embedded-OS Images and IOT Images
-    - **Raspberry Extras** - U-Boot and UEFI Bios Files for Rpi3 and Rpi4
+    - **Raspberry PI Extras** - Eeprom, U-Boot and UEFI bios files
     - **Openwrt Linux** - Network Device Distribution for Router and other network devices
 
 ### Technologies
@@ -58,7 +58,7 @@ See the [examples](examples/) for code of what else can be done with it
 
 **Advanced functionality** available with knowledge of:
 
-- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Jupyter Notebooks
+- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Marimo Notebooks
 
 Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
 
@@ -68,14 +68,13 @@ Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Imag
 - `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
 - `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
 - `systemd` - service, socker, path, timer, nspawn machine container
-- `podman` - build Container images, run Container using quadlet systemd container
+- `podman` - build Container and NSpawn images, run Container using quadlet systemd container
 - `saltstack`
     - local build environments and local services
     - remote fcos config update using butane to saltstack translation and execution
 - `mkdocs` - documentation using markdown and mermaid
 - `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
 - `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
-- `mkosi` - build nspawn OS container images
 - `age` - ssh keys based encryption of production files and pulumi master password
 - `uv`- virtualenv management using pyproject.toml and uv.lock
 
