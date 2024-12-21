@@ -91,6 +91,8 @@ dependencies = [
 
 # scripts/write_removeable.py: dbus handling for gdisk2 support
 "dbus-python",
+# smart progress meter
+"tqdm",
 
 # use this venv as jupyter kernel (needs ipykernel installed)
 "ipykernel",
