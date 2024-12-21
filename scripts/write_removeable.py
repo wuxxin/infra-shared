@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Write an image file to a removable storage device specified by a serial_number as user
 
-- Uses UDisks2 via DBus to access the storage devices without root access
+- Uses UDisks2 via DBus to access the storage device without root access
 
 """
 
