@@ -8,14 +8,19 @@
 import argparse
 import os
 import sys
+import shutil
 
 import dbus
 import tqdm
 
 
-def get_drives(udisks_obj):
+bus = dbus.SystemBus()
+
+
+def get_drives():
     """Prints a list of storage devices (and if they are removeable)"""
 
+    udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
     udisks_obj_manager = dbus.Interface(
         udisks_obj, "org.freedesktop.DBus.ObjectManager"
     )
@@ -25,22 +30,36 @@ def get_drives(udisks_obj):
     for path, interfaces in managed_objects.items():
         if "org.freedesktop.UDisks2.Drive" in interfaces:
             device_info = interfaces["org.freedesktop.UDisks2.Drive"]
-            drives.append(
-                {
-                    "path": os.path.basename(path),
-                    "serial": device_info["Serial"],
-                    "size": device_info["Size"],
-                    "removeable": "Removeable"
-                    if device_info["MediaRemovable"]
-                    else "Fixed",
-                    "present": device_info["TimeMediaDetected"],
-                }
-            )
+            drive_data = {
+                "path": os.path.basename(path),
+                "serial": device_info["Serial"],
+                "size": device_info["Size"],
+                "removeable": "Removeable"
+                if device_info["MediaRemovable"]
+                else "Fixed",
+                "present": device_info["TimeMediaDetected"],
+            }
+            partitions = []
+            for part_path, part_interfaces in managed_objects.items():
+                if "org.freedesktop.UDisks2.Block" in part_interfaces:
+                    block_info = part_interfaces["org.freedesktop.UDisks2.Block"]
+                    if "Drive" in block_info and block_info["Drive"] == path:
+                        partition_data = {
+                            "path": os.path.basename(part_path),
+                            "id_uuid": block_info.get("IdUUID"),
+                            "label": block_info.get("IdLabel"),
+                            "size": block_info.get("Size"),
+                        }
+                        partitions.append(partition_data)
+            drive_data["partitions"] = partitions
+            drives.append(drive_data)
     return drives
 
 
-def get_removeable_block_device(serial_number, disk_size, udisks_obj):
+def get_removeable_block_device(serial_number, disk_size):
     """Returns the whole disk block device path of an external attached device with specified serial and size(can be 0)"""
+
+    udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
     udisks_obj_manager = dbus.Interface(
         udisks_obj, "org.freedesktop.DBus.ObjectManager"
     )
@@ -88,12 +107,11 @@ def get_removeable_block_device(serial_number, disk_size, udisks_obj):
     )
 
 
-def write_to_device(block_device_path, image_file, bus):
+def write_to_device(block_device_path, image_file, verbose=True):
     """Writes the image file to the specified device."""
 
     # Get the Block device object
     block_device_obj = bus.get_object("org.freedesktop.UDisks2", block_device_path)
-    # print(f"Block Device Object Path: {block_device_path}")
     block_device_iface = dbus.Interface(
         block_device_obj, "org.freedesktop.UDisks2.Block"
     )
@@ -109,21 +127,113 @@ def write_to_device(block_device_path, image_file, bus):
             filesize = os.fstat(image_handle.fileno()).st_size
             current_offset = 0
             chunk_size = pow(2, 20)
-
             with tqdm.tqdm(
                 total=filesize,
                 unit="B",
                 unit_scale=True,
-                desc="Writing",
+                desc="Writing Image",
                 initial=current_offset,
+                disable=not verbose,
             ) as pbar:
                 while True:
-                    # write chunk to device
+                    # read and write one data chunk
                     data = image_handle.read(chunk_size)
                     if not data:
                         break
                     pbar.update(len(data))
                     target_handle.write(data)
+
+
+def patch_partitions(block_device_path, block_info, patches, verbose=True):
+    """Write files on specific partitions after writing the image"""
+    udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
+    udisks_obj_manager = dbus.Interface(
+        udisks_obj, "org.freedesktop.DBus.ObjectManager"
+    )
+    managed_objects = udisks_obj_manager.GetManagedObjects()
+
+    drive_path = block_info.get("Drive")
+    if not drive_path:
+        raise KeyError("Could not determine the drive path for patching.")
+
+    for source_path, dest_with_partition in patches:
+        partition_identifier, dest_on_partition = dest_with_partition.split("/", 1)
+        partition_object_path = None
+
+        for path, interfaces in managed_objects.items():
+            if "org.freedesktop.UDisks2.Block" in interfaces:
+                block_props = interfaces["org.freedesktop.UDisks2.Block"]
+                if block_props.get("Drive") == drive_path:
+                    if (
+                        partition_identifier.startswith("@")
+                        and block_props.get("IdUUID") == partition_identifier[1:]
+                    ) or (
+                        not partition_identifier.startswith("@")
+                        and block_props.get("IdLabel") == partition_identifier
+                    ):
+                        partition_object_path = path
+                        break
+            if partition_object_path:
+                break
+
+        if not partition_object_path:
+            if verbose:
+                print(
+                    f"Warning: Partition '{partition_identifier}' not found on the device for patching.",
+                    file=sys.stderr,
+                )
+            continue
+
+        filesystem_iface = None
+        if (
+            "org.freedesktop.UDisks2.Filesystem"
+            in managed_objects[partition_object_path]
+        ):
+            filesystem_iface_obj = bus.get_object(
+                "org.freedesktop.UDisks2", partition_object_path
+            )
+            filesystem_iface = dbus.Interface(
+                filesystem_iface_obj, "org.freedesktop.UDisks2.Filesystem"
+            )
+        else:
+            if verbose:
+                print(
+                    f"Warning: Partition '{partition_identifier}' does not have a mountable filesystem.",
+                    file=sys.stderr,
+                )
+            continue
+
+        try:
+            # Mount the partition
+            mount_options = {}
+            mount_path = filesystem_iface.Mount(mount_options)
+            if verbose:
+                print(f"Partition '{partition_identifier}' mounted at {mount_path}")
+
+            # Copy the file
+            source_abs_path = os.path.abspath(source_path)
+            dest_abs_path = os.path.join(mount_path, dest_on_partition)
+            os.makedirs(os.path.dirname(dest_abs_path), exist_ok=True)
+            shutil.copy2(source_abs_path, dest_abs_path)
+            if verbose:
+                print(f"Copied '{source_path}' to '{dest_with_partition}'")
+
+        except dbus.exceptions.DBusException as e:
+            print(
+                f"Error patching partition '{partition_identifier}': {e}",
+                file=sys.stderr,
+            )
+        finally:
+            if filesystem_iface:
+                try:
+                    filesystem_iface.Unmount({})
+                    if verbose:
+                        print(f"Partition '{partition_identifier}' unmounted")
+                except dbus.exceptions.DBusException as e:
+                    print(
+                        f"Error unmounting partition '{partition_identifier}': {e}",
+                        file=sys.stderr,
+                    )
 
 
 def main():
@@ -138,33 +248,77 @@ def main():
         default=0,
     )
     parser.add_argument("--source-image", help="Path to the source image file")
+    parser.add_argument(
+        "--patch",
+        action="append",
+        nargs=2,
+        metavar=("SOURCE", "DEST_ON_PARTITION"),
+        help="""Patch a partition after writing the image.
+Specify source path and destination path prepending the partition identifier
+Use '@' prefix for UUID, e.g. 'u-boot.bin @7B77-95E7/boot/efi/u-boot.bin'
+or filesystem label, eg. 'u-boot.bin EFI-SYSTEM/boot/efi/u-boot.bin'. """,
+    )
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
         "--list", action="store_true", default=False, help="List all available drives"
     )
-    args = parser.parse_args()
+    group.add_argument(
+        "--verbose", action="store_true", default=True, help="Enable verbose output"
+    )
+    group.add_argument(
+        "--silent", action="store_false", dest="verbose", help="Disable verbose output"
+    )
 
-    bus = dbus.SystemBus()
-    udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
+    args = parser.parse_args()
 
     if not any(vars(args).values()):
         parser.print_help()
 
     elif args.list:
-        drives = get_drives(udisks_obj)
+        drives = get_drives()
         if not drives:
             raise IndexError("ERROR: No drives found.")
+
         for drive in drives:
             print(
-                f"path: {drive['path']}, Serial: {drive['serial']}, "
-                + f"Size: {drive['size']}, Removeable: {drive['removeable']}"
+                f"Id: {drive['path']}"
+                + f"  Serial: {drive['serial']}"
+                + f"  Size: {drive['size']}"
+                + f"  Type: {drive['removeable']}"
             )
+            if drive["partitions"]:
+                max_path = max(len(p["path"]) for p in drive["partitions"])
+                max_uuid = max(len(str(p["id_uuid"])) for p in drive["partitions"])
+                max_label = max(len(str(p["label"])) for p in drive["partitions"])
+                max_size = max(len(str(p["size"])) for p in drive["partitions"])
+
+                for partition in sorted(
+                    drive["partitions"], key=lambda item: item["path"]
+                ):
+                    print(
+                        f"  Device: {partition['path']:<{max_path}}  "
+                        + f" Size: {partition['size']:<{max_size}}"
+                        + f" Label: {partition.get('label', ''):<{max_label}}  "
+                        + f" UUID: {partition.get('id_uuid', ''):<{max_uuid}}  "
+                    )
+            else:
+                print("  no device partitions found.")
 
     elif args.dest_serial and args.source_image:
-        block_device_path, block_info = get_removeable_block_device(
-            args.dest_serial, args.dest_size, udisks_obj
-        )
-        write_to_device(block_device_path, args.source_image, bus)
+        try:
+            block_device_path, block_info = get_removeable_block_device(
+                args.dest_serial, args.dest_size
+            )
+            write_to_device(block_device_path, args.source_image, args.verbose)
+
+            if args.patch:
+                patch_partitions(
+                    block_device_path, block_info, args.patch, args.verbose
+                )
+
+        except (KeyError, IndexError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
     else:
         parser.print_help()
