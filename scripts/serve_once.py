@@ -28,15 +28,11 @@ import shutil
 import ssl
 import sys
 import tempfile
-import textwrap
 import threading
+from typing import Any
 
 import yaml
 
-# generate_self_signed_certificate() uses cryptography
-
-
-# configure defaults
 DEFAULT_CONFIG_STR = """
 request_ip:
 request_path: "/"
@@ -57,63 +53,35 @@ payload: |
   true
 """
 DEFAULT_CONFIG = yaml.safe_load(DEFAULT_CONFIG_STR)
-DEFAULT_SHORT = textwrap.fill(
-    ", ".join(["{}: {}".format(k, v) for k, v in DEFAULT_CONFIG.items()]),
-    width=80,
-    initial_indent="  ",
-    subsequent_indent="  ",
-)
+
+verbose = False
 
 
-def verbose_print(message):
-    if args.verbose:
+def verbose_print(message: str) -> None:
+    """Prints a message to stderr if the global verbose flag is set."""
+    if verbose:
         print(message, file=sys.stderr)
 
 
-def write_cert(cert_fifo_path, cert):
-    with open(cert_fifo_path, "wb") as cert_fifo:
-        cert_fifo.write(cert)
+def write_file_bytes(filepath: str, content: bytes) -> None:
+    """Writes bytes to a file."""
+    with open(filepath, "wb") as f:
+        f.write(content)
 
 
-def write_key(key_fifo_path, key):
-    with open(key_fifo_path, "wb") as key_fifo:
-        key_fifo.write(key)
-
-
-def merge_dict_struct(struct1, struct2):
-    "recursive merge of two dict like structs into one, struct2 over struct1 if entry not None"
-
-    def is_dict_like(v):
-        return hasattr(v, "keys") and hasattr(v, "values") and hasattr(v, "items")
-
-    def is_list_like(v):
-        return hasattr(v, "append") and hasattr(v, "extend") and hasattr(v, "pop")
-
-    merged = copy.deepcopy(struct1)
-    if is_dict_like(struct1) and is_dict_like(struct2):
-        for key in struct2:
-            if key in struct1:
-                # if the key is present in both dictionaries, recursively merge the values
-                merged[key] = merge_dict_struct(struct1[key], struct2[key])
-            else:
-                merged[key] = struct2[key]
-    elif is_list_like(struct1) and is_list_like(struct2):
-        for item in struct2:
-            if item not in struct1:
-                merged.append(item)
-    elif is_dict_like(struct1) and struct2 is None:
-        # do nothing if first is dict, but second is None
-        pass
-    elif is_list_like(struct1) and struct2 is None:
-        # do nothing if first is list, but second is None
-        pass
-    else:
-        # the second input overwrites the first input
-        merged = struct2
+def merge_dicts(dict1: dict, dict2: dict) -> dict:
+    """Recursively merges two dictionaries, with dict2 overriding dict1 if a key exists in both."""
+    merged = copy.deepcopy(dict1)
+    for key, value in dict2.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = merge_dicts(merged[key], value)
+        else:
+            merged[key] = value
     return merged
 
 
-def generate_self_signed_certificate(hostname):
+def generate_self_signed_certificate(hostname: str) -> dict[str, bytes]:
+    """Generates a self-signed certificate for the given hostname."""
     from cryptography import x509
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import hashes, serialization
@@ -154,113 +122,119 @@ def generate_self_signed_certificate(hostname):
     }
 
 
-class ServeOneRequestHandler(http.server.BaseHTTPRequestHandler):
-    """requesthandler that only answers to one specific request with conditions configured in config[]"""
+class RequestHandler(http.server.BaseHTTPRequestHandler):
+    """Handles HTTP requests, serving a single response based on configuration."""
+
+    config: dict[str, Any] = {}  # Class-level variable to store configuration
 
     def verbose_error(
         self, code: int, message: str | None = None, explain: str | None = None
-    ):
+    ) -> None:
+        """Sends an error response and optionally logs it."""
         self.send_error(code, message, explain)
-        if args.verbose:
-            print("{}: {}".format(code, message), file=sys.stderr)
+        verbose_print(f"{code}: {message}")
 
-    def log_message(self, format, *args):
-        if "verbose" in args and args.verbose:
-            # only call the original method if verbose
+    def log_message(self, format: str, *args: Any) -> None:
+        """Logs a message if verbose mode is enabled."""
+        if verbose:
             super().log_message(format, *args)
 
-    def get_client_cert_common_name(self):
-        if "subject" in self.connection.getpeercert():
-            subject = dict(x[0] for x in self.client_certificate["subject"])
-            if "commonName" in subject:
-                return subject["commonName"]
+    def get_client_cert_common_name(self) -> str | None:
+        """Retrieves the Common Name from the client certificate, if available."""
+        cert = self.connection.getpeercert()
+        if cert and "subject" in cert:
+            subject = dict(x[0] for x in cert["subject"])
+            return subject.get("commonName")
         return None
 
-    def handle_command(self):
-        """
-        - client_address: (host, port) tuple
-        - command, path and version: broken-down request line
-        - headers (email.message.Message): header information
-        - rfile: file object open for reading at the start of the optional input data part
-        - wfile: file object open for writing
-        """
-        if config["mtls"] and config["mtls_clientid"]:
+    def handle_request(self) -> None:
+        """Handles a single HTTP request based on the provided configuration."""
+        if self.config["mtls"] and self.config["mtls_clientid"]:
             client_cert_cn = self.get_client_cert_common_name()
-            if client_cert_cn != config["mtls_clientid"]:
+            if client_cert_cn != self.config["mtls_clientid"]:
                 self.verbose_error(
                     401, f"Invalid Client certificate CN: {client_cert_cn}"
                 )
                 return
 
-        if config["request_ip"] and self.client_address[0] != config["request_ip"]:
+        if (
+            self.config["request_ip"]
+            and self.client_address[0] != self.config["request_ip"]
+        ):
             self.verbose_error(403, f"Invalid Client IP : {self.client_address[0]}")
             return
 
-        if self.command != config["request_method"]:
+        if self.command != self.config["request_method"]:
             self.verbose_error(405, f"Invalid request method: {self.command}")
             return
 
-        if self.path != config["request_path"]:
+        if self.path != self.config["request_path"]:
             self.verbose_error(404, f"Invalid request path: {self.path}")
             return
 
-        if config["request_body_to_stdout"]:
+        if self.config["request_body_stdout"]:
             content_length = int(self.headers.get("Content-Length", 0))
-            request_body = self.rfile.read(content_length)
-            print(request_body.decode("utf-8"))
+            request_body = self.rfile.read(content_length).decode("utf-8")
+            print(request_body)
 
         self.send_response(200)
-        for key, value in config["header"].items():
+        for key, value in self.config["header"].items():
             self.send_header(key, value)
         self.end_headers()
-        self.wfile.write(config["payload"].encode("utf-8"))
+        self.wfile.write(self.config["payload"].encode("utf-8"))
 
-    def do_GET(self):
-        self.handle_command()
+        # Signal successful response
+        type(self).success = True
 
-    def do_POST(self):
-        self.handle_command()
+    def do_GET(self) -> None:
+        """Handles GET requests."""
+        self.handle_request()
 
-    def do_PUT(self):
-        self.handle_command()
+    def do_POST(self) -> None:
+        """Handles POST requests."""
+        self.handle_request()
+
+    def do_PUT(self) -> None:
+        """Handles PUT requests."""
+        self.handle_request()
 
 
-def serve_once(config):
-    """serve one piece of data for one successful request or until a timeout is reached"""
+def serve_once(config: dict[str, Any]) -> None:
+    """Serves a single HTTPS request or times out."""
+    RequestHandler.config = config
+    RequestHandler.success = False
+
+    temp_dir = None
+    cert_thread = None
+    key_thread = None
 
     try:
-        # workaround for load_cert_chain(certfile,keyfile), which only works with "real" files
-        # create named pipes for cert and key under the /run/user/<uid>/ directory
         temp_dir = tempfile.mkdtemp(dir=os.path.join("/run/user", str(os.getuid())))
         cert_fifo_path = os.path.join(temp_dir, "cert.fifo")
         key_fifo_path = os.path.join(temp_dir, "key.fifo")
         os.mkfifo(cert_fifo_path)
         os.mkfifo(key_fifo_path)
 
-        # Create and start threads to write to named pipes
         cert_thread = threading.Thread(
-            target=write_cert, args=(cert_fifo_path, config["cert"])
+            target=write_file_bytes, args=(cert_fifo_path, config["cert"])
         )
         key_thread = threading.Thread(
-            target=write_key, args=(key_fifo_path, config["key"])
+            target=write_file_bytes, args=(key_fifo_path, config["key"])
         )
         cert_thread.start()
         key_thread.start()
 
-        # create SSL context
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile=cert_fifo_path, keyfile=key_fifo_path)
 
-        # if ca_cert is set, load it into the context
         if config["ca_cert"]:
             context.load_verify_locations(cadata=config["ca_cert"])
             if config["mtls"]:
                 context.verify_mode = ssl.CERT_REQUIRED
 
-        # create HTTPS server
         httpd = http.server.HTTPServer(
             (config["serve_ip"], config["serve_port"]),
-            ServeOneRequestHandler,
+            RequestHandler,
             bind_and_activate=False,
         )
         httpd.timeout = config["timeout"]
@@ -269,77 +243,59 @@ def serve_once(config):
         httpd.server_bind()
         httpd.server_activate()
 
-        # serve payload, exit 1 on timeout, exit 0 on succesful request
         while True:
-            r, w, e = select.select([httpd.socket], [], [], httpd.timeout)
+            r, _, _ = select.select([httpd.socket], [], [], httpd.timeout)
             if r:
                 httpd.handle_request()
-                if httpd.RequestHandlerClass.response_code == 200:
+                if RequestHandler.success:
                     break
             else:
+                verbose_print("Timeout reached")
                 sys.exit(1)
 
-    # stop threads, remove named pipes and temp_dir
     finally:
-        try:
+        if cert_thread:
             cert_thread.join()
-        except:
-            pass
-        try:
+        if key_thread:
             key_thread.join()
-        except:
-            pass
-        try:
-            os.remove(cert_fifo_path)
-        except:
-            pass
-        try:
-            os.remove(key_fifo_path)
-        except:
-            pass
-        try:
+        if temp_dir:
             shutil.rmtree(temp_dir)
-        except:
-            pass
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Parses arguments, loads configuration, and starts the server."""
+    global verbose
+
     parser = argparse.ArgumentParser(
-        description=__doc__ + "\ndefaults:\n{}\n".format(DEFAULT_SHORT),
-        formatter_class=argparse.RawTextHelpFormatter,
+        description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Log and Warnings to stderr",
+        "--verbose", action="store_true", help="Log and Warnings to stderr"
     )
-    parser.add_argument(
-        "--yes", action="store_true", required=True, help="Confirm execution"
-    )
-
-    if not sys.argv[1:]:  # print help and exit if called without parameter
-        parser.print_help()
-        sys.exit(1)
+    parser.add_argument("--yes", action="store_true", help="Confirm execution")
 
     args = parser.parse_args()
+    verbose = args.verbose
+
+    if not args.yes:
+        print("Error: --yes flag is required to confirm execution")
+        sys.exit(1)
+
     stdin_str = sys.stdin.read()
+    loaded_config = yaml.safe_load(stdin_str) if stdin_str.strip() else {}
 
-    if not stdin_str.strip():
-        verbose_print("Warning: no configuration from stdin, using only defaults!")
-        loaded_config = {}
-    else:
-        loaded_config = yaml.safe_load(stdin_str)
-
-    # merge YAML config from stdin with defaults
-    config = merge_dict_struct(DEFAULT_CONFIG, loaded_config)
+    config = merge_dicts(DEFAULT_CONFIG, loaded_config)
 
     if not config["cert"] or not config["key"]:
         verbose_print(
-            "Warning: no cert or key set, creating temporary selfsigned certificate"
+            "Warning: no cert or key set, creating temporary self-signed certificate"
         )
         cert_key_dict = generate_self_signed_certificate(config["hostname"])
         config["cert"] = cert_key_dict["cert"]
         config["key"] = cert_key_dict["key"]
 
     serve_once(config)
+
+
+if __name__ == "__main__":
+    main()
