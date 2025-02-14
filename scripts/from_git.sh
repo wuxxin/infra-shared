@@ -344,7 +344,7 @@ main() {
             elif test "$os_distributor" = "arch"; then
                 pacman -Syu --noconfirm \
                     glibc-locales curl git gnupg git-crypt
-            elif test "$os_distributor" = "manjaro"; then
+            elif test "$os_distributor" = "manjarolinux"; then
                 pamac install --no-confirm --no-upgrade \
                     glibc-locales curl git gnupg git-crypt
             fi
