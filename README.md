@@ -4,7 +4,7 @@
 
 Reusables of a learning project by rewriting parts of my home infrastructure as
 
-a **Pulumi** and **Fedora Coreos** based **Gitops** Project in **Python**.
+a **Pulumi** (Terraform-ish) and **Fedora Coreos** based **Gitops** Project in **Python**.
 
 - See [safe](examples/safe) for usage in an example project
 
@@ -28,7 +28,7 @@ See the [examples](examples/) for code of what else can be done with it
 
 ### Features
 
-- **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
+- **Appliance** based on **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
     - **Setup**: Bootstrap and Reconfiguration of CoreOS with **Jinja templated butane** files
     - **Reconfiguration**: `update-system-config*`
         - Fast (~4s) reconfiguration using saltstack and butane to salt translation
@@ -58,9 +58,9 @@ See the [examples](examples/) for code of what else can be done with it
 
 **Advanced functionality** available with knowledge of:
 
-- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, Pipfile, libvirt, Bash, Mkdocs, Mermaid, Marimo Notebooks
+- Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, pyproject.toml, libvirt, Bash, Mkdocs, Mermaid, Jupyter or Marimo Notebooks
 
-Provision can be run on **Arch** Linux, **Manjaro** Linux or as **Container Image**.
+Provision can be run on **Arch** Linux, Manjaro Linux or as **Container Image**.
 
 #### Tools used
 
@@ -106,12 +106,12 @@ infra/create_skeleton.sh --yes
     - directories created:
         - _docs_, _state_, _target_ with an empty _.gitkeep_ file inside
     - files created:
-        - README.md, \_\_main\_\_.py, Pulumi.yaml, Makefile, Pipfile
+        - README.md, \_\_main\_\_.py, Pulumi.yaml, Makefile, pyproject.toml
         - config-template.yaml, .gitignore, mkdocs.yml, empty authorized_keys
 
 #### Install build requirements
 
-- on arch or manjaro linux
+- on arch linux or manjaro linux
 
 ```sh
 make install-requirements
