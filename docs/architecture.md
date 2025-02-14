@@ -14,5 +14,5 @@
     - target one **provision os** and a **container** for foreign distros and **continous integration** processes
     - facilitate a comfortable local **simulation environment** with **fast reconfiguration** turnaround
 - **documentation** and **interactive notebooks** alongside code
-    - help onboarding with **interactive tinkering** using **jupyter notebooks**
+    - help onboarding with **interactive tinkering** using **jupyter and marimo notebooks**
     - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
