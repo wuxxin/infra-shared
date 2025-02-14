@@ -6,4 +6,4 @@
 
 - [Notebooks](notebooks) - Jupyter and Marimo Notebooks for interactive usage of pulumi and mqtt
 
-- [Skeleton](skeleton) - `Makefile` and `Pipfile` templates for new projects created by `create_skeleton.sh`
+- [Skeleton](skeleton) - `Makefile` and `pyproject.toml` templates for new projects created by `create_skeleton.sh`
