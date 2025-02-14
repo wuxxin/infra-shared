@@ -37,7 +37,6 @@ ExecStart=/usr/bin/bash -c '(\
   printf "id: ${resource_name}\\n"; \
   printf "local: True\\n"; \
   printf "file_client: local\\n"; \
-  printf "log_level_logfile: debug\\n"; \
   printf "default_top: base\\n"; \
   printf "state_top: top.sls\\n"; \
   printf "fileserver_followsymlinks: True\\n"; \
@@ -59,7 +58,8 @@ ExecStart=/usr/bin/bash -c '(\
   printf "sock_dir: ${root_dir}/var/run/salt/minion\\n"; \
   printf "cachedir: ${root_dir}/var/cache/salt/minion\\n"; \
   printf "extension_modules: ${root_dir}/var/cache/salt/minion/extmods\\n"; \
-  printf "log_file: ${root_dir}/var/log/salt/minion\\n"; \
+  printf "log_level_logfile: quiet\\n"; \
+  printf "log_file: /dev/null\\n"; \
 ) > ${root_dir}/minion'
 
 # create sls/top.sls, pillar/top.sls, pillar/main.sls
