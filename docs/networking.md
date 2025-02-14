@@ -28,7 +28,7 @@ Documentation:
 #### forward custom zones to another dns server
 
 ```yaml
-DNS:
+DNS_RESOLVER:
   FORWARD:
     - name: lan
       addr: 127.0.0.1@5353
@@ -41,7 +41,7 @@ DNS:
 #### add custom zone entries and public dns overrides
 
 ```yaml
-DNS:
+DNS_RESOLVER:
   SRV: |
     # STRING, appended to SRV section
 
@@ -66,7 +66,7 @@ DNS:
 #### use non tls custom upstream
 
 ```yaml
-DNS:
+DNS_RESOLVER:
   UPSTREAM:
     # list of ip@port
     - 1.2.3.4@53
@@ -76,7 +76,7 @@ DNS:
 #### add custom unbound config string
 
 ```yaml
-DNS:
+DNS_RESOLVER:
   EXTRA: |
     # STRING, appended to config file must start with a section
     [section-of-unbound.conf]

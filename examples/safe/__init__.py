@@ -101,9 +101,11 @@ host_environment = {
     "LOCALE": {
         key.upper(): value for key, value in config.get_object("locale").items()
     },
-    "DNS": {}
-    if not config.get_object("dns", None)
-    else {key.upper(): value for key, value in config.get_object("dns").items()},
+    "DNS_RESOLVER": {}
+    if not config.get_object("dns_resolver", None)
+    else {
+        key.upper(): value for key, value in config.get_object("dns_resolver").items()
+    },
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRES_PASSWORD": pg_postgres_password.result,
     "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose", True),
@@ -113,7 +115,7 @@ host_environment = {
 
 # modify storage and credentials related config depending stack
 if stack_name.endswith("sim"):
-    # simulation adds qemu-guest-agent, debug=True, and 123 as disk passphrase
+    # simulation adds qemu-guest-agent, debug=True, and 1234 as disk passphrase
     host_environment["RPM_OSTREE_INSTALL"].append("qemu-guest-agent")
     host_environment.update({"DEBUG_CONSOLE_AUTOLOGIN": True})
     luks_root_passphrase = pulumi.Output.concat("1234")
@@ -161,8 +163,7 @@ host_environment.update(
     }
 )
 
-# write the butane target specification
-# everything else is included from files_basedir/*.bu
+# write the butane target specification, everything else is included from files_basedir/*.bu
 butane_yaml = pulumi.Output.format(
     """
 variant: fcos
@@ -176,8 +177,20 @@ host_config = ButaneTranspiler(
 )
 pulumi.export("{}_butane".format(shortname), host_config)
 
+# download metal version of image
+image = FcosImageDownloader(
+    architecture="aarch64", platform="metal", image_format="raw.xz"
+)
+
+# download bios and other extras for customization
+extras = build_raspberry_extras()
+uboot_image_filename = os.path.join(
+    extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
+)
+
 if stack_name.endswith("sim"):
-    # create libvirt machine simulation, same ramsize as PI hardware (on different arch)
+    # create libvirt machine simulation:
+    #   download suitable image, create similar virtual machine, same memsize, different arch
     host_machine = LibvirtIgniteFcos(
         shortname, host_config.result, volumes=identifiers["storage"], memory=4096
     )
@@ -185,14 +198,8 @@ if stack_name.endswith("sim"):
     target = host_machine.vm.network_interfaces[0]["addresses"][0]
     opts = pulumi.ResourceOptions(depends_on=[host_machine])
 else:
-    # download base image
-    image = FcosImageDownloader(
-        architecture="aarch64", platform="metal", image_format="raw.xz"
-    )
-    # download bios and other extras for customization
-    extras = build_raspberry_extras()
-
     # configure later used remote url for remote controlled setup with encrypted config
+
     serve_config = serve_prepare(shortname, timeout_sec=120)
     remote_url = serve_config.config.config["remote_url"]
 
@@ -204,14 +211,15 @@ else:
         shortname, "{}_public.ign".format(shortname), public_config.result
     )
 
-    # customize image, combine extras and config onto it (config, base_image, extras)
-    host_image = None
-
-    # write customized image to removeable storage device
+    # write customized image to removeable storage device, include uboot image and ignition config
     host_boot_media = write_removeable(
         shortname,
-        host_image.result,
-        host_environment["bootdevice"].strip("/dev/disk/by-uuid/"),
+        image=image.imagepath,
+        serial=host_environment["bootdevice"].strip("/dev/disk/by-uuid/"),
+        patches=[
+            (uboot_image_filename, "EFI-SYSTEM/boot/efi/u-boot.bin"),
+            (public_config_file.filename, "boot/ignite.json"),
+        ],
     )
 
     # serve secret part of ign config via serve_once and mandatory client certificate
@@ -219,7 +227,7 @@ else:
 
     # target is metal, write out real dns name
     target = hostname
-    opts = pulumi.ResourceOptions(depends_on=[serve_data])
+    opts = pulumi.ResourceOptions(depends_on=[host_boot_media, serve_data])
 
 
 # update host to newest config, should be a no-op (zero changes) on machine creation

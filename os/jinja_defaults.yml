@@ -2,6 +2,9 @@
 
 # HOSTNAME: will be set to hostname from Butanetranspiler(resource_name, hostname, ...
 
+# DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
+DEBUG_CONSOLE_AUTOLOGIN: false
+
 # FRONTEND:ENABLED true/false, if true traefik is run for tls termination and https routing
 FRONTEND:
   ENABLED: true
@@ -30,11 +33,9 @@ NSPAWN_CIDR: 10.87.241.1/24
 PODMAN_CIDR: 10.88.0.1/16
 PODMAN_POOL_BASE: "10.89"
 
-# DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
-DEBUG_CONSOLE_AUTOLOGIN: false
 
 # DNS Resolver options, see docs/dnsresolver.md
-DNS:
+DNS_RESOLVER:
   # VERBOSITY: "0-5", 0 = none, 5 = most verbose
   VERBOSITY: "1"
   # UPSTREAM_TLS: boolean, defaults: true
@@ -52,4 +53,12 @@ DNS:
   #   # eg. zone entries and public dns overrides
   # EXTRA: |
   #   # custom text appended to unbound.conf, start with new section
+
+DNS_SERVER:
+  ENABLED: true
+
+DNS_ACME_SERVER:
+  ENABLED: true
+
+
 
