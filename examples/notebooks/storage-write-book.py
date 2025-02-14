@@ -34,11 +34,11 @@ def __(mo):
 
 @app.cell
 def __(dbus):
-    args = None
-    # {
-    #    "serial": "20220100016184",
-    #    "imagefile": "state/tmp/sim/fcos/fedora-coreos-41.20241122.1.0-metal.aarch64.raw",
-    # }
+    args = {
+        "serial": "20220100016184",
+        "size": 127865454592,
+        "imagefile": "state/tmp/sim/fcos/fedora-coreos-41.20241122.1.0-metal.aarch64.raw",
+    }
     bus = dbus.SystemBus()
     udisks = bus.get_object(
         "org.freedesktop.UDisks2", "/org/freedesktop/UDisks2", introspect=False
@@ -138,7 +138,14 @@ def __(args, get_block_device, get_removeable_drive, sys, udisks_manager):
                 if block_interface["Size"] == 0:
                     print("ERROR: Size 0 or TimeMediaDetected 0", file=sys.stderr)
                 else:
-                    print("Would write To Storage Device at {}".format(path))
+                    if drive_interface["Size"] != args["size"]:
+                        print(
+                            "ERROR: Size Expected: {}, Actual: {]".format(
+                                args["size"], drive_interface["Size"]
+                            )
+                        )
+                    else:
+                        print("Would write To Storage Device at {}".format(path))
     return block_interface, drive_interface, path
 
 
