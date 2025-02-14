@@ -39,7 +39,7 @@ request_path: "/"
 request_method: "GET"
 request_body_stdout: false
 serve_ip: 0.0.0.0
-serve_port: 8443
+serve_port: 0
 hostname: localhost
 timeout: 30
 cert:
@@ -98,8 +98,12 @@ def generate_self_signed_certificate(hostname: str) -> dict[str, bytes]:
         .issuer_name(issuer)
         .public_key(private_key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.utcnow() - datetime.timedelta(days=1))
-        .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=365))
+        .not_valid_before(
+            datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=1)
+        )
+        .not_valid_after(
+            datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)
+        )
         .add_extension(
             x509.SubjectAlternativeName([x509.DNSName(hostname)]), critical=False
         )
@@ -233,7 +237,7 @@ def serve_once(config: dict[str, Any]) -> None:
                 context.verify_mode = ssl.CERT_REQUIRED
 
         httpd = http.server.HTTPServer(
-            (config["serve_ip"], config["serve_port"]),
+            (config["serve_ip"], int(config["serve_port"])),
             RequestHandler,
             bind_and_activate=False,
         )
@@ -243,7 +247,8 @@ def serve_once(config: dict[str, Any]) -> None:
         httpd.server_bind()
         httpd.server_activate()
 
-        while True:
+        while not RequestHandler.success:
+            # only loop while not successful to allow return
             r, _, _ = select.select([httpd.socket], [], [], httpd.timeout)
             if r:
                 httpd.handle_request()
@@ -260,6 +265,9 @@ def serve_once(config: dict[str, Any]) -> None:
             key_thread.join()
         if temp_dir:
             shutil.rmtree(temp_dir)
+
+    # return the httpd instance to allow shutdown and get address
+    return httpd
 
 
 def main() -> None:
@@ -294,6 +302,7 @@ def main() -> None:
         config["cert"] = cert_key_dict["cert"]
         config["key"] = cert_key_dict["key"]
 
+    verbose_print(f"Starting server on port {config['serve_port']}")
     serve_once(config)
 
 
