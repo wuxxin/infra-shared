@@ -605,40 +605,36 @@ def public_local_export(prefix, filename, data, filter="", delete=False, opts=No
     return DataExport(prefix, filename, data, filter=filter, delete=delete, opts=opts)
 
 
-def salt_config(
-    resource_name, stack_name, base_dir, root_dir=None, tmp_dir=None, sls_dir=None
-):
+def salt_config(resource_name, stack_name, base_dir):
     """generate a saltstack salt config
 
-    - sls_dir defaults to base_dir
     - grains available
       - resource_name, base_dir, root_dir, tmp_dir, sls_dir, pillar_dir
 
     """
 
-    root_dir = root_dir or os.path.join(
-        base_dir, "state", "salt", stack_name, resource_name
-    )
-    tmp_dir = tmp_dir or os.path.join(
-        base_dir, "state", "tmp", stack_name, resource_name
-    )
-    sls_dir = sls_dir if sls_dir else base_dir
+    root_dir = os.path.join(base_dir, "state", "salt", stack_name, resource_name)
+    tmp_dir = os.path.join(base_dir, "state", "tmp", stack_name, resource_name)
+    sls_dir = os.path.join(root_dir, "sls")
     pillar_dir = os.path.join(root_dir, "pillar")
 
     config = yaml.safe_load(
         """
 id: {resource_name}
-local: True
-log_level_logfile: info
+local: true
 file_client: local
+default_top: base
+state_top: top.sls
+fileserver_followsymlinks: true
+fileserver_ignoresymlinks: false
 fileserver_backend:
-- roots
+  - roots
 file_roots:
   base:
-  - {sls_dir}
+    - {sls_dir}
 pillar_roots:
   base:
-  - {pillar_dir}
+    - {pillar_dir}
 grains:
   resource_name: {resource_name}
   base_dir: {base_dir}
@@ -653,7 +649,8 @@ pidfile: {root_dir}/var/run/salt-minion.pid
 sock_dir: {root_dir}/var/run/salt/minion
 cachedir: {root_dir}/var/cache/salt/minion
 extension_modules: {root_dir}/var/cache/salt/minion/extmods
-log_file: {root_dir}/var/log/salt/minion
+log_level_logfile: quiet
+log_file: /dev/null
 
 """.format(
             resource_name=resource_name,
@@ -671,7 +668,7 @@ class LocalSaltCall(pulumi.ComponentResource):
     """configure and execute a saltstack salt-call on a local provision machine
 
     - sls_dir defaults to project_dir
-    - config/run/tmp/cache and other files default to state/salt/stackname
+    - config/run/tmp/cache and other files default to state/salt/stackname/resource_name
     - grains from salt_config available
 
     #### Example: build openwrt image
@@ -693,11 +690,18 @@ class LocalSaltCall(pulumi.ComponentResource):
     ):
         super().__init__("pkg:index:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
-        self.config = salt_config(resource_name, stack, project_dir, sls_dir=sls_dir)
+        self.config = salt_config(resource_name, stack, project_dir)
         pillar_dir = self.config["grains"]["pillar_dir"]
+        dest_sls_dir = self.config["grains"]["sls_dir"]
 
         os.makedirs(self.config["root_dir"], exist_ok=True)
         os.makedirs(pillar_dir, exist_ok=True)
+        if not sls_dir:
+            sls_dir = project_dir
+        if os.path.islink(dest_sls_dir) and os.readlink(dest_sls_dir) != sls_dir:
+            os.remove(dest_sls_dir)
+        if not os.path.exists(dest_sls_dir):
+            os.symlink(sls_dir, dest_sls_dir, target_is_directory=True)
 
         with open(self.config["conf_file"], "w") as m:
             m.write(yaml.safe_dump(self.config))
@@ -708,7 +712,7 @@ class LocalSaltCall(pulumi.ComponentResource):
 
         self.executed = command.local.Command(
             resource_name,
-            create="pipenv run salt-call -c {conf_dir} {args}".format(
+            create="uv run salt-call -c {conf_dir} {args}".format(
                 conf_dir=self.config["root_dir"],
                 args=" ".join(args),
             ),
@@ -890,6 +894,7 @@ class ServePrepare(pulumi.ComponentResource):
         timeout_sec: int = 45,
         port_base: int = 47000,
         port_range: int = 3000,
+        mtls_clientid: str = "",
         opts: pulumi.Input[object] = None,
     ) -> None:
         from .authority import config, ca_factory, provision_host_tls
@@ -913,6 +918,7 @@ class ServePrepare(pulumi.ComponentResource):
             "key": provision_host_tls.key.private_key_pem,
             "ca_cert": ca_factory.root_cert_pem,
             "mtls": True,
+            "mtls_clientid": mtls_clientid,
             "payload": None,
             "remote_url": "https://{ip}:{port}/".format(
                 ip=get_default_host_ip(),
@@ -969,14 +975,21 @@ class ServeOnce(pulumi.ComponentResource):
 class WriteRemoveable(pulumi.ComponentResource):
     """Writes image from given image_path to specified serial_numbered removable storage device"""
 
-    def __init__(self, resource_name, image_path, serial_number, opts=None):
+    def __init__(self, resource_name, image, serial, size=0, patches=None, opts=None):
         super().__init__("pkg:index:WriteRemoveable", resource_name, None, opts)
+
+        create_str = (
+            "scripts/write_removeable.py --silent"
+            + " --source-image {}".format(image)
+            + " --dest-serial {} --dest-size {}".format(serial, size)
+            + "".join(
+                [" --patch {} {}".format(source, dest) for source, dest in patches]
+            )
+        )
 
         self.executed = command.local.Command(
             resource_name,
-            create="scripts/write_removeable.py --yes {} {}".format(
-                image_path, serial_number
-            ),
+            create=create_str,
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.result = self.executed.returncode
@@ -1006,10 +1019,12 @@ def serve_simple(resource_name, yaml_str, opts=None):
     return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
 
 
-def write_removeable(resource_name, image_path, serial_number, opts=None):
+def write_removeable(resource_name, image, serial, size=0, patches=None, opts=None):
     return WriteRemoveable(
         "write_removeable_{}".format(resource_name),
-        image_path=image_path,
-        serial_number=serial_number,
+        image=image,
+        serial=serial,
+        size=size,
+        patches=patches,
         opts=opts,
     )
