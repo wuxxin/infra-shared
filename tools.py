@@ -712,7 +712,8 @@ class LocalSaltCall(pulumi.ComponentResource):
 
         self.executed = command.local.Command(
             resource_name,
-            create="uv run salt-call -c {conf_dir} {args}".format(
+            create="uv run {scripts_dir}/salt-call.py -c {conf_dir} {args}".format(
+                scripts_dir=os.path.join(this_dir, "scripts"),
                 conf_dir=self.config["root_dir"],
                 args=" ".join(args),
             ),
