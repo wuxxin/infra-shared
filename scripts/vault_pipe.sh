@@ -8,14 +8,14 @@ Usage:  <json-from-stdin> | $0 --yes | <json-to-stdout>
 
 use vault as a commandline pipe (non recommended usage),
   input configuration JSON from STDIN,
-  output a root authority and a provision authority certificate as JSON to STDOUT.
+  output a root authority and two provision authority certificates as JSON to STDOUT.
 
 because of vaults excellent pki support, this includes support for permitted_dns_domains.
 
 input
   - must contain the following json dictionary, with some defaults
   - may contain "ca_permitted_domains", defaults to ""
-  - may contain "ca_max_path_length", defaults to 2 if not present
+  - may contain "ca_max_path_length", defaults to 3 if not present
   - may contain "ca_validity_period_hours", defaults to 70080 (8 Years) if not present
   - additional entries are ignored
 
@@ -26,11 +26,14 @@ STDIN:JSON
   "ca_unit": "",
   "ca_locality": "",
   "ca_country": "",
+  "ca_permitted_domains": "",
   "ca_dns_names": "",
   "ca_provision_name": "",
   "ca_provision_unit": "",
   "ca_provision_dns_names": "",
-  "ca_permitted_domains": "",
+  "ca_alt_provision_name": "",
+  "ca_alt_provision_unit": "",
+  "ca_alt_provision_dns_names": "",
   "ca_validity_period_hours": "${default_ca_validity_period}",
   "ca_max_path_length": "${default_ca_max_path_length}"
 }
@@ -44,7 +47,10 @@ STDOUT:JSON
   "ca_root_cert_pem": "",
   "ca_provision_key_pem": "",
   "ca_provision_request_pem": "",
-  "ca_provision_cert_pem": ""
+  "ca_provision_cert_pem": "",
+  "ca_alt_provision_key_pem": "",
+  "ca_alt_provision_request_pem": "",
+  "ca_alt_provision_cert_pem": ""
 }
 
 EOF
@@ -73,7 +79,7 @@ waitfor_port() { # $1=hostname $2=port [$3=maxretries]
 # main
 
 default_ca_validity_period=$((24 * 365 * 8))
-default_ca_max_path_length=2
+default_ca_max_path_length=3
 
 if test "$1" != "--yes"; then
   usage
@@ -82,7 +88,7 @@ fi
 
 # read config from stdin
 config_json="$(cat -)"
-# printf "%s" "$config_json" >/home/wuxxin/code/athome/state/tmp/vault_input.json
+# printf "%s" "$config_json" >/tmp/vault_input.json
 
 ca_name=$(echo "$config_json" | jq ".ca_name" -r -e)
 ca_org=$(echo "$config_json" | jq ".ca_org" -r -e)
@@ -93,6 +99,9 @@ ca_dns_names=$(echo "$config_json" | jq ".ca_dns_names" -r -e)
 ca_provision_name=$(echo "$config_json" | jq ".ca_provision_name" -r -e)
 ca_provision_unit=$(echo "$config_json" | jq ".ca_provision_unit" -r -e)
 ca_provision_dns_names=$(echo "$config_json" | jq ".ca_provision_dns_names" -r -e)
+ca_alt_provision_name=$(echo "$config_json" | jq ".ca_alt_provision_name" -r -e)
+ca_alt_provision_unit=$(echo "$config_json" | jq ".ca_alt_provision_unit" -r -e)
+ca_alt_provision_dns_names=$(echo "$config_json" | jq ".ca_alt_provision_dns_names" -r -e)
 
 # make permitted_dns_domains an optional parameter to vault
 optional_ca_permitted_domains=""
@@ -146,7 +155,7 @@ ca_root_raw="$(
     alt_names="${ca_dns_names}" \
     "${optional_ca_permitted_domains}"
 )"
-# echo "$ca_root_raw" > ca_root_raw.txt
+# echo "$ca_root_raw" >/tmp/ca_root_raw.txt
 
 prov_req_raw="$(
   vault write -format json pki/intermediate/generate/exported \
@@ -160,9 +169,24 @@ prov_req_raw="$(
     ou="${ca_provision_unit}" \
     alt_names="${ca_provision_dns_names}"
 )"
+ca_provision_request_pem=$(echo "$prov_req_raw" | jq ".data.csr" -r)
 # echo "$prov_req_raw" >prov_req_raw.txt
 
-ca_provision_request_pem=$(echo "$prov_req_raw" | jq ".data.csr" -r)
+alt_prov_req_raw="$(
+  vault write -format json pki/intermediate/generate/exported \
+    key_type="ec" \
+    key_bits="384" \
+    exclude_cn_from_sans=true \
+    common_name="${ca_alt_provision_name}" \
+    country="${ca_country}" \
+    locality="${ca_locality}" \
+    organization="${ca_org}" \
+    ou="${ca_alt_provision_unit}" \
+    alt_names="${ca_alt_provision_dns_names}"
+)"
+ca_alt_provision_request_pem=$(echo "$alt_prov_req_raw" | jq ".data.csr" -r)
+# echo "$alt_prov_req_raw" >/tmp/alt_prov_req_raw.txt
+
 prov_cert_raw="$(
   echo "$ca_provision_request_pem" |
     vault write -format json pki/root/sign-intermediate \
@@ -172,19 +196,36 @@ prov_cert_raw="$(
       exclude_cn_from_sans=true \
       use_csr_values=true
 )"
-# echo "$prov_cert_raw" >prov_cert_raw.txt
+# echo "$prov_cert_raw" >/tmp/prov_cert_raw.txt
+
+alt_prov_cert_raw="$(
+  echo "$ca_alt_provision_request_pem" |
+    vault write -format json pki/root/sign-intermediate \
+      csr=- \
+      ttl=${ca_provision_validity_period_hours} \
+      max_path_length=$((ca_max_path_length - 1)) \
+      exclude_cn_from_sans=true \
+      use_csr_values=true
+)"
+# echo "$alt_prov_cert_raw" >/tmp/alt_prov_cert_raw.txt
 
 ca_root_json=$(echo "$ca_root_raw" |
   jq "{ca_root_key_pem: .data.private_key, ca_root_cert_pem:.data.certificate}")
 ca_prov_req_json=$(echo "$prov_req_raw" |
   jq "{ca_provision_key_pem: .data.private_key, ca_provision_request_pem: .data.csr}")
+ca_alt_prov_req_json=$(echo "$alt_prov_req_raw" |
+  jq "{ca_alt_provision_key_pem: .data.private_key, ca_alt_provision_request_pem: .data.csr}")
 ca_prov_cert_json=$(echo "$prov_cert_raw" |
   jq "{ca_provision_cert_pem: .data.certificate}")
+ca_alt_prov_cert_json=$(echo "$alt_prov_cert_raw" |
+  jq "{ca_alt_provision_cert_pem: .data.certificate}")
 
 vault_result=$(echo "$ca_root_json
 $ca_prov_req_json
-$ca_prov_cert_json" | jq -s 'add')
-# printf "%s" "$vault_result" >vault_result.json
+$ca_alt_prov_req_json
+$ca_prov_cert_json
+$ca_alt_prov_cert_json" | jq -s 'add')
+# printf "%s" "$vault_result" >/tmp/vault_result.json
 echo "$vault_result"
 
 kill -1 $vault_pid &>/dev/null || true

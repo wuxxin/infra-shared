@@ -26,6 +26,7 @@ from infra.authority import (
 
 __ca_dns_list = ["ca.totally-fine"]
 __prov_dns_list = __ca_dns_list
+__alt_prov_dns_list = __ca_dns_list
 
 ca_config = {
     "ca_name": "not-at-all-suspicious-Root-CA",
@@ -41,6 +42,10 @@ ca_config = {
     "ca_provision_unit": "Very Cyber Provision Unit",
     "ca_provision_dns_names_list": __prov_dns_list,
     "ca_provision_dns_names": ",".join(__prov_dns_list),
+    "ca_alt_provision_name": "very-alternate-not-at-all-Provision-CA",
+    "ca_alt_provision_unit": "Very Alternate Cyber Provision Unit",
+    "ca_alt_provision_dns_names_list": __alt_prov_dns_list,
+    "ca_alt_provision_dns_names": ",".join(__alt_prov_dns_list),
     # XXX mimic a public available root-ca chain, validity hours of certs must meet public criteria
     # https://superuser.com/questions/1492207/
     "cert_validity_period_hours": default_hours_public_cert,

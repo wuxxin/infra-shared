@@ -2,20 +2,26 @@
 ## Pulumi - Authority - TLS/X509 Certificates, OpenSSH Keys
 
 ### Config Values
-- ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_dns_names,
-- ca_provision_name, ca_provision_unit, ca_provision_dns_names, ca_permitted_domains
-- ca_validity_period_hours, ca_max_path_length, ca_create_using_vault, cert_validity_period_hours
+- ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_max_path_length, ca_create_using_vault
+- ca_validity_period_hours, cert_validity_period_hours
+- ca_permitted_domains, ca_dns_names,
+- ca_provision_name, ca_provision_unit, ca_provision_dns_names
+- ca_alt_provision_name, ca_alt_provision_unit, ca_alt_provision_dns_names
+- ca_extra_cert_bundle
 - ssh_provision_name
 
 ### useful resources
 - config, stack_name, project_name, this_dir, project_dir
 - ca_config
-    - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_validity_period_hours, ca_max_path_length
-    - ca_dns_names_list,ca_dns_names, ca_provision_name, ca_provision_unit, ca_provision_dns_names_list
-    - ca_provision_dns_names, ca_permitted_domains_list, ca_permitted_domains, cert_validity_period_hours
+    - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_max_path_length
+    - ca_validity_period_hours, cert_validity_period_hours
+    - ca_permitted_domains, ca_permitted_domains_list, ca_dns_names, ca_dns_names_list
+    - ca_provision_name, ca_provision_unit, ca_provision_dns_names, ca_provision_dns_names_list
+    - ca_alt_provision_name, ca_alt_provision_unit, ca_alt_provision_dns_names, ca_alt_provision_dns_names_list
 - ca_factory
     - ca_type, root_key_pem, root_cert_pem, root_bundle_pem
     - provision_key_pem, provision_request_pem, provision_cert_pem
+    - alt_provision_key_pem, alt_provision_request_pem, alt_provision_cert_pem
 - ssh_provision_name
 - ssh_factory
     - provision_key, provision_publickey, authorized_keys
@@ -180,6 +186,15 @@ class CACertFactoryVault(pulumi.ComponentResource):
             ca_secrets["ca_provision_request_pem"]
         )
         self.provision_cert_pem = Output.unsecret(ca_secrets["ca_provision_cert_pem"])
+        self.alt_provision_key_pem = Output.secret(
+            ca_secrets["ca_alt_provision_key_pem"]
+        )
+        self.alt_provision_request_pem = Output.unsecret(
+            ca_secrets["ca_alt_provision_request_pem"]
+        )
+        self.alt_provision_cert_pem = Output.unsecret(
+            ca_secrets["ca_alt_provision_cert_pem"]
+        )
         self.register_outputs({})
 
 
@@ -192,6 +207,8 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
                 "'ca_max_path_length' is unsupported. use CACertFactoryVault"
             )
 
+        # create root key, root cert
+        # XXX protect CA Cert because it will always be an error to delete it
         ca_uses = ["cert_signing", "crl_signing"]
         ca_root_key = tls.PrivateKey(
             "{}_root_key".format(name),
@@ -215,12 +232,22 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
             ),
             opts=pulumi.ResourceOptions(parent=self, protect=True),
         )
+
+        # create provision and alt provision key
         ca_provision_key = tls.PrivateKey(
             "{}_provision_key".format(name),
             algorithm="ECDSA",
             ecdsa_curve="P384",
             opts=pulumi.ResourceOptions(parent=self),
         )
+        ca_alt_provision_key = tls.PrivateKey(
+            "{}_alt_provision_key".format(name),
+            algorithm="ECDSA",
+            ecdsa_curve="P384",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        # create provision and alt provision cert request
         ca_provision_request = tls.CertRequest(
             "{}_prov_request".format(name),
             private_key_pem=ca_provision_key.private_key_pem,
@@ -234,7 +261,22 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
             ),
             opts=pulumi.ResourceOptions(parent=self),
         )
-        # substract one day from validity_period_hours of root ca for provision ca
+        ca_alt_provision_request = tls.CertRequest(
+            "{}_alt_prov_request".format(name),
+            private_key_pem=ca_alt_provision_key.private_key_pem,
+            dns_names=ca_config["ca_alt_provision_dns_names_list"],
+            subject=tls.CertRequestSubjectArgs(
+                common_name=ca_config["ca_alt_provision_name"],
+                organizational_unit=ca_config["ca_alt_provision_unit"],
+                organization=ca_config["ca_org"],
+                country=ca_config["ca_country"],
+                locality=ca_config["ca_locality"],
+            ),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        # create provision and alt provision cert
+        # substract one day from validity_period_hours of root ca for [alt] provision ca
         ca_provision_cert = tls.LocallySignedCert(
             "{}_provision_cert".format(name),
             allowed_uses=ca_uses,
@@ -245,6 +287,17 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
             is_ca_certificate=True,
             opts=pulumi.ResourceOptions(parent=self),
         )
+        ca_alt_provision_cert = tls.LocallySignedCert(
+            "{}_alt_provision_cert".format(name),
+            allowed_uses=ca_uses,
+            ca_cert_pem=ca_root_cert.cert_pem,
+            ca_private_key_pem=ca_root_key.private_key_pem,
+            cert_request_pem=ca_alt_provision_request.cert_request_pem,
+            validity_period_hours=(ca_config["ca_validity_period_hours"] - 24),
+            is_ca_certificate=True,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
         # hash ca_root cert, needed for symlinking and therelike
         ca_root_hash = command.local.Command(
             "{}_root_hash".format(name),
@@ -263,6 +316,9 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
         self.provision_key_pem = ca_provision_key.private_key_pem
         self.provision_request_pem = ca_provision_request.cert_request_pem
         self.provision_cert_pem = ca_provision_cert.cert_pem
+        self.alt_provision_key_pem = ca_alt_provision_key.private_key_pem
+        self.alt_provision_request_pem = ca_alt_provision_request.cert_request_pem
+        self.alt_provision_cert_pem = ca_alt_provision_cert.cert_pem
         self.register_outputs({})
 
 
@@ -585,6 +641,7 @@ __ca_dns_list = config.get_object(
     ["ca.{}.lan".format(project_name), "ca.{}.{}".format(project_name, project_name)],
 )
 __prov_dns_list = config.get_object("ca_provision_dns_names", __ca_dns_list)
+__alt_prov_dns_list = config.get_object("ca_alt_provision_dns_names", __ca_dns_list)
 
 ca_config = {
     "ca_name": config.get("ca_name", "{}-{}-Root-CA".format(project_name, stack_name)),
@@ -595,20 +652,29 @@ ca_config = {
     "ca_validity_period_hours": config.get_int(
         "ca_validity_period_hours", default_hours_ca
     ),
-    "ca_dns_names_list": __ca_dns_list,
+    "cert_validity_period_hours": config.get_int(
+        "cert_validity_period_hours", default_hours_private_cert
+    ),
+    "ca_extra_cert_bundle": config.get("ca_extra_cert_bundle", "\n"),
+    "ca_permitted_domains": ",".join(__ca_permitted_list),
+    "ca_permitted_domains_list": __ca_permitted_list,
     "ca_dns_names": ",".join(__ca_dns_list),
+    "ca_dns_names_list": __ca_dns_list,
     "ca_provision_name": config.get(
         "ca_provision_name", "{}-{}-Provision-CA".format(project_name, stack_name)
     ),
     "ca_provision_unit": config.get("ca_provision_unit", "Certificate Provision"),
-    "ca_provision_dns_names_list": __prov_dns_list,
     "ca_provision_dns_names": ",".join(__prov_dns_list),
-    "ca_permitted_domains_list": __ca_permitted_list,
-    "ca_permitted_domains": ",".join(__ca_permitted_list),
-    "ca_extra_cert_bundle": config.get("ca_extra_cert_bundle", "\n"),
-    "cert_validity_period_hours": config.get_int(
-        "cert_validity_period_hours", default_hours_private_cert
+    "ca_provision_dns_names_list": __prov_dns_list,
+    "ca_alt_provision_name": config.get(
+        "ca_alt_provision_name",
+        "{}-{}-Alternate-Provision-CA".format(project_name, stack_name),
     ),
+    "ca_alt_provision_unit": config.get(
+        "ca_alt_provision_unit", "Alternate Certificate Provision"
+    ),
+    "ca_alt_provision_dns_names": ",".join(__alt_prov_dns_list),
+    "ca_alt_provision_dns_names_list": __alt_prov_dns_list,
 }
 pulumi.export("ca_config", ca_config)
 
