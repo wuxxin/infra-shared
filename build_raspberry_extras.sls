@@ -1,15 +1,15 @@
 {# Raspberry PI Extras
 
 - support for rasberry 4
-- limited support for 3 and 5
+- limited support for 3
 
 - outputs
   - raspberry/eeprom_rpi4
     - eeprom update for rpi4
   - raspberry/uboot
     - uboot bios boot for rpi4
-  - raspberry/uefi_rpi[345]
-    - uefi bios boot for rpi[345]
+  - raspberry/uefi_rpi[34]
+    - uefi bios boot for rpi[34]
 
 #}
 
@@ -107,11 +107,9 @@ rpi_fcos_uboot_copy_rpi4_bin:
     - requires:
       - file: rpi_fcos_uboot_dir
       - file: rpi_fcos_uboot_extracted
-{% endfor %}
 
-
-{# ### uefi bios for rpi3, rpi4 and rpi5 #}
-{% for uefi_rpi in ["uefi_rpi3", "uefi_rpi4", "uefi_rpi5"] %}
+{# ### uefi bios for rpi3, rpi4 #}
+{% for uefi_rpi in ["uefi_rpi3", "uefi_rpi4"] %}
   {% set dest_dir = tmp_dir ~ "/" ~ uefi_rpi %}
 
 rpi_fcos_{{ uefi_rpi }}_dir:
