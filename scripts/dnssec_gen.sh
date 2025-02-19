@@ -3,32 +3,39 @@ set -eo pipefail
 # set -x
 
 TEMP_DIR_BASE="/run/user/$(id -u)"
-KEY_DIR_NAME="dnssec-keys-$(date +%Y%m%d%H%M%S)"
-TEMP_DIR="${TEMP_DIR_BASE}/${KEY_DIR_NAME}"
-ID=""
+ZONE=""
 
 usage() {
   cat <<EOF
 
-Usage: $0 --id name
-  
-  Generates DNSSEC KSK, ZSK and AnchorData for resolver and TSIG keys for Knot DNS and outputs them as JSON.
-  Ensures temporary Knot database is also in runtime temp and deleted.
+Usage: $0 --zone name
+
+  Generates DNSSEC KSK, ZSK and Anchor Data (DS records of KSK) for Knot DNS and outputs them as JSON.
+  Ensures that created temporary files are in ram temp and deleted afterwards.
 EOF
 }
 
 cleanup() {
+  # $? contains the exit code of the last command
+  local exit_code=$?
+
   if test -d "${TEMP_DIR}"; then
-    if test -e "${TEMP_DIR}/knot.conf"; then
-      cat "${TEMP_DIR}/knot.conf"
+    # Only print the config file on error (non-zero exit code)
+    if test "$exit_code" -ne 0 && test -e "${TEMP_DIR}/knot.conf"; then
+      echo "An error occurred. Knot configuration:" >&2  # Output to stderr
+      cat "${TEMP_DIR}/knot.conf" >&2
     fi
     rm -rf "${TEMP_DIR}"
   fi
+  exit "$exit_code"
 }
 
 generate_keys() {
-  mkdir -p "${TEMP_DIR}"
-  chmod 0700 "${TEMP_DIR}"
+  TEMP_DIR=$(mktemp -d -p "${TEMP_DIR_BASE}" "dnssec-keys-XXXXXXXXXX")
+  if [[ ! -d "$TEMP_DIR" ]]; then
+    echo "Error: Failed to create temporary directory" >&2
+    exit 1
+  fi
 
   cat > "${TEMP_DIR}/knot.conf" <<EOF
 server:
@@ -37,44 +44,41 @@ database:
   storage: ${TEMP_DIR}
 # Define a minimal zone
 zone:
-  - domain: ${ID}
+  - domain: ${ZONE}
     storage: ${TEMP_DIR}
     journal-content: none
 EOF
 
-  # Generate DNSSEC keys
-  keymgr -c "${TEMP_DIR}/knot.conf" "${ID}" generate algorithm=ecdsap256sha256 ksk=true
-  keymgr -c "${TEMP_DIR}/knot.conf" "${ID}" generate algorithm=ecdsap256sha256 zsk=true
-  KSK_DATA="FIXME"
-  ZSK_DATA="FIXME"
-  ANCHOR_DATA="FIXME"
-  
-  # Generate TSIG keys
-  TRANSFER_SECRET=$(keymgr -t transfer-${ID} hmac-sha256 | grep secret | awk '{print $2}')
-  UPDATE_SECRET=$(keymgr -t update-${ID} hmac-sha256 | grep secret | awk '{print $2}')
-  NOTIFY_SECRET=$(keymgr -t notify-${ID} hmac-sha256 | grep secret | awk '{print $2}')
-  
-  # return JSON output
-  echo "{"
-  echo "  \"ksk\": $(echo "$KSK_DATA" | jq -c .),"
-  echo "  \"zsk\": $(echo "$ZSK_DATA" | jq -c .),"
-  echo "  \"transfer\": \"${TRANSFER_SECRET}\","
-  echo "  \"update\": \"${UPDATE_SECRET}\","
-  echo "  \"notify\": \"${NOTIFY_SECRET}\","
-  echo "  \"anchor\": $(echo "$ANCHOR_DATA" | jq -c .)"
-  echo "}"
+  # Generate DNSSEC keys and capture Key IDs
+  KSK_ID=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" generate algorithm=ecdsap256sha256 ksk=true)
+  ZSK_ID=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" generate algorithm=ecdsap256sha256 zsk=true)
 
+  # Generate DS records for KSK (trust anchor)
+  ANCHOR_DATA=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" ds)
+  KSK_DATA=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" dnskey "$KSK_ID")
+  ZSK_DATA=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" dnskey "$ZSK_ID")
+
+  # return JSON output
+  jq -n \
+    --arg ksk "$KSK_DATA" \
+    --arg zsk "$ZSK_DATA" \
+    --arg anchor "$ANCHOR_DATA" \
+    '{
+      ksk: $ksk,
+      zsk: $zsk,
+      anchor: $anchor
+    }'
 }
 
 
 # ### main
 
 trap cleanup EXIT
-if test "$1" = "--id" -a "$2" != ""; then
-  ID="$2"
+if test "$1" = "--zone" -a "$2" != ""; then
+  ZONE="$2"
   shift 2
 else
-  echo "Error: missing --id name"
+  echo "Error: missing --zone name"
   usage
   exit 1
 fi
