@@ -29,6 +29,10 @@ Documentation:
 - `"text"|regex_search(pattern)`
 - `"text"|regex_match(pattern)`
 - `"text"|regex_replace(pattern, replacement)`
+- `"a.b.c.d/xy"|cidr2ip(index=0)`
+    - Converts a CIDR notation to an IP address.
+    - Args: cidr  (str): The CIDR notation (e.g., "192.168.1.0/24").
+            index (int, optional): The 0-based index of the usable IP address to return.
 - `{"key": "value"}|yaml(inline=False)`
     - dump dict structure to yaml string
     - set inline=True for compact representation, default is multiline
