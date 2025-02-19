@@ -1,7 +1,5 @@
 # static traefik config
 
-{% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
-
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
@@ -45,7 +43,7 @@ entryPoints:
 providers:
   docker:
     # .container and compose container can be configured for traefik with labels
-    endpoint: tcp://{{ cidr2ip(INTERNAL_CIDR) }}:2375
+    endpoint: tcp://{{ INTERNAL_CIDR|cidr2ip }}:2375
     watch: true
     exposedbydefault: false
 
