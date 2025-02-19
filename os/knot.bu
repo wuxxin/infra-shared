@@ -1,0 +1,153 @@
+{#              ttl: 2 hours, refresh: 4 hours, retry: 30 min, expire: 3 weeks,   nxdomain: 4 hours #}
+{% set common={"ttl": 7200,  "refresh": 14400, "retry": 1800, "expire": 1814400, "nxdomain": 14400 } %}
+
+storage:
+  directories:
+    # knot zone files configuration directory
+    - path: /etc/local/knot/internal
+      mode: 0700
+
+  files:
+    # knot container template
+    - path: /etc/containers/systemd/knot@.container
+      contents:
+        local: container/knot@.container
+
+    # knot container exec-start-pre service: copy TSK keys from credentials into config
+    - path: /etc/systemd/system/knot-startpre@.service
+      contents:
+        inline: |
+          [Unit]
+          Description=Knot Pre-Start Script (%i)
+          BindsTo=knot@%i.service
+          Before=knot@%i.service
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          
+          ExecStart=/usr/bin/bash -c '\
+            transfer-%i.key=$(cat /etc/credstore/transfer-%i.key)\
+            update-%i.key=$(cat /etc/credstore/update-%i.key)\
+            notify-%i.key=$(cat /etc/credstore/notify-%i.key)\
+            envsubst < /etc/local/knot/%i/knot.template > /etc/local/knot/%i/knot.cfg'
+
+          [Install]
+          WantedBy=multi-user.target
+
+    # internal container instance
+    - path: /etc/containers/systemd/knot@internal.container
+      contents:
+        inline: |          
+          [Container]
+          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:583:53/udp
+          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:583:53/tcp
+    
+    # internal knot server config
+    - path: /etc/local/knot/internal/knot.template
+      contents:
+        inline: |
+          server:
+            rundir: /run/knot
+            user: knot:knot
+            listen:
+              - 0.0.0.0@53
+          log:
+          - target: syslog
+            any: info              
+          database:
+            storage: /var/lib/knot
+          template:
+            id: default
+            storage: /var/lib/knot
+            semantic-checks: on
+            serial-policy: unixtime
+            # zonefile-sync: -1 do not touch source zone files, keep dnssec and ddns entries in journal
+            zonefile-sync: -1
+            # difference-no-serial: ignore serial, only look if file has changed
+            zonefile-load: difference-no-serial
+            journal-content: changes
+            file: '%s.zone'
+          key:
+          - id: transfer-internal
+            algorithm: hmac-sha256
+            secret: ${transfer-internal.key}
+          - id: update-internal
+            algorithm: hmac-sha256
+            secret: ${update-internal.key}
+          - id: notify-internal
+            algorithm: hmac-sha256
+            secret: ${notify-internal.key}
+          zone:
+          - domain: internal
+            dnssec-signing: on
+            dnssec-signing-key: zsk-internal
+            dnssec-ksk: ksk-internal
+            allow-transfer:
+              - key: transfer-internal
+            allow-update:
+              - key: update-internal
+            notify:
+              - key: notify-internal
+          
+          - domain: podman
+            dnssec-signing: on
+            dnssec-signing-key: zsk-internal
+            dnssec-ksk: ksk-internal
+            allow-transfer:
+              - key: transfer-internal
+            allow-update:
+              - key: update-internal
+            notify:
+              - key: notify-internal
+
+          - domain: nspawn
+            dnssec-signing: on
+            dnssec-signing-key: zsk-internal
+            dnssec-ksk: ksk-internal
+            allow-transfer:
+              - key: transfer-internal
+            allow-update:
+              - key: update-internal
+            notify:
+              - key: notify-internal
+
+    # internal zone
+    - path: /etc/local/knot/internal/internal.zone
+      contents:
+        inline: |
+          $TTL {{ common.ttl }}
+          @    IN SOA ns.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @    NS ns.internal.
+          ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
+          dns  A {{ INTERNAL_CIDR|cidr2ip }}
+          self A {{ INTERNAL_CIDR|cidr2ip }}
+          _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
+          {{ INTERNAL_CIDR|cidr2ip }}  IN PTR  self.internal.
+    
+    # podman zone
+    - path: /etc/local/knot/internal/podman.zone
+      contents:
+        inline: |
+          $TTL {{ common.ttl }}
+          @   IN SOA ns.podman. postmaster.podman. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @   NS ns.podman.
+          ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
+          dns  A {{ PODMAN_CIDR|cidr2ip }}
+          self A {{ PODMAN_CIDR|cidr2ip }}
+          _dns.podman. IN SVCB 1 dns.podman alpn=dot port=853
+          {{ PODMAN_CIDR|cidr2ip }}  IN PTR  self.podman.
+  
+    # nspawn zone
+    - path: /etc/local/knot/internal/nspawn.zone
+      contents:
+        inline: |
+          $TTL {{ common.ttl }}
+          @   IN SOA ns.nspawn. postmaster.nspawn. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @   NS ns.nspawn.
+          ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
+          dns  A {{ NSPAWN_CIDR|cidr2ip }}
+          self A {{ NSPAWN_CIDR|cidr2ip }}
+          _dns.nspawn. IN SVCB 1 dns.nspawn alpn=dot port=853
+          {{ NSPAWN_CIDR|cidr2ip }}  IN PTR  self.nspawn.
+    
