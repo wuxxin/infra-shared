@@ -19,7 +19,8 @@ storage:
 - encrypted_local_export
 - public_local_export
 
-debug:
+tool:
+- yaml_loads
 - log_warn
 
 ### Components
@@ -46,6 +47,8 @@ import pulumi
 import pulumi_command as command
 import yaml
 
+from typing import Any, Optional, Type
+from pulumi.output import Input, Output
 from pulumi.dynamic import Resource, ResourceProvider, CreateResult, UpdateResult
 from .template import join_paths
 
@@ -63,6 +66,31 @@ def log_warn(x):
             ]
         )
     )
+
+
+def yaml_loads(
+    s: Input[str], *, Loader: Optional[Type[yaml.Loader]] = None
+) -> "Output[Any]":
+    """
+    Uses yaml.safe_load to deserialize the given YAML Input[str] value into a value.
+
+    Args:
+        s: The YAML string to deserialize.  This should be an Input[str].
+        Loader:  Optional YAML Loader to use. Defaults to yaml.SafeLoader.
+    Returns:
+        An Output[Any] representing the deserialized YAML value.
+    """
+
+    def loads(s: str) -> Any:
+        # default to SafeLoader for security
+        loader_to_use = Loader or yaml.SafeLoader
+        try:
+            return yaml.load(s, Loader=loader_to_use)
+        except yaml.YAMLError as e:
+            raise Exception(f"Failed to parse YAML: {e}") from e
+
+    s_output: Output[str] = Output.from_input(s)
+    return s_output.apply(loads)
 
 
 def sha256sum_file(filename):
