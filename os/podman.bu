@@ -1,5 +1,4 @@
 # butane config
-# {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 storage:
   files:
@@ -23,7 +22,7 @@ storage:
           # podman defaults to less capabilities than docker
           # docker additionaly adds "AUDIT_WRITE", "MKNOD" and "NET_RAW"
           # if needed, use the --cap-add option or edit here
-          dns_servers = ["{{ cidr2ip(INTERNAL_CIDR) }}", ]
+          dns_servers = ["{{ INTERNAL_CIDR|cidr2ip }}", ]
 
           [network]
           # make podman alias podman0 a 16Bit Network
@@ -45,6 +44,13 @@ storage:
           [machine]
           [secrets.opts]
 
+    # pipe string list of requested credentials from butane env to service env
+    - path: /etc/locals/environment/container-secrets.env
+      contents:
+        inline: |
+          PODMAN_LOAD_SECRETS={{ PODMAN_LOAD_SECRETS }}
+          # be used by container-secrets.service
+
 systemd:
   units:
     # mask docker.service/socket, because we will use podman only
@@ -58,7 +64,7 @@ systemd:
     - name: podman.socket
       mask: true
 
-    # load /etc/credstore/* into podman secrets
+    # load /etc/credstore/${PODMAN_LOAD_SECRETS} into podman secrets
     - name: container-secrets.service
       enabled: true
       contents_local: os/container-secrets.service
