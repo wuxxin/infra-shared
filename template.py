@@ -29,11 +29,14 @@ import os
 import re
 import stat
 import subprocess
+import ipaddress
 
 import chardet
 import jinja2
 import jinja2.ext
 import yaml
+
+from typing import Optional, Union, List
 
 
 def join_paths(basedir, *filepaths):
@@ -128,6 +131,7 @@ class ToolsExtension(jinja2.ext.Extension):
         self.environment.filters["regex_match"] = self.regex_match
         self.environment.filters["regex_replace"] = self.regex_replace
         self.environment.filters["yaml"] = self.yaml
+        self.environment.filters["cidr2ip"] = self.cidr2ip
 
     def list_files(self, value):
         "returns available files in searchpath[0]/value as string, newline seperated"
@@ -226,19 +230,73 @@ class ToolsExtension(jinja2.ext.Extension):
         """
         return yaml.safe_dump(value, default_flow_style=inline)
 
+    def cidr2ip(self, value: str, index: int = 0) -> Optional[str]:
+        """
+        Converts a CIDR notation to an IP address.
 
-def jinja_run(template_str, searchpath, environment={}):
-    """renders a template string with environment, with optional includes from searchpath
+        Args:
+            value (str): The CIDR notation (e.g., "192.168.1.0/24")
+            index (int, optional): The 0-based index of the usable IP address to return
+        Returns:
+            str | None: The IP address at the specified index as a string, or None if out of range
+        Raises:
+            ValueError: If the CIDR is invalid, or if index < 0
+        """
+        if index < 0:
+            raise ValueError("index must be non-negative")
+        try:
+            network = ipaddress.ip_network(value, strict=False)
+        except ValueError as e:
+            raise ValueError(f"Invalid CIDR: {value} - {e}") from e
 
-    - searchpath can be string, or list of strings, file related filter only search searchpath
+        hosts = list(network.hosts())
+        if not hosts:  # Handle /32 and /31 (and /128 and /127 for IPv6)
+            if index == 0:
+                return str(network.network_address)
+            else:
+                return None
 
+        if index < len(hosts):
+            return str(hosts[index])
+        else:
+            return None
+
+
+def jinja_run(
+    template_str: str, searchpath: Union[str, List[str]], environment: dict = {}
+) -> str:
     """
-    env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(searchpath), extensions=[ToolsExtension]
-    )
-    template = env.from_string(template_str)
-    rendered = template.render(environment)
-    return rendered
+    Renders a Jinja2 template string with the given environment and search path.
+
+    Args:
+      template_str: The Jinja2 template string
+      searchpath:   A string or list of strings of the file system paths to search for includes
+      environment:  A dictionary representing the environment variables to pass to the template
+    Returns:
+      The rendered template as a string
+    """
+    try:
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(searchpath), extensions=[ToolsExtension]
+        )
+        template = env.from_string(template_str)
+        return template.render(environment)
+    except jinja2.exceptions.TemplateSyntaxError as e:
+        error_line = e.lineno
+        lines = template_str.splitlines()
+        start = max(0, error_line - 6)  # 5 lines before + error line
+        end = min(len(lines), error_line + 5)
+        context = "\n".join(
+            f"{i + 1}: {line}" for i, line in enumerate(lines[start:end], start)
+        )
+        new_message = (
+            f"Jinja2 Template Syntax Error: {e}\n"
+            f"Error occurred on line {error_line}.\n"
+            f"Context:\n{context}"
+        )
+        e.context = context
+        e.pulumi_message = new_message
+        raise e
 
 
 def jinja_run_file(template_filename, searchpath, environment={}):
@@ -545,12 +603,12 @@ def butane_to_salt(
 
     def ugm_append(dest, x):
         if "user" in x:
-            if id in x["user"]:
+            if "id" in x["user"]:
                 dest.append({"user": x["user"]["id"]})
             elif "name" in x["user"]:
                 dest.append({"user": x["user"]["name"]})
         if "group" in x:
-            if id in x["group"]:
+            if "id" in x["group"]:
                 dest.append({"group": x["group"]["id"]})
             elif "name" in x["group"]:
                 dest.append({"group": x["group"]["name"]})
