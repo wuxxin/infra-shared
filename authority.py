@@ -1,5 +1,5 @@
 """
-## Pulumi - Authority - TLS/X509 Certificates, OpenSSH Keys
+## Pulumi - Authority - TLS/X509 Certificates, OpenSSH Keys, DNSSEC Keys
 
 ### Config Values
 - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_max_path_length, ca_create_using_vault
@@ -25,6 +25,8 @@
 - ssh_provision_name
 - ssh_factory
     - provision_key, provision_publickey, authorized_keys
+- dns_factory
+    - ksk_key, zsk_key, transfer_key, update_key, notify_key
 
 ### Functions
 - create_host_cert
@@ -39,6 +41,8 @@
 - CACertFactoryPulumi
 - CASignedCert
 - SelfSignedCert
+- TSIGKey
+- DNSFactory
 
 """
 
@@ -58,9 +62,9 @@ from cryptography.hazmat.primitives.serialization import (
     load_pem_private_key,
     pkcs12,
 )
-from pulumi import Output, Alias
+from pulumi import Output, Alias, ResourceOptions
 
-from .tools import public_local_export, get_default_host_ip
+from .tools import yaml_loads, public_local_export, get_default_host_ip
 
 
 config = pulumi.Config("")
@@ -130,6 +134,53 @@ class SSHFactory(pulumi.ComponentResource):
         self.provision_key = ssh_provision_key
         self.provision_publickey = ssh_provision_publickey
         self.authorized_keys = ssh_authorized_keys
+        self.register_outputs({})
+
+
+class TSIGKey(pulumi.ComponentResource):
+    def __init__(self, name, opts=None):
+        def extract_secret(data):
+            try:
+                return data["key"][0]["secret"]
+            except (KeyError, IndexError) as e:
+                raise Exception(f"Failed to find TSIG secret in YAML: {e}") from e
+
+        super().__init__("pkg:index:TSIGKey", name, None, opts)
+        this_opts = ResourceOptions.merge(
+            ResourceOptions(parent=self, additional_secret_outputs=["stdout"]), opts
+        )
+        tsig_key_command = command.local.Command(
+            "{}_tsig_key".format(name),
+            create=f"keymgr -t {name} hmac-sha256",
+            dir=this_dir,
+            opts=this_opts,
+        )
+        parsed_yaml = yaml_loads(tsig_key_command.stdout)
+        self.secret = pulumi.Output.secret(parsed_yaml.apply(extract_secret))
+        self.register_outputs({})
+
+
+class DNSFactory(pulumi.ComponentResource):
+    def __init__(self, name, opts=None):
+        super().__init__("pkg:index:DNSFactory", name, None, opts)
+        this_opts = ResourceOptions.merge(ResourceOptions(parent=self), opts)
+        dns_root = command.local.Command(
+            "{}_dns_root".format(name),
+            create=f"scripts/dnssec_gen.sh --zone {name}",
+            dir=this_dir,
+            opts=ResourceOptions.merge(
+                ResourceOptions(additional_secret_outputs=["stdout"]), this_opts
+            ),
+        )
+        dns_secrets = pulumi.Output.json_loads(dns_root.stdout)
+
+        self.ksk_key = Output.secret(dns_secrets["ksk"])
+        self.zsk_key = Output.secret(dns_secrets["zsk"])
+        self.anchor_cert = Output.unsecret(dns_secrets["anchor"])
+
+        self.transfer_key = TSIGKey(f"transfer-{name}", this_opts)
+        self.update_key = TSIGKey(f"update-{name}", this_opts)
+        self.notify_key = TSIGKey(f"notify-{name}", this_opts)
         self.register_outputs({})
 
 
@@ -723,3 +774,8 @@ pulumi.export("ssh_provision_name", ssh_provision_name)
 # ### SSH Certificate and authorized_keys
 ssh_factory = SSHFactory("ssh_factory", ssh_provision_name)
 pulumi.export("ssh_factory", ssh_factory)
+
+
+# ### DNS config
+dns_factory = DNSFactory("internal")
+pulumi.export("dns_factory", dns_factory)
