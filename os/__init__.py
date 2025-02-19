@@ -81,7 +81,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         update_config=UPDATE_CONFIG,
         opts=None,
     ):
-        from ..authority import ca_factory, ssh_factory
+        from ..authority import ca_factory, ssh_factory, dns_factory
 
         super().__init__(
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
@@ -158,6 +158,60 @@ storage:
         inline: |
 """,
             hostcert.key.private_key_pem.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/ksk-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.ksk_key.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/zsk-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.zsk_key.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/anchor-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.anchor_cert.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/transfer-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.transfer_key.secret.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/update-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.update_key.secret.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/notify-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.notify_key.secret.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
