@@ -133,7 +133,7 @@ storage:
           @   IN SOA ns.podman. postmaster.podman. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
           @   NS ns.podman.
           ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
-          dns  A {{ PODMAN_CIDR|cidr2ip }}
+          dns  A {{ INTERNAL_CIDR|cidr2ip }}
           self A {{ PODMAN_CIDR|cidr2ip }}
           _dns.podman. IN SVCB 1 dns.podman alpn=dot port=853
           {{ PODMAN_CIDR|cidr2ip }}  IN PTR  self.podman.
@@ -146,7 +146,7 @@ storage:
           @   IN SOA ns.nspawn. postmaster.nspawn. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
           @   NS ns.nspawn.
           ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
-          dns  A {{ NSPAWN_CIDR|cidr2ip }}
+          dns  A {{ INTERNAL_CIDR|cidr2ip }}
           self A {{ NSPAWN_CIDR|cidr2ip }}
           _dns.nspawn. IN SVCB 1 dns.nspawn alpn=dot port=853
           {{ NSPAWN_CIDR|cidr2ip }}  IN PTR  self.nspawn.

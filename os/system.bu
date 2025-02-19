@@ -1,5 +1,4 @@
 # butane config
-# {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 storage:
   directories:
@@ -37,10 +36,10 @@ storage:
           127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
           ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
           # add lookup for internal, podman and nspawn
-          {{ cidr2ip(INTERNAL_CIDR) }}    dns.internal
-          {{ cidr2ip(INTERNAL_CIDR) }}    self.internal
-          {{ cidr2ip(PODMAN_CIDR) }}    self.podman
-          {{ cidr2ip(NSPAWN_CIDR) }}    self.nspawn
+          {{ INTERNAL_CIDR|cidr2ip }}    dns.internal
+          {{ INTERNAL_CIDR|cidr2ip }}    self.internal
+          {{ PODMAN_CIDR|cidr2ip }}    self.podman
+          {{ NSPAWN_CIDR|cidr2ip }}    self.nspawn
 
     # set keyboard layout
     - path: /etc/vconsole.conf

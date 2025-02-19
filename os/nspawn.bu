@@ -1,5 +1,4 @@
 # butane config
-# {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
 
 storage:
   directories:
@@ -52,7 +51,7 @@ storage:
 
           [DHCPServer]
           ServerAddress={{ NSPAWN_CIDR }}
-          DNS={{ cidr2ip(INTERNAL_CIDR) }}
+          DNS={{ INTERNAL_CIDR|cidr2ip }}
 
   links:
     # symlink systemd-networkd for automatic start, because nspawn.bu uses networkd

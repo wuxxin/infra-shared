@@ -14,8 +14,6 @@ Wants=sys-subsystem-net-devices-internal.device
 ConditionPathExists=/usr/sbin/unbound
 ConditionPathExists=/etc/unbound/unbound.conf
 
-# {% macro cidr2ip(cidr) %}{{ cidr|regex_replace ('([^/]+)/.+', '\\1') }}{% endmacro %}
-
 [Service]
 Type=simple
 Restart=on-failure
@@ -27,7 +25,7 @@ ExecStart=/usr/sbin/unbound -d
 ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; \
 GW_DEV=$(ip route | grep default | sed -r "s/([^ ]+ ){4}([^ ]+) .+/\\2/g"); \
 DNS_CURRENT=$(nmcli -t -g IP4.DNS dev show | grep -v "^$"); \
-DNS_SELF="{{ cidr2ip(INTERNAL_CIDR) }}"; \
+DNS_SELF="{{ INTERNAL_CIDR|cidr2ip }}"; \
 echo "Unbound ExecStartPost: GW_DEV=$GW_DEV, DNS_CURRENT=$DNS_CURRENT, DNS_SELF=$DNS_SELF"; \
 if test "$DNS_CURRENT" != "$DNS_SELF"; then \
     echo "set dns to self.internal"; \
