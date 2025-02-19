@@ -5,14 +5,16 @@ import aiohttp
 import datetime
 import ssl
 import time
-import threading
+import subprocess
+import yaml
+import re
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from serve_once import serve_once, verbose_print, generate_self_signed_certificate
+from serve_once import verbose_print, generate_self_signed_certificate
 
 SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "serve_once.py")
 
@@ -70,36 +72,33 @@ def temp_cert_dir():
         yield temp_dir
 
 
-async def run_server_async(config):
-    """Runs the serve_once server in a separate thread and returns the server address."""
-    server_ready_event = threading.Event()
-    server_address_container = {}
+def run_serve_once_subprocess(config_yaml):
+    """Runs serve_once.py as a subprocess and returns the process and port."""
+    process = subprocess.Popen(
+        [SCRIPT_PATH, "--yes"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    process.stdin.write(config_yaml)
+    process.stdin.close()
 
-    def start_server():
-        # Call serve_once directly
-        httpd = serve_once(config)
-        # Get port after server starts
-        server_address_container["port"] = httpd.server_address[1]
-        server_ready_event.set()
-        try:
-            # Keep serving until shutdown
-            httpd.serve_forever()
-        except Exception as e:
-            verbose_print(f"Server thread exception: {e}")
-        finally:
-            httpd.server_close()
-            verbose_print("Server thread finished")
+    stderr_output = ""
+    port = None
+    while True:
+        line = process.stderr.readline()
+        if not line:
+            break
+        stderr_output += line
+        match = re.search(r"Starting server on port (\d+)", line)
+        if match:
+            port = int(match.group(1))
+            break
+    if port is None:
+        raise Exception(f"Failed to get port from stderr: {stderr_output}")
 
-    # Daemon thread so it exits when test ends
-    thread = threading.Thread(target=start_server, daemon=True)
-    thread.start()
-    # Wait for server to start, with timeout
-    server_ready_event.wait(timeout=10)
-
-    if not server_ready_event.is_set():
-        raise TimeoutError("Server failed to start within timeout")
-
-    return server_address_container["port"]
+    return process, port
 
 
 async def test_self_signed_cert(temp_cert_dir):
@@ -108,7 +107,8 @@ async def test_self_signed_cert(temp_cert_dir):
         "timeout": 5,
         "payload": "test_payload",
     }
-    port = await run_server_async(config)
+    config_yaml = yaml.dump(config)
+    process, port = run_serve_once_subprocess(config_yaml)
     assert port > 0
 
     url = f"https://localhost:{port}/"
@@ -119,6 +119,9 @@ async def test_self_signed_cert(temp_cert_dir):
             assert resp.status == 200
             text = await resp.text()
             assert text == "test_payload"
+
+    process.wait(timeout=10)
+    assert process.returncode == 0
 
 
 async def test_full_mtls_success(temp_cert_dir):
@@ -165,7 +168,8 @@ async def test_full_mtls_success(temp_cert_dir):
         "mtls": True,
         "mtls_clientid": "client.example.com",
     }
-    port = await run_server_async(config)
+    config_yaml = yaml.dump(config)
+    process, port = run_serve_once_subprocess(config_yaml)
     assert port > 0
 
     ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -181,6 +185,9 @@ async def test_full_mtls_success(temp_cert_dir):
             text = await resp.text()
             assert text == "mtls_test_payload"
 
+    process.wait(timeout=10)
+    assert process.returncode == 0
+
 
 async def test_timeout():
     config = {
@@ -188,7 +195,8 @@ async def test_timeout():
         "timeout": 1,
         "payload": "timeout_test_payload",
     }
-    port = await run_server_async(config)
+    config_yaml = yaml.dump(config)
+    process, port = run_serve_once_subprocess(config_yaml)
     assert port > 0
 
     url = f"https://localhost:{port}/"
@@ -204,10 +212,9 @@ async def test_timeout():
             ) as resp:  # client timeout > server timeout
                 pass  # Should not reach here
     end_time = time.time()
-    # In this in-process version, the server thread might not exit immediately on timeout.
-    # The timeout in serve_once will stop handling *new* requests, but the thread keeps running.
-    # We can't reliably check process exit code here in the same way as with subprocess.
-    # Instead, we just check that the client gets a connection error relatively quickly.
+
+    process.wait(timeout=3)  # give some extra time for process to exit
+    assert process.returncode == 1
     assert (
         end_time - start_time
     ) < 3  # Check that client timeout is reached reasonably quickly
@@ -220,7 +227,8 @@ async def test_invalid_path(temp_cert_dir):
         "request_path": "/valid_path",
         "payload": "invalid_path_payload",
     }
-    port = await run_server_async(config)
+    config_yaml = yaml.dump(config)
+    process, port = run_serve_once_subprocess(config_yaml)
     assert port > 0
 
     url = f"https://localhost:{port}/invalid_path"  # Wrong path
@@ -237,6 +245,9 @@ async def test_invalid_path(temp_cert_dir):
         async with session.get(url) as resp:
             assert resp.status == 200
 
+    process.wait(timeout=10)
+    assert process.returncode == 0
+
 
 async def test_invalid_method(temp_cert_dir):
     config = {
@@ -245,7 +256,8 @@ async def test_invalid_method(temp_cert_dir):
         "request_method": "GET",
         "payload": "invalid_method_payload",
     }
-    port = await run_server_async(config)
+    config_yaml = yaml.dump(config)
+    process, port = run_serve_once_subprocess(config_yaml)
     assert port > 0
 
     url = f"https://localhost:{port}/"
@@ -261,6 +273,9 @@ async def test_invalid_method(temp_cert_dir):
     ) as session:
         async with session.get(url) as resp:
             assert resp.status == 200
+
+    process.wait(timeout=10)
+    assert process.returncode == 0
 
 
 async def test_invalid_client_cert_mtls(temp_cert_dir):
@@ -321,7 +336,8 @@ async def test_invalid_client_cert_mtls(temp_cert_dir):
         "mtls": True,
         "mtls_clientid": "client.example.com",
     }
-    port = await run_server_async(config)
+    config_yaml = yaml.dump(config)
+    process, port = run_serve_once_subprocess(config_yaml)
     assert port > 0
 
     ssl_ctx_valid = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -344,6 +360,9 @@ async def test_invalid_client_cert_mtls(temp_cert_dir):
     ) as session:  # Valid client cert to allow exit
         async with session.get(url) as resp:
             assert resp.status == 200
+
+    process.wait(timeout=10)
+    assert process.returncode == 0
 
 
 async def test_missing_client_cert_mtls(temp_cert_dir):
@@ -376,7 +395,8 @@ async def test_missing_client_cert_mtls(temp_cert_dir):
         "mtls": True,
         "mtls_clientid": "client.example.com",
     }
-    port = await run_server_async(config)
+    config_yaml = yaml.dump(config)
+    process, port = run_serve_once_subprocess(config_yaml)
     assert port > 0
 
     ssl_ctx_no_client_cert = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -417,3 +437,6 @@ async def test_missing_client_cert_mtls(temp_cert_dir):
     ) as session:  # Valid client cert to allow exit
         async with session.get(url) as resp:
             assert resp.status == 200
+
+    process.wait(timeout=10)
+    assert process.returncode == 0

@@ -130,6 +130,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
     """Handles HTTP requests, serving a single response based on configuration."""
 
     config: dict[str, Any] = {}  # Class-level variable to store configuration
+    success: bool = False
 
     def verbose_error(
         self, code: int, message: str | None = None, explain: str | None = None
@@ -203,7 +204,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         self.handle_request()
 
 
-def serve_once(config: dict[str, Any]) -> None:
+def serve_once(config: dict[str, Any]) -> http.server.HTTPServer:
     """Serves a single HTTPS request or times out."""
     RequestHandler.config = config
     RequestHandler.success = False
@@ -211,6 +212,7 @@ def serve_once(config: dict[str, Any]) -> None:
     temp_dir = None
     cert_thread = None
     key_thread = None
+    httpd = None
 
     try:
         temp_dir = tempfile.mkdtemp(dir=os.path.join("/run/user", str(os.getuid())))
@@ -304,6 +306,7 @@ def main() -> None:
 
     verbose_print(f"Starting server on port {config['serve_port']}")
     serve_once(config)
+    # server will exit after first request or timeout
 
 
 if __name__ == "__main__":
