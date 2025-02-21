@@ -1060,6 +1060,15 @@ class ServePrepare(pulumi.ComponentResource):
         self.register_outputs({})
 
 
+def serve_prepare(resource_name, config_input="", timeout_sec=45, opts=None):
+    return ServePrepare(
+        "serve_prepare_{}".format(resource_name),
+        config_input=config_input,
+        timeout_sec=timeout_sec,
+        opts=opts,
+    )
+
+
 class ServeOnce(pulumi.ComponentResource):
     """one time secure web data serve for eg. ignition data, or one time webhook with retrieved POST data"""
 
@@ -1075,6 +1084,20 @@ class ServeOnce(pulumi.ComponentResource):
         )
         self.result = self.executed.stdout
         self.register_outputs({})
+
+
+def serve_once(resource_name, payload, config, opts=None):
+    this_config = copy.deepcopy(config)
+    this_config.update({"payload": payload})
+    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
+
+
+def serve_simple(resource_name, yaml_str, opts=None):
+    this_config = ServePrepare(
+        "serve_prepare_{}".format(resource_name),
+        config_input=yaml.safe_load(yaml_str),
+    )
+    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
 
 
 class WriteRemoveable(pulumi.ComponentResource):
@@ -1099,29 +1122,6 @@ class WriteRemoveable(pulumi.ComponentResource):
         )
         self.result = self.executed.returncode
         self.register_outputs({})
-
-
-def serve_prepare(resource_name, config_input="", timeout_sec=45, opts=None):
-    return ServePrepare(
-        "serve_prepare_{}".format(resource_name),
-        config_input=config_input,
-        timeout_sec=timeout_sec,
-        opts=opts,
-    )
-
-
-def serve_once(resource_name, payload, config, opts=None):
-    this_config = copy.deepcopy(config)
-    this_config.update({"payload": payload})
-    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
-
-
-def serve_simple(resource_name, yaml_str, opts=None):
-    this_config = ServePrepare(
-        "serve_prepare_{}".format(resource_name),
-        config_input=yaml.safe_load(yaml_str),
-    )
-    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
 
 
 def write_removeable(resource_name, image, serial, size=0, patches=None, opts=None):
