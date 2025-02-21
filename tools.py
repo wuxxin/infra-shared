@@ -42,14 +42,15 @@ import os
 import random
 import socket
 import time
+import uuid
 
 import pulumi
+import pulumi.dynamic
 import pulumi_command as command
 import yaml
 
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, Dict
 from pulumi.output import Input, Output
-from pulumi.dynamic import Resource, ResourceProvider, CreateResult, UpdateResult
 from .template import join_paths
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -842,63 +843,133 @@ class RemoteSaltCall(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-class TimedResourceProvider(ResourceProvider):
-    """resource provider for TimedResource"""
-
-    def create(self, props):
-        # Call the user-defined creation function to get a new value
-        new_value = props["creation_fn"]()
-        # Capture the current timestamp
-        current_time = int(time.time())
-        # The unique ID for the resource is just its timestamp for simplicity
-        return CreateResult(
-            current_time, {"value": new_value, "timestamp": current_time}
-        )
-
-    def update(self, id, _olds, _news):
-        # Recompute the current timestamp and check against the specified timeout
-        current_time = int(time.time())
-        if current_time - _olds["timestamp"] > _news["timeout_sec"]:
-            # If the timeout has passed, call the creation function again
-            new_value = _news["creation_fn"]()
-            return UpdateResult({"value": new_value, "timestamp": current_time})
-        return None  # No changes if the timeout has not passed
-
-    def diff(self, id, _olds, _news):
-        # Determine if an update is needed based on the timeout
-        current_time = int(time.time())
-        if current_time - _olds["timestamp"] > _news["timeout_sec"]:
-            # If the timeout has passed, signal that an update is needed
-            return pulumi.DiffResult(changes=True)
-        # Otherwise, no update is needed
-        return pulumi.DiffResult(changes=False)
-
-
-class TimedResource(Resource):
-    """A custom resource that regenerates a value based on the provided function if timeout passed
-
-    :param str name: Name of the resource.
-    :param function creation_fn: A function that regenerates a new value string
-    :param int timeout_sec: Timeout in seconds to trigger regeneration
-
-    Usage:
-    ```python
-    my_res = TimedResource("my-random-number", timeout_sec=10,
-        creation_fn=lambda x: str(random.randint(30000,32000))
-    )
-    current_number= my_res.output["value"].apply(lambda v: int(v))
-    ```
+class _TimedResourceProviderInputs:
+    """
+    Helper class to represent the unwrapped inputs to the provider.
     """
 
-    def __init__(self, name, creation_fn, timeout_sec, opts=None):
+    def __init__(
+        self,
+        timeout_sec: int,
+        creation_type: str,
+        base: Optional[int],
+        range: Optional[int],
+    ):
+        self.timeout_sec = timeout_sec
+        self.creation_type = creation_type
+        self.base = base
+        self.range = range
+
+
+class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
+    """
+    Dynamic resource provider for TimedResource.
+    """
+
+    def _now(self) -> int:
+        """Returns the current time as a Unix timestamp (seconds)."""
+        return int(time.time())
+
+    def _generate_value(
+        self, creation_type: str, base: Optional[int], range: Optional[int]
+    ) -> str:
+        """Generates a value based on the creation type."""
+        if creation_type == "random_int":
+            if base is None or range is None:
+                raise ValueError(
+                    "For 'random_int', 'base' and 'range' must be provided."
+                )
+            return str(random.randint(base, base + range - 1))  # Inclusive
+        elif creation_type == "unixtime":
+            return str(self._now())
+        else:
+            raise ValueError(f"Invalid creation_type: {creation_type}")
+
+    def create(
+        self, props: _TimedResourceProviderInputs
+    ) -> pulumi.dynamic.CreateResult:
+        value = self._generate_value(
+            props["creation_type"], props.get("base"), props.get("range")
+        )
+        last_updated = self._now()
+        return pulumi.dynamic.CreateResult(
+            id_=str(uuid.uuid4()),
+            outs={"value": value, "last_updated": str(last_updated)},
+        )
+
+    def read(
+        self, id_: str, props: _TimedResourceProviderInputs
+    ) -> pulumi.dynamic.ReadResult:
+        return pulumi.dynamic.ReadResult(id_=id_, outs=props)
+
+    def diff(
+        self,
+        id_: str,
+        old_inputs: Dict[str, Any],
+        new_inputs: _TimedResourceProviderInputs,
+    ) -> pulumi.dynamic.DiffResult:
+        timeout_sec = new_inputs["timeout_sec"]
+        last_updated = int(old_inputs["last_updated"])
+        now = self._now()
+
+        changes = (now - last_updated) > timeout_sec
+        return pulumi.dynamic.DiffResult(changes=changes)
+
+    def update(
+        self, id_: str, _olds: Dict[str, Any], new_inputs: _TimedResourceProviderInputs
+    ) -> pulumi.dynamic.UpdateResult:
+        value = self._generate_value(
+            new_inputs["creation_type"], new_inputs.get("base"), new_inputs.get("range")
+        )
+        last_updated = self._now()
+        return pulumi.dynamic.UpdateResult(
+            outs={"value": value, "last_updated": str(last_updated)}
+        )
+
+    def delete(self, id: str, props: Dict[str, Any]) -> None:
+        # pulumi will do the deletion
+        pass
+
+
+class TimedResourceInputs:
+    """
+    Input properties for TimedResource.
+    """
+
+    def __init__(
+        self,
+        timeout_sec: pulumi.Input[int],
+        creation_type: pulumi.Input[str],
+        base: Optional[pulumi.Input[int]] = None,
+        range: Optional[pulumi.Input[int]] = None,
+    ):
+        self.timeout_sec = timeout_sec
+        self.creation_type = creation_type
+        self.base = base
+        self.range = range
+
+
+class TimedResource(pulumi.dynamic.Resource):
+    """
+    Custom resource that regenerates a value based on a specified type of logic if a timeout has passed.
+    """
+
+    value: pulumi.Output[str]
+    last_updated: pulumi.Output[str]
+
+    def __init__(
+        self,
+        name: str,
+        args: TimedResourceInputs,
+        opts: Optional[pulumi.ResourceOptions] = None,
+    ):
         super().__init__(
             TimedResourceProvider(),
             name,
             {
                 "value": None,
-                "timestamp": None,
-                "creation_fn": creation_fn,
-                "timeout_sec": timeout_sec,
+                "last_updated": None,  # Initialize outputs
+                **vars(args),  # Merge input properties
             },
             opts,
         )
@@ -934,11 +1005,15 @@ class ServePrepare(pulumi.ComponentResource):
 
         self.local_port_config = TimedResource(
             "local-port-config",
-            creation_fn=lambda: str(random.randint(port_base, port_base + port_range)),
-            timeout_sec=timeout_sec,
+            TimedResourceInputs(
+                timeout_sec=timeout_sec,
+                creation_type="random_int",
+                base=port_base,
+                range=port_range,
+            ),
             opts=pulumi.ResourceOptions(parent=self),
         )
-        serve_port = self.local_port_config.output["value"].apply(lambda v: int(v))
+        serve_port = self.local_port_config.value.apply(lambda v: int(v))
 
         self.config = {
             "serve_port": serve_port,
@@ -960,7 +1035,7 @@ class ServePrepare(pulumi.ComponentResource):
         if config_input:
             self.config.update(yaml.safe_load(config_input))
 
-        if forward_config.enabled:
+        if forward_config["enabled"]:
             self.config["port_forward"].update(forward_config)
             self.forward = command.local.Command(
                 resource_name + "_forward",
@@ -979,6 +1054,7 @@ class ServePrepare(pulumi.ComponentResource):
             )
             self.result = self.forward.stdout
         else:
+            print(repr(self.config))
             self.result = yaml.safe_dump(self.config)
 
         self.register_outputs({})
