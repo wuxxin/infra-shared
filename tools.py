@@ -881,6 +881,8 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
             return random.randint(base, base + range - 1)
         elif creation_type == "unixtime":
             return self._now()
+        elif creation_type == "uuid":
+            return str(uuid.uuid4())
         else:
             raise ValueError(f"Invalid creation_type: {creation_type}")
 
@@ -933,6 +935,11 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
 class TimedResourceInputs:
     """
     Input properties for TimedResource.
+
+    :param int timeout_sec: timeout in seconds the service will be available
+    :param str creation_type: one of "random_int", "unixtime", "uuid"
+    :param int base: base number for random_int
+    :param int range: range for random_int
     """
 
     def __init__(
@@ -965,11 +972,7 @@ class TimedResource(pulumi.dynamic.Resource):
         super().__init__(
             TimedResourceProvider(),
             name,
-            {
-                "value": None,
-                "last_updated": None,  # Initialize outputs
-                **vars(args),  # Merge input properties
-            },
+            {"value": None, "last_updated": None, **vars(args)},
             opts,
         )
 
@@ -998,7 +1001,7 @@ class ServePrepare(pulumi.ComponentResource):
     ) -> None:
         def build_merged_config(args):
             # merge pulumi outputs with static_config
-            serve_port, cert, key, ca_cert = args
+            serve_port, request_path, cert, key, ca_cert = args
             merged_config = self.static_config.copy()
             merged_config.update(
                 {
@@ -1006,7 +1009,7 @@ class ServePrepare(pulumi.ComponentResource):
                     "cert": cert,
                     "key": key,
                     "ca_cert": ca_cert,
-                    "remote_url": f"https://{get_default_host_ip()}:{serve_port}/",
+                    "remote_url": f"https://{get_default_host_ip()}:{serve_port}/{request_path}",
                 }
             )
 
@@ -1018,7 +1021,7 @@ class ServePrepare(pulumi.ComponentResource):
         self.static_config = {
             "timeout": timeout_sec,
             "mtls": True,
-            "mtls_clientid": mtls_clientid,
+            "mtls_clientid": mtls_clientid if mtls_clientid else "",
             "payload": None,
             "port_forward": config.get_object(
                 "port_forward", {"enabled": False, "lifetime_sec": timeout_sec}
@@ -1041,9 +1044,18 @@ class ServePrepare(pulumi.ComponentResource):
         )
         self.serve_port = self.local_port_config.value
 
+        # create a request_path from uuid
+        self.request_uuid = TimedResource(
+            "request-uuid",
+            TimedResourceInputs(timeout_sec=timeout_sec, creation_type="uuid"),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        self.request_path = self.request_uuid.value
+
         # Use .apply() to create a new Output that contains the fully resolved config
         self.merged_config = Output.all(
             self.serve_port,
+            self.request_path,
             provision_host_tls.chain,
             provision_host_tls.key.private_key_pem,
             ca_factory.root_cert_pem,
