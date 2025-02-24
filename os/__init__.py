@@ -179,7 +179,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/anchor-internal.key
+    - path: /etc/credstore/anchor-internal.cert
       mode: 0600
       contents:
         inline: |
@@ -454,7 +454,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
 
 
 class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
-    def __init__(self, resource_name, hostname, remoteurl, opts=None):
+    def __init__(self, resource_name, hostname, remoteurl, client_cert=None, opts=None):
         from ..authority import ca_factory
 
         super().__init__(
