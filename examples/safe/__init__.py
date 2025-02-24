@@ -20,6 +20,7 @@
 """
 
 import os
+import copy
 
 import pulumi
 import pulumi_postgresql as postgresql
@@ -43,13 +44,19 @@ from infra.os import (
     FcosImageDownloader,
     RemoteDownloadIgnitionConfig,
 )
-
-from infra.tools import serve_prepare, serve_once, write_removeable, public_local_export
+from infra.tools import (
+    serve_prepare,
+    serve_once,
+    write_removeable,
+    public_local_export,
+    log_warn,
+)
 from infra.build import build_raspberry_extras
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 files_basedir = os.path.join(this_dir)
 
+# configure hostnames
 shortname = "safe"
 dns_names = config.get_object(
     "{}_dns_names".format(shortname),
@@ -167,7 +174,7 @@ host_environment.update(
 butane_yaml = pulumi.Output.format(
     """
 variant: fcos
-version: 1.5.0
+version: 1.6.0
 """
 )
 
@@ -177,7 +184,7 @@ host_config = ButaneTranspiler(
 )
 pulumi.export("{}_butane".format(shortname), host_config)
 
-# download metal version of image
+# download metal version of os image
 image = FcosImageDownloader(
     architecture="aarch64", platform="metal", image_format="raw.xz"
 )
@@ -188,25 +195,45 @@ uboot_image_filename = os.path.join(
     extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
 )
 
+# configure later used remote url for remote controlled setup with encrypted config
+# XXX config_input=f"mtls_clientid: install@{hostname}"
+serve_config = serve_prepare(shortname, timeout_sec=120)
+remote_url = serve_config.config["remote_url"]
+
+# create a 1 day valid client certificate only used for transfering the ignition file
+custom_ca_config = copy.copy(ca_config)
+custom_ca_config["cert_validity_period_hours"] = 24
+custom_ca_config["cert_early_renewal_hours"] = 1
+host_install_cert = create_client_cert(
+    f"install@{hostname}", f"install@{hostname}", custom_ca_config=custom_ca_config
+)
+# create public ignition config
+public_config = RemoteDownloadIgnitionConfig(
+    "{}_public_ignition".format(shortname),
+    hostname,
+    remote_url,
+)
+
+# serve secret part of ignition config via serve_once and mandatory client certificate
+serve_data = serve_once(
+    shortname,
+    payload=pulumi.Output.all(source_dict=host_config.result).apply(
+        lambda args: yaml.safe_dump(args["source_dict"])
+    ),
+    config=serve_config,
+)
+
 if stack_name.endswith("sim"):
     # create libvirt machine simulation:
     #   download suitable image, create similar virtual machine, same memsize, different arch
     host_machine = LibvirtIgniteFcos(
-        shortname, host_config.result, volumes=identifiers["storage"], memory=4096
+        shortname, public_config.result, volumes=identifiers["storage"], memory=4096
     )
     # write out ip of simulated host as target
     target = host_machine.vm.network_interfaces[0]["addresses"][0]
-    opts = pulumi.ResourceOptions(depends_on=[host_machine])
+    opts = pulumi.ResourceOptions(depends_on=[host_machine, serve_data])
 else:
-    # configure later used remote url for remote controlled setup with encrypted config
-
-    serve_config = serve_prepare(shortname, timeout_sec=120)
-    remote_url = serve_config.config.config["remote_url"]
-
-    # create public config to be copied to the removeable storage device
-    public_config = RemoteDownloadIgnitionConfig(
-        "{}_public_ignition".format(shortname), hostname, remote_url
-    )
+    # export public config to be copied to the removeable storage device
     public_config_file = public_local_export(
         shortname, "{}_public.ign".format(shortname), public_config.result
     )
@@ -221,9 +248,6 @@ else:
             (public_config_file.filename, "boot/ignite.json"),
         ],
     )
-
-    # serve secret part of ign config via serve_once and mandatory client certificate
-    serve_data = serve_once(shortname, host_config, config=serve_config)
 
     # target is metal, write out real dns name
     target = hostname
