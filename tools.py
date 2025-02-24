@@ -20,7 +20,6 @@ storage:
 - public_local_export
 
 tool:
-- yaml_loads
 - log_warn
 
 ### Components
@@ -33,10 +32,10 @@ tool:
 ### Python
 - sha256sum_file
 - get_default_host_ip
+- yaml_loads
 
 """
 
-import copy
 import hashlib
 import os
 import random
@@ -872,16 +871,16 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
 
     def _generate_value(
         self, creation_type: str, base: Optional[int], range: Optional[int]
-    ) -> str:
+    ) -> int:
         """Generates a value based on the creation type."""
         if creation_type == "random_int":
             if base is None or range is None:
                 raise ValueError(
                     "For 'random_int', 'base' and 'range' must be provided."
                 )
-            return str(random.randint(base, base + range - 1))  # Inclusive
+            return random.randint(base, base + range - 1)
         elif creation_type == "unixtime":
-            return str(self._now())
+            return self._now()
         else:
             raise ValueError(f"Invalid creation_type: {creation_type}")
 
@@ -997,12 +996,39 @@ class ServePrepare(pulumi.ComponentResource):
         mtls_clientid: str = "",
         opts: pulumi.Input[object] = None,
     ) -> None:
+        def build_merged_config(args):
+            # merge pulumi outputs with static_config
+            serve_port, cert, key, ca_cert = args
+            merged_config = self.static_config.copy()
+            merged_config.update(
+                {
+                    "serve_port": serve_port,
+                    "cert": cert,
+                    "key": key,
+                    "ca_cert": ca_cert,
+                    "remote_url": f"https://{get_default_host_ip()}:{serve_port}/",
+                }
+            )
+
         from .authority import config, ca_factory, provision_host_tls
 
         super().__init__("pkg:index:ServeConfigure", resource_name, None, opts)
 
-        forward_config = config.get_object("port_forward", {"enabled": False})
+        # Build the initial config *without* Output values. Outputs will be handled later
+        self.static_config = {
+            "timeout": timeout_sec,
+            "mtls": True,
+            "mtls_clientid": mtls_clientid,
+            "payload": None,
+            "port_forward": config.get_object(
+                "port_forward", {"enabled": False, "lifetime_sec": timeout_sec}
+            ),
+        }
+        # Merge in the user-provided config *before* adding Output-dependent values
+        if config_input:
+            self.static_config.update(yaml.safe_load(config_input))
 
+        # create a network port number, used for https serving the data
         self.local_port_config = TimedResource(
             "local-port-config",
             TimedResourceInputs(
@@ -1013,50 +1039,41 @@ class ServePrepare(pulumi.ComponentResource):
             ),
             opts=pulumi.ResourceOptions(parent=self),
         )
-        serve_port = self.local_port_config.value.apply(lambda v: int(v))
+        self.serve_port = self.local_port_config.value
 
-        self.config = {
-            "serve_port": serve_port,
-            "timeout": timeout_sec,
-            "cert": provision_host_tls.chain,
-            "key": provision_host_tls.key.private_key_pem,
-            "ca_cert": ca_factory.root_cert_pem,
-            "mtls": True,
-            "mtls_clientid": mtls_clientid,
-            "payload": None,
-            "remote_url": "https://{ip}:{port}/".format(
-                ip=get_default_host_ip(),
-                port=serve_port,
-            ),
-            "port_forward": {"lifetime_sec": timeout_sec},
-            # short lifetime of forward for fast reuse
-        }
+        # Use .apply() to create a new Output that contains the fully resolved config
+        self.merged_config = Output.all(
+            self.serve_port,
+            provision_host_tls.chain,
+            provision_host_tls.key.private_key_pem,
+            ca_factory.root_cert_pem,
+        ).apply(build_merged_config)
 
-        if config_input:
-            self.config.update(yaml.safe_load(config_input))
-
-        if forward_config["enabled"]:
-            self.config["port_forward"].update(forward_config)
+        if self.merged_config["post_forward"]["enabled"]:
+            # run port_forward if enabled and update config with returned port_forward values
             self.forward = command.local.Command(
                 resource_name + "_forward",
                 create="scripts/port_forward.py --yaml-from-stdin --yaml-to-stdout",
-                stdin=self.config,
+                stdin=self.merged_config.apply(yaml.safe_dump),
                 opts=pulumi.ResourceOptions(parent=self),
             )
-            self.config = yaml.safe_load(self.forward.stdout.yaml)
-            self.config.update(
-                {
-                    "remote_url": "https://{ip}:{port}/".format(
-                        ip=self.config["port_forward"]["public_ip"],
-                        port=self.config["port_forward"]["public_port"],
-                    ),
-                }
-            )
-            self.result = self.forward.stdout
-        else:
-            print(repr(self.config))
-            self.result = yaml.safe_dump(self.config)
 
+            def update_with_forward(forwarded_config_str):
+                forwarded_config = yaml.safe_load(forwarded_config_str)
+                updated_config = self.merged_config.apply(lambda x: x.copy())
+                return updated_config.apply(
+                    lambda conf: {
+                        **conf,
+                        "remote_url": f"https://{forwarded_config['port_forward']['public_ip']}:{forwarded_config['port_forward']['public_port']}/",
+                        "port_forward": forwarded_config["port_forward"],
+                    }
+                )
+
+            self.config = self.forward.stdout.apply(update_with_forward)
+        else:
+            self.config = self.merged_config
+
+        self.result = self.config.apply(yaml.safe_dump)
         self.register_outputs({})
 
 
@@ -1074,12 +1091,10 @@ class ServeOnce(pulumi.ComponentResource):
 
     def __init__(self, resource_name, config, opts=None):
         super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
-
         self.executed = command.local.Command(
             resource_name,
             create="scripts/serve_once.py --yes",
-            stdin=yaml.safe_dump(config),
-            depends_on=config,
+            stdin=config.apply(yaml.safe_dump),
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.result = self.executed.stdout
@@ -1087,17 +1102,23 @@ class ServeOnce(pulumi.ComponentResource):
 
 
 def serve_once(resource_name, payload, config, opts=None):
-    this_config = copy.deepcopy(config)
-    this_config.update({"payload": payload})
-    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
+    def prepare_payload(payload_value):
+        return {**config, "payload": payload_value}
+
+    merged_config = payload.apply(prepare_payload)
+    return ServeOnce("serve_once_{}".format(resource_name), merged_config, opts=opts)
 
 
 def serve_simple(resource_name, yaml_str, opts=None):
+    config_dict = yaml.safe_load(yaml_str)
     this_config = ServePrepare(
         "serve_prepare_{}".format(resource_name),
-        config_input=yaml.safe_load(yaml_str),
+        config_input=yaml.safe_dump(config_dict),
+        opts=opts,
     )
-    return ServeOnce("serve_once_{}".format(resource_name), this_config, opts=opts)
+    return ServeOnce(
+        "serve_once_{}".format(resource_name), this_config.result, opts=opts
+    )
 
 
 class WriteRemoveable(pulumi.ComponentResource):
