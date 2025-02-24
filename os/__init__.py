@@ -454,7 +454,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
 
 
 class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
-    def __init__(self, resource_name, hostname, remoteurl, client_cert=None, opts=None):
+    def __init__(self, resource_name, hostname, remoteurl, opts=None):
         from ..authority import ca_factory
 
         super().__init__(
