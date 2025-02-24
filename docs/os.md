@@ -30,7 +30,7 @@ dns_names = ["example.lan"]
 hostname = dns_names[0]
 tls = create_host_cert(hostname, hostname, dns_names)
 files_basedir = os.path.dirname(os.path.abspath(__file__))
-butane_yaml = pulumi.Output.format("variant: fcos\nversion: 1.5.0\n")
+butane_yaml = pulumi.Output.format("variant: fcos\nversion: 1.6.0\n")
 jina_env = { "HOSTNAME": hostname}
 host_config = ButaneTranspiler(
     shortname, hostname, tls, butane_yaml, files_basedir, jina_env
@@ -43,7 +43,7 @@ create butane files in: `target/example/*.bu`
 
 Documentation:
 
-- [Fedora CoreOS Specification v1.5.0](https://coreos.github.io/butane/config-fcos-v1_5/)
+- [Fedora CoreOS Specification v1.6.0](https://coreos.github.io/butane/config-fcos-v1_6/)
 
 #### overwrite of buildin files and units
 

@@ -64,6 +64,3 @@ DEBUG_CONSOLE_AUTOLOGIN: false
 # list of /etc/credstore entries to load into podman daemon for compose workloads
 PODMAN_LOAD_SECRETS: "root_ca.crt root_bundle.crt"
 
-
-
-

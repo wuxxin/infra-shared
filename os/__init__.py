@@ -467,7 +467,7 @@ class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
         butane_remote_config = pulumi.Output.concat(
             """
 variant: fcos
-version: 1.5.0
+version: 1.6.0
 ignition:
   config:
     replace:
