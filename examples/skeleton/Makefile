@@ -12,8 +12,8 @@ find-cmd = $(or $(firstword $(wildcard $(addsuffix /$(1),$(subst :, ,$(PATH)))))
 DOCKER_CMD := podman
 
 # skip annoying version information
-PULUMI_SKIP_UPDATE_CHECK=1
-export PULUMI_SKIP_UPDATE_CHECK
+PULUMI_SKIP_UPDATE_CHECK=true
+PULUMI_DIY_BACKEND_GZIP=true
 
 # add some default arguments to pulumi
 PULUMI := pulumi --logtostderr --logflow --non-interactive
@@ -135,7 +135,7 @@ sim-preview: sim-create ## Run "pulumi preview --stack=sim --suppress-outputs $(
 sim-tool: sim-create ## Run "infra/scripts/resource_call.py --stack sim $(args)"
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="sim" pipenv run ./infra/scripts/resource_call.py --stack sim $(args)
+	@PULUMI_CONFIG_PASSPHRASE="sim" uv run ./infra/scripts/resource_call.py --stack sim $(args)
 
 .PHONY: sim-show
 sim-show: ## Run "pulumi stack output --stack=sim --json $(args)"
@@ -163,7 +163,7 @@ ifeq ($(shell test -f Pulumi.sim.yaml && echo "ok"), ok)
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::ca_factory_root_key' || true
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::fake_ca_factory_root_cert' || true
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::fake_ca_factory_root_key' || true
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) destroy --stack "sim" --yes || true
+	@PULUMI_CONFIG_PASSPHRASE="sim" PULUMI_CONTINUE_ON_ERROR=true $(PULUMI) destroy --stack "sim" --yes || true
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --yes  || true
 	@rm -rf state/pulumi/.pulumi/backups/sim state/pulumi/.pulumi/history/sim
 	@rm Pulumi.sim.yaml
@@ -174,7 +174,7 @@ endif
 docs: build-env ## Build docs for local usage and open in browser
 	@echo "+ $@"
 	@mkdir -p state/docs
-	@pipenv run mkdocs build --no-directory-urls -d state/docs -f mkdocs.yml
+	@uv run mkdocs build --no-directory-urls -d state/docs -f mkdocs.yml
 	@echo "finished. browse documentation at state/docs/index.html"
 	@$(BROWSER) state/docs/index.html
 
@@ -182,18 +182,18 @@ docs: build-env ## Build docs for local usage and open in browser
 docs-online-build: build-env ## Build docs for http serve
 	@echo "+ $@"
 	@mkdir -p state/docs/online
-	@pipenv run mkdocs build -d state/docs/online -f mkdocs.yml
+	@uv run mkdocs build -d state/docs/online -f mkdocs.yml
 
 .PHONY: docs-serve
 docs-serve: build-env ## Rebuild and serve docs with autoreload
 	@echo "+ $@"
-	@pipenv run mkdocs serve -f mkdocs.yml
+	@uv run mkdocs serve -f mkdocs.yml
 
 .PHONY: docs-infra
 docs-infra: build-env ## Build infra/docs for local usage and open in browser
 	@echo "+ $@"
 	@mkdir -p state/docs/infra
-	@pipenv run mkdocs build --no-directory-urls -d ../state/docs/infra -f infra/mkdocs.yml
+	@uv run mkdocs build --no-directory-urls -d ../state/docs/infra -f infra/mkdocs.yml
 	@echo "finished. browse documentation at state/docs/infra/index.html"
 	@$(BROWSER) state/docs/infra/index.html
 
@@ -241,7 +241,7 @@ prod-create: prod_passphrase.age Pulumi.prod.yaml ## Create pulumi "prod" stack
 prod-tool: prod-create ## Run "infra/scripts/resource_call.py --stack prod $(args)"
 	@echo "+ $@"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" pipenv run ./infra/scripts/resource_call.py --stack prod $(args)
+	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" uv run ./infra/scripts/resource_call.py --stack prod $(args)
 
 .PHONY: prod-show
 prod-show: ## Run "pulumi stack output --stack "prod" --json $(args)"
