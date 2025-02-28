@@ -37,9 +37,9 @@ tool:
 """
 
 import hashlib
+import netifaces
 import os
 import random
-import socket
 import time
 import uuid
 
@@ -105,19 +105,74 @@ def sha256sum_file(filename):
     return h.hexdigest()
 
 
-def get_default_host_ip():
-    "return ip of host connected to the outside, or None if not found"
+def get_ip_from_ifname(name: str) -> str | None:
+    """
+    Retrieves the first IPv4 address associated with a given network interface name.
+
+    Args:
+        name (str): The name of the network interface (e.g., "eth0", "wlan0", "enp7s0")
+    Returns:
+        str | None: The first IPv4 address found on the interface,
+         or None if the interface doesn't exist or has no IPv4 addresses.
+    """
     try:
-        gateway_addr = socket.gethostbyname(socket.gethostname())
-        if (
-            not socket.inet_pton(socket.AF_INET, gateway_addr)
-            or gateway_addr.startswith("127.")
-            or gateway_addr.startswith("::1")
-        ):
-            gateway_addr = None
-    except socket.gaierror:
-        gateway_addr = None
-    return gateway_addr
+        # Check if the interface exists
+        if name not in netifaces.interfaces():
+            return None
+
+        # Get all addresses associated with the interface
+        addresses = netifaces.ifaddresses(name)
+
+        # Check if the interface has any IPv4 addresses
+        if netifaces.AF_INET not in addresses:
+            return None
+
+        # Iterate through IPv4 addresses and return the first one that's not loopback.
+        for addr_info in addresses[netifaces.AF_INET]:
+            ip_addr = addr_info["addr"]
+            if not ip_addr.startswith("127.") and not ip_addr.startswith("::1"):
+                return ip_addr
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
+
+
+def get_default_host_ip():
+    """
+    Return the IP address of the interface that is most likely connected to the outside world.
+
+    This function attempts to find the default gateway and then determine the IP address
+    of the interface associated with that gateway.
+
+    Returns:
+        str: The IP address of the most likely external interface, or None if not found.
+    """
+    try:
+        # Get the default gateway
+        gws = netifaces.gateways()
+        default_gateway = gws.get("default", {}).get(netifaces.AF_INET, None)
+
+        if default_gateway is None:
+            # No default gateway found
+            return None
+
+        interface = default_gateway[1]
+        # Get addresses associated with the interface
+        addresses = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
+
+        if not addresses:
+            return None
+
+        for addr in addresses:
+            ip_addr = addr["addr"]
+            if not ip_addr.startswith("127.") and not ip_addr.startswith("::1"):
+                return ip_addr
+        return None
+
+    except (ValueError, KeyError, OSError) as e:
+        print(f"Error getting default host IP: {e}")
+        return None
 
 
 class SSHPut(pulumi.ComponentResource):
@@ -849,10 +904,10 @@ class _TimedResourceProviderInputs:
 
     def __init__(
         self,
-        timeout_sec: int,
+        timeout_sec: str,
         creation_type: str,
-        base: Optional[int],
-        range: Optional[int],
+        base: Optional[str],
+        range: Optional[str],
     ):
         self.timeout_sec = timeout_sec
         self.creation_type = creation_type
@@ -862,7 +917,7 @@ class _TimedResourceProviderInputs:
 
 class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
     """
-    Dynamic resource provider for TimedResource.
+    Dynamic resource provider for TimedResource
     """
 
     def _now(self) -> int:
@@ -870,17 +925,19 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         return int(time.time())
 
     def _generate_value(
-        self, creation_type: str, base: Optional[int], range: Optional[int]
-    ) -> int:
-        """Generates a value based on the creation type."""
+        self, creation_type: str, base: Optional[str], range: Optional[str]
+    ) -> str:
+        """
+        Generates a value based on the creation type
+        """
         if creation_type == "random_int":
             if base is None or range is None:
                 raise ValueError(
                     "For 'random_int', 'base' and 'range' must be provided."
                 )
-            return random.randint(base, base + range - 1)
+            return str(random.randint(int(base), int(base) + int(range) - 1))
         elif creation_type == "unixtime":
-            return self._now()
+            return str(self._now())
         elif creation_type == "uuid":
             return str(uuid.uuid4())
         else:
@@ -889,18 +946,24 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
     def create(
         self, props: _TimedResourceProviderInputs
     ) -> pulumi.dynamic.CreateResult:
+        """
+        Creates a new TimedResource
+        """
         value = self._generate_value(
             props["creation_type"], props.get("base"), props.get("range")
         )
         last_updated = self._now()
         return pulumi.dynamic.CreateResult(
             id_=str(uuid.uuid4()),
-            outs={"value": value, "last_updated": str(last_updated)},
+            outs={"value": str(value), "last_updated": str(last_updated)},
         )
 
     def read(
         self, id_: str, props: _TimedResourceProviderInputs
     ) -> pulumi.dynamic.ReadResult:
+        """
+        Reads the state of an existing TimedResource
+        """
         return pulumi.dynamic.ReadResult(id_=id_, outs=props)
 
     def diff(
@@ -909,7 +972,16 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         old_inputs: Dict[str, Any],
         new_inputs: _TimedResourceProviderInputs,
     ) -> pulumi.dynamic.DiffResult:
-        timeout_sec = new_inputs["timeout_sec"]
+        """Checks if the resource needs to be updated
+
+        Args:
+            id_: The resource ID.
+            old_inputs: The previous input properties.
+            new_inputs: The new input properties.
+        Returns:
+           A DiffResult indicating if changes are needed and which inputs changed
+        """
+        timeout_sec = int(new_inputs["timeout_sec"])
         last_updated = int(old_inputs["last_updated"])
         now = self._now()
 
@@ -919,15 +991,27 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
     def update(
         self, id_: str, _olds: Dict[str, Any], new_inputs: _TimedResourceProviderInputs
     ) -> pulumi.dynamic.UpdateResult:
+        """Updates an existing TimedResource
+
+        Args:
+            id_: The resource ID
+            _olds: The previous output properties
+            new_inputs: The new input properties
+        Returns:
+            The UpdateResult containing the updated output properties
+        """
         value = self._generate_value(
             new_inputs["creation_type"], new_inputs.get("base"), new_inputs.get("range")
         )
         last_updated = self._now()
         return pulumi.dynamic.UpdateResult(
-            outs={"value": value, "last_updated": str(last_updated)}
+            outs={"value": str(value), "last_updated": str(last_updated)}
         )
 
     def delete(self, id: str, props: Dict[str, Any]) -> None:
+        """
+        Deletes a TimedResource.
+        """
         # pulumi will do the deletion
         pass
 
@@ -982,11 +1066,25 @@ class ServePrepare(pulumi.ComponentResource):
 
     :param str config_input: yaml input added on top of the default resource config
     :param int timeout_sec: timeout in seconds the service will be available
+    :param int tokenlifetime_sec: lifetime in seconds for the randomized
+        port number and path assignments, before it will be recreated on demand
+
+    # Serve IP-Adress related, serve_ip takes precedence before serve_interface
+    :param str serve_ip: defaults "": if set, ip address specified is used for serving
+    :param str serve_interface: defaults "": if set, the ip address of the specified interface is used for serving
+    else it uses get_default_host_ip()
+
+    :param str mtls_clientid: if set, client must present a matching client certificate with cn=mtls_clientid
     :param int port_base: base port number of the web resource
     :param int port_range: range of ports for the web resource
 
     It creates a `TimedResource` object to manage the local port configuration
+        another `TimedResource` object to create a request_path uuid
         and initializes port forwarding to the local port if requested.
+
+    Returns:
+        self.config = Final serve config as object
+        self.result = Final serve config as yaml string
     """
 
     def __init__(
@@ -994,66 +1092,83 @@ class ServePrepare(pulumi.ComponentResource):
         resource_name: str,
         config_input: str = "",
         timeout_sec: int = 45,
+        tokenlifetime_sec: int = 10 * 60,
         port_base: int = 47000,
         port_range: int = 3000,
+        serve_interface: str = "",
+        serve_ip: str = "",
         mtls_clientid: str = "",
         opts: pulumi.Input[object] = None,
     ) -> None:
-        def build_merged_config(args):
-            # merge pulumi outputs with static_config
-            serve_port, request_path, cert, key, ca_cert = args
-            merged_config = self.static_config.copy()
-            merged_config.update(
-                {
-                    "serve_port": serve_port,
-                    "cert": cert,
-                    "key": key,
-                    "ca_cert": ca_cert,
-                    "remote_url": f"https://{get_default_host_ip()}:{serve_port}/{request_path}",
-                }
-            )
-
         from .authority import config, ca_factory, provision_host_tls
 
         super().__init__("pkg:index:ServeConfigure", resource_name, None, opts)
 
-        # Build the initial config *without* Output values. Outputs will be handled later
+        # Build the initial static config (*without* Output values)
         self.static_config = {
             "timeout": timeout_sec,
             "mtls": True,
             "mtls_clientid": mtls_clientid if mtls_clientid else "",
             "payload": None,
             "port_forward": config.get_object(
-                "port_forward", {"enabled": False, "lifetime_sec": timeout_sec}
+                "port_forward", {"enabled": False, "lifetime_sec": tokenlifetime_sec}
             ),
         }
-        # Merge in the user-provided config *before* adding Output-dependent values
+        # Merge in the user-provided config before adding Output-dependent values
         if config_input:
             self.static_config.update(yaml.safe_load(config_input))
+
+        # use the default hostip, or the named interface ip or the specified ip for accessing the url
+        self.serve_ip = (
+            serve_ip
+            if serve_ip
+            else (
+                get_ip_from_ifname(serve_interface)
+                if serve_interface
+                else get_default_host_ip()
+            )
+        )
 
         # create a network port number, used for https serving the data
         self.local_port_config = TimedResource(
             "local-port-config",
             TimedResourceInputs(
-                timeout_sec=timeout_sec,
+                timeout_sec=tokenlifetime_sec,
                 creation_type="random_int",
                 base=port_base,
                 range=port_range,
             ),
             opts=pulumi.ResourceOptions(parent=self),
         )
-        self.serve_port = self.local_port_config.value
+        self.serve_port = self.local_port_config.value.apply(lambda x: int(x))
 
         # create a request_path from uuid
         self.request_uuid = TimedResource(
             "request-uuid",
-            TimedResourceInputs(timeout_sec=timeout_sec, creation_type="uuid"),
+            TimedResourceInputs(timeout_sec=tokenlifetime_sec, creation_type="uuid"),
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.request_path = self.request_uuid.value
 
+        def build_merged_config(args):
+            # merge pulumi outputs with static_config
+            serve_ip, serve_port, request_path, cert, key, ca_cert = args
+            merged_config = self.static_config.copy()
+            merged_config.update(
+                {
+                    "serve_port": serve_port,
+                    "request_path": request_path,
+                    "cert": cert,
+                    "key": key,
+                    "ca_cert": ca_cert,
+                    "remote_url": f"https://{serve_ip}:{serve_port}/{request_path}",
+                }
+            )
+            return merged_config
+
         # Use .apply() to create a new Output that contains the fully resolved config
         self.merged_config = Output.all(
+            self.serve_ip,
             self.serve_port,
             self.request_path,
             provision_host_tls.chain,
@@ -1061,11 +1176,13 @@ class ServePrepare(pulumi.ComponentResource):
             ca_factory.root_cert_pem,
         ).apply(build_merged_config)
 
-        if self.merged_config["post_forward"]["enabled"]:
-            # run port_forward if enabled and update config with returned port_forward values
+        if self.merged_config["port_forward"]["enabled"] and False:
+            # if enabled, run port_forward and update config with returned port_forward values
             self.forward = command.local.Command(
                 resource_name + "_forward",
-                create="scripts/port_forward.py --yaml-from-stdin --yaml-to-stdout",
+                create="uv run "
+                + os.path.join(this_dir, "scripts/port_forward.py")
+                + " --yaml-from-stdin --yaml-to-stdout",
                 stdin=self.merged_config.apply(yaml.safe_dump),
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -1085,15 +1202,27 @@ class ServePrepare(pulumi.ComponentResource):
         else:
             self.config = self.merged_config
 
+        # create yaml string of config object as .result
         self.result = self.config.apply(yaml.safe_dump)
         self.register_outputs({})
 
 
-def serve_prepare(resource_name, config_input="", timeout_sec=45, opts=None):
+def serve_prepare(
+    resource_name,
+    config_input="",
+    timeout_sec=45,
+    tokenlifetime_sec=600,
+    serve_interface="",
+    serve_ip="",
+    opts=None,
+):
     return ServePrepare(
         "serve_prepare_{}".format(resource_name),
         config_input=config_input,
         timeout_sec=timeout_sec,
+        tokenlifetime_sec=tokenlifetime_sec,
+        serve_interface=serve_interface,
+        serve_ip=serve_ip,
         opts=opts,
     )
 
@@ -1105,7 +1234,9 @@ class ServeOnce(pulumi.ComponentResource):
         super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
         self.executed = command.local.Command(
             resource_name,
-            create="scripts/serve_once.py --yes",
+            create="uv run "
+            + os.path.join(this_dir, "scripts/serve_once.py")
+            + " --yes",
             stdin=config.apply(yaml.safe_dump),
             opts=pulumi.ResourceOptions(parent=self),
         )
@@ -1140,7 +1271,9 @@ class WriteRemoveable(pulumi.ComponentResource):
         super().__init__("pkg:index:WriteRemoveable", resource_name, None, opts)
 
         create_str = (
-            "scripts/write_removeable.py --silent"
+            "uv run "
+            + os.path.join(this_dir, "scripts/write_removeable.py")
+            + " --silent"
             + " --source-image {}".format(image)
             + " --dest-serial {} --dest-size {}".format(serial, size)
             + "".join(
