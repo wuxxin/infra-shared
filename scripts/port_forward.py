@@ -12,10 +12,10 @@
         | port_forward.py --yaml-from-stdin --yaml-to-stdout | serve_once.py --yes)"
 """
 
-
 import argparse
 import copy
 import os
+import netifaces
 import socket
 import sys
 import textwrap
@@ -101,17 +101,34 @@ def get_default_gateway_ip():
 
 
 def get_default_host_ip():
+    """
+    Return the IP address (or None) of the interface that is most likely connected to the outside world.
+    """
     try:
-        gateway_addr = socket.gethostbyname(socket.gethostname())
-        if (
-            not socket.inet_pton(socket.AF_INET, gateway_addr)
-            or gateway_addr.startswith("127.")
-            or gateway_addr.startswith("::1")
-        ):
-            gateway_addr = None
-    except socket.gaierror:
-        gateway_addr = None
-    return gateway_addr
+        # Get the default gateway
+        gws = netifaces.gateways()
+        default_gateway = gws.get("default", {}).get(netifaces.AF_INET, None)
+
+        if default_gateway is None:
+            # No default gateway found
+            return None
+
+        interface = default_gateway[1]
+        # Get addresses associated with the interface
+        addresses = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
+
+        if not addresses:
+            return None
+
+        for addr in addresses:
+            ip_addr = addr["addr"]
+            if not ip_addr.startswith("127.") and not ip_addr.startswith("::1"):
+                return ip_addr
+        return None
+
+    except (ValueError, KeyError, OSError) as e:
+        print(f"Error getting default host IP: {e}")
+        return None
 
 
 def get_public_ip(config):
