@@ -64,7 +64,12 @@ from cryptography.hazmat.primitives.serialization import (
 )
 from pulumi import Output, Alias, ResourceOptions
 
-from .tools import yaml_loads, public_local_export, get_default_host_ip
+from .tools import (
+    yaml_loads,
+    public_local_export,
+    get_default_host_ip,
+    get_ip_from_ifname,
+)
 
 
 config = pulumi.Config("")
@@ -754,8 +759,10 @@ provision_host_names = [
     "provision_host.{}".format(domain)
     for domain in ca_config["ca_permitted_domains_list"]
 ]
+# TODO make provision_host_ip_addresses default more robust, but resourceful
 provision_ip_addresses = config.get(
-    "{}_ip_addresses".format("provision_host"), [get_default_host_ip()]
+    "provision_host_ip_addresses",
+    [get_default_host_ip(), get_ip_from_ifname("virbr0")],
 )
 provision_host_tls = create_host_cert(
     provision_host_names[0],
