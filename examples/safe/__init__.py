@@ -20,7 +20,6 @@
 """
 
 import os
-import copy
 
 import pulumi
 import pulumi_postgresql as postgresql
@@ -71,7 +70,7 @@ hostname = dns_names[0]
 # create tls host certificate
 tls = create_host_cert(hostname, hostname, dns_names)
 
-# get tang config
+# get tang config for storage unlock on boot
 tang_url = config.get("tang_url", None)
 tang_fingerprint = TangFingerprint(tang_url).result if tang_url else None
 
@@ -88,7 +87,7 @@ pg_postgres_client_cert = create_client_cert(
 )
 
 
-# jinja environment for butane translation
+# jinja environment for butane config
 host_environment = {
     # install mc on sim, prod should use toolbox
     "RPM_OSTREE_INSTALL": ["mc"] if stack_name.endswith("sim") else [],
@@ -120,9 +119,9 @@ host_environment = {
 }
 
 
-# modify storage and credentials related config depending stack
+# modify environment config depending stack for storage and credentials
 if stack_name.endswith("sim"):
-    # simulation adds qemu-guest-agent, debug=True, and 1234 as disk passphrase
+    # for simulation: add qemu-guest-agent, debug=True, and 1234 as disk passphrase
     host_environment["RPM_OSTREE_INSTALL"].append("qemu-guest-agent")
     host_environment.update({"DEBUG_CONSOLE_AUTOLOGIN": True})
     luks_root_passphrase = pulumi.Output.concat("1234")
@@ -142,7 +141,7 @@ storage:
 """.format(size_8g=8 * pow(2, 30))
     )
 else:
-    # generate strong random passwords, get storage identifiers from config
+    # for production: generate strong random passwords, get storage identifiers from config
     luks_root_passphrase = pulumi_random.RandomPassword(
         "{}_luks_root_passphrase".format(shortname), special=False, length=24
     ).result
@@ -151,7 +150,7 @@ else:
     ).result
     identifiers = config.get_object("identifiers")[shortname]
 
-# update environment to include storage ids, passphrases and tang setup
+# update environment to include storage id's, passphrases and tang setup
 host_environment.update(
     {
         "boot_device": next(
@@ -184,44 +183,26 @@ host_config = ButaneTranspiler(
 )
 pulumi.export("{}_butane".format(shortname), host_config)
 
-# download metal version of os image
-image = FcosImageDownloader(
-    architecture="aarch64", platform="metal", image_format="raw.xz"
+# configure the later used remote url for remote controlled setup with encrypted config
+serve_config = serve_prepare(
+    shortname, serve_interface="virbr0" if stack_name.endswith("sim") else ""
 )
 
-# download bios and other extras for customization
-extras = build_raspberry_extras()
-uboot_image_filename = os.path.join(
-    extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
-)
-
-# configure later used remote url for remote controlled setup with encrypted config
-# XXX config_input=f"mtls_clientid: install@{hostname}"
-serve_config = serve_prepare(shortname, timeout_sec=120)
-remote_url = serve_config.config["remote_url"]
-
-# create a 1 day valid client certificate only used for transfering the ignition file
-custom_ca_config = copy.copy(ca_config)
-custom_ca_config["cert_validity_period_hours"] = 24
-custom_ca_config["cert_early_renewal_hours"] = 1
-host_install_cert = create_client_cert(
-    f"install@{hostname}", f"install@{hostname}", custom_ca_config=custom_ca_config
-)
-# create public ignition config
+# create public ignition config pointing to https retrival of host_config served by serve_once
 public_config = RemoteDownloadIgnitionConfig(
     "{}_public_ignition".format(shortname),
     hostname,
-    remote_url,
+    serve_config.config.apply(lambda x: x["remote_url"]),
 )
 
-# serve secret part of ignition config via serve_once and mandatory client certificate
+# serve secret part of ignition config via serve_once
 serve_data = serve_once(
     shortname,
-    payload=pulumi.Output.all(source_dict=host_config.result).apply(
-        lambda args: yaml.safe_dump(args["source_dict"])
-    ),
-    config=serve_config,
+    payload=host_config.result.apply(lambda x: yaml.safe_dump(x)),
+    config=serve_config.result,
 )
+pulumi.export("{}_served_once".format(shortname), serve_data)
+
 
 if stack_name.endswith("sim"):
     # create libvirt machine simulation:
@@ -233,6 +214,17 @@ if stack_name.endswith("sim"):
     target = host_machine.vm.network_interfaces[0]["addresses"][0]
     opts = pulumi.ResourceOptions(depends_on=[host_machine, serve_data])
 else:
+    # download metal version of ARM64 os image (Raspberry PI compatible)
+    image = FcosImageDownloader(
+        architecture="aarch64", platform="metal", image_format="raw.xz"
+    )
+
+    # download bios and other extras for Raspberry PI for customization
+    extras = build_raspberry_extras()
+    uboot_image_filename = os.path.join(
+        extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
+    )
+
     # export public config to be copied to the removeable storage device
     public_config_file = public_local_export(
         shortname, "{}_public.ign".format(shortname), public_config.result
@@ -276,3 +268,4 @@ pg_server = postgresql.Provider(
     sslmode="require",
     opts=pulumi.ResourceOptions(depends_on=[host_machine, host_update]),
 )
+pulumi.export("{}_pg_server".format(shortname), pg_server)
