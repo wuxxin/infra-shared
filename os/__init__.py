@@ -64,9 +64,11 @@ class ButaneTranspiler(pulumi.ComponentResource):
     - opts (pulumi.ResourceOptions): Defaults to None
 
     Returns: pulumi.ComponentResource: ButaneTranspiler resource results
-    - butane_config (str): The merged Butane YAML configuration
-    - saltstack_config (str): The Butane translated to inlined SaltStack YAML
-    - ignition_config (str): The Butane translated to Ignition JSON
+    - butane_config (Output[str]): The merged Butane YAML configuration
+    - saltstack_config (Output[str]): The Butane translated to inlined SaltStack YAML
+    - ignition_config (Output[str], Alias result): The Butane translated to Ignition JSON
+    - this_env (Output.secret[dict)): Environment that was used for the translation
+
     """
 
     def __init__(
@@ -269,7 +271,9 @@ storage:
         self.butane_config = pulumi.Output.all(source_dict=merged_dict).apply(
             lambda args: yaml.safe_dump(args["source_dict"])
         )
-        # self.butane_config.apply(log_warn)
+
+        # make the used env for butane files processing available as secret
+        self.this_env = pulumi.Output.secret(pulumi.Output.from_input(this_env))
 
         # translate butane merged_dict to saltstack dict, convert to yaml,
         # append update-system-config.sls and basedir/*.sls, export as saltstack_config
@@ -294,8 +298,8 @@ storage:
 
         # translate merged butane yaml to ignition json config
         # XXX v0.19.0 Add -c/--check option to check config without producing output
-        self.ignition_config = command.local.Command(
-            "{}_ignition_config".format(resource_name),
+        self.ignition_translation = command.local.Command(
+            "{}_ignition_translation".format(resource_name),
             create="butane -d . -r -p",
             stdin=self.butane_config,
             dir=basedir,
@@ -303,12 +307,10 @@ storage:
                 parent=self, additional_secret_outputs=["stdout"]
             ),
         )
+        # ignition json str as result
+        self.ignition_config = self.ignition_translation.stdout
+        self.result = self.ignition_config
 
-        # export used env
-        self.this_env = pulumi.Output.secret(pulumi.Output.from_input(this_env))
-
-        # alias ignition json as result
-        self.result = self.ignition_config.stdout
         self.register_outputs({})
 
 
