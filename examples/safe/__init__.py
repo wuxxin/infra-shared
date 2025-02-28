@@ -20,6 +20,7 @@
 """
 
 import os
+import json
 
 import pulumi
 import pulumi_postgresql as postgresql
@@ -44,8 +45,9 @@ from infra.os import (
     RemoteDownloadIgnitionConfig,
 )
 from infra.tools import (
-    serve_prepare,
-    serve_once,
+    ServePrepare,
+    ServeOnce,
+    merge_payload_config,
     write_removeable,
     public_local_export,
     log_warn,
@@ -184,22 +186,23 @@ host_config = ButaneTranspiler(
 pulumi.export("{}_butane".format(shortname), host_config)
 
 # configure the later used remote url for remote controlled setup with encrypted config
-serve_config = serve_prepare(
+serve_config = ServePrepare(
     shortname, serve_interface="virbr0" if stack_name.endswith("sim") else ""
 )
 
-# create public ignition config pointing to https retrival of host_config served by serve_once
+# create public ignition config pointing to https retrival of host_config served by ServeOnce
 public_config = RemoteDownloadIgnitionConfig(
     "{}_public_ignition".format(shortname),
     hostname,
     serve_config.config.apply(lambda x: x["remote_url"]),
 )
 
-# serve secret part of ignition config via serve_once
-serve_data = serve_once(
+# serve secret part of ignition config via ServeOnce
+serve_data = ServeOnce(
     shortname,
-    payload=host_config.result.apply(lambda x: yaml.safe_dump(x)),
-    config=serve_config.result,
+    config=merge_payload_config(
+        host_config.result.apply(lambda x: json.dumps(x)), serve_config.config
+    ),
 )
 pulumi.export("{}_served_once".format(shortname), serve_data)
 
