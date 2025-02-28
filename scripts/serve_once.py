@@ -66,7 +66,7 @@ def verbose_print(message: str) -> None:
 def write_file_bytes(filepath: str, content: bytes) -> None:
     """Writes bytes to a file."""
     with open(filepath, "wb") as f:
-        f.write(content)
+        f.write(content.encode())
 
 
 def merge_dicts(dict1: dict, dict2: dict) -> dict:
@@ -238,6 +238,7 @@ def serve_once(config: dict[str, Any]) -> http.server.HTTPServer:
             if config["mtls"]:
                 context.verify_mode = ssl.CERT_REQUIRED
 
+        verbose_print(f"waiting for request on request_path: {config['request_path']}")
         httpd = http.server.HTTPServer(
             (config["serve_ip"], int(config["serve_port"])),
             RequestHandler,
