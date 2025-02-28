@@ -2,37 +2,31 @@
 """
 ## Pulumi - Tools
 
-### Functions
 https:
-- serve_prepare
-- serve_once
-- serve_simple
+- f: serve_simple
+- c: ServePrepare
+- c: ServeOnce
+- p: merge_payload_config
 
 ssh:
-- ssh_put
-- ssh_deploy
-- ssh_execute
-- ssh_get
+- f: ssh_put
+- f: ssh_deploy
+- f: ssh_execute
+- f: ssh_get
 
 storage:
-- write_removeable
-- encrypted_local_export
-- public_local_export
+- f: write_removeable
+- f: encrypted_local_export
+- f: public_local_export
 
 tool:
-- log_warn
-
-### Components
-- LocalSaltCall
-- RemoteSaltCall
-
-### Resources
-- TimedResource
-
-### Python
-- sha256sum_file
-- get_default_host_ip
-- yaml_loads
+- f: log_warn
+- c: LocalSaltCall
+- c: RemoteSaltCall
+- r: TimedResource
+- p: sha256sum_file
+- p: get_default_host_ip
+- p: yaml_loads
 
 """
 
@@ -113,7 +107,7 @@ def get_ip_from_ifname(name: str) -> str | None:
         name (str): The name of the network interface (e.g., "eth0", "wlan0", "enp7s0")
     Returns:
         str | None: The first IPv4 address found on the interface,
-         or None if the interface doesn't exist or has no IPv4 addresses.
+            or None if the interface doesn't exist or has no IPv4 addresses.
     """
     try:
         # Check if the interface exists
@@ -388,21 +382,20 @@ def ssh_put(
 ):
     """copy/put a set of files from localhost to ssh target using ssh/sftp
 
-    files= {remotepath: localpath,}
+    Args:
+        files: {remotepath: localpath,}
+        remote_prefix: path prefixed to each remotepath
+        local_prefix: path prefixed to each locallpath
+        if delete==True: files will be deleted from target on deletion of resource
+        if simulate==True: files are not transfered but written out to state/tmp/stack_name
+        if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
-    remote_prefix= path prefixed to each remotepath
-    local_prefix= path prefixed to each locallpath
+    Returns:
+        [attr(remotepath, remote.CopyFile|local.Command) for remotepath in files]
+        triggers: list of key and data hashes for every file,
+            can be used for triggering another function if any file changed
 
-    if delete==True: files will be deleted from target on deletion of resource
-    if simulate==True: files are not transfered but written out to state/tmp/stack_name
-    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
-
-    #### Returns
-    - [attr(remotepath, remote.CopyFile|local.Command) for remotepath in files]
-    - triggers: list of key and data hashes for every file
-        - can be used for triggering another function if any file changed
-
-    #### Example
+    Example:
     ```python
     config_copied = ssh_put(resource_name, host, user, files=files_dict)
     config_activated = ssh_execute(resource_name, host, user, cmdline=cmdline,
@@ -445,18 +438,17 @@ def ssh_get(
 ):
     """get/copy a set of files from the target system to the local filesystem using ssh/sftp
 
-    files= {remotepath: localpath,}
+    Args:
+        files: {remotepath: localpath,}
+        remote_prefix: path prefixed to each remotepath
+        local_prefix: path prefixed to each locallpath
+        if simulate==True: files are not transfered but written out to state/tmp/stack_name
+        if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
-    remote_prefix= path prefixed to each remotepath
-    local_prefix= path prefixed to each locallpath
-
-    if simulate==True: files are not transfered but written out to state/tmp/stack_name
-    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
-
-    #### Returns
-    - [attr(remotepath, paramiko.sendfile) for remotepath in files]
-    - triggers: list of key and data hashes for every file
-        - can be used for triggering another function if any file changed
+    Returns:
+        [attr(remotepath, paramiko.sendfile) for remotepath in files]
+        triggers: list of key and data hashes for every file,
+            can be used for triggering another function if any file changed
     """
 
     from .authority import ssh_factory
@@ -492,20 +484,20 @@ def ssh_deploy(
 ):
     """deploy a set of strings as small files to a ssh target
 
-    if secret==True: data is considered a secret, file mode will be 0600, dir mode will be 0700
-    if delete==True: files will be deleted from target on deletion of resource
-    if simulate==True: data is not transfered but written out to state/tmp/stack_name
-    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+    Args:
+        files: {remotepath: data,}
+        remote_prefix= path prefixed to each remotepath
+        if secret==True: data is considered a secret, file mode will be 0600, dir mode will be 0700
+        if delete==True: files will be deleted from target on deletion of resource
+        if simulate==True: data is not transfered but written out to state/tmp/stack_name
+        if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
-    files: {remotepath: data,}
-    remote_prefix= path prefixed to each remotepath
+    Returns:
+        [attr(remotepath, remote.Command|local.Command) for remotepath in files]
+        triggers: list of key and data hashes for every file,
+            can be used for triggering another function if any file changed
 
-    #### Returns
-    - [attr(remotepath, remote.Command|local.Command) for remotepath in files]
-    - triggers: list of key and data hashes for every file,
-        - can be used for triggering another function if any file changed
-
-    #### Example:
+    Example:
     ```python
     config_deployed = ssh_deploy(resource_name, host, user, files=config_dict)
     config_activated = ssh_execute(resource_name, host, user, cmdline=cmdline,
@@ -546,11 +538,11 @@ def ssh_execute(
 ):
     """execute cmdline with environment as user on a ssh target host
 
-    cmdline: String to be executed on target host
-    environment: Dict of environment entries to be available in cmdline
-
-    if simulate==True: command is not executed but written out to state/tmp/stack_name
-    if simulate==None: simulate = pulumi.get_stack().endswith("sim")
+    Args:
+        cmdline: String to be executed on target host
+        environment: Dict of environment entries to be available in cmdline
+        if simulate==True: command is not executed but written out to state/tmp/stack_name
+        if simulate==None: simulate = pulumi.get_stack().endswith("sim")
 
     """
 
@@ -691,7 +683,7 @@ def public_local_export(prefix, filename, data, filter="", delete=False, opts=No
 def salt_config(resource_name, stack_name, base_dir):
     """generate a saltstack salt config
 
-    - grains available
+    grains available:
       - resource_name, base_dir, root_dir, tmp_dir, sls_dir, pillar_dir
 
     """
@@ -754,8 +746,14 @@ class LocalSaltCall(pulumi.ComponentResource):
     - config/run/tmp/cache and other files default to state/salt/stackname/resource_name
     - grains from salt_config available
 
-    #### Example: build openwrt image
+    Args:
+        *args: salt command to execute
+        pillar: dict to use as pillar
+        environment: dict to use as process environment
+
+    Example:
     ```python
+    # build openwrt image
     LocalSaltCall("build_openwrt", "state.sls", "build_openwrt",
         pillar={}, environment={}, sls_dir=this_dir)
     ```
@@ -1064,33 +1062,32 @@ class TimedResource(pulumi.dynamic.Resource):
 class ServePrepare(pulumi.ComponentResource):
     """a serve-prepare component to configure a future available web resource
 
-    :param str config_input: yaml input added on top of the default resource config
+    It creates a `TimedResource` object to manage the local port configuration
+    and another `TimedResource` object to create a request_path uuid
+    and initializes port forwarding to the local port if requested.
+
+    Args:
+    :param str config_str: yaml str input added on top of the default resource config
     :param int timeout_sec: timeout in seconds the service will be available
     :param int tokenlifetime_sec: lifetime in seconds for the randomized
         port number and path assignments, before it will be recreated on demand
-
-    # Serve IP-Adress related, serve_ip takes precedence before serve_interface
-    :param str serve_ip: defaults "": if set, ip address specified is used for serving
+    :param str serve_ip: defaults "": if set, the ip address specified is used for serving
     :param str serve_interface: defaults "": if set, the ip address of the specified interface is used for serving
-    else it uses get_default_host_ip()
-
+        else it uses get_default_host_ip(), serve_ip takes precedence over serve_interface
     :param str mtls_clientid: if set, client must present a matching client certificate with cn=mtls_clientid
     :param int port_base: base port number of the web resource
     :param int port_range: range of ports for the web resource
 
-    It creates a `TimedResource` object to manage the local port configuration
-        another `TimedResource` object to create a request_path uuid
-        and initializes port forwarding to the local port if requested.
+    Attributes:
+    :attribute pulumi.Output[dict] config: Final serve config as dict
+    :attribute pulumi.Output[str] result: Final serve config as yaml string
 
-    Returns:
-        self.config = Final serve config as object
-        self.result = Final serve config as yaml string
     """
 
     def __init__(
         self,
         resource_name: str,
-        config_input: str = "",
+        config_str: str = "",
         timeout_sec: int = 45,
         tokenlifetime_sec: int = 10 * 60,
         port_base: int = 47000,
@@ -1107,7 +1104,7 @@ class ServePrepare(pulumi.ComponentResource):
         # Build the initial static config (*without* Output values)
         self.static_config = {
             "timeout": timeout_sec,
-            "mtls": True,
+            "mtls": False,
             "mtls_clientid": mtls_clientid if mtls_clientid else "",
             "payload": None,
             "port_forward": config.get_object(
@@ -1115,8 +1112,8 @@ class ServePrepare(pulumi.ComponentResource):
             ),
         }
         # Merge in the user-provided config before adding Output-dependent values
-        if config_input:
-            self.static_config.update(yaml.safe_load(config_input))
+        if config_str:
+            self.static_config.update(yaml.safe_load(config_str))
 
         # use the default hostip, or the named interface ip or the specified ip for accessing the url
         self.serve_ip = (
@@ -1148,7 +1145,7 @@ class ServePrepare(pulumi.ComponentResource):
             TimedResourceInputs(timeout_sec=tokenlifetime_sec, creation_type="uuid"),
             opts=pulumi.ResourceOptions(parent=self),
         )
-        self.request_path = self.request_uuid.value
+        self.request_path = self.request_uuid.value.apply(lambda uuid: "/" + uuid)
 
         def build_merged_config(args):
             # merge pulumi outputs with static_config
@@ -1180,9 +1177,7 @@ class ServePrepare(pulumi.ComponentResource):
             # if enabled, run port_forward and update config with returned port_forward values
             self.forward = command.local.Command(
                 resource_name + "_forward",
-                create="uv run "
-                + os.path.join(this_dir, "scripts/port_forward.py")
-                + " --yaml-from-stdin --yaml-to-stdout",
+                create=f"uv run {os.path.join(this_dir, 'scripts/port_forward.py')} --yaml-from-stdin --yaml-to-stdout",
                 stdin=self.merged_config.apply(yaml.safe_dump),
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -1207,36 +1202,31 @@ class ServePrepare(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-def serve_prepare(
-    resource_name,
-    config_input="",
-    timeout_sec=45,
-    tokenlifetime_sec=600,
-    serve_interface="",
-    serve_ip="",
-    opts=None,
-):
-    return ServePrepare(
-        "serve_prepare_{}".format(resource_name),
-        config_input=config_input,
-        timeout_sec=timeout_sec,
-        tokenlifetime_sec=tokenlifetime_sec,
-        serve_interface=serve_interface,
-        serve_ip=serve_ip,
-        opts=opts,
-    )
-
-
 class ServeOnce(pulumi.ComponentResource):
-    """one time secure web data serve for eg. ignition data, or one time webhook with retrieved POST data"""
+    """one time secure web data server for single request data, eg. ignition data or one time webhook
+
+    It uses a temporary server that shuts down after the data has been retrieved once.
+    The server is configured via YAML passed as `stdin`.
+
+    Args:
+        resource_name (str): The name of the resource
+        config (pulumi.Input[Dict]): The configuration for the server, provided as a YAML-serializable dict.
+
+    Attributes:
+        result (pulumi.Output[str]): The standard output of the `serve_once.py` script.
+            This contains any POST information, if provided.
+
+    Example:
+    ```python
+        ServeOnce("testing", config=merge_payload_config(payload, config))
+    ```
+    """
 
     def __init__(self, resource_name, config, opts=None):
         super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
         self.executed = command.local.Command(
             resource_name,
-            create="uv run "
-            + os.path.join(this_dir, "scripts/serve_once.py")
-            + " --yes",
+            create=f"uv run {os.path.join(this_dir, 'scripts/serve_once.py')} --verbose --yes",
             stdin=config.apply(yaml.safe_dump),
             opts=pulumi.ResourceOptions(parent=self),
         )
@@ -1244,23 +1234,23 @@ class ServeOnce(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-def serve_once(resource_name, payload, config, opts=None):
-    def prepare_payload(payload_value):
-        return {**config, "payload": payload_value}
-
-    merged_config = payload.apply(prepare_payload)
-    return ServeOnce("serve_once_{}".format(resource_name), merged_config, opts=opts)
+def merge_payload_config(payload, config):
+    """Merge payload into config dictionary"""
+    merged_config = Output.all(payload, config).apply(
+        lambda args: {**args[1], "payload": args[0]}
+    )
+    return merged_config
 
 
 def serve_simple(resource_name, yaml_str, opts=None):
-    config_dict = yaml.safe_load(yaml_str)
+    config_dict = {"payload": yaml.safe_load(yaml_str)}
     this_config = ServePrepare(
         "serve_prepare_{}".format(resource_name),
-        config_input=yaml.safe_dump(config_dict),
+        config_str=yaml.safe_dump(config_dict),
         opts=opts,
     )
     return ServeOnce(
-        "serve_once_{}".format(resource_name), this_config.result, opts=opts
+        "serve_once_{}".format(resource_name), this_config.config, opts=opts
     )
 
 
