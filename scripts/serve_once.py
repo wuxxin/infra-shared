@@ -205,7 +205,6 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 def serve_once(config: dict[str, Any]) -> http.server.HTTPServer:
-    """Serves a single HTTPS request or times out."""
     RequestHandler.config = config
     RequestHandler.success = False
 
@@ -250,16 +249,23 @@ def serve_once(config: dict[str, Any]) -> http.server.HTTPServer:
         httpd.server_bind()
         httpd.server_activate()
 
-        while not RequestHandler.success:
-            # only loop while not successful to allow return
-            r, _, _ = select.select([httpd.socket], [], [], httpd.timeout)
-            if r:
-                httpd.handle_request()
-                if RequestHandler.success:
-                    break
-            else:
-                verbose_print("Timeout reached")
-                sys.exit(1)
+        start_time = datetime.datetime.now()
+        while (
+            not RequestHandler.success
+            and (datetime.datetime.now() - start_time).total_seconds()
+            < config["timeout"]
+        ):
+            try:
+                r, _, _ = select.select([httpd.socket], [], [], httpd.timeout)
+                if r:
+                    httpd.handle_request()
+            except Exception as e:
+                verbose_print(f"Request handling error: {e}")
+                # continue to listen for other requests
+
+        if not RequestHandler.success:
+            verbose_print("Timeout reached or no successful requests.")
+            sys.exit(1)
 
     finally:
         if cert_thread:
@@ -268,8 +274,9 @@ def serve_once(config: dict[str, Any]) -> http.server.HTTPServer:
             key_thread.join()
         if temp_dir:
             shutil.rmtree(temp_dir)
+        if httpd:
+            httpd.server_close()
 
-    # return the httpd instance to allow shutdown and get address
     return httpd
 
 
@@ -306,8 +313,8 @@ def main() -> None:
         config["key"] = cert_key_dict["key"]
 
     verbose_print(f"Starting server on port {config['serve_port']}")
-    serve_once(config)
     # server will exit after first request or timeout
+    serve_once(config)
 
 
 if __name__ == "__main__":
