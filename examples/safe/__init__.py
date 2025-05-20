@@ -20,7 +20,6 @@
 """
 
 import os
-import json
 
 import pulumi
 import pulumi_postgresql as postgresql
@@ -48,9 +47,8 @@ from infra.tools import (
     ServePrepare,
     ServeOnce,
     merge_payload_config,
-    write_removeable,
+    write_removable,
     public_local_export,
-    log_warn,
 )
 from infra.build import build_raspberry_extras
 
@@ -106,14 +104,10 @@ host_environment = {
         },
         "EXTRA": 'accessLog:\n  format: "common"',
     },
-    "LOCALE": {
-        key.upper(): value for key, value in config.get_object("locale").items()
-    },
+    "LOCALE": {key.upper(): value for key, value in config.get_object("locale").items()},
     "DNS_RESOLVER": {}
     if not config.get_object("dns_resolver", None)
-    else {
-        key.upper(): value for key, value in config.get_object("dns_resolver").items()
-    },
+    else {key.upper(): value for key, value in config.get_object("dns_resolver").items()},
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRES_PASSWORD": pg_postgres_password.result,
     "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose", True),
@@ -190,7 +184,7 @@ serve_config = ServePrepare(
     shortname, serve_interface="virbr0" if stack_name.endswith("sim") else ""
 )
 
-# create public ignition config pointing to https retrival of host_config served by ServeOnce
+# create public ignition config pointing to https retrieval of host_config served by ServeOnce
 public_config = RemoteDownloadIgnitionConfig(
     "{}_public_ignition".format(shortname),
     hostname,
@@ -200,9 +194,7 @@ public_config = RemoteDownloadIgnitionConfig(
 # serve secret part of ignition config via ServeOnce
 serve_data = ServeOnce(
     shortname,
-    config=merge_payload_config(
-        host_config.result.apply(lambda x: json.dumps(x)), serve_config.config
-    ),
+    config=merge_payload_config(host_config.result, serve_config.config),
 )
 pulumi.export("{}_served_once".format(shortname), serve_data)
 
@@ -228,13 +220,13 @@ else:
         extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
     )
 
-    # export public config to be copied to the removeable storage device
+    # export public config to be copied to the removable storage device
     public_config_file = public_local_export(
         shortname, "{}_public.ign".format(shortname), public_config.result
     )
 
-    # write customized image to removeable storage device, include uboot image and ignition config
-    host_boot_media = write_removeable(
+    # write customized image to removable storage device, include uboot image and ignition config
+    host_boot_media = write_removable(
         shortname,
         image=image.imagepath,
         serial=host_environment["bootdevice"].strip("/dev/disk/by-uuid/"),
@@ -250,9 +242,7 @@ else:
 
 
 # update host to newest config, should be a no-op (zero changes) on machine creation
-host_update = SystemConfigUpdate(
-    shortname, target, host_config, simulate=False, opts=opts
-)
+host_update = SystemConfigUpdate(shortname, target, host_config, simulate=False, opts=opts)
 pulumi.export("{}_host_update".format(shortname), host_update)
 
 # make host postgresql.Provider pg_server available
