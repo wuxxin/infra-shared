@@ -126,11 +126,16 @@ esphome:
 android:
   emulator:
     magisk:
-      app: https://github.com/topjohnwu/Magisk/releases/download/v28.0/Magisk-v28.0.apk
+      app: https://github.com/topjohnwu/Magisk/releases/download/v28.1/Magisk-v28.1.apk
       modules:
-        - https://github.com/kdrag0n/safetynet-fix/releases/download/v2.4.0/safetynet-fix-v2.4.0.zip
         - https://gitlab.com/newbit/usbhostpermissions/-/releases/v1.0.2/downloads/usbhostpermissions
         - https://github.com/Magisk-Modules-Repo/MagiskHidePropsConf/releases/download/v6.1.2/MagiskHidePropsConf-v6.1.2.zip
+        - https://github.com/ViRb3/magisk-frida/releases/download/16.7.4-1/MagiskFrida-16.7.4-1.zip
+        - https://github.com/kdrag0n/safetynet-fix/releases/download/v2.4.0/safetynet-fix-v2.4.0.zip
+    fdroid:
+      packages:
+        - com.termux
+        - com.termux.api
   generic:
     fdroid:
       repositories: []
@@ -139,13 +144,12 @@ android:
         # fdroid packages
         - com.jens.automation2
         - com.atharok.barcodescanner
-        - org.briarproject.briar.android
-        - at.bitfire.davdroid
         - eu.depau.etchdroid
+        - at.bitfire.davdroid
+        - org.briarproject.briar.android
         - org.mozilla.fennec_fdroid
         - com.michaeltroger.gruenerpass
         - ch.rmy.android.http_shortcuts
-        - com.fsck.k9
         - org.kde.kdeconnect_tp
         - ca.cmetcalfe.locationshare
         - org.isoron.uhabits
