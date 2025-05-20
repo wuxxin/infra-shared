@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+# /// script
+# dependencies = [
+#   "natpmp",
+#   "yaml",
+# ]
+# ///
+
 """request a port forwarding so that serve-port is reachable on public-port
 
   either '--yaml-from-stdin' with yaml 'serve_port: <port>' from STDIN
@@ -14,9 +21,7 @@
 
 import argparse
 import copy
-import os
 import netifaces
-import socket
 import sys
 import textwrap
 
@@ -34,7 +39,6 @@ port_forward:
   lifetime_sec: 3600
   retry: 9
 """
-
 DEFAULT_CONFIG = yaml.safe_load(DEFAULT_CONFIG_STR)
 DEFAULT_SHORT = textwrap.fill(
     ", ".join(["{}: {}".format(k, v) for k, v in DEFAULT_CONFIG.items()]),
@@ -44,10 +48,8 @@ DEFAULT_SHORT = textwrap.fill(
 )
 
 
-def error_print(message, print_help=False):
+def error_print(message):
     print("Error:  {}".format(message), file=sys.stderr)
-    if print_help:
-        print("        use -h, --help for a complete list of arguments")
     sys.exit(1)
 
 
@@ -73,10 +75,8 @@ def merge_dict_struct(struct1, struct2):
             if item not in struct1:
                 merged.append(item)
     elif is_dict_like(struct1) and struct2 is None:
-        # do nothing if first is dict, but second is None
         pass
     elif is_list_like(struct1) and struct2 is None:
-        # do nothing if first is list, but second is None
         pass
     else:
         # the second input overwrites the first input
@@ -85,36 +85,35 @@ def merge_dict_struct(struct1, struct2):
 
 
 def get_default_gateway_ip():
-    if os.path.exists("/proc/net/route"):
-        r_data = open("/proc/net/route", "r").read()
-        for r_line in r_data.splitlines():
-            r_fields = r_line.strip().split("\t")
-            if len(r_fields) >= 3 and r_fields[1] == "00000000":
-                ip_hex = r_fields[2]
-                if sys.byteorder == "little":
-                    ip_bytes = bytes.fromhex(ip_hex)[::-1]
-                else:
-                    ip_bytes = bytes.fromhex(ip_hex)
-                ip_address = socket.inet_ntoa(ip_bytes)
-                return ip_address
-    return None
+    """
+    Return the IP address (as a string) of the default gateway, or None if not found
+    """
+    try:
+        gws = netifaces.gateways()
+        default_gateway = gws.get("default", {}).get(netifaces.AF_INET, None)
+
+        if default_gateway:
+            # The gateway IP is the first element
+            return default_gateway[0]
+        else:
+            return None
+    except (ValueError, KeyError, OSError) as e:
+        print(f"Error getting default gateway IP: {e}")
+        return None
 
 
 def get_default_host_ip():
     """
-    Return the IP address (or None) of the interface that is most likely connected to the outside world.
+    Return the IP address (or None) of the interface that is most likely connected to the outside world
     """
     try:
-        # Get the default gateway
         gws = netifaces.gateways()
         default_gateway = gws.get("default", {}).get(netifaces.AF_INET, None)
-
         if default_gateway is None:
-            # No default gateway found
             return None
 
         interface = default_gateway[1]
-        # Get addresses associated with the interface
+        # Get addresses associated with the interface connected to the default gw
         addresses = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
 
         if not addresses:
@@ -183,12 +182,8 @@ if __name__ == "__main__":
         description=__doc__ + "\ndefaults:\n{}\n".format(DEFAULT_SHORT),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument(
-        "--yaml-from-stdin", action="store_true", help="Read input from STDIN"
-    )
-    parser.add_argument(
-        "--serve-port", type=int, help="internal port to be forwarded to"
-    )
+    parser.add_argument("--yaml-from-stdin", action="store_true", help="Read input from STDIN")
+    parser.add_argument("--serve-port", type=int, help="internal port to be forwarded to")
     parser.add_argument(
         "--public-port",
         type=int,
@@ -217,9 +212,7 @@ if __name__ == "__main__":
         action="store_true",
         help="dont print anything to STDOUT, just exit 0 on success",
     )
-    get_group = parser.add_argument_group(
-        "other Functions"
-    ).add_mutually_exclusive_group()
+    get_group = parser.add_argument_group("other Functions").add_mutually_exclusive_group()
     get_group.add_argument(
         "--get-host-ip", action="store_true", help="print default route host IP"
     )
@@ -243,24 +236,19 @@ if __name__ == "__main__":
             args.get_host_ip,
         ]
     ):
-        error_print(
-            "Need one of '--yaml-from-stdin', '--serve-port', '--get-public-ip', '--get-gateway-ip', '--get-host-ip'",
-            print_help=True,
-        )
+        error_print("""Need one of:
+'--yaml-from-stdin', '--serve-port', '--get-public-ip', '--get-gateway-ip', '--get-host-ip'
+use '-h', '--help' for a complete list of arguments""")
 
     if args.get_host_ip:
         this_host_ip = get_default_host_ip()
         print(this_host_ip)
-        if not this_host_ip:
-            sys.exit(1)
-        sys.exit(0)
+        sys.exit(0 if this_host_ip else 1)
 
     if args.get_gateway_ip:
         this_gateway_ip = get_default_gateway_ip()
         print(this_gateway_ip)
-        if not this_gateway_ip:
-            sys.exit(1)
-        sys.exit(0)
+        sys.exit(0 if this_gateway_ip else 1)
 
     if args.yaml_from_stdin:
         stdin_str = sys.stdin.read()
