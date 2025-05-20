@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+# /// script
+# dependencies = [
+#   "dbus",
+#   "tqdm",
+# ]
+# ///
+
 """Write an image file to a removable storage device specified by a serial_number as user
 
 - Uses UDisks2 via DBus to access the storage device without root access
@@ -18,7 +25,7 @@ bus = dbus.SystemBus()
 
 
 def get_drives():
-    """Prints a list of storage devices (and if they are removeable)"""
+    """Prints a list of storage devices (and if they are removable)"""
 
     udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
     udisks_obj_manager = dbus.Interface(
@@ -34,7 +41,7 @@ def get_drives():
                 "path": os.path.basename(path),
                 "serial": device_info["Serial"],
                 "size": device_info["Size"],
-                "removeable": "Removeable"
+                "removable": "Removable"
                 if device_info["MediaRemovable"]
                 else "Fixed",
                 "present": device_info["TimeMediaDetected"],
@@ -56,7 +63,7 @@ def get_drives():
     return drives
 
 
-def get_removeable_block_device(serial_number, disk_size):
+def get_removable_block_device(serial_number, disk_size):
     """Returns the whole disk block device path of an external attached device with specified serial and size(can be 0)"""
 
     udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
@@ -115,7 +122,7 @@ def write_to_device(block_device_path, image_file, verbose=True):
     block_device_iface = dbus.Interface(
         block_device_obj, "org.freedesktop.UDisks2.Block"
     )
-    # open target block device exclusiv for writing
+    # open target block device exclusive for writing
     target_device_dbus_fd = block_device_iface.OpenDevice(
         "w", dbus.Dictionary({"flags": os.O_EXCL | os.O_SYNC | os.O_CLOEXEC})
     )
@@ -284,7 +291,7 @@ or filesystem label, eg. 'u-boot.bin EFI-SYSTEM/boot/efi/u-boot.bin'. """,
                 f"Id: {drive['path']}"
                 + f"  Serial: {drive['serial']}"
                 + f"  Size: {drive['size']}"
-                + f"  Type: {drive['removeable']}"
+                + f"  Type: {drive['removable']}"
             )
             if drive["partitions"]:
                 max_path = max(len(p["path"]) for p in drive["partitions"])
@@ -306,7 +313,7 @@ or filesystem label, eg. 'u-boot.bin EFI-SYSTEM/boot/efi/u-boot.bin'. """,
 
     elif args.dest_serial and args.source_image:
         try:
-            block_device_path, block_info = get_removeable_block_device(
+            block_device_path, block_info = get_removable_block_device(
                 args.dest_serial, args.dest_size
             )
             write_to_device(block_device_path, args.source_image, args.verbose)
