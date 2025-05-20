@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+# /// script
+# dependencies = [
+#   "yaml",
+# ]
+# ///
+
 """serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
   will wait until timeout in seconds is reached, where it will exit 1
   will exit 0 after one successful request
@@ -268,6 +274,11 @@ def serve_once(config: dict[str, Any]) -> int:
         os.mkfifo(cert_fifo_path)
         os.mkfifo(key_fifo_path)
 
+        # Open FIFOs in non-blocking mode *before* starting threads.  This
+        # prevents the write_file_content threads from blocking indefinitely.
+        fd_cert = os.open(cert_fifo_path, os.O_RDONLY | os.O_NONBLOCK)
+        fd_key = os.open(key_fifo_path, os.O_RDONLY | os.O_NONBLOCK)
+
         cert_thread = threading.Thread(
             target=write_file_content, args=(cert_fifo_path, config["cert"])
         )
@@ -276,6 +287,9 @@ def serve_once(config: dict[str, Any]) -> int:
         )
         cert_thread.start()
         key_thread.start()
+        # close non-blocking immediately
+        os.close(fd_cert)
+        os.close(fd_key)
 
         server_address = (config["serve_ip"], int(config["serve_port"]))
         httpd = http.server.HTTPServer(server_address, OurRequestHandler)
@@ -305,10 +319,10 @@ def serve_once(config: dict[str, Any]) -> int:
                     serving = False
 
         if serving:
-            verbose_print("Timeout reached or no successful requests.")
+            verbose_print("Timeout reached and no successful requests where made")
             return 1
 
-        verbose_print("Received and served a sucessful request")
+        verbose_print("Received and successfully served one request")
         return 0
 
     finally:
@@ -344,9 +358,7 @@ def main() -> int:
     config = merge_dicts(DEFAULT_CONFIG, loaded_config)
 
     if not config["cert"] or not config["key"]:
-        verbose_print(
-            "Warning: no cert or key set, creating temporary self-signed certificate"
-        )
+        verbose_print("Warning: no cert or key set, creating random self-signed certificate")
         cert_key_dict = generate_self_signed_certificate(config["hostname"])
         config["cert"] = cert_key_dict["cert"]
         config["key"] = cert_key_dict["key"]
