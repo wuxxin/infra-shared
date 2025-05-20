@@ -14,13 +14,16 @@
 
 DNS Resolver for System, Container, Compose and Nspawn workloads is done using `Unbound`.
 
-- available under `dns.internal` on `udp/53`, `tcp/53` and `DoT:tcp/853`
+- available under `INTERNAL_CIDR|cidr2ip(0)` on `udp/53`, `tcp/53` and `DoT:tcp/853`
 - default upstream is **split round robin DoT (DNS over TLS)**
     - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
 - dynamic name and reverse ptr resolution for
     - `.internal` local Workloads
     - `.podman` Container and Compose workloads
     - `.nspawn` Machine Container
+- `INTERNAL_CIDR|cidr2ip(0)`: self.internal , dns.internal
+- `NSPAWN_CIDR|cidr2ip(0)`: self.nspawn , dns.nspawn
+- `PODMAN_CIDR|cidr2ip(0)`: self.podman , dns.podman
 
 Documentation:
 
@@ -91,7 +94,8 @@ DNS_RESOLVER:
 
 - if LOCAL_DNS_SERVER["ENABLED"]
     - requests to internal domains are gathered from an local knot DNS server instance
-    - its available under cidr2ip(".internal"):8853 tcp and udp
+    - its available under `INTERNAL_CIDR|cidr2ip(1)` on `udp/53`, `tcp/53`
+      as `knot.internal`, `knot.nspawn`, `knot.podman`
     - it provides name resolution for
         - `.internal` local Workloads
         - `.podman` Container and Compose workloads
