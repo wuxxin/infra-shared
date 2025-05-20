@@ -2,11 +2,13 @@
 
 ## Internal Networks
 
-**10.87.X.X - 10.89.X.X** are used for internal networking
+**10.87.X.X - 10.89.X.X** are used as defaults for internal networking
 
-- `.internal` bridge with dns support
-- `.podman[1-99]` bridge with dns support and dns resolution for `.podman` container
-- `.nspawn` bridge with dns support and dns resolution for `.nspawn` container
+| network name | network range | Description |
+|---|---|---|
+| `.internal` | 10.87.240.1/24 | bridge with dns support |
+| `.nspawn` | 10.87.241.1/24 | bridge with dns support, dns for `.nspawn` container |
+| `.podman[1-99]` | 10.88.0.1/16 | bridge with dns support, dns for `.podman` container |
 
 ## DNS-Resolver
 
@@ -16,6 +18,7 @@ DNS Resolver for System, Container, Compose and Nspawn workloads is done using `
 - default upstream is **split round robin DoT (DNS over TLS)**
     - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
 - dynamic name and reverse ptr resolution for
+    - `.internal` local Workloads
     - `.podman` Container and Compose workloads
     - `.nspawn` Machine Container
 
@@ -83,6 +86,26 @@ DNS_RESOLVER:
     # see https://unbound.docs.nlnetlabs.nl/en/latest/
 
 ```
+
+## local DNS-Server (knot)
+
+- if LOCAL_DNS_SERVER["ENABLED"]
+    - requests to internal domains are gathered from an local knot DNS server instance
+    - its available under cidr2ip(".internal"):8853 tcp and udp
+    - it provides name resolution for
+        - `.internal` local Workloads
+        - `.podman` Container and Compose workloads
+        - `.nspawn` Machine Container
+    - [Knot Documentation](https://www.knot-dns.cz/docs/latest/html/)
+
+- if not the internal dns_resolver will have entries for this domains
+
+## local ACME-Server (step-ca)
+
+- if LOCAL_ACME_SERVER["ENABLED"]
+    - step-ca will be used for maintaining `*.on.internal` TLS certificates
+    - needs LOCAL_DNS_SERVER to be enabled too
+    - [Step-CA Documentation](https://smallstep.com/docs/step-ca/getting-started/)
 
 ## tls/http Web-Frontend
 
