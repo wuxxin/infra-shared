@@ -24,8 +24,10 @@ tool:
 - c: LocalSaltCall
 - c: RemoteSaltCall
 - r: TimedResource
-- p: sha256sum_file
+- p: get_ip_from_ifname
 - p: get_default_host_ip
+- p: get_default_gateway_ip
+- p: sha256sum_file
 - p: yaml_loads
 
 """
@@ -54,17 +56,12 @@ def log_warn(x):
     "write str(var) to pulumi.log.warn with line numbering, to be used as var.apply(log_warn)"
     pulumi.log.warn(
         "\n".join(
-            [
-                "{}:{}".format(nr + 1, line)
-                for nr, line in enumerate(str(x).splitlines())
-            ]
+            ["{}:{}".format(nr + 1, line) for nr, line in enumerate(str(x).splitlines())]
         )
     )
 
 
-def yaml_loads(
-    s: Input[str], *, Loader: Optional[Type[yaml.Loader]] = None
-) -> "Output[Any]":
+def yaml_loads(s: Input[str], *, Loader: Optional[Type[yaml.Loader]] = None) -> "Output[Any]":
     """
     Uses yaml.safe_load to deserialize the given YAML Input[str] value into a value.
 
@@ -129,6 +126,24 @@ def get_ip_from_ifname(name: str) -> str | None:
         return None
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        return None
+
+
+def get_default_gateway_ip():
+    """
+    Return the IP address (as a string) of the default gateway, or None if not found
+    """
+    try:
+        gws = netifaces.gateways()
+        default_gateway = gws.get("default", {}).get(netifaces.AF_INET, None)
+
+        if default_gateway:
+            # The gateway IP is the first element
+            return default_gateway[0]
+        else:
+            return None
+    except (ValueError, KeyError, OSError) as e:
+        print(f"Error getting default gateway IP: {e}")
         return None
 
 
@@ -213,9 +228,7 @@ class SSHPut(pulumi.ComponentResource):
                     host=self.props["host"],
                     port=self.props["port"],
                     user=self.props["user"],
-                    private_key=self.props["sshkey"].private_key_openssh.apply(
-                        lambda x: x
-                    ),
+                    private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
                 ),
                 triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
@@ -250,9 +263,7 @@ class SSHSftp(pulumi.CustomResource):
         return sha256sum_file(local_path)
 
     def create(self):
-        self.result = self.download_file(
-            self.props["remote_path"], self.props["local_path"]
-        )
+        self.result = self.download_file(self.props["remote_path"], self.props["local_path"])
 
 
 class SSHGet(pulumi.ComponentResource):
@@ -328,9 +339,7 @@ class SSHDeployer(pulumi.ComponentResource):
         rm_cmd = "rm {} || true" if self.props["delete"] else ""
         full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
         triggers = [
-            hashlib.sha256(
-                cat_cmd.format(full_remote_path).encode("utf-8")
-            ).hexdigest(),
+            hashlib.sha256(cat_cmd.format(full_remote_path).encode("utf-8")).hexdigest(),
             data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
         ]
         self.triggers.extend(triggers)
@@ -354,9 +363,7 @@ class SSHDeployer(pulumi.ComponentResource):
                     host=self.props["host"],
                     port=self.props["port"],
                     user=self.props["user"],
-                    private_key=self.props["sshkey"].private_key_openssh.apply(
-                        lambda x: x
-                    ),
+                    private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
                 ),
                 create=cat_cmd.format(full_remote_path),
                 update=cat_cmd.format(full_remote_path),
@@ -577,9 +584,7 @@ def ssh_execute(
                 host=host,
                 port=port,
                 user=user,
-                private_key=ssh_factory.provision_key.private_key_openssh.apply(
-                    lambda x: x
-                ),
+                private_key=ssh_factory.provision_key.private_key_openssh.apply(lambda x: x),
             ),
             create=cmdline,
             triggers=triggers,
@@ -597,12 +602,8 @@ class DataExport(pulumi.ComponentResource):
         - encrypted_local_export()
     """
 
-    def __init__(
-        self, prefix, filename, data, key=None, filter="", delete=False, opts=None
-    ):
-        super().__init__(
-            "pkg:index:DataExport", "_".join([prefix, filename]), None, opts
-        )
+    def __init__(self, prefix, filename, data, key=None, filter="", delete=False, opts=None):
+        super().__init__("pkg:index:DataExport", "_".join([prefix, filename]), None, opts)
 
         stack_name = pulumi.get_stack()
         filter += " | " if filter else ""
@@ -650,9 +651,7 @@ class DataExport(pulumi.ComponentResource):
             opts=opts,
             dir=project_dir,
             triggers=[
-                data.apply(
-                    lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()
-                ),
+                data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
             ],
         )
         self.register_outputs({})
@@ -854,9 +853,9 @@ class RemoteSaltCall(pulumi.ComponentResource):
         rel_sls_dir = os.path.relpath(sls_dir, base_dir)
 
         self.config_dict = {
-            os.path.relpath(
-                self.config["conf_file"], base_dir
-            ): pulumi.Output.from_input(yaml.safe_dump(self.config)),
+            os.path.relpath(self.config["conf_file"], base_dir): pulumi.Output.from_input(
+                yaml.safe_dump(self.config)
+            ),
             os.path.join(rel_sls_dir, "top.sls"): pulumi.Output.from_input(
                 "base:\n  '*':\n    - main\n"
             ),
@@ -930,9 +929,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         """
         if creation_type == "random_int":
             if base is None or range is None:
-                raise ValueError(
-                    "For 'random_int', 'base' and 'range' must be provided."
-                )
+                raise ValueError("For 'random_int', 'base' and 'range' must be provided.")
             return str(random.randint(int(base), int(base) + int(range) - 1))
         elif creation_type == "unixtime":
             return str(self._now())
@@ -941,9 +938,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         else:
             raise ValueError(f"Invalid creation_type: {creation_type}")
 
-    def create(
-        self, props: _TimedResourceProviderInputs
-    ) -> pulumi.dynamic.CreateResult:
+    def create(self, props: _TimedResourceProviderInputs) -> pulumi.dynamic.CreateResult:
         """
         Creates a new TimedResource
         """
@@ -956,9 +951,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
             outs={"value": str(value), "last_updated": str(last_updated)},
         )
 
-    def read(
-        self, id_: str, props: _TimedResourceProviderInputs
-    ) -> pulumi.dynamic.ReadResult:
+    def read(self, id_: str, props: _TimedResourceProviderInputs) -> pulumi.dynamic.ReadResult:
         """
         Reads the state of an existing TimedResource
         """
@@ -1145,7 +1138,7 @@ class ServePrepare(pulumi.ComponentResource):
             TimedResourceInputs(timeout_sec=tokenlifetime_sec, creation_type="uuid"),
             opts=pulumi.ResourceOptions(parent=self),
         )
-        self.request_path = self.request_uuid.value.apply(lambda uuid: "/" + uuid)
+        self.request_path = self.request_uuid.value.apply(lambda x: "/" + x)
 
         def build_merged_config(args):
             # merge pulumi outputs with static_config
@@ -1158,7 +1151,7 @@ class ServePrepare(pulumi.ComponentResource):
                     "cert": cert,
                     "key": key,
                     "ca_cert": ca_cert,
-                    "remote_url": f"https://{serve_ip}:{serve_port}/{request_path}",
+                    "remote_url": f"https://{serve_ip}:{serve_port}{request_path}",
                 }
             )
             return merged_config
@@ -1188,7 +1181,7 @@ class ServePrepare(pulumi.ComponentResource):
                 return updated_config.apply(
                     lambda conf: {
                         **conf,
-                        "remote_url": f"https://{forwarded_config['port_forward']['public_ip']}:{forwarded_config['port_forward']['public_port']}/",
+                        "remote_url": f"https://{forwarded_config['port_forward']['public_ip']}:{forwarded_config['port_forward']['public_port']}{self.request_path}",
                         "port_forward": forwarded_config["port_forward"],
                     }
                 )
@@ -1235,10 +1228,15 @@ class ServeOnce(pulumi.ComponentResource):
 
 
 def merge_payload_config(payload, config):
-    """Merge payload into config dictionary"""
-    merged_config = Output.all(payload, config).apply(
-        lambda args: {**args[1], "payload": args[0]}
-    )
+    """Merges payload (str) into config dictionary"""
+
+    def merge_func(args):
+        payload_value = args[0]
+        config_value = args[1]
+        return {**config_value, "payload": payload_value}
+
+    # Ensure both inputs are resolved before merging
+    merged_config = pulumi.Output.all(payload, config).apply(merge_func)
     return merged_config
 
 
@@ -1249,26 +1247,22 @@ def serve_simple(resource_name, yaml_str, opts=None):
         config_str=yaml.safe_dump(config_dict),
         opts=opts,
     )
-    return ServeOnce(
-        "serve_once_{}".format(resource_name), this_config.config, opts=opts
-    )
+    return ServeOnce("serve_once_{}".format(resource_name), this_config.config, opts=opts)
 
 
-class WriteRemoveable(pulumi.ComponentResource):
+class WriteRemovable(pulumi.ComponentResource):
     """Writes image from given image_path to specified serial_numbered removable storage device"""
 
     def __init__(self, resource_name, image, serial, size=0, patches=None, opts=None):
-        super().__init__("pkg:index:WriteRemoveable", resource_name, None, opts)
+        super().__init__("pkg:index:WriteRemovable", resource_name, None, opts)
 
         create_str = (
             "uv run "
-            + os.path.join(this_dir, "scripts/write_removeable.py")
+            + os.path.join(this_dir, "scripts/write_removable.py")
             + " --silent"
             + " --source-image {}".format(image)
             + " --dest-serial {} --dest-size {}".format(serial, size)
-            + "".join(
-                [" --patch {} {}".format(source, dest) for source, dest in patches]
-            )
+            + "".join([" --patch {} {}".format(source, dest) for source, dest in patches])
         )
 
         self.executed = command.local.Command(
@@ -1280,9 +1274,9 @@ class WriteRemoveable(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-def write_removeable(resource_name, image, serial, size=0, patches=None, opts=None):
-    return WriteRemoveable(
-        "write_removeable_{}".format(resource_name),
+def write_removable(resource_name, image, serial, size=0, patches=None, opts=None):
+    return WriteRemovable(
+        "write_removable_{}".format(resource_name),
         image=image,
         serial=serial,
         size=size,
