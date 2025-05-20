@@ -1,5 +1,10 @@
-{#              ttl: 2 hours, refresh: 4 hours, retry: 30 min, expire: 3 weeks,   nxdomain: 4 hours #}
-{% set common={"ttl": 7200,  "refresh": 14400, "retry": 1800, "expire": 1814400, "nxdomain": 14400 } %}
+#                 ttl: 2 hours, refresh: 4 hours, retry: 30 min, expire: 3 weeks,   nxdomain: 4 hours
+# {% set common={"ttl": 7200,  "refresh": 14400, "retry": 1800, "expire": 1814400, "nxdomain": 14400 } %}
+
+systemd:
+  units:
+    - name: knot@internal.service
+      enabled: {{ "true" if LOCAL_DNS_SERVER["ENABLED"] else "false" }}
 
 storage:
   directories:
@@ -35,13 +40,13 @@ storage:
           [Install]
           WantedBy=multi-user.target
 
-    # internal container instance
+    # internal container instance, publish to INTERNAL_CIDR|cidr2ip(1):53
     - path: /etc/containers/systemd/knot@internal.container
       contents:
         inline: |          
           [Container]
-          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:583:53/udp
-          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:583:53/tcp
+          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:53:53/udp
+          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:53:53/tcp
     
     # internal knot server config
     - path: /etc/local/knot/internal/knot.template
@@ -72,12 +77,19 @@ storage:
           - id: transfer-internal
             algorithm: hmac-sha256
             secret: ${transfer-internal.key}
+
           - id: update-internal
             algorithm: hmac-sha256
             secret: ${update-internal.key}
+
           - id: notify-internal
             algorithm: hmac-sha256
             secret: ${notify-internal.key}
+
+{% if "KEY" in LOCAL_DNS_SERVER %}
+{{ LOCAL_DNS_SERVER["KEY"]|indent(10, True) }}
+{% endif %}
+
           zone:
           - domain: internal
             dnssec-signing: on
@@ -89,7 +101,7 @@ storage:
               - key: update-internal
             notify:
               - key: notify-internal
-          
+
           - domain: podman
             dnssec-signing: on
             dnssec-signing-key: zsk-internal
@@ -112,42 +124,46 @@ storage:
             notify:
               - key: notify-internal
 
+{% if "ZONE" in LOCAL_DNS_SERVER %}
+{{ LOCAL_DNS_SERVER["ZONE"]|indent(10, True) }}
+{% endif %}
+
     # internal zone
     - path: /etc/local/knot/internal/internal.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
-          @    IN SOA ns.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
-          @    NS ns.internal.
-          ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
-          dns  A {{ INTERNAL_CIDR|cidr2ip }}
-          self A {{ INTERNAL_CIDR|cidr2ip }}
+          @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS  knot.internal.
+          knot  A   {{ INTERNAL_CIDR|cidr2ip(1) }}
+          dns   A   {{ INTERNAL_CIDR|cidr2ip }}
+          self  A   {{ INTERNAL_CIDR|cidr2ip }}
           _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
-          {{ INTERNAL_CIDR|cidr2ip }}  IN PTR  self.internal.
+          {{ INTERNAL_CIDR|cidr2ip }} IN PTR self.internal.
     
     # podman zone
     - path: /etc/local/knot/internal/podman.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
-          @   IN SOA ns.podman. postmaster.podman. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
-          @   NS ns.podman.
-          ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
-          dns  A {{ INTERNAL_CIDR|cidr2ip }}
-          self A {{ PODMAN_CIDR|cidr2ip }}
+          @     IN SOA knot.podman. postmaster.podman. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS knot.podman.
+          knot  A {{ INTERNAL_CIDR|cidr2ip(1) }}
+          dns   A {{ INTERNAL_CIDR|cidr2ip }}
+          self  A {{ PODMAN_CIDR|cidr2ip }}
           _dns.podman. IN SVCB 1 dns.podman alpn=dot port=853
-          {{ PODMAN_CIDR|cidr2ip }}  IN PTR  self.podman.
+          {{ PODMAN_CIDR|cidr2ip }} IN PTR self.podman.
   
     # nspawn zone
     - path: /etc/local/knot/internal/nspawn.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
-          @   IN SOA ns.nspawn. postmaster.nspawn. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
-          @   NS ns.nspawn.
-          ns   A {{ INTERNAL_CIDR|cidr2ip(1) }}
-          dns  A {{ INTERNAL_CIDR|cidr2ip }}
-          self A {{ NSPAWN_CIDR|cidr2ip }}
+          @     IN SOA knot.nspawn. postmaster.nspawn. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS knot.nspawn.
+          knot  A {{ INTERNAL_CIDR|cidr2ip(1) }}
+          dns   A {{ INTERNAL_CIDR|cidr2ip }}
+          self  A {{ NSPAWN_CIDR|cidr2ip }}
           _dns.nspawn. IN SVCB 1 dns.nspawn alpn=dot port=853
-          {{ NSPAWN_CIDR|cidr2ip }}  IN PTR  self.nspawn.
+          {{ NSPAWN_CIDR|cidr2ip }} IN PTR self.nspawn.
     
