@@ -15,7 +15,7 @@ ssh:
 - f: ssh_get
 
 storage:
-- f: write_removeable
+- f: write_removable
 - f: encrypted_local_export
 - f: public_local_export
 

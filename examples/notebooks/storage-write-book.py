@@ -14,6 +14,7 @@ def __():
     import dbus
     import pandas as pd
     import marimo as mo
+
     return argparse, dbus, mo, os, pd, sys, textwrap
 
 
@@ -50,7 +51,7 @@ def __(dbus):
 @app.cell(hide_code=True)
 def __(device_name, os):
     def list_drives(udisks_interface):
-        """Prints a list of storage devices (and if they are removeable)"""
+        """Prints a list of storage devices (and if they are removable)"""
 
         managed_objects = udisks_interface.GetManagedObjects()
 
@@ -63,16 +64,13 @@ def __(device_name, os):
                         "path": os.path.basename(path),
                         "serial": device_info["Serial"],
                         "size": device_info["Size"],
-                        "removeable": "Removeable"
-                        if device_info["MediaRemovable"]
-                        else "Fixed",
+                        "removable": "Removable" if device_info["MediaRemovable"] else "Fixed",
                         "present": device_info["TimeMediaDetected"],
                     }
                 )
         return drives_dataset
 
-
-    def get_removeable_drive(serial_number, udisks_interface):
+    def get_removable_drive(serial_number, udisks_interface):
         """Returns UDisks2.Drive Interface of an external attached storage device with the specified serial number"""
 
         managed_objects = udisks_interface.GetManagedObjects()
@@ -84,7 +82,6 @@ def __(device_name, os):
                     return path, drive_info
         return None, None
 
-
     def get_block_device(drive_object_path, udisks_interface):
         managed_objects = udisks_interface.GetManagedObjects()
 
@@ -95,15 +92,15 @@ def __(device_name, os):
                     return interface
         return None
 
-
     def write_image_to_block_device(drive_object_path, image_file, udisks_interface):
         with open(image_file, "rb") as image:
             with open("/mnt/" + device_name, "wb") as destination:
                 for chunk in iter(lambda: image.read(2**18), b""):
                     destination.write(chunk)
+
     return (
         get_block_device,
-        get_removeable_drive,
+        get_removable_drive,
         list_drives,
         write_image_to_block_device,
     )
@@ -122,9 +119,9 @@ def __(drives_df, mo):
 
 
 @app.cell
-def __(args, get_block_device, get_removeable_drive, sys, udisks_manager):
+def __(args, get_block_device, get_removable_drive, sys, udisks_manager):
     if args:
-        path, drive_interface = get_removeable_drive(args["serial"], udisks_manager)
+        path, drive_interface = get_removable_drive(args["serial"], udisks_manager)
         if not path or not drive_interface:
             print(
                 "ERROR: No Device with serial {} found".format(args["serial"]),
