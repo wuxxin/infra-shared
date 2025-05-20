@@ -187,7 +187,7 @@ main() {
             fi
             yay -Sy --noconfirm --sudo doas $aur_list
         elif test "$os_distributor" = "manjarolinux"; then
-            pamac install --no-confirm --no-upgrade $aur_list
+            pamac build --no-confirm --no-upgrade $aur_list
         else
             unsupported_os $os_distributor
         fi
