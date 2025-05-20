@@ -29,7 +29,9 @@ EOF
 
 pkg_defines="
 # # buildenv
-# CHECK: uv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
+# CHECK: lsb_release uv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
+# lsb-release - LSB version query program
+lsb-release
 # uv - extremely fast Python package installer and resolver written in Rust
 uv
 # openssl used for random, and hashid of cert
@@ -42,8 +44,6 @@ age
 jose
 # vault - used for ca root creation
 vault
-# pulumi - imperativ infrastructure delaration using python
-pulumi
 # knot - used for dns utilities
 knot
 # atftp - TFTP client (RFC1350)
@@ -93,6 +93,9 @@ aur_defines="
 butane
 # coreos-installer - Installer for CoreOS disk images
 coreos-installer
+# pulumi - imperativ infrastructure delaration using python
+# git tag build with python and nodejs dynamic resource provider
+pulumi-git
 
 # SELinux module tools
 # CHECK: semodule_package checkmodule
