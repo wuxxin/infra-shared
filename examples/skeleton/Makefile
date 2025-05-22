@@ -8,8 +8,8 @@ find-cmd = $(or $(firstword $(wildcard $(addsuffix /$(1),$(subst :, ,$(PATH)))))
 # default target, calling make without args will show help
 .DEFAULT_GOAL := help
 
-# default DOCKER_CMD, will use podman instead of docker as default
-DOCKER_CMD := podman
+# default CONTAINER_CMD, will use podman instead of docker as default
+CONTAINER_CMD := podman
 
 # skip annoying version information
 PULUMI_SKIP_UPDATE_CHECK=true
@@ -64,7 +64,7 @@ submodules: ## Pull and update git submodules recursively
 .PHONY: provision-client
 provision-client: ## Build provision client container
 	@echo "+ $@"
-	@cd infra/Containerfile/provision-client && $(DOCKER_CMD) build -t provision-client:latest $$(pwd)
+	@cd infra/Containerfile/provision-client && $(CONTAINER_CMD) build -t provision-client:latest $$(pwd)
 
 .PHONY: install-requirements
 install-requirements: ## Install tools used for devop tasks
@@ -148,9 +148,9 @@ sim-list: ## Run "pulumi stack output --stack=sim --json | json2keylist"
 	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack output --json --stack "sim" | $(json2keylist)
 
 .PHONY: sim__
-sim__: ## Run "pulumi --stack sim $(args)"
+sim__: ## Run "pulumi $(args) --stack sim"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
-	@PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI_INTERACTIVE) --stack "sim" $(args)
+	@if test "$(args)" = "" -o "$(args)" = "help"; then PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI_INTERACTIVE) help;  else PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI_INTERACTIVE) $(args) --stack "sim"; fi
 
 .PHONY: sim-clean
 sim-clean: ## Remove/Destroy "sim" stack
@@ -261,6 +261,6 @@ prod-preview: prod-create ## Run "pulumi preview --stack=prod --suppress-outputs
 	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI) preview --stack "prod" --suppress-outputs $(args)
 
 .PHONY: prod__
-prod__: prod-create ## Run pulumi --stack "prod" $(args)
+prod__: prod-create ## Run pulumi $(args) --stack "prod"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
-	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI_INTERACTIVE) --stack prod $(args)
+	@if test "$(args)" = "" -o "$(args)" = "help"; then $(PULUMI_INTERACTIVE) help; else PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" $(PULUMI_INTERACTIVE) $(args) --stack "prod"; fi
