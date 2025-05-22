@@ -94,6 +94,7 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 def generate_self_signed_certificate(hostname: str) -> dict[str, str]:
     """Generates a self-signed certificate for the given hostname."""
     from cryptography import x509
+    from cryptography.x509 import SubjectKeyIdentifier, AuthorityKeyIdentifier
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
@@ -102,24 +103,35 @@ def generate_self_signed_certificate(hostname: str) -> dict[str, str]:
     private_key = rsa.generate_private_key(
         public_exponent=65537, key_size=2048, backend=default_backend()
     )
+    public_key = private_key.public_key() # Get public key for SKI/AKI
+
     subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, hostname)])
-    certificate = (
+    builder = ( # Use a builder variable
         x509.CertificateBuilder()
         .subject_name(subject)
         .issuer_name(issuer)
-        .public_key(private_key.public_key())
+        .public_key(public_key)
         .serial_number(x509.random_serial_number())
         .not_valid_before(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1))
         .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365))
         .add_extension(x509.SubjectAlternativeName([x509.DNSName(hostname)]), critical=False)
         .add_extension(
+            SubjectKeyIdentifier.from_public_key(public_key), # SKI
+            critical=False
+        )
+        .add_extension(
+            AuthorityKeyIdentifier.from_issuer_public_key(public_key), # AKI (self-signed)
+            critical=False
+        )
+        .add_extension(
             x509.ExtendedKeyUsage(
                 [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]
             ),
-            critical=True,
+            critical=True, # This remains critical=True
         )
-        .sign(private_key, hashes.SHA256(), default_backend())
     )
+    certificate = builder.sign(private_key, hashes.SHA256(), default_backend())
+
 
     return {
         "key": private_key.private_bytes(

@@ -16,6 +16,7 @@ from typing import Any, Optional
 
 import yaml
 from cryptography import x509
+from cryptography.x509 import SubjectKeyIdentifier, AuthorityKeyIdentifier # Ensure imports
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -166,6 +167,10 @@ class TestServeOnce(unittest.TestCase):
                 + serve_once.datetime.timedelta(days=365)
             )
             .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+            .add_extension( # SKI for CA
+                SubjectKeyIdentifier.from_public_key(self.ca_key.public_key()),
+                critical=False
+            )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
         )
 
@@ -200,6 +205,14 @@ class TestServeOnce(unittest.TestCase):
                 ),
                 critical=True,
             )
+            .add_extension( # SKI for client cert
+                SubjectKeyIdentifier.from_public_key(client_key.public_key()),
+                critical=False
+            )
+            .add_extension( # AKI for client cert (referencing CA's public key)
+                AuthorityKeyIdentifier.from_issuer_public_key(self.ca_cert.public_key()),
+                critical=False
+            )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
         )
         return client_key, client_cert
@@ -233,6 +246,14 @@ class TestServeOnce(unittest.TestCase):
             )
             .add_extension( # For server cert
                 x509.SubjectAlternativeName([x509.DNSName(common_name)]),
+                critical=False
+            )
+            .add_extension( # SKI for mTLS server cert
+                SubjectKeyIdentifier.from_public_key(server_key.public_key()),
+                critical=False
+            )
+            .add_extension( # AKI for mTLS server cert (referencing CA's public key)
+                AuthorityKeyIdentifier.from_issuer_public_key(self.ca_cert.public_key()),
                 critical=False
             )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
