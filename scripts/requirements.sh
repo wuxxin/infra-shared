@@ -87,15 +87,17 @@ esptool
 "
 
 aur_defines="
+# # buildenv
+# pulumi - imperativ infrastructure delaration using python
+#   use git tag build with python and nodejs dynamic resource provider
+pulumi-git
+
 # # coreos build
 # CHECK: butane coreos-installer
 # butane - transpile butane into fedora coreos ignition files
 butane
 # coreos-installer - Installer for CoreOS disk images
 coreos-installer
-# pulumi - imperativ infrastructure delaration using python
-# git tag build with python and nodejs dynamic resource provider
-pulumi-git
 
 # SELinux module tools
 # CHECK: semodule_package checkmodule
