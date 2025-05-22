@@ -128,8 +128,9 @@ ${project_name}.egg-info
 *.pyc
 __pycache__
 
-# .vscode artefacts
+# editor artifacts
 .vscode
+.zed
 
 EOF
 
