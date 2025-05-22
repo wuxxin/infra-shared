@@ -12,6 +12,10 @@ py-modules = ["__main__"]
 [tool.setuptools_scm]
 # empty
 
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
 [project]
 name = "athome"
 # version dynamic from git
@@ -89,7 +93,7 @@ dependencies = [
 # authority.py, scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
 "cryptography",
 
-# scripts/write_removeable.py: dbus handling for gdisk2 support
+# scripts/write_removable.py: dbus handling for gdisk2 support, smart progress meter
 "dbus-python",
 # smart progress meter
 "tqdm",
@@ -151,5 +155,11 @@ dependencies = [
 # MkDocs Material additions used for pymdownx
 "mkdocs_pymdownx_material_extras",
 
-]
+### Notebooks
 
+### optional basic DataScientist
+"bokeh",
+"pandas",
+"scipy",
+
+]
