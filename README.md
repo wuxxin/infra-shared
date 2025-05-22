@@ -42,6 +42,8 @@ See the [examples](examples/) for code of what else can be done with it
         - using container, compose and nspawn labels for dynamic configuration
     - **DNS Resolver**: `unbound`
         - using container for local DNSSEC capable recursive DNS-Resolver
+    - optional internal **DNS Server**: `knot`
+    - optional internal **ACME Server**: `step-ca`
 - **TLS Certificate-Authority**, TLS Certificates and **SSH**-Certificates
 - **SSH** copy/deploy/execute functions, local and remote **Salt-Call**
 - **serve** configuration **HTTPS** payloads, request a port forwarding
@@ -124,7 +126,7 @@ This needs podman or docker already installed on host.
 For the simulation environment with libvirt the host system must also have a configured libvirt.
 
 ```sh
-# Either: build container using `sudo podman build`
+# Either: build container using `podman build`
 make provision-client
 
 # Or: build container using any other container tool
@@ -133,8 +135,8 @@ cd infra/Containerfile/provision-client && \
     docker build -t provision-client:latest $(pwd)
 
 # call provision shell(defaults to /usr/bin/bash interactive shell)
-# defaults to podman, but can be overriden with DOCKER_CMD=executable
-DOCKER_CMD=docker infra/scripts/provision_shell.sh
+# defaults to podman, but can be overriden with CONTAINER_CMD=executable
+CONTAINER_CMD=docker infra/scripts/provision_shell.sh
 # use exit to return to base shell
 ```
 
