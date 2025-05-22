@@ -94,6 +94,7 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 def generate_self_signed_certificate(hostname: str) -> dict[str, str]:
     """Generates a self-signed certificate for the given hostname."""
     from cryptography import x509
+    from cryptography.x509 import SubjectKeyIdentifier, AuthorityKeyIdentifier
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
@@ -102,24 +103,35 @@ def generate_self_signed_certificate(hostname: str) -> dict[str, str]:
     private_key = rsa.generate_private_key(
         public_exponent=65537, key_size=2048, backend=default_backend()
     )
+    public_key = private_key.public_key() # Get public key for SKI/AKI
+
     subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, hostname)])
-    certificate = (
+    builder = ( # Use a builder variable
         x509.CertificateBuilder()
         .subject_name(subject)
         .issuer_name(issuer)
-        .public_key(private_key.public_key())
+        .public_key(public_key)
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=1))
-        .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365))
+        .not_valid_before(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1))
+        .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365))
         .add_extension(x509.SubjectAlternativeName([x509.DNSName(hostname)]), critical=False)
+        .add_extension(
+            SubjectKeyIdentifier.from_public_key(public_key), # SKI
+            critical=False
+        )
+        .add_extension(
+            AuthorityKeyIdentifier.from_issuer_public_key(public_key), # AKI (self-signed)
+            critical=False
+        )
         .add_extension(
             x509.ExtendedKeyUsage(
                 [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]
             ),
-            critical=True,
+            critical=True, # This remains critical=True
         )
-        .sign(private_key, hashes.SHA256(), default_backend())
     )
+    certificate = builder.sign(private_key, hashes.SHA256(), default_backend())
+
 
     return {
         "key": private_key.private_bytes(
@@ -219,6 +231,7 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(payload)
         self.wfile.flush()
         self._success = True
+        self.server.last_request_successful = True # Set flag on server instance
 
     def handle_request(self) -> None:
         """Handles a single HTTP request based on the provided configuration."""
@@ -250,6 +263,22 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
         """Handles PUT requests."""
         self.handle_request()
 
+    def do_OPTIONS(self) -> None:
+        """Handles OPTIONS requests."""
+        self.handle_request()
+
+    def do_HEAD(self) -> None:
+        """Handles HEAD requests."""
+        self.handle_request()
+
+    def do_DELETE(self) -> None:
+        """Handles DELETE requests."""
+        self.handle_request()
+
+    def do_PATCH(self) -> None:
+        """Handles PATCH requests."""
+        self.handle_request()
+
 
 def serve_once(config: dict[str, Any]) -> int:
     """Serves a single HTTP request based on configuration."""
@@ -265,20 +294,19 @@ def serve_once(config: dict[str, Any]) -> int:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind((config["serve_ip"], 0))
                 config["serve_port"] = s.getsockname()[1]
+                # Print the dynamically allocated port to stderr
+                sys.stderr.write(f"SERVING_ON_PORT: {config['serve_port']}\n")
 
         verbose_print(f"Starting server on port {config['serve_port']}")
 
-        temp_dir = tempfile.mkdtemp(dir=os.path.join("/run/user", str(os.getuid())))
+        temp_dir = tempfile.mkdtemp() # Use default tmp directory
         cert_fifo_path = os.path.join(temp_dir, "cert.fifo")
         key_fifo_path = os.path.join(temp_dir, "key.fifo")
         os.mkfifo(cert_fifo_path)
         os.mkfifo(key_fifo_path)
 
-        # Open FIFOs in non-blocking mode *before* starting threads.  This
-        # prevents the write_file_content threads from blocking indefinitely.
-        fd_cert = os.open(cert_fifo_path, os.O_RDONLY | os.O_NONBLOCK)
-        fd_key = os.open(key_fifo_path, os.O_RDONLY | os.O_NONBLOCK)
-
+        # The write_file_content threads will open the FIFOs for writing.
+        # These will block until load_cert_chain opens them for reading.
         cert_thread = threading.Thread(
             target=write_file_content, args=(cert_fifo_path, config["cert"])
         )
@@ -287,14 +315,12 @@ def serve_once(config: dict[str, Any]) -> int:
         )
         cert_thread.start()
         key_thread.start()
-        # close non-blocking immediately
-        os.close(fd_cert)
-        os.close(fd_key)
 
         server_address = (config["serve_ip"], int(config["serve_port"]))
         httpd = http.server.HTTPServer(server_address, OurRequestHandler)
         httpd.config = config
         httpd.timeout = config["timeout"]
+        httpd.last_request_successful = False # Initialize success flag on server instance
 
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile=cert_fifo_path, keyfile=key_fifo_path)
@@ -315,7 +341,7 @@ def serve_once(config: dict[str, Any]) -> int:
             r, _, _ = select.select([httpd.socket], [], [], 1)
             if r:
                 httpd.handle_request()
-                if httpd.RequestHandlerClass.success:
+                if httpd.last_request_successful: # Check flag on server instance
                     serving = False
 
         if serving:

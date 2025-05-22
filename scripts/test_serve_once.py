@@ -16,6 +16,7 @@ from typing import Any, Optional
 
 import yaml
 from cryptography import x509
+from cryptography.x509 import SubjectKeyIdentifier, AuthorityKeyIdentifier # Ensure imports
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -62,6 +63,8 @@ class TestServeOnce(unittest.TestCase):
         self.ca_cert_path = None
         self.client_cert_path = None
         self.client_key_path = None
+        self.mtls_server_cert_path = None # For mTLS server cert
+        self.mtls_server_key_path = None  # For mTLS server key
         self.ca_key = None
         self.ca_cert = None
         self.stdout_lines = []
@@ -73,38 +76,75 @@ class TestServeOnce(unittest.TestCase):
     def tearDown(self):
         """Cleans up any running processes or temporary files."""
         if self.process:
+            # 1. Signal process to terminate if it's running
             if self.process.poll() is None:
-                # Check if process is still running
-                self.process.terminate()
-            try:
-                # Wait for termination
-                self.process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                print(
-                    "Warning: Process did not terminate gracefully, killing.", file=sys.stderr
-                )
-                self.process.kill()
-                # Wait for kill
-                self.process.wait()
+                try:
+                    self.process.terminate()
+                except ProcessLookupError: # Process might have already exited
+                    pass
 
-        self.stop_read_event.set()
-        if self.stdout_thread:
+            # 2. Signal reading threads to stop
+            self.stop_read_event.set()
+
+            # 3. Wait for the process to terminate
+            if self.process.poll() is None: # Check again if terminate() worked quickly or process exited
+                try:
+                    self.process.wait(timeout=2) # Main wait for termination
+                except subprocess.TimeoutExpired:
+                    print(
+                        "Warning: Process did not terminate gracefully after terminate(), killing.",
+                        file=sys.stderr,
+                    )
+                    try:
+                        self.process.kill()
+                        self.process.wait(timeout=2) # Wait for kill
+                    except ProcessLookupError: # Process might have died before kill
+                        pass
+                    except subprocess.TimeoutExpired:
+                        print(
+                            "Warning: Process did not terminate after kill().",
+                            file=sys.stderr
+                        )
+                except ProcessLookupError: # Process exited before wait
+                    pass
+
+
+        # 4. Wait for reading threads to join (do this after process is likely done)
+        if self.stdout_thread and self.stdout_thread.is_alive():
             self.stdout_thread.join(timeout=1)
-        if self.stderr_thread:
+            if self.stdout_thread.is_alive():
+                print("Warning: stdout_thread did not join in time.", file=sys.stderr)
+        if self.stderr_thread and self.stderr_thread.is_alive():
             self.stderr_thread.join(timeout=1)
+            if self.stderr_thread.is_alive():
+                print("Warning: stderr_thread did not join in time.", file=sys.stderr)
 
-        # Safely close streams if they weren't automatically closed
-        if self.process and self.process.stdout and not self.process.stdout.closed:
-            self.process.stdout.close()
-        if self.process and self.process.stderr and not self.process.stderr.closed:
-            self.process.stderr.close()
 
+        # 5. Close process streams
+        # Ensure process exists and streams are not None before trying to close
+        if self.process:
+            if self.process.stdout and not self.process.stdout.closed:
+                try:
+                    self.process.stdout.close()
+                except Exception as e:
+                    print(f"Warning: Error closing stdout: {e}", file=sys.stderr)
+            if self.process.stderr and not self.process.stderr.closed:
+                try:
+                    self.process.stderr.close()
+                except Exception as e:
+                    print(f"Warning: Error closing stderr: {e}", file=sys.stderr)
+        
+        # Clean up temporary files
         if self.ca_cert_path and os.path.exists(self.ca_cert_path):
             os.remove(self.ca_cert_path)
         if self.client_cert_path and os.path.exists(self.client_cert_path):
             os.remove(self.client_cert_path)
         if self.client_key_path and os.path.exists(self.client_key_path):
             os.remove(self.client_key_path)
+        if self.mtls_server_cert_path and os.path.exists(self.mtls_server_cert_path):
+            os.remove(self.mtls_server_cert_path)
+        if self.mtls_server_key_path and os.path.exists(self.mtls_server_key_path):
+            os.remove(self.mtls_server_key_path)
 
     def generate_self_signed_ca(self):
         """Generates a self-signed CA certificate and key."""
@@ -119,14 +159,18 @@ class TestServeOnce(unittest.TestCase):
             .public_key(self.ca_key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 - serve_once.datetime.timedelta(days=1)
             )
             .not_valid_after(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 + serve_once.datetime.timedelta(days=365)
             )
             .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+            .add_extension( # SKI for CA
+                SubjectKeyIdentifier.from_public_key(self.ca_key.public_key()),
+                critical=False
+            )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
         )
 
@@ -146,11 +190,11 @@ class TestServeOnce(unittest.TestCase):
             .public_key(client_key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 - serve_once.datetime.timedelta(days=1)
             )
             .not_valid_after(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 + serve_once.datetime.timedelta(days=365)
             )
             .add_extension(
@@ -161,9 +205,60 @@ class TestServeOnce(unittest.TestCase):
                 ),
                 critical=True,
             )
+            .add_extension( # SKI for client cert
+                SubjectKeyIdentifier.from_public_key(client_key.public_key()),
+                critical=False
+            )
+            .add_extension( # AKI for client cert (referencing CA's public key)
+                AuthorityKeyIdentifier.from_issuer_public_key(self.ca_cert.public_key()),
+                critical=False
+            )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
         )
         return client_key, client_cert
+
+    def generate_server_cert_for_mtls(self, common_name="localhost_mtls_server"):
+        """Generates a server certificate signed by the test CA, for mTLS."""
+        if not self.ca_cert or not self.ca_key:
+            raise ValueError("CA certificate/key not generated before server cert for mTLS")
+
+        server_key = rsa.generate_private_key(
+            public_exponent=65537, key_size=2048, backend=default_backend()
+        )
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+        server_cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(self.ca_cert.subject) # Signed by Test CA
+            .public_key(server_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
+                - serve_once.datetime.timedelta(days=1)
+            )
+            .not_valid_after(
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
+                + serve_once.datetime.timedelta(days=365)
+            )
+            .add_extension( # For server cert
+                x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),
+                critical=True
+            )
+            .add_extension( # For server cert
+                x509.SubjectAlternativeName([x509.DNSName(common_name)]),
+                critical=False
+            )
+            .add_extension( # SKI for mTLS server cert
+                SubjectKeyIdentifier.from_public_key(server_key.public_key()),
+                critical=False
+            )
+            .add_extension( # AKI for mTLS server cert (referencing CA's public key)
+                AuthorityKeyIdentifier.from_issuer_public_key(self.ca_cert.public_key()),
+                critical=False
+            )
+            .sign(self.ca_key, hashes.SHA256(), default_backend())
+        )
+        return server_key, server_cert
 
     def write_temp_file(self, content: str | bytes) -> str:
         """Writes content to a temporary file and returns the path."""
@@ -193,6 +288,20 @@ class TestServeOnce(unittest.TestCase):
                 encryption_algorithm=serialization.NoEncryption(),
             )
         )
+
+        # Generate and write server cert/key for mTLS tests, signed by our CA
+        mtls_server_key, mtls_server_cert = self.generate_server_cert_for_mtls()
+        self.mtls_server_cert_path = self.write_temp_file(
+            mtls_server_cert.public_bytes(serialization.Encoding.PEM)
+        )
+        self.mtls_server_key_path = self.write_temp_file(
+            mtls_server_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+
 
     def start_server(
         self, config: dict[str, Any], verbose_test: bool = False
@@ -259,68 +368,78 @@ class TestServeOnce(unittest.TestCase):
             self.process.wait(timeout=1)
             raise RuntimeError(f"Failed to send config to serve_once: {e}") from e
 
-        # Wait for the server to print the port number (or timeout)
+        # Wait for the server to print the "SERVING_ON_PORT: <port>" message (or timeout)
         start_time = time.time()
         port_found = False
-        initial_stderr = ""
-        # 5 second timeout for port message
+        processed_stderr_len = 0  # Keep track of processed stderr lines for verbose_test
+
+        # 5 second timeout for the specific port message
         while time.time() - start_time < 5:
-            # Check stderr first for quicker error feedback
-            current_stderr = "".join(self.stderr_lines)
-            if current_stderr != initial_stderr:
-                if verbose_test:
-                    print(
-                        f"Stderr: {current_stderr[len(initial_stderr):]}",
-                        end="",
-                        file=sys.stderr,
-                    )
-                initial_stderr = current_stderr
-                # Check for early exit or critical errors
-                if self.process.poll() is not None:
-                    raise RuntimeError(
-                        f"Server process exited prematurely (code {self.process.poll()}). Stderr:\n{initial_stderr}"
-                    )
+            # Process new stderr lines
+            # Create a local copy of self.stderr_lines for thread safety during iteration
+            current_stderr_lines = list(self.stderr_lines)
 
-            # Check stdout for port message, Combine lines captured so far
-            stdout_combined = "".join(self.stdout_lines)
-            match = re.search(r"Starting server on port (\d+)", stdout_combined)
-            if match:
-                config["serve_port"] = int(match.group(1))
-                if verbose_test:
-                    print(f"Found port {config['serve_port']} in stdout.")
-                port_found = True
-                break
+            if verbose_test and len(current_stderr_lines) > processed_stderr_len:
+                new_stderr_output = "".join(current_stderr_lines[processed_stderr_len:])
+                print(f"Server Stderr: {new_stderr_output}", end="", file=sys.stderr)
+            processed_stderr_len = len(current_stderr_lines)
 
-            # Also check stderr if verbose is enabled in serve_once
-            stderr_combined = "".join(self.stderr_lines)
-            match_err = re.search(r"Starting server on port (\d+)", stderr_combined)
-            if match_err:
-                config["serve_port"] = int(match_err.group(1))
-                if verbose_test:
-                    print(f"Found port {config['serve_port']} in stderr.")
-                port_found = True
-                break
+            # Check for the specific port message in all captured stderr lines
+            for line in current_stderr_lines:
+                match = re.search(r"SERVING_ON_PORT: (\d+)", line)
+                if match:
+                    port_str = match.group(1)
+                    if port_str.isdigit():
+                        config["serve_port"] = int(port_str)
+                        if verbose_test:
+                            print(
+                                f"\nFound SERVING_ON_PORT: {config['serve_port']} in stderr."
+                            )
+                        port_found = True
+                        break  # Exit inner loop (line processing)
+                    elif verbose_test:
+                        print(
+                            f"\nWarning: Found 'SERVING_ON_PORT:' but port value '{port_str}' is not a digit.",
+                            file=sys.stderr,
+                        )
 
-            # Small sleep to avoid busy-waiting
-            time.sleep(0.1)
+
+            if port_found:
+                break # Exit outer loop (timeout loop)
+
+            # Check for early exit or critical errors
+            if self.process.poll() is not None:
+                # Combine all stderr for the error message
+                stderr_final = "".join(current_stderr_lines)
+                raise RuntimeError(
+                    f"Server process exited prematurely (code {self.process.poll()}). Stderr:\n{stderr_final}"
+                )
+
+            time.sleep(0.1) # Small sleep to avoid busy-waiting
 
         if not port_found:
-            # Stop reading threads
-            self.stop_read_event.set()
+            self.stop_read_event.set() # Stop reading threads
+            # Wait a bit for threads to actually stop and capture final output
+            if self.stdout_thread: self.stdout_thread.join(timeout=0.2)
+            if self.stderr_thread: self.stderr_thread.join(timeout=0.2)
+
             stdout_final = "".join(self.stdout_lines)
-            stderr_final = "".join(self.stderr_lines)
+            stderr_final = "".join(self.stderr_lines) # Use potentially updated list
+
             if self.process.poll() is None:
                 self.process.terminate()
-            exit_code = self.process.wait(timeout=1)
+            exit_code = self.process.wait(timeout=1) # Wait for termination after a potential kill
             raise TimeoutError(
-                f"Server did not print port number within timeout. Exit code: {exit_code}\n"
+                f"Server did not print 'SERVING_ON_PORT: <port>' to stderr within timeout. Exit code: {exit_code}\n"
                 f"Stdout:\n{stdout_final}\nStderr:\n{stderr_final}"
             )
 
-        # If dynamic port was used (0), ensure it's now set
+        # If dynamic port was requested (original config["serve_port"] == 0),
+        # ensure it's now set to a non-zero value.
+        # The 'serve_port_was_zero' flag is set by the test cases themselves.
         if config.get("serve_port_was_zero", False) and config["serve_port"] == 0:
             raise ValueError(
-                "Server started with dynamic port 0 but failed to report the actual port."
+                "Server was expected to use a dynamic port, but reported port 0 or message not found."
             )
 
         # Return the running process
@@ -638,9 +757,9 @@ class TestServeOnce(unittest.TestCase):
         self.write_cert_files()  # Generates CA, client cert/key
 
         config = self.base_config.copy()
-        # Use generated server cert/key (can be same as client for simplicity here)
-        config["cert"] = Path(self.client_cert_path).read_text()
-        config["key"] = Path(self.client_key_path).read_text()
+        # Use mTLS-specific server cert/key signed by our CA
+        config["cert"] = Path(self.mtls_server_cert_path).read_text()
+        config["key"] = Path(self.mtls_server_key_path).read_text()
         config["mtls"] = True
         config["ca_cert"] = Path(
             self.ca_cert_path
@@ -711,11 +830,11 @@ class TestServeOnce(unittest.TestCase):
             .public_key(other_ca_key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 - serve_once.datetime.timedelta(days=1)
             )
             .not_valid_after(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 + serve_once.datetime.timedelta(days=365)
             )
             .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
@@ -732,11 +851,11 @@ class TestServeOnce(unittest.TestCase):
             .public_key(other_client_key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 - serve_once.datetime.timedelta(days=1)
             )
             .not_valid_after(
-                serve_once.datetime.datetime.now(serve_once.datetime.UTC)
+                serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 + serve_once.datetime.timedelta(days=365)
             )
             .sign(other_ca_key, hashes.SHA256(), default_backend())
@@ -793,8 +912,9 @@ class TestServeOnce(unittest.TestCase):
         self.write_cert_files()  # Generates client cert with CN="client"
 
         config = self.base_config.copy()
-        config["cert"] = Path(self.client_cert_path).read_text()
-        config["key"] = Path(self.client_key_path).read_text()
+        # Use mTLS-specific server cert/key signed by our CA
+        config["cert"] = Path(self.mtls_server_cert_path).read_text()
+        config["key"] = Path(self.mtls_server_key_path).read_text()
         config["mtls"] = True
         config["ca_cert"] = Path(self.ca_cert_path).read_text()
         config["mtls_clientid"] = "client"  # Server expects CN="client"
@@ -820,8 +940,9 @@ class TestServeOnce(unittest.TestCase):
         self.write_cert_files()  # Generates client cert with CN="client"
 
         config = self.base_config.copy()
-        config["cert"] = Path(self.client_cert_path).read_text()
-        config["key"] = Path(self.client_key_path).read_text()
+        # Use mTLS-specific server cert/key signed by our CA
+        config["cert"] = Path(self.mtls_server_cert_path).read_text()
+        config["key"] = Path(self.mtls_server_key_path).read_text()
         config["mtls"] = True
         config["ca_cert"] = Path(self.ca_cert_path).read_text()
         config["mtls_clientid"] = "wrong_client"  # Server expects different CN
