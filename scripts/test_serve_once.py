@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# /// script
+# dependencies = [
+#   "pyyaml",
+#   "cryptography",
+# ]
+# ///
+
 import http.client
 import os
 import socket
@@ -16,7 +24,7 @@ from typing import Any, Optional
 
 import yaml
 from cryptography import x509
-from cryptography.x509 import SubjectKeyIdentifier, AuthorityKeyIdentifier # Ensure imports
+from cryptography.x509 import SubjectKeyIdentifier, AuthorityKeyIdentifier  # Ensure imports
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -63,8 +71,8 @@ class TestServeOnce(unittest.TestCase):
         self.ca_cert_path = None
         self.client_cert_path = None
         self.client_key_path = None
-        self.mtls_server_cert_path = None # For mTLS server cert
-        self.mtls_server_key_path = None  # For mTLS server key
+        self.mtls_server_cert_path = None
+        self.mtls_server_key_path = None
         self.ca_key = None
         self.ca_cert = None
         self.stdout_lines = []
@@ -76,20 +84,23 @@ class TestServeOnce(unittest.TestCase):
     def tearDown(self):
         """Cleans up any running processes or temporary files."""
         if self.process:
-            # 1. Signal process to terminate if it's running
+            # Signal process to terminate if it's running
             if self.process.poll() is None:
                 try:
                     self.process.terminate()
-                except ProcessLookupError: # Process might have already exited
+                except ProcessLookupError:
+                    # Process might have already exited
                     pass
 
-            # 2. Signal reading threads to stop
+            # Signal reading threads to stop
             self.stop_read_event.set()
 
-            # 3. Wait for the process to terminate
-            if self.process.poll() is None: # Check again if terminate() worked quickly or process exited
+            # Wait for the process to terminate
+            if self.process.poll() is None:
+                # Check again if terminate() worked quickly or process exited
                 try:
-                    self.process.wait(timeout=2) # Main wait for termination
+                    # Main wait for termination
+                    self.process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
                     print(
                         "Warning: Process did not terminate gracefully after terminate(), killing.",
@@ -97,19 +108,19 @@ class TestServeOnce(unittest.TestCase):
                     )
                     try:
                         self.process.kill()
-                        self.process.wait(timeout=2) # Wait for kill
-                    except ProcessLookupError: # Process might have died before kill
+                        self.process.wait(timeout=2)  # Wait for kill
+                    except ProcessLookupError:
+                        # Process might have died before kill
                         pass
                     except subprocess.TimeoutExpired:
                         print(
-                            "Warning: Process did not terminate after kill().",
-                            file=sys.stderr
+                            "Warning: Process did not terminate after kill().", file=sys.stderr
                         )
-                except ProcessLookupError: # Process exited before wait
+                except ProcessLookupError:
+                    # Process exited before wait
                     pass
 
-
-        # 4. Wait for reading threads to join (do this after process is likely done)
+        # Wait for reading threads to join (do this after process is likely done)
         if self.stdout_thread and self.stdout_thread.is_alive():
             self.stdout_thread.join(timeout=1)
             if self.stdout_thread.is_alive():
@@ -119,8 +130,7 @@ class TestServeOnce(unittest.TestCase):
             if self.stderr_thread.is_alive():
                 print("Warning: stderr_thread did not join in time.", file=sys.stderr)
 
-
-        # 5. Close process streams
+        # Close process streams
         # Ensure process exists and streams are not None before trying to close
         if self.process:
             if self.process.stdout and not self.process.stdout.closed:
@@ -133,7 +143,7 @@ class TestServeOnce(unittest.TestCase):
                     self.process.stderr.close()
                 except Exception as e:
                     print(f"Warning: Error closing stderr: {e}", file=sys.stderr)
-        
+
         # Clean up temporary files
         if self.ca_cert_path and os.path.exists(self.ca_cert_path):
             os.remove(self.ca_cert_path)
@@ -167,9 +177,22 @@ class TestServeOnce(unittest.TestCase):
                 + serve_once.datetime.timedelta(days=365)
             )
             .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
-            .add_extension( # SKI for CA
-                SubjectKeyIdentifier.from_public_key(self.ca_key.public_key()),
-                critical=False
+            .add_extension(
+                x509.KeyUsage(
+                    digital_signature=True,
+                    content_commitment=False,
+                    key_encipherment=False,
+                    data_encipherment=False,
+                    key_agreement=False,
+                    key_cert_sign=True,
+                    crl_sign=True,
+                    encipher_only=False,
+                    decipher_only=False,
+                ),
+                critical=True,
+            )
+            .add_extension(  # SKI for CA
+                SubjectKeyIdentifier.from_public_key(self.ca_key.public_key()), critical=False
             )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
         )
@@ -205,13 +228,12 @@ class TestServeOnce(unittest.TestCase):
                 ),
                 critical=True,
             )
-            .add_extension( # SKI for client cert
-                SubjectKeyIdentifier.from_public_key(client_key.public_key()),
-                critical=False
+            .add_extension(  # SKI for client cert
+                SubjectKeyIdentifier.from_public_key(client_key.public_key()), critical=False
             )
-            .add_extension( # AKI for client cert (referencing CA's public key)
+            .add_extension(  # AKI for client cert (referencing CA's public key)
                 AuthorityKeyIdentifier.from_issuer_public_key(self.ca_cert.public_key()),
-                critical=False
+                critical=False,
             )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
         )
@@ -229,7 +251,7 @@ class TestServeOnce(unittest.TestCase):
         server_cert = (
             x509.CertificateBuilder()
             .subject_name(subject)
-            .issuer_name(self.ca_cert.subject) # Signed by Test CA
+            .issuer_name(self.ca_cert.subject)  # Signed by Test CA
             .public_key(server_key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(
@@ -240,21 +262,19 @@ class TestServeOnce(unittest.TestCase):
                 serve_once.datetime.datetime.now(serve_once.datetime.timezone.utc)
                 + serve_once.datetime.timedelta(days=365)
             )
-            .add_extension( # For server cert
+            .add_extension(  # For server cert
                 x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),
-                critical=True
+                critical=True,
             )
-            .add_extension( # For server cert
-                x509.SubjectAlternativeName([x509.DNSName(common_name)]),
-                critical=False
+            .add_extension(  # For server cert
+                x509.SubjectAlternativeName([x509.DNSName(common_name)]), critical=False
             )
-            .add_extension( # SKI for mTLS server cert
-                SubjectKeyIdentifier.from_public_key(server_key.public_key()),
-                critical=False
+            .add_extension(  # SKI for mTLS server cert
+                SubjectKeyIdentifier.from_public_key(server_key.public_key()), critical=False
             )
-            .add_extension( # AKI for mTLS server cert (referencing CA's public key)
+            .add_extension(  # AKI for mTLS server cert (referencing CA's public key)
                 AuthorityKeyIdentifier.from_issuer_public_key(self.ca_cert.public_key()),
-                critical=False
+                critical=False,
             )
             .sign(self.ca_key, hashes.SHA256(), default_backend())
         )
@@ -301,7 +321,6 @@ class TestServeOnce(unittest.TestCase):
                 encryption_algorithm=serialization.NoEncryption(),
             )
         )
-
 
     def start_server(
         self, config: dict[str, Any], verbose_test: bool = False
@@ -403,9 +422,8 @@ class TestServeOnce(unittest.TestCase):
                             file=sys.stderr,
                         )
 
-
             if port_found:
-                break # Exit outer loop (timeout loop)
+                break  # Exit outer loop (timeout loop)
 
             # Check for early exit or critical errors
             if self.process.poll() is not None:
@@ -415,20 +433,24 @@ class TestServeOnce(unittest.TestCase):
                     f"Server process exited prematurely (code {self.process.poll()}). Stderr:\n{stderr_final}"
                 )
 
-            time.sleep(0.1) # Small sleep to avoid busy-waiting
+            time.sleep(0.1)  # Small sleep to avoid busy-waiting
 
         if not port_found:
-            self.stop_read_event.set() # Stop reading threads
+            self.stop_read_event.set()  # Stop reading threads
             # Wait a bit for threads to actually stop and capture final output
-            if self.stdout_thread: self.stdout_thread.join(timeout=0.2)
-            if self.stderr_thread: self.stderr_thread.join(timeout=0.2)
+            if self.stdout_thread:
+                self.stdout_thread.join(timeout=0.2)
+            if self.stderr_thread:
+                self.stderr_thread.join(timeout=0.2)
 
             stdout_final = "".join(self.stdout_lines)
-            stderr_final = "".join(self.stderr_lines) # Use potentially updated list
+            stderr_final = "".join(self.stderr_lines)  # Use potentially updated list
 
             if self.process.poll() is None:
                 self.process.terminate()
-            exit_code = self.process.wait(timeout=1) # Wait for termination after a potential kill
+            exit_code = self.process.wait(
+                timeout=1
+            )  # Wait for termination after a potential kill
             raise TimeoutError(
                 f"Server did not print 'SERVING_ON_PORT: <port>' to stderr within timeout. Exit code: {exit_code}\n"
                 f"Stdout:\n{stdout_final}\nStderr:\n{stderr_final}"

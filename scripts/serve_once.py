@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # /// script
 # dependencies = [
-#   "yaml",
+#   "pyyaml",
 # ]
 # ///
 
@@ -103,35 +103,38 @@ def generate_self_signed_certificate(hostname: str) -> dict[str, str]:
     private_key = rsa.generate_private_key(
         public_exponent=65537, key_size=2048, backend=default_backend()
     )
-    public_key = private_key.public_key() # Get public key for SKI/AKI
+    public_key = private_key.public_key()  # Get public key for SKI/AKI
 
     subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, hostname)])
-    builder = ( # Use a builder variable
+    builder = (
         x509.CertificateBuilder()
         .subject_name(subject)
         .issuer_name(issuer)
         .public_key(public_key)
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1))
-        .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365))
+        .not_valid_before(
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+        )
+        .not_valid_after(
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365)
+        )
         .add_extension(x509.SubjectAlternativeName([x509.DNSName(hostname)]), critical=False)
         .add_extension(
-            SubjectKeyIdentifier.from_public_key(public_key), # SKI
-            critical=False
+            SubjectKeyIdentifier.from_public_key(public_key),  # SKI
+            critical=False,
         )
         .add_extension(
-            AuthorityKeyIdentifier.from_issuer_public_key(public_key), # AKI (self-signed)
-            critical=False
+            AuthorityKeyIdentifier.from_issuer_public_key(public_key),  # AKI (self-signed)
+            critical=False,
         )
         .add_extension(
             x509.ExtendedKeyUsage(
                 [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]
             ),
-            critical=True, # This remains critical=True
+            critical=True,  # This remains critical=True
         )
     )
     certificate = builder.sign(private_key, hashes.SHA256(), default_backend())
-
 
     return {
         "key": private_key.private_bytes(
@@ -231,7 +234,7 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(payload)
         self.wfile.flush()
         self._success = True
-        self.server.last_request_successful = True # Set flag on server instance
+        self.server.last_request_successful = True  # Set flag on server instance
 
     def handle_request(self) -> None:
         """Handles a single HTTP request based on the provided configuration."""
@@ -299,7 +302,7 @@ def serve_once(config: dict[str, Any]) -> int:
 
         verbose_print(f"Starting server on port {config['serve_port']}")
 
-        temp_dir = tempfile.mkdtemp() # Use default tmp directory
+        temp_dir = tempfile.mkdtemp()
         cert_fifo_path = os.path.join(temp_dir, "cert.fifo")
         key_fifo_path = os.path.join(temp_dir, "key.fifo")
         os.mkfifo(cert_fifo_path)
@@ -320,7 +323,8 @@ def serve_once(config: dict[str, Any]) -> int:
         httpd = http.server.HTTPServer(server_address, OurRequestHandler)
         httpd.config = config
         httpd.timeout = config["timeout"]
-        httpd.last_request_successful = False # Initialize success flag on server instance
+        # Initialize success flag on server instance
+        httpd.last_request_successful = False
 
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile=cert_fifo_path, keyfile=key_fifo_path)
@@ -341,7 +345,7 @@ def serve_once(config: dict[str, Any]) -> int:
             r, _, _ = select.select([httpd.socket], [], [], 1)
             if r:
                 httpd.handle_request()
-                if httpd.last_request_successful: # Check flag on server instance
+                if httpd.last_request_successful:
                     serving = False
 
         if serving:
