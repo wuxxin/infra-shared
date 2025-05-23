@@ -70,10 +70,11 @@ sys: age
 sys-pkg: jose
 sys-deb: libjose0
 # vault - used for ca root creation
-sys: vault
+sys-pkg: vault
+go-deb: vault
 # knot - used for dns utilities
 sys-pkg: knot
-sys-deb: knot-utils
+sys-deb: knot-dnsutils
 # atftp - TFTP client (RFC1350)
 sys: atftp
 # json manipulation
@@ -82,7 +83,8 @@ sys: jq
 sys-pkg: xz
 sys-deb: xz-utils
 # act - run your github actions locally
-sys: act
+sys-pkg: act
+go-deb: act
 # saltstack is installed in python environment, not as system package
 
 # # mkdocs build
@@ -95,7 +97,7 @@ sys-deb: libpango-1.0-0
 check: go rustc cargo
 sys-pkg: go
 sys-deb: golang-go
-sys-pkg: rustup
+sys-pkg: rust
 sys-deb: rustc cargo
 
 # # raspberry build
@@ -133,14 +135,16 @@ pip-deb: esptool
 #   use git tag build with python and nodejs dynamic resource provider
 check: pulumi
 aur: pulumi-git
-sys-ubuntu: pulumi
+go-deb: pulumi
 
 # # coreos build
 check: butane coreos-installer
 # butane - transpile butane into fedora coreos ignition files
 aur: butane
+go-deb: butane
 # coreos-installer - Installer for CoreOS disk images
 aur: coreos-installer
+go-deb: coreos-installer
 
 # SELinux module tools
 check: semodule_package checkmodule
