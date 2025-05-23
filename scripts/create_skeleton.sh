@@ -6,7 +6,7 @@ this_dir=$(dirname "$(readlink -e "$0")")
 this_dir_short=$(basename "${this_dir}")
 
 shared_dir=$(readlink -f ${this_dir}/..)
-shared_name=$(basename "${shared_dir}")
+shared_dir_short=$(basename "${shared_dir}")
 
 project_dir=$(readlink -f ${this_dir}/../..)
 project_name=$(basename "${project_dir}")
@@ -15,7 +15,8 @@ usage() {
   cat - <<EOF
 $(basename $0) --yes
 
-creates directories and minimal files needed for a project
+creates directories relative to this subproject parent dir (../../)
+  and creates and minimal files needed for a project
 
 EOF
 }

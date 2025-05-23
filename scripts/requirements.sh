@@ -5,19 +5,16 @@ set -eo pipefail
 usage() {
     local base_dir_short=$(basename $(dirname "$(dirname "$(readlink -e "$0")")"))
     cat <<EOF
-Usage: $(basename $0)  [--dry-run] --install | --install-extra
+Usage: $(basename $0)  --install [--dry-run] | --install-extra [--dry-run]
    or: $(basename $0)  --check | --list | --containerfile
 
---check             - if all needed packages are installed exit 0, else 1
---list              - list all defined packages with comments
-
---install           - unconditionally install all needed normal packages
-  prefix  --dry-run   Show systempackages that would be installed, but dont install them
-
---install-extra     - unconditionally install AUR (Arch/*),Python Pip or GO (Deb/*) pkgs
-  prefix  --dry-run   Show AUR/Pip/Go packages that would be installed, but dont install them
-
---containerfile     - update a Containerfile to include all needed packages
+--check         - if all needed packages are installed exit 0, else 1
+--list          - list all defined packages with comments
+--install       - unconditionally install all needed normal packages
+    --dry-run     Show systempackages that would be installed, but dont install them
+--install-extra - unconditionally install AUR (Arch/*),Python Pip or GO (Deb/*) pkgs
+    --dry-run     Show AUR/Pip/Go packages that would be installed, but dont install them
+--containerfile - update a Containerfile to include all needed packages
 
     Usage of "--containerfile" needs two replacement lines in Containerfile for package hooks:
         - Hook for normal packages: "    pacman -Syu --noconfirm ... &&"
@@ -281,18 +278,18 @@ EOF
 }
 
 main() {
-    DRY_RUN=false
-    if [ "$1" = "--dry-run" ]; then
-        DRY_RUN=true
-        shift
-    fi
-
     if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-extra" -a \
         "$1" != "--list" -a "$1" != "--containerfile"; then
         usage
     fi
     request=$1
     shift
+
+    DRY_RUN=false
+    if [ "$1" = "--dry-run" ]; then
+        DRY_RUN=true
+        shift
+    fi
 
     get_distro_info
     parse_package_config
