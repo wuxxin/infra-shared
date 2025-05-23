@@ -5,12 +5,13 @@ set -eo pipefail
 usage() {
     local base_dir_short=$(basename $(dirname "$(dirname "$(readlink -e "$0")")"))
     cat <<EOF
-Usage: $(basename $0)  --check | --list | --install | --install-aur | --containerfile
+Usage: $(basename $0)  --check | --list | --install | --install-extra | --containerfile
 
 --check             - if all needed packages are installed exit 0, else 1
 --list              - list all defined packages with comments
 --install           - unconditionally install all needed normal packages
---install-aur       - unconditionally install all needed AUR packages
+--install-extra     - unconditionally install AUR (Arch/Manjaro)
+                        or global Python Pip (Debian/Ubuntu) packages
 --containerfile     - update a Containerfile to include all needed packages
 
 
@@ -27,92 +28,211 @@ EOF
     exit 1
 }
 
-pkg_defines="
+# Global variables for distribution information
+OS_DISTRONAME=""
+OS_PKGFORMAT=""
+SYSTEM_PACKAGES_TO_INSTALL=()
+AUR_PACKAGES_TO_INSTALL=()
+PIP_PACKAGES_TO_INSTALL=()
+CHECK_COMMANDS=()
+ARCH_SYS_PACKAGES_FOR_CONTAINERFILE=()
+ARCH_AUR_PACKAGES_FOR_CONTAINERFILE=()
+
+get_distro_info() {
+    OS_DISTRONAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+
+    if command -v pacman &>/dev/null; then
+        OS_PKGFORMAT='pkg'
+    elif command -v apt-get &>/dev/null; then
+        OS_PKGFORMAT='deb'
+    elif command -v dnf &>/dev/null || command -v yum &>/dev/null; then
+        OS_PKGFORMAT='rpm'
+    else
+        OS_PKGFORMAT='unknown'
+    fi
+}
+
+UNIFIED_PKG_CONFIG="
 # # buildenv
-# CHECK: lsb_release uv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
+check: lsb_release uv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
 # lsb-release - LSB version query program
-lsb-release
+sys: lsb-release
 # uv - extremely fast Python package installer and resolver written in Rust
-uv
+sys-arch: uv
+pip-deb: uv
 # openssl used for random, and hashid of cert
-openssl
+sys: openssl
 # gnupg used for gpg signed hash sums of os images
-gnupg
+sys: gnupg
 # age - file based encryption with openssh authorized_keys and provision key
-age
+sys: age
 # jose - C-language implementation of Javascript Object Signing and Encryption
-jose
+sys-pkg: jose
+sys-deb: libjose0
 # vault - used for ca root creation
-vault
+sys: vault
 # knot - used for dns utilities
-knot
+sys-pkg: knot
+sys-deb: knot-utils
 # atftp - TFTP client (RFC1350)
-atftp
+sys: atftp
 # json manipulation
-jq
+sys: jq
 # decompression for coreos images
-xz
+sys-pkg: xz
+sys-deb: xz-utils
 # act - run your github actions locally
-act
+sys: act
 # saltstack is installed in python environment, not as system package
 
 # # mkdocs build
-# CHECK: pango-view
+check: pango-view
 # pango - library for layout and rendering of text - used for weasyprint by mkdocs-with-pdf
-pango
+sys-pkg: pango
+sys-deb: libpango-1.0-0
 
 # # aur build
-# CHECK: go rustc cargo
-go
-rust
+check: go rustc cargo
+sys-pkg: go
+sys-deb: golang-go
+sys-pkg: rustup
+sys-deb: rustc cargo
 
 # # raspberry build
-# CHECK: bsdtar mkfs.vfat udisksctl
+check: bsdtar mkfs.vfat udisksctl
 # libarchive - Multi-format archive and compression library
-libarchive
+sys-pkg: libarchive
+sys-deb: libarchive13
 # dosfstools - DOS filesystem utilities
-dosfstools
+sys: dosfstools
 # udisks2 - Disk Management Service, version 2
-udisks2
+sys: udisks2
 
 # # openwrt build
-# CHECK: zip awk git openssl wget unzip python
-zip gawk git openssl wget unzip python ncurses zlib gettext libxslt
+check: zip awk git openssl wget unzip python
+sys: zip gawk git openssl wget unzip
+sys-pkg: python
+sys-deb: python3 python3-pip
+sys-pkg: ncurses
+sys-deb: libncurses6
+sys-pkg: zlib
+sys-deb: zlib1g
+sys-pkg: gettext
+sys-deb: gettext-base
+sys-pkg: libxslt
+sys-deb: libxslt1.1
 
 # # esphome build
-# CHECK: esptool.py
-# esptool - utility to communicate with the ROM bootloader in Espressif ESP8266
-esptool
+check: esptool.py
+sys: esptool
+pip-deb: esptool
 
-"
-
-aur_defines="
+# # AUR Packages
 # # buildenv
 # pulumi - imperativ infrastructure delaration using python
 #   use git tag build with python and nodejs dynamic resource provider
-pulumi-git
+check: pulumi
+aur: pulumi-git
+sys-ubuntu: pulumi
 
 # # coreos build
-# CHECK: butane coreos-installer
+check: butane coreos-installer
 # butane - transpile butane into fedora coreos ignition files
-butane
+aur: butane
 # coreos-installer - Installer for CoreOS disk images
-coreos-installer
+aur: coreos-installer
 
 # SELinux module tools
-# CHECK: semodule_package checkmodule
+check: semodule_package checkmodule
 # KEY-OWNER: lautrbach@redhat.com
 # PACKAGE-KEY: selinux B8682847764DF60DF52D992CBC3905F235179CF1 73de67c522ebe3ddca72cdd447f64c26aeda5d217316b9ca7ef2356cff2a9dd3
-libsepol
-semodule-utils
-checkpolicy
+aur: libsepol semodule-utils checkpolicy
 
 # # esphome build
-# DISABLED CHECK: esphome
+# DISABLED CHECK: esphome (This was explicitly mentioned to be ignored from aur_defines)
 # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-# esphome
-
+# aur: esphome (This line is commented out as per instruction to ignore)
 "
+
+parse_package_config() {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Remove comments
+        line_no_comments="${line%%#*}"
+        # Trim whitespace
+        trimmed_line="$(echo -e "${line_no_comments}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        if [ -z "$trimmed_line" ]; then continue; fi
+
+        # Parse type_and_filter and packages_string
+        type_and_filter="${trimmed_line%%:*}"
+        packages_string="${trimmed_line#*: }" # Also trim leading space after colon
+
+        # Split type_and_filter into type and filter_value
+        type="${type_and_filter%%-*}"
+        filter_value="${type_and_filter#*-}"
+        if [ "$type" = "$filter_value" ]; then filter_value=""; fi
+
+        applies=false
+        if [ -z "$filter_value" ]; then
+            applies=true
+        elif [[ "$OS_PKGFORMAT" == "$filter_value" ]]; then
+            applies=true
+        elif [[ "$OS_DISTRONAME" == "$filter_value" ]]; then
+            applies=true
+        fi
+
+        if $applies; then
+            read -r -a current_packages_array <<<"$packages_string"
+            if [ "$type" = "sys" ]; then
+                SYSTEM_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+            elif [ "$type" = "aur" ] && [ "$OS_PKGFORMAT" = "pkg" ]; then
+                AUR_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+            elif [ "$type" = "pip" ] && [ "$OS_PKGFORMAT" = "deb" ]; then
+                PIP_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+            elif [ "$type" = "check" ]; then
+                CHECK_COMMANDS+=("${current_packages_array[@]}")
+            fi
+        fi
+
+        # Logic for ARCH_..._FOR_CONTAINERFILE arrays
+        read -r -a current_packages_array_for_containerfile <<<"$packages_string"
+        if [ "$type" = "sys" ]; then
+            if [ -z "$filter_value" ] || [ "$filter_value" = "pkg" ] || [ "$filter_value" = "arch" ]; then
+                ARCH_SYS_PACKAGES_FOR_CONTAINERFILE+=("${current_packages_array_for_containerfile[@]}")
+            fi
+        elif [ "$type" = "aur" ]; then
+            if [ -z "$filter_value" ] || [ "$filter_value" = "pkg" ] || [ "$filter_value" = "arch" ]; then
+                ARCH_AUR_PACKAGES_FOR_CONTAINERFILE+=("${current_packages_array_for_containerfile[@]}")
+            fi
+        fi
+
+    done <<<"$UNIFIED_PKG_CONFIG"
+
+    # De-duplicate all populated arrays
+    if [ ${#SYSTEM_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${SYSTEM_PACKAGES_TO_INSTALL[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        read -r -a SYSTEM_PACKAGES_TO_INSTALL <<<"$unique_pkgs_str"
+    fi
+    if [ ${#AUR_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${AUR_PACKAGES_TO_INSTALL[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        read -r -a AUR_PACKAGES_TO_INSTALL <<<"$unique_pkgs_str"
+    fi
+    if [ ${#PIP_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${PIP_PACKAGES_TO_INSTALL[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        read -r -a PIP_PACKAGES_TO_INSTALL <<<"$unique_pkgs_str"
+    fi
+    if [ ${#CHECK_COMMANDS[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${CHECK_COMMANDS[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        read -r -a CHECK_COMMANDS <<<"$unique_pkgs_str"
+    fi
+    if [ ${#ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        read -r -a ARCH_SYS_PACKAGES_FOR_CONTAINERFILE <<<"$unique_pkgs_str"
+    fi
+    if [ ${#ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        read -r -a ARCH_AUR_PACKAGES_FOR_CONTAINERFILE <<<"$unique_pkgs_str"
+    fi
+}
 
 gosu() { # $1=user , $@=param
     local user home
@@ -136,74 +256,126 @@ package_key() {
     fi
 }
 
-unsupported_os() { # $1=os_distributor
+unsupported_os() { # $1=message_context
     cat <<EOF
-Error: unsupported distribution ($1)"
-    use the container image, or manually install the following:"
-$pkg_list
-$aur_list
-
+Error: Unsupported distribution or package manager for automated installation ($1).
+Please inspect the UNIFIED_PKG_CONFIG list (\$0 --list) for a detailed list of packages.
+You may need to install them manually or adapt the script for your system.
+Relevant packages for this context: ${SYSTEM_PACKAGES_TO_INSTALL[@]}
 EOF
     exit 1
 }
 
 main() {
-    if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-aur" -a \
+    if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-extra" -a \
         "$1" != "--list" -a "$1" != "--containerfile"; then
         usage
     fi
     request=$1
     shift
 
+    get_distro_info
+    parse_package_config
     self_path=$(dirname "$(readlink -e "$0")")
-    pkg_list=$(echo "$pkg_defines" | grep -v "^#" | grep -v "^ *$" | sort | uniq | tr "\n" " ")
-    aur_list=$(echo "$aur_defines" | grep -v "^#" | grep -v "^ *$" | sort | uniq | tr "\n" " ")
-    check_list=$(printf "%s\n%s" "$pkg_defines" "$aur_defines" |
-        grep "^# CHECK:" | sed -r "s/# CHECK:(.*)/\1/g")
-    os_distributor=$(lsb_release -i -s | tr '[:upper:]' '[:lower:]')
 
     if test "$request" = "--check"; then
-        for cmd in $check_list; do
-            if ! which $cmd &>/dev/null; then
+        echo "Detected distribution: $OS_DISTRONAME"
+        echo "Detected package format: $OS_PKGFORMAT"
+        echo "System packages to install: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+        echo "AUR packages to install: ${AUR_PACKAGES_TO_INSTALL[@]}"
+        echo "PIP packages to install: ${PIP_PACKAGES_TO_INSTALL[@]}"
+        echo "Check commands: ${CHECK_COMMANDS[@]}"
+
+        for cmd in "${CHECK_COMMANDS[@]}"; do
+            if ! command -v "$cmd" &>/dev/null; then
                 echo "Error: command not found: \"$cmd\"."
-                echo "try \"sudo $0 --install\" or \"make install-requirements\""
+                echo "Try running: sudo $0 --install (for system packages) or sudo $0 --install-extra (for AUR/Pip packages)"
                 exit 1
             fi
         done
 
+        echo "All dependencies installed."
+        exit 0
+
     elif test "$request" = "--install"; then
-        if test "$os_distributor" = "arch"; then
-            pacman -Syu --noconfirm $pkg_list
-        elif test "$os_distributor" = "manjarolinux"; then
-            pamac install --no-confirm --no-upgrade $pkg_list
+        if [ ${#SYSTEM_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
+            echo "No system packages to install for this distribution based on the current configuration."
+            exit 0
+        fi
+        echo "Attempting to install system packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+
+        if [ "$OS_PKGFORMAT" = "pkg" ]; then
+            if [ "$OS_DISTRONAME" = "arch" ]; then
+                sudo pacman -Syu --noconfirm --needed "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+            elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
+                sudo pamac install --no-confirm --no-upgrade "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+            else
+                unsupported_os "$OS_DISTRONAME (archlinux package format)"
+            fi
+        elif [ "$OS_PKGFORMAT" = "deb" ]; then
+            sudo apt-get update
+            sudo apt-get install -y "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+        elif [ "$OS_PKGFORMAT" = "rpm" ]; then
+            sudo dnf install -y "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
         else
-            unsupported_os $os_distributor
+            unsupported_os "$OS_DISTRONAME ($OS_PKGFORMAT package format) - System Packages"
         fi
 
-    elif test "$request" = "--install-aur"; then
-        if test "$os_distributor" = "arch"; then
-            if ! which yay &>/dev/null; then
-                git clone https://aur.archlinux.org/yay.git
-                cd yay
-                makepkg --noconfirm
-                doas -u root pacman --noconfirm -U *.pkg.tar.zst
-                cd ..
-                rm -rf yay
+    elif test "$request" = "--install-extra"; then
+        if [ "$OS_PKGFORMAT" = "pkg" ]; then
+            if [ ${#AUR_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
+                echo "No AUR packages to install for this PKG-based distribution."
+                exit 0
             fi
-            yay -Sy --noconfirm --sudo doas $aur_list
-        elif test "$os_distributor" = "manjarolinux"; then
-            pamac build --no-confirm --no-upgrade $aur_list
-        else
-            unsupported_os $os_distributor
+            echo "Attempting to install AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}"
+            if [ "$OS_DISTRONAME" = "arch" ]; then
+                if ! command -v yay &>/dev/null; then
+                    echo "yay is not installed. Attempting to install yay..."
+                    TEMP_DIR=$(mktemp -d)
+                    current_dir=$(pwd)
+                    git clone https://aur.archlinux.org/yay.git "$TEMP_DIR/yay"
+                    cd "$TEMP_DIR/yay"
+                    makepkg --noconfirm -si
+                    cd "$current_dir"
+                    rm -rf "$TEMP_DIR"
+                    if ! command -v yay &>/dev/null; then
+                        echo "Failed to install yay. Please install it manually."
+                        exit 1
+                    fi
+                fi
+                yay -Sy --noconfirm --sudo doas --needed "${AUR_PACKAGES_TO_INSTALL[@]}"
+            elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
+                sudo pamac build --no-confirm "${AUR_PACKAGES_TO_INSTALL[@]}"
+            else
+                echo "AUR package installation is only available for Arch Linux and Manjaro but unsupported on $OS_DISTRONAME"
+                exit 1
+            fi
+        elif [ "$OS_PKGFORMAT" = "deb" ]; then
+            if [ ${#PIP_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
+                echo "No Pip packages to install for this DEB-based distribution."
+                exit 0
+            fi
+            if [ "$OS_DISTRONAME" = "debian" ] || [ "$OS_DISTRONAME" = "ubuntu" ]; then
+                echo "Attempting to install system wide Pip packages: ${PIP_PACKAGES_TO_INSTALL[@]}"
+                pip_cmd="pip"
+                if command -v pip3 &>/dev/null; then pip_cmd="pip3"; fi
+                sudo "$pip_cmd" install "${PIP_PACKAGES_TO_INSTALL[@]}"
+            else
+                echo "systemwide python Pip package installation is only available for Debian and Ubuntu but unspoorted on $OS_DISTRONAME"
+                exit 1
+            fi
         fi
 
     elif test "$request" = "--list"; then
-        printf '### PKG-START\n%s\n### PKG-END\n### AUR-START\n%s\n### AUR-END\n' \
-            "$pkg_defines" "$aur_defines"
+        printf "%s\n" "$UNIFIED_PKG_CONFIG"
 
     elif test "$request" = "--containerfile"; then
-        sed -r "s/^    pacman -Syu --noconfirm.+$/    pacman -Syu --noconfirm ${pkg_list} \&\& \\\\/g" |
-            sed -r "s/^    yay -Sy --noconfirm.+$/    yay -Sy --noconfirm ${aur_list} \&\& \\\\/g"
+        local pacman_cmd_part="pacman -Syu --noconfirm ${ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
+        local yay_cmd_part="yay -Sy --noconfirm ${ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
+        # XXX ensure the leading spaces for Containerfile format are present
+        cat - |
+            sed -r "s|^    pacman -Syu --noconfirm.*$|    $pacman_cmd_part|g" |
+            sed -r "s|^    yay -Sy --noconfirm.*$|    $yay_cmd_part|g"
     fi
 }
 
