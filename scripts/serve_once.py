@@ -2,6 +2,7 @@
 # /// script
 # dependencies = [
 #   "pyyaml",
+#   "cryptography",
 # ]
 # ///
 
@@ -131,7 +132,7 @@ def generate_self_signed_certificate(hostname: str) -> dict[str, str]:
             x509.ExtendedKeyUsage(
                 [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]
             ),
-            critical=True,  # This remains critical=True
+            critical=True,
         )
     )
     certificate = builder.sign(private_key, hashes.SHA256(), default_backend())
@@ -234,7 +235,8 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(payload)
         self.wfile.flush()
         self._success = True
-        self.server.last_request_successful = True  # Set flag on server instance
+        # Set flag on server instance
+        self.server.last_request_successful = True
 
     def handle_request(self) -> None:
         """Handles a single HTTP request based on the provided configuration."""
