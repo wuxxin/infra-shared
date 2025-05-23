@@ -260,7 +260,7 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
         # XXX vault ignores everything except CRL,CertSign,DigitalSignature,
         #       in root and intermediates, citing a CAB Forum requirement as reason.
         #       https://developer.hashicorp.com/vault/api-docs/secret/pki#key_usage-2
-        ca_uses = (["cert_signing", "crl_signing", "digital_signature"],)
+        ca_uses = ["cert_signing", "crl_signing", "digital_signature"]
         ca_root_key = tls.PrivateKey(
             "{}_root_key".format(name),
             algorithm="ECDSA",
