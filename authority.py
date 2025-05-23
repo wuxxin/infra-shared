@@ -752,6 +752,7 @@ provision_ip_addresses = config.get(
     "provision_host_ip_addresses",
     [get_default_host_ip(), get_ip_from_ifname("virbr0")],
 )
+# create a host cert usable for both server_auth and client_auth
 provision_host_tls = create_host_cert(
     provision_host_names[0],
     provision_host_names[0],
