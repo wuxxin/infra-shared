@@ -12,6 +12,8 @@ Usage: $(basename $0)  --check | --list | --install | --install-extra | --contai
 --install           - unconditionally install all needed normal packages
 --install-extra     - unconditionally install AUR (Arch/Manjaro)
                         or global Python Pip (Debian/Ubuntu) packages
+    --dry-run --install       - Show system and Go packages that would be installed, but do not install them.
+    --dry-run --install-extra - Show extra (AUR/Pip) packages that would be installed, but do not install them.
 --containerfile     - update a Containerfile to include all needed packages
 
 
@@ -34,6 +36,7 @@ OS_PKGFORMAT=""
 SYSTEM_PACKAGES_TO_INSTALL=()
 AUR_PACKAGES_TO_INSTALL=()
 PIP_PACKAGES_TO_INSTALL=()
+GO_PACKAGES_TO_INSTALL=()
 CHECK_COMMANDS=()
 ARCH_SYS_PACKAGES_FOR_CONTAINERFILE=()
 ARCH_AUR_PACKAGES_FOR_CONTAINERFILE=()
@@ -49,6 +52,14 @@ get_distro_info() {
         OS_PKGFORMAT='rpm'
     else
         OS_PKGFORMAT='unknown'
+    fi
+}
+
+deduplicate_array() {
+    declare -n arr_ref="$1"
+    if [ ${#arr_ref[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${arr_ref[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        arr_ref=($(echo "$unique_pkgs_str"))
     fi
 }
 
@@ -192,6 +203,21 @@ parse_package_config() {
                 AUR_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
             elif [ "$type" = "pip" ] && [ "$OS_PKGFORMAT" = "deb" ]; then
                 PIP_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+            elif [ "$type" = "go" ] && [ "$filter_value" = "deb" ] && [ "$OS_PKGFORMAT" = "deb" ]; then
+                if [ ${#current_packages_array[@]} -gt 0 ]; then
+                    SYSTEM_PACKAGES_TO_INSTALL+=("golang-go")
+                    GO_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+                fi
+            elif [ "$type" = "go" ] && [ "$filter_value" = "pkg" ] && [ "$OS_PKGFORMAT" = "pkg" ]; then
+                if [ ${#current_packages_array[@]} -gt 0 ]; then
+                    SYSTEM_PACKAGES_TO_INSTALL+=("go")
+                    GO_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+                fi
+            elif [ "$type" = "go" ] && [ "$filter_value" = "rpm" ] && [ "$OS_PKGFORMAT" = "rpm" ]; then
+                if [ ${#current_packages_array[@]} -gt 0 ]; then
+                    SYSTEM_PACKAGES_TO_INSTALL+=("go")
+                    GO_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+                fi
             elif [ "$type" = "check" ]; then
                 CHECK_COMMANDS+=("${current_packages_array[@]}")
             fi
@@ -212,30 +238,13 @@ parse_package_config() {
     done <<<"$UNIFIED_PKG_CONFIG"
 
     # De-duplicate all populated arrays
-    if [ ${#SYSTEM_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
-        local unique_pkgs_str=$(echo "${SYSTEM_PACKAGES_TO_INSTALL[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
-        read -r -a SYSTEM_PACKAGES_TO_INSTALL <<<"$unique_pkgs_str"
-    fi
-    if [ ${#AUR_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
-        local unique_pkgs_str=$(echo "${AUR_PACKAGES_TO_INSTALL[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
-        read -r -a AUR_PACKAGES_TO_INSTALL <<<"$unique_pkgs_str"
-    fi
-    if [ ${#PIP_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
-        local unique_pkgs_str=$(echo "${PIP_PACKAGES_TO_INSTALL[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
-        read -r -a PIP_PACKAGES_TO_INSTALL <<<"$unique_pkgs_str"
-    fi
-    if [ ${#CHECK_COMMANDS[@]} -gt 0 ]; then
-        local unique_pkgs_str=$(echo "${CHECK_COMMANDS[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
-        read -r -a CHECK_COMMANDS <<<"$unique_pkgs_str"
-    fi
-    if [ ${#ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[@]} -gt 0 ]; then
-        local unique_pkgs_str=$(echo "${ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
-        read -r -a ARCH_SYS_PACKAGES_FOR_CONTAINERFILE <<<"$unique_pkgs_str"
-    fi
-    if [ ${#ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[@]} -gt 0 ]; then
-        local unique_pkgs_str=$(echo "${ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
-        read -r -a ARCH_AUR_PACKAGES_FOR_CONTAINERFILE <<<"$unique_pkgs_str"
-    fi
+    deduplicate_array SYSTEM_PACKAGES_TO_INSTALL
+    deduplicate_array AUR_PACKAGES_TO_INSTALL
+    deduplicate_array PIP_PACKAGES_TO_INSTALL
+    deduplicate_array GO_PACKAGES_TO_INSTALL
+    deduplicate_array CHECK_COMMANDS
+    deduplicate_array ARCH_SYS_PACKAGES_FOR_CONTAINERFILE
+    deduplicate_array ARCH_AUR_PACKAGES_FOR_CONTAINERFILE
 }
 
 gosu() { # $1=user , $@=param
@@ -271,6 +280,12 @@ EOF
 }
 
 main() {
+    DRY_RUN=false
+    if [ "$1" = "--dry-run" ]; then
+        DRY_RUN=true
+        shift
+    fi
+
     if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-extra" -a \
         "$1" != "--list" -a "$1" != "--containerfile"; then
         usage
@@ -288,6 +303,7 @@ main() {
         echo "System packages to install: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
         echo "AUR packages to install: ${AUR_PACKAGES_TO_INSTALL[@]}"
         echo "PIP packages to install: ${PIP_PACKAGES_TO_INSTALL[@]}"
+        echo "Go packages to install: ${GO_PACKAGES_TO_INSTALL[@]}"
         echo "Check commands: ${CHECK_COMMANDS[@]}"
 
         for cmd in "${CHECK_COMMANDS[@]}"; do
@@ -299,74 +315,101 @@ main() {
         done
 
         echo "All dependencies installed."
-        exit 0
 
     elif test "$request" = "--install"; then
-        if [ ${#SYSTEM_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
-            echo "No system packages to install for this distribution based on the current configuration."
-            exit 0
-        fi
-        echo "Attempting to install system packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
-
-        if [ "$OS_PKGFORMAT" = "pkg" ]; then
-            if [ "$OS_DISTRONAME" = "arch" ]; then
-                sudo pacman -Syu --noconfirm --needed "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
-            elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
-                sudo pamac install --no-confirm --no-upgrade "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
-            else
-                unsupported_os "$OS_DISTRONAME (archlinux package format)"
-            fi
-        elif [ "$OS_PKGFORMAT" = "deb" ]; then
-            sudo apt-get update
-            sudo apt-get install -y "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
-        elif [ "$OS_PKGFORMAT" = "rpm" ]; then
-            sudo dnf install -y "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+        if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run: Would install system packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
         else
-            unsupported_os "$OS_DISTRONAME ($OS_PKGFORMAT package format) - System Packages"
+            if [ ${#SYSTEM_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
+                echo "No system packages to install for this distribution based on the current configuration."
+            else
+                echo "Attempting to install system packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+                if [ "$OS_PKGFORMAT" = "pkg" ]; then
+                    if [ "$OS_DISTRONAME" = "arch" ]; then
+                        sudo pacman -Syu --noconfirm --needed "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+                    elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
+                        sudo pamac install --no-confirm --no-upgrade "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+                    else
+                        unsupported_os "$OS_DISTRONAME (archlinux package format)"
+                    fi
+                elif [ "$OS_PKGFORMAT" = "deb" ]; then
+                    sudo apt-get update
+                    sudo apt-get install -y "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+                elif [ "$OS_PKGFORMAT" = "rpm" ]; then
+                    sudo dnf install -y "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+                else
+                    unsupported_os "$OS_DISTRONAME ($OS_PKGFORMAT package format) - System Packages"
+                fi
+            fi
         fi
 
     elif test "$request" = "--install-extra"; then
         if [ "$OS_PKGFORMAT" = "pkg" ]; then
-            if [ ${#AUR_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
-                echo "No AUR packages to install for this PKG-based distribution."
-                exit 0
-            fi
-            echo "Attempting to install AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}"
-            if [ "$OS_DISTRONAME" = "arch" ]; then
-                if ! command -v yay &>/dev/null; then
-                    echo "yay is not installed. Attempting to install yay..."
-                    TEMP_DIR=$(mktemp -d)
-                    current_dir=$(pwd)
-                    git clone https://aur.archlinux.org/yay.git "$TEMP_DIR/yay"
-                    cd "$TEMP_DIR/yay"
-                    makepkg --noconfirm -si
-                    cd "$current_dir"
-                    rm -rf "$TEMP_DIR"
+            if [ "$DRY_RUN" = "true" ]; then
+                echo "Dry-Run: Would attempt to install AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}"
+            else
+                if [ ${#AUR_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
+                    echo "No AUR packages to install for this PKG-based distribution."
+                fi
+                echo "Attempting to install AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}"
+                if [ "$OS_DISTRONAME" = "arch" ]; then
                     if ! command -v yay &>/dev/null; then
-                        echo "Failed to install yay. Please install it manually."
-                        exit 1
+                        echo "yay is not installed. Attempting to install yay..."
+                        TEMP_DIR=$(mktemp -d)
+                        current_dir=$(pwd)
+                        git clone https://aur.archlinux.org/yay.git "$TEMP_DIR/yay"
+                        cd "$TEMP_DIR/yay"
+                        makepkg --noconfirm -si
+                        cd "$current_dir"
+                        rm -rf "$TEMP_DIR"
+                        if ! command -v yay &>/dev/null; then
+                            echo "Failed to install yay. Please install it manually."
+                            exit 1
+                        fi
+                    fi
+                    yay -Sy --noconfirm --sudo doas --needed "${AUR_PACKAGES_TO_INSTALL[@]}"
+                elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
+                    sudo pamac build --no-confirm "${AUR_PACKAGES_TO_INSTALL[@]}"
+                else
+                    echo "AUR package installation is only available for Arch Linux and Manjaro but unsupported on $OS_DISTRONAME"
+                    exit 1
+                fi
+            fi
+
+        elif [ "$OS_PKGFORMAT" = "deb" ]; then
+            if [ "$DRY_RUN" = "true" ]; then
+                echo "Dry-Run: Would attempt to install system wide Pip packages: ${PIP_PACKAGES_TO_INSTALL[@]}"
+            else
+                if [ ${#PIP_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
+                    echo "No Pip packages to install for this DEB-based distribution."
+                fi
+                if [ "$OS_DISTRONAME" = "debian" ] || [ "$OS_DISTRONAME" = "ubuntu" ]; then
+                    echo "Attempting to install system wide Pip packages: ${PIP_PACKAGES_TO_INSTALL[@]}"
+                    pip_cmd="pip"
+                    if command -v pip3 &>/dev/null; then pip_cmd="pip3"; fi
+                    sudo "$pip_cmd" install "${PIP_PACKAGES_TO_INSTALL[@]}"
+                else
+                    echo "systemwide python Pip package installation is only available for Debian and Ubuntu but unspoorted on $OS_DISTRONAME"
+                    exit 1
+                fi
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+                echo "Dry-Run: Would attempt to install system wide Go packages: ${GO_PACKAGES_TO_INSTALL[@]}"
+            else
+                if [ ${#GO_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
+                    echo "Attempting to install system wide Go packages: ${GO_PACKAGES_TO_INSTALL[@]}"
+                    if ! command -v go &>/dev/null; then
+                        echo "Go command not found after system package installation. Cannot install Go packages." >&2
+                    else
+                        for pkg_name in "${GO_PACKAGES_TO_INSTALL[@]}"; do
+                            echo "Installing Go package: ${pkg_name}@latest"
+                            if ! sudo go install "${pkg_name}@latest"; then
+                                echo "Failed to install Go package: ${pkg_name}@latest" >&2
+                            fi
+                        done
                     fi
                 fi
-                yay -Sy --noconfirm --sudo doas --needed "${AUR_PACKAGES_TO_INSTALL[@]}"
-            elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
-                sudo pamac build --no-confirm "${AUR_PACKAGES_TO_INSTALL[@]}"
-            else
-                echo "AUR package installation is only available for Arch Linux and Manjaro but unsupported on $OS_DISTRONAME"
-                exit 1
-            fi
-        elif [ "$OS_PKGFORMAT" = "deb" ]; then
-            if [ ${#PIP_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
-                echo "No Pip packages to install for this DEB-based distribution."
-                exit 0
-            fi
-            if [ "$OS_DISTRONAME" = "debian" ] || [ "$OS_DISTRONAME" = "ubuntu" ]; then
-                echo "Attempting to install system wide Pip packages: ${PIP_PACKAGES_TO_INSTALL[@]}"
-                pip_cmd="pip"
-                if command -v pip3 &>/dev/null; then pip_cmd="pip3"; fi
-                sudo "$pip_cmd" install "${PIP_PACKAGES_TO_INSTALL[@]}"
-            else
-                echo "systemwide python Pip package installation is only available for Debian and Ubuntu but unspoorted on $OS_DISTRONAME"
-                exit 1
             fi
         fi
 
