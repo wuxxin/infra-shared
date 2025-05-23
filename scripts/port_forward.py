@@ -2,7 +2,7 @@
 # /// script
 # dependencies = [
 #   "natpmp",
-#   "yaml",
+#   "pyyaml",
 # ]
 # ///
 
