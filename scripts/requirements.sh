@@ -81,14 +81,12 @@ sys: gnupg
 # age - file based encryption with openssh authorized_keys and provision key
 sys: age
 # jose - C-language implementation of Javascript Object Signing and Encryption
-sys-pkg: jose
-sys-deb: libjose0
+sys: jose
 # vault - used for ca root creation
 sys-pkg: vault
 go-deb: vault
 # knot - used for dns utilities
-sys-pkg: knot
-sys-deb: knot-dnsutils
+sys: knot
 # atftp - TFTP client (RFC1350)
 sys: atftp
 # json manipulation
@@ -105,7 +103,7 @@ go-deb: act
 check: pango-view
 # pango - library for layout and rendering of text - used for weasyprint by mkdocs-with-pdf
 sys-pkg: pango
-sys-deb: libpango-1.0-0
+sys-deb: pango1.0-tools
 
 # # aur build
 check: go rustc cargo
@@ -118,7 +116,7 @@ sys-deb: rustc cargo
 check: bsdtar mkfs.vfat udisksctl
 # libarchive - Multi-format archive and compression library
 sys-pkg: libarchive
-sys-deb: libarchive13
+sys-deb: libarchive-tools
 # dosfstools - DOS filesystem utilities
 sys: dosfstools
 # udisks2 - Disk Management Service, version 2
@@ -165,6 +163,7 @@ check: semodule_package checkmodule
 # KEY-OWNER: lautrbach@redhat.com
 # PACKAGE-KEY: selinux B8682847764DF60DF52D992CBC3905F235179CF1 73de67c522ebe3ddca72cdd447f64c26aeda5d217316b9ca7ef2356cff2a9dd3
 aur: libsepol semodule-utils checkpolicy
+sys-deb: semodule-utils checkpolicy
 
 # # esphome build
 # DISABLED CHECK: esphome (This was explicitly mentioned to be ignored from aur_defines)
