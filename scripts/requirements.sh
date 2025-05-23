@@ -5,26 +5,29 @@ set -eo pipefail
 usage() {
     local base_dir_short=$(basename $(dirname "$(dirname "$(readlink -e "$0")")"))
     cat <<EOF
-Usage: $(basename $0)  --check | --list | --install | --install-extra | --containerfile
+Usage: $(basename $0)  [--dry-run] --install | --install-extra
+   or: $(basename $0)  --check | --list | --containerfile
 
 --check             - if all needed packages are installed exit 0, else 1
 --list              - list all defined packages with comments
+
 --install           - unconditionally install all needed normal packages
---install-extra     - unconditionally install AUR (Arch/Manjaro)
-                        or global Python Pip (Debian/Ubuntu) packages
-    --dry-run --install       - Show system and Go packages that would be installed, but do not install them.
-    --dry-run --install-extra - Show extra (AUR/Pip) packages that would be installed, but do not install them.
+  prefix  --dry-run   Show systempackages that would be installed, but dont install them
+
+--install-extra     - unconditionally install AUR (Arch/*),Python Pip or GO (Deb/*) pkgs
+  prefix  --dry-run   Show AUR/Pip/Go packages that would be installed, but dont install them
+
 --containerfile     - update a Containerfile to include all needed packages
 
+    Usage of "--containerfile" needs two replacement lines in Containerfile for package hooks:
+        - Hook for normal packages: "    pacman -Syu --noconfirm ... &&"
+        - Hook for AUR packages   : "    yay -Sy --noconfirm ... &&"
 
-Usage of "--containerfile" needs two replacement lines in Containerfile for package hooks:
-    - Hook for normal packages: "    pacman -Syu --noconfirm ... &&"
-    - Hook for AUR packages   : "    yay -Sy --noconfirm ... &&"
-
-Call With:
-    cd ${base_dir_short}/Containerfile/provision-client &&
-    cat Containerfile | ../../scripts/$(basename $0) --containerfile > Containerfile.new &&
-    mv Containerfile.new Containerfile; cd $(pwd)
+    Call With:
+        cd ${base_dir_short}/Containerfile/provision-client &&
+            cat Containerfile |
+                ../../scripts/$(basename $0) --containerfile > Containerfile.new &&
+            mv Containerfile.new Containerfile; cd $(pwd)
 
 EOF
     exit 1
@@ -237,7 +240,6 @@ parse_package_config() {
 
     done <<<"$UNIFIED_PKG_CONFIG"
 
-    # De-duplicate all populated arrays
     deduplicate_array SYSTEM_PACKAGES_TO_INSTALL
     deduplicate_array AUR_PACKAGES_TO_INSTALL
     deduplicate_array PIP_PACKAGES_TO_INSTALL
@@ -318,7 +320,7 @@ main() {
 
     elif test "$request" = "--install"; then
         if [ "$DRY_RUN" = "true" ]; then
-            echo "Dry run: Would install system packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
+            echo "Dry-run: Would install system packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
         else
             if [ ${#SYSTEM_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
                 echo "No system packages to install for this distribution based on the current configuration."
@@ -346,7 +348,7 @@ main() {
     elif test "$request" = "--install-extra"; then
         if [ "$OS_PKGFORMAT" = "pkg" ]; then
             if [ "$DRY_RUN" = "true" ]; then
-                echo "Dry-Run: Would attempt to install AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}"
+                echo "Dry-run: Would attempt to install AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}"
             else
                 if [ ${#AUR_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
                     echo "No AUR packages to install for this PKG-based distribution."
@@ -378,7 +380,7 @@ main() {
 
         elif [ "$OS_PKGFORMAT" = "deb" ]; then
             if [ "$DRY_RUN" = "true" ]; then
-                echo "Dry-Run: Would attempt to install system wide Pip packages: ${PIP_PACKAGES_TO_INSTALL[@]}"
+                echo "Dry-run: Would attempt to install system wide Pip packages: ${PIP_PACKAGES_TO_INSTALL[@]}"
             else
                 if [ ${#PIP_PACKAGES_TO_INSTALL[@]} -eq 0 ]; then
                     echo "No Pip packages to install for this DEB-based distribution."
@@ -395,7 +397,7 @@ main() {
             fi
 
             if [ "$DRY_RUN" = "true" ]; then
-                echo "Dry-Run: Would attempt to install system wide Go packages: ${GO_PACKAGES_TO_INSTALL[@]}"
+                echo "Dry-run: Would attempt to install system wide Go packages: ${GO_PACKAGES_TO_INSTALL[@]}"
             else
                 if [ ${#GO_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
                     echo "Attempting to install system wide Go packages: ${GO_PACKAGES_TO_INSTALL[@]}"
