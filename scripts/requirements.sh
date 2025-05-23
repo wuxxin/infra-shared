@@ -308,15 +308,20 @@ main() {
         echo "Go packages to install: ${GO_PACKAGES_TO_INSTALL[@]}"
         echo "Check commands: ${CHECK_COMMANDS[@]}"
 
+        all_found="true"
         for cmd in "${CHECK_COMMANDS[@]}"; do
             if ! command -v "$cmd" &>/dev/null; then
                 echo "Error: command not found: \"$cmd\"."
-                echo "Try running: sudo $0 --install (for system packages) or sudo $0 --install-extra (for AUR/Pip packages)"
-                exit 1
+                all_found="false"
             fi
         done
 
-        echo "All dependencies installed."
+        if test "$all_found" = "true"; then
+            echo "All dependencies installed."
+        else
+            echo "Error: Some dependencies failed."
+            exit 1
+        fi
 
     elif test "$request" = "--install"; then
         if [ "$DRY_RUN" = "true" ]; then
@@ -419,8 +424,8 @@ main() {
         printf "%s\n" "$UNIFIED_PKG_CONFIG"
 
     elif test "$request" = "--containerfile"; then
-        local pacman_cmd_part="pacman -Syu --noconfirm ${ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
-        local yay_cmd_part="yay -Sy --noconfirm ${ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
+        pacman_cmd_part="pacman -Syu --noconfirm ${ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
+        yay_cmd_part="yay -Sy --noconfirm ${ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
         # XXX ensure the leading spaces for Containerfile format are present
         cat - |
             sed -r "s|^    pacman -Syu --noconfirm.*$|    $pacman_cmd_part|g" |
