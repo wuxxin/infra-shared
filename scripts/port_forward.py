@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # /// script
 # dependencies = [
-#   "natpmp",
 #   "pyyaml",
+#   "natpmp",
 # ]
 # ///
 
