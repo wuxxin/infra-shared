@@ -144,6 +144,7 @@ ca_root_raw="$(
     ttl=${ca_validity_period_hours} \
     key_type="ec" \
     key_bits="384" \
+    key_usage="CRL,CertSign,DigitalSignature" \
     max_path_length="${ca_max_path_length}" \
     exclude_cn_from_sans=true \
     issuer_name="${ca_name}" \
@@ -161,6 +162,7 @@ prov_req_raw="$(
   vault write -format json pki/intermediate/generate/exported \
     key_type="ec" \
     key_bits="384" \
+    key_usage="CRL,CertSign,DigitalSignature" \
     exclude_cn_from_sans=true \
     common_name="${ca_provision_name}" \
     country="${ca_country}" \
@@ -176,6 +178,7 @@ alt_prov_req_raw="$(
   vault write -format json pki/intermediate/generate/exported \
     key_type="ec" \
     key_bits="384" \
+    key_usage="CRL,CertSign,DigitalSignature" \
     exclude_cn_from_sans=true \
     common_name="${ca_alt_provision_name}" \
     country="${ca_country}" \
