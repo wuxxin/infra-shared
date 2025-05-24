@@ -64,7 +64,7 @@ submodules: ## Pull and update git submodules recursively
 .PHONY: provision-client
 provision-client: ## Build provision client container
 	@echo "+ $@"
-	@cd infra/Containerfile/provision-client && $(CONTAINER_CMD) build -t provision-client:latest $$(pwd)
+	@$(CONTAINER_CMD) build -t provision-client:latest -f infra/Containerfile/provision-client/Containerfile infra/Containerfile/provision-client
 
 .PHONY: install-requirements
 install-requirements: ## Install tools used for devop tasks
