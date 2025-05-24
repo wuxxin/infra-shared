@@ -81,7 +81,7 @@ sys: age
 sys: jose
 # vault - used for ca root creation
 sys-pkg: vault
-go-deb: https://github.com/hashicorp/vault/archive/refs/tags/v1.19.4.tar.gz@vault
+go-deb: vault
 # knot - used for dns utilities
 sys: knot
 # atftp - TFTP client (RFC1350)
@@ -93,7 +93,7 @@ sys-pkg: xz
 sys-deb: xz-utils
 # act - run your github actions locally
 sys-pkg: act
-go-deb: https://github.com/nektos/act/archive/refs/tags/v0.2.77.tar.gz@act
+go-deb: act
 # saltstack is installed in python environment, not as system package
 
 # # mkdocs build
@@ -144,16 +144,16 @@ pip-deb: esptool
 #   use git tag build with python and nodejs dynamic resource provider
 check: pulumi
 aur: pulumi-git
-go-deb: https://github.com/pulumi/pulumi/archive/refs/tags/v3.171.0.tar.gz@pulumi
+go-deb: pulumi
 
 # # coreos build
 check: butane coreos-installer
 # butane - transpile butane into fedora coreos ignition files
 aur: butane
-go-deb: https://github.com/coreos/butane/archive/refs/tags/v0.23.0.tar.gz@butane
+go-deb: butane
 # coreos-installer - Installer for CoreOS disk images
 aur: coreos-installer
-go-deb: https://github.com/coreos/coreos-installer/archive/refs/tags/v0.24.0.tar.gz@coreos-installer
+go-deb: coreos-installer
 
 # SELinux module tools
 check: semodule_package checkmodule
@@ -276,7 +276,22 @@ Relevant packages for this context: ${SYSTEM_PACKAGES_TO_INSTALL[@]}
 EOF
     exit 1
 }
+go_make() {
+    bin_name="$1"
+    url="$2"
+    build_cmd="$3"
+    install_cmd="$4"
+    pwd=$(pwd)
+    TEMP_DIR=$(mktemp -d -t gobuild_compact_XXXXXXXXXX)
+    mkdir -p $TEMP_DIR/bin $TEMP_DIR/$bin_name
+    wget -qO- "$url" | tar -xz -C "$TEMP_DIR/$bin_name" --strip-components=1
+    cd "$TEMP_DIR/$bin_name"
+    $build_cmd
+    cd "$pwd"
+    $install_cmd
+    rm -rf "$TEMP_DIR"
 
+}
 main() {
     if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-extra" -a \
         "$1" != "--list" -a "$1" != "--containerfile"; then
@@ -406,18 +421,19 @@ main() {
                         echo "Go command not found after system package installation. Cannot install Go packages." >&2
                     else
                         for pkg_name in "${GO_PACKAGES_TO_INSTALL[@]}"; do
-                            url="${pkg_name%@*}"
-                            bin_name="${pkg_name##*@}"
-                            pwd=$(pwd)
-                            TEMP_DIR=$(mktemp -d -t gobuild_compact_XXXXXXXXXX)
-                            mkdir -p $TEMP_DIR/bin $TEMP_DIR/$bin_name
-                            wget -qO- "$url" | tar -xz -C "$TEMP_DIR/$bin_name" --strip-components=1
-                            cd "$TEMP_DIR/$bin_name"
-                            go build -ldflags="-s -w" -o "/$TEMP_DIR/bin/$bin_name" .
-                            cd "$pwd"
-                            sudo cp "/$TEMP_DIR/bin/$bin_name" "/usr/local/bin/$bin_name"
-                            sudo chmod +x "/usr/local/bin/$bin_name"
-                            rm -rf "$TEMP_DIR"
+                            if test "$pkg_name" = "act"; then
+                                go_make "act" "https://github.com/nektos/act/archive/refs/tags/v0.2.77.tar.gz" "make build" "sudo cp dist/local/act /usr/local/bin"
+                            elif test "$pkg_name" = "butane"; then
+                                go_make "butane" "https://github.com/coreos/butane/archive/refs/tags/v0.23.0.tar.gz" "export BIN_PATH=$(pwd)/bin; ./build" "sudo cp $(pwd)/bin/butane /usr/local/bin/"
+                            elif test "$pkg_name" = "coreos-installer"; then
+                                go_make "coreos-installer" "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.24.0.tar.gz" "make all" "sudo make install"
+                            elif test "$pkg_name" = "pulumi"; then
+                                go_make "pulumi" "https://github.com/pulumi/pulumi/archive/refs/tags/v3.171.0.tar.gz" "make build" "sudo make install"
+                            elif test "$pkg_name" = "vault"; then
+                                go_make "vault" "https://github.com/hashicorp/vault/archive/refs/tags/v1.19.4.tar.gz" "make bin" "sudo cp vault /usr/local/bin"
+                            else
+                                echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
+                            fi
                         done
                     fi
                 fi
