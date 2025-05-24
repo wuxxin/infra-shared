@@ -276,6 +276,7 @@ Relevant packages for this context: ${SYSTEM_PACKAGES_TO_INSTALL[@]}
 EOF
     exit 1
 }
+
 go_make() {
     bin_name="$1"
     url="$2"
@@ -286,12 +287,13 @@ go_make() {
     mkdir -p $TEMP_DIR/bin $TEMP_DIR/$bin_name
     wget -qO- "$url" | tar -xz -C "$TEMP_DIR/$bin_name" --strip-components=1
     cd "$TEMP_DIR/$bin_name"
-    $build_cmd
+    eval "$build_cmd"
     cd "$pwd"
-    $install_cmd
+    eval $install_cmd
+    cd "$pwd"
     rm -rf "$TEMP_DIR"
-
 }
+
 main() {
     if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-extra" -a \
         "$1" != "--list" -a "$1" != "--containerfile"; then
