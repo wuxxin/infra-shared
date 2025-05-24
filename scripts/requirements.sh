@@ -94,20 +94,33 @@ sys-deb: xz-utils
 # act - run your github actions locally
 sys-pkg: act
 go-deb: act
-# saltstack is installed in python environment, not as system package
+# saltstack is installed in the python environment, not as system package
+# pulumi - imperativ infrastructure delaration using python
+#   use git tag build with python and nodejs dynamic resource provider
+aur: pulumi-git
+go-deb: pulumi
+
+# # extra packages build
+check: go rustc cargo
+sys-pkg: go
+sys-deb: golang-go
+sys-pkg: rust
+sys-deb: rustc cargo
+
+# # coreos build
+check: butane coreos-installer
+# butane - transpile butane into fedora coreos ignition files
+aur: butane
+go-deb: butane
+# coreos-installer - Installer for CoreOS disk images
+aur: coreos-installer
+go-deb: coreos-installer
 
 # # mkdocs build
 check: pango-view
 # pango - library for layout and rendering of text - used for weasyprint by mkdocs-with-pdf
 sys-pkg: pango
 sys-deb: pango1.0-tools
-
-# # aur build
-check: go rustc cargo
-sys-pkg: go
-sys-deb: golang-go
-sys-pkg: rust
-sys-deb: rustc cargo
 
 # # raspberry build
 check: bsdtar mkfs.vfat udisksctl
@@ -134,38 +147,18 @@ sys-pkg: libxslt
 sys-deb: libxslt1.1
 
 # # esphome build
-check: esptool.py
-sys: esptool
+# esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
+check: esphome esptool.py
+sys: esphome esptool
 pip-deb: esptool
 
-# # AUR Packages
-# # buildenv
-# pulumi - imperativ infrastructure delaration using python
-#   use git tag build with python and nodejs dynamic resource provider
-check: pulumi
-aur: pulumi-git
-go-deb: pulumi
-
-# # coreos build
-check: butane coreos-installer
-# butane - transpile butane into fedora coreos ignition files
-aur: butane
-go-deb: butane
-# coreos-installer - Installer for CoreOS disk images
-aur: coreos-installer
-go-deb: coreos-installer
-
-# SELinux module tools
+# # SELinux module tools
 check: semodule_package checkmodule
 # KEY-OWNER: lautrbach@redhat.com
 # PACKAGE-KEY: selinux B8682847764DF60DF52D992CBC3905F235179CF1 73de67c522ebe3ddca72cdd447f64c26aeda5d217316b9ca7ef2356cff2a9dd3
 aur: libsepol semodule-utils checkpolicy
 sys-deb: semodule-utils checkpolicy
 
-# # esphome build
-# DISABLED CHECK: esphome (This was explicitly mentioned to be ignored from aur_defines)
-# esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-# aur: esphome (This line is commented out as per instruction to ignore)
 "
 
 parse_package_config() {
