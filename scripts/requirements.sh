@@ -149,8 +149,8 @@ sys-deb: libxslt1.1
 # # esphome build
 # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
 check: esphome esptool.py
-sys: esphome esptool
-pip-deb: esptool
+sys-pkg: esphome esptool
+pip-deb: esphome esptool
 
 # # SELinux module tools
 check: semodule_package checkmodule
