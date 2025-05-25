@@ -30,40 +30,7 @@ EOF
     exit 1
 }
 
-# Global variables for distribution information
-OS_DISTRONAME=""
-OS_PKGFORMAT=""
-SYSTEM_PACKAGES_TO_INSTALL=()
-AUR_PACKAGES_TO_INSTALL=()
-PIP_PACKAGES_TO_INSTALL=()
-GO_PACKAGES_TO_INSTALL=()
-CHECK_COMMANDS=()
-ARCH_SYS_PACKAGES_FOR_CONTAINERFILE=()
-ARCH_AUR_PACKAGES_FOR_CONTAINERFILE=()
-
-get_distro_info() {
-    OS_DISTRONAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-
-    if command -v pacman &>/dev/null; then
-        OS_PKGFORMAT='pkg'
-    elif command -v apt-get &>/dev/null; then
-        OS_PKGFORMAT='deb'
-    elif command -v dnf &>/dev/null || command -v yum &>/dev/null; then
-        OS_PKGFORMAT='rpm'
-    else
-        OS_PKGFORMAT='unknown'
-    fi
-}
-
-deduplicate_array() {
-    declare -n arr_ref="$1"
-    if [ ${#arr_ref[@]} -gt 0 ]; then
-        local unique_pkgs_str=$(echo "${arr_ref[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
-        arr_ref=($(echo "$unique_pkgs_str"))
-    fi
-}
-
-UNIFIED_PKG_CONFIG="
+PKG_CONFIG="
 # # buildenv
 check: lsb_release uv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
 # lsb-release - LSB version query program
@@ -161,6 +128,54 @@ sys-deb: semodule-utils checkpolicy
 
 "
 
+gosu() { # $1=user , $@=param
+    local user home
+    user=$1
+    shift
+    if which gosu &>/dev/null; then
+        gosu $user $@
+    else
+        home="$(getent passwd "$user" | cut -d: -f6)"
+        setpriv --reuid=$user --regid=$user --init-groups env HOME=$home $@
+    fi
+}
+
+package_key() { # $1=name $2=keyid $3=hash
+    local name="$1" keyid="$2" hash="$3" target="/etc/pacman.d/$1-key.gpg"
+    if test ! -e "$target"; then
+        curl -sSL -o "${target}" "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${keyid}"
+        echo "${hash} *${target}" | sha256sum -c
+        pacman-key --add "${target}"
+        pacman-key --lsign-key "${keyid}"
+    fi
+}
+
+unsupported_os() { # $1=message_context
+    echo "Error: Unsupported installation ($1)"
+    exit 1
+}
+
+go_make() { # $1=bin_name $2=url $3=build_cmd $4=install_cmd
+    local bin_name="$1" url="$2" build_cmd="$3" install_cmd="$4"
+    local pwd=$(pwd) gomake_dir=$(mktemp -d -t gobuild_XXXXXXXXXX)
+    mkdir -p $gomake_dir/bin $gomake_dir/$bin_name
+    wget -qO- "$url" | tar -xz -C "$gomake_dir/$bin_name" --strip-components=1
+    cd "$gomake_dir/$bin_name"
+    eval "$build_cmd"
+    cd "$pwd"
+    eval $install_cmd
+    cd "$pwd"
+    rm -rf "$gomake_dir"
+}
+
+deduplicate_array() { # $1=array
+    declare -n arr_ref="$1"
+    if [ ${#arr_ref[@]} -gt 0 ]; then
+        local unique_pkgs_str=$(echo "${arr_ref[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//')
+        arr_ref=($(echo "$unique_pkgs_str"))
+    fi
+}
+
 parse_package_config() {
     while IFS= read -r line || [[ -n "$line" ]]; do
         # Remove comments
@@ -227,7 +242,7 @@ parse_package_config() {
             fi
         fi
 
-    done <<<"$UNIFIED_PKG_CONFIG"
+    done <<<"$PKG_CONFIG"
 
     deduplicate_array SYSTEM_PACKAGES_TO_INSTALL
     deduplicate_array AUR_PACKAGES_TO_INSTALL
@@ -238,61 +253,12 @@ parse_package_config() {
     deduplicate_array ARCH_AUR_PACKAGES_FOR_CONTAINERFILE
 }
 
-gosu() { # $1=user , $@=param
-    local user home
-    user=$1
-    shift
-    if which gosu &>/dev/null; then
-        gosu $user $@
-    else
-        home="$(getent passwd "$user" | cut -d: -f6)"
-        setpriv --reuid=$user --regid=$user --init-groups env HOME=$home $@
-    fi
-}
-
-package_key() {
-    local name="$1" keyid="$2" hash="$3" target="/etc/pacman.d/$1-key.gpg"
-    if test ! -e "$target"; then
-        curl -sSL -o "${target}" "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${keyid}"
-        echo "${hash} *${target}" | sha256sum -c
-        pacman-key --add "${target}"
-        pacman-key --lsign-key "${keyid}"
-    fi
-}
-
-unsupported_os() { # $1=message_context
-    cat <<EOF
-Error: Unsupported distribution or package manager for automated installation ($1).
-Please inspect the UNIFIED_PKG_CONFIG list (\$0 --list) for a detailed list of packages.
-You may need to install them manually or adapt the script for your system.
-Relevant packages for this context: ${SYSTEM_PACKAGES_TO_INSTALL[@]}
-EOF
-    exit 1
-}
-
-go_make() {
-    bin_name="$1"
-    url="$2"
-    build_cmd="$3"
-    install_cmd="$4"
-    pwd=$(pwd)
-    TEMP_DIR=$(mktemp -d -t gobuild_compact_XXXXXXXXXX)
-    mkdir -p $TEMP_DIR/bin $TEMP_DIR/$bin_name
-    wget -qO- "$url" | tar -xz -C "$TEMP_DIR/$bin_name" --strip-components=1
-    cd "$TEMP_DIR/$bin_name"
-    eval "$build_cmd"
-    cd "$pwd"
-    eval $install_cmd
-    cd "$pwd"
-    rm -rf "$TEMP_DIR"
-}
-
 main() {
     if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-extra" -a \
         "$1" != "--list" -a "$1" != "--containerfile"; then
         usage
     fi
-    request=$1
+    REQUEST=$1
     shift
 
     DRY_RUN=false
@@ -301,18 +267,19 @@ main() {
         shift
     fi
 
-    get_distro_info
     parse_package_config
     self_path=$(dirname "$(readlink -e "$0")")
 
-    if test "$request" = "--check"; then
-        echo "Detected distribution: $OS_DISTRONAME"
-        echo "Detected package format: $OS_PKGFORMAT"
-        echo "System packages to install: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
-        echo "AUR packages to install: ${AUR_PACKAGES_TO_INSTALL[@]}"
-        echo "PIP packages to install: ${PIP_PACKAGES_TO_INSTALL[@]}"
-        echo "Go packages to install: ${GO_PACKAGES_TO_INSTALL[@]}"
-        echo "Check commands: ${CHECK_COMMANDS[@]}"
+    if test "$REQUEST" = "--check"; then
+        cat <<EOF
+Detected distribution: $OS_DISTRONAME
+Detected package format: $OS_PKGFORMAT
+System packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}
+AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}
+PIP packages: ${PIP_PACKAGES_TO_INSTALL[@]}
+Go packages: ${GO_PACKAGES_TO_INSTALL[@]}
+Check commands: ${CHECK_COMMANDS[@]}
+EOF
 
         all_found="true"
         for cmd in "${CHECK_COMMANDS[@]}"; do
@@ -321,7 +288,6 @@ main() {
                 all_found="false"
             fi
         done
-
         if test "$all_found" = "true"; then
             echo "All dependencies installed."
         else
@@ -329,7 +295,7 @@ main() {
             exit 1
         fi
 
-    elif test "$request" = "--install"; then
+    elif test "$REQUEST" = "--install"; then
         if [ "$DRY_RUN" = "true" ]; then
             echo "Dry-run: Would install system packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}"
         else
@@ -343,7 +309,7 @@ main() {
                     elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
                         sudo pamac install --no-confirm --no-upgrade "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
                     else
-                        unsupported_os "$OS_DISTRONAME (archlinux package format)"
+                        unsupported_os "$OS_DISTRONAME for archlinux package format"
                     fi
                 elif [ "$OS_PKGFORMAT" = "deb" ]; then
                     sudo apt-get update
@@ -351,12 +317,12 @@ main() {
                 elif [ "$OS_PKGFORMAT" = "rpm" ]; then
                     sudo dnf install -y "${SYSTEM_PACKAGES_TO_INSTALL[@]}"
                 else
-                    unsupported_os "$OS_DISTRONAME ($OS_PKGFORMAT package format) - System Packages"
+                    unsupported_os "$OS_DISTRONAME for $OS_PKGFORMAT package format"
                 fi
             fi
         fi
 
-    elif test "$request" = "--install-extra"; then
+    elif test "$REQUEST" = "--install-extra"; then
         if [ "$OS_PKGFORMAT" = "pkg" ]; then
             if [ "$DRY_RUN" = "true" ]; then
                 echo "Dry-run: Would attempt to install AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}"
@@ -384,8 +350,7 @@ main() {
                 elif [ "$OS_DISTRONAME" = "manjarolinux" ]; then
                     sudo pamac build --no-confirm "${AUR_PACKAGES_TO_INSTALL[@]}"
                 else
-                    echo "AUR package installation is only available for Arch Linux and Manjaro but unsupported on $OS_DISTRONAME"
-                    exit 1
+                    unsupported_os "$OS_DISTRONAME for archlinux AUR package installation"
                 fi
             fi
 
@@ -402,8 +367,7 @@ main() {
                     if command -v pip3 &>/dev/null; then pip_cmd="pip3"; fi
                     sudo "$pip_cmd" install "${PIP_PACKAGES_TO_INSTALL[@]}"
                 else
-                    echo "systemwide python Pip package installation is only available for Debian and Ubuntu but unspoorted on $OS_DISTRONAME"
-                    exit 1
+                    unsupported_os "$OS_DISTRONAME for systemwide python Pip installation"
                 fi
             fi
 
@@ -435,10 +399,10 @@ main() {
             fi
         fi
 
-    elif test "$request" = "--list"; then
-        printf "%s\n" "$UNIFIED_PKG_CONFIG"
+    elif test "$REQUEST" = "--list"; then
+        printf "%s\n" "$PKG_CONFIG"
 
-    elif test "$request" = "--containerfile"; then
+    elif test "$REQUEST" = "--containerfile"; then
         pacman_cmd_part="pacman -Syu --noconfirm ${ARCH_SYS_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
         yay_cmd_part="yay -Sy --noconfirm ${ARCH_AUR_PACKAGES_FOR_CONTAINERFILE[*]} \&\& \\\\"
         # XXX ensure the leading spaces for Containerfile format are present
@@ -447,5 +411,26 @@ main() {
             sed -r "s|^    yay -Sy --noconfirm.*$|    $yay_cmd_part|g"
     fi
 }
+
+#
+# ### main
+
+SYSTEM_PACKAGES_TO_INSTALL=()
+AUR_PACKAGES_TO_INSTALL=()
+PIP_PACKAGES_TO_INSTALL=()
+GO_PACKAGES_TO_INSTALL=()
+CHECK_COMMANDS=()
+ARCH_SYS_PACKAGES_FOR_CONTAINERFILE=()
+ARCH_AUR_PACKAGES_FOR_CONTAINERFILE=()
+
+OS_DISTRONAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+OS_PKGFORMAT='unknown'
+if command -v pacman &>/dev/null; then
+    OS_PKGFORMAT='pkg'
+elif command -v apt-get &>/dev/null; then
+    OS_PKGFORMAT='deb'
+elif command -v dnf &>/dev/null || command -v yum &>/dev/null; then
+    OS_PKGFORMAT='rpm'
+fi
 
 main "$@"
