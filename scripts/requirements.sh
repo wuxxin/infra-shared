@@ -12,8 +12,8 @@ Usage: $(basename $0)  --install [--dry-run] | --install-extra [--dry-run]
 --list          - list all defined packages with comments
 --install       - unconditionally install all needed normal packages
     --dry-run     Show systempackages that would be installed, but dont install them
---install-extra - unconditionally install AUR (Arch/*),Python Pip or GO (Deb/*) pkgs
-    --dry-run     Show AUR/Pip/Go packages that would be installed, but dont install them
+--install-extra - unconditionally install AUR (Arch/*),Python Pip (Deb/*)or Custom (*) pkgs
+    --dry-run     Show AUR/Pip/Custom packages that would be installed, but dont install them
 --containerfile - update a Containerfile to include all needed packages
 
     Usage of "--containerfile" needs two replacement lines in Containerfile for package hooks:
@@ -48,7 +48,7 @@ sys: age
 sys: jose
 # vault - used for ca root creation
 sys-pkg: vault
-go-deb: vault
+custom-deb: vault
 # knot - used for dns utilities
 sys: knot
 # atftp - TFTP client (RFC1350)
@@ -60,12 +60,12 @@ sys-pkg: xz
 sys-deb: xz-utils
 # act - run your github actions locally
 sys-pkg: act
-go-deb: act
+custom-deb: act
 # saltstack is installed in the python environment, not as system package
 # pulumi - imperativ infrastructure delaration using python
 #   use git tag build with python and nodejs dynamic resource provider
 aur: pulumi-git
-go-deb: pulumi
+custom-deb: pulumi
 
 # # extra packages build
 check: go rustc cargo
@@ -78,10 +78,10 @@ sys-deb: rustc cargo
 check: butane coreos-installer
 # butane - transpile butane into fedora coreos ignition files
 aur: butane
-go-deb: butane
+custom-deb: butane
 # coreos-installer - Installer for CoreOS disk images
 aur: coreos-installer
-go-deb: coreos-installer
+custom-deb: coreos-installer
 
 # # mkdocs build
 check: pango-view
@@ -155,21 +155,6 @@ unsupported_os() { # $1=message_context
     exit 1
 }
 
-go_make() { # $1=bin_name $2=url $3=build_cmd $4=install_cmd
-    local bin_name="$1" url="$2" build_cmd="$3" install_cmd="$4"
-    local pwd=$(pwd) gomake_dir=$(mktemp -d -t gobuild_XXXXXXXXXX)
-    echo "+ Building $bin_name from url: $url"
-    mkdir -p $gomake_dir/bin $gomake_dir/$bin_name
-    wget -qO- "$url" | tar -xz -C "$gomake_dir/$bin_name" --strip-components=1
-    cd "$gomake_dir/$bin_name"
-    echo "Build Command: $build_cmd"
-    eval "$build_cmd" || true
-    echo "Install Command: $install_cmd"
-    eval "$install_cmd" || true
-    cd "$pwd"
-    rm -rf "$gomake_dir"
-}
-
 deduplicate_array() { # $1=array
     declare -n arr_ref="$1"
     if [ ${#arr_ref[@]} -gt 0 ]; then
@@ -212,20 +197,17 @@ parse_package_config() {
                 AUR_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
             elif [ "$type" = "pip" ] && [ "$OS_PKGFORMAT" = "deb" ]; then
                 PIP_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
-            elif [ "$type" = "go" ] && [ "$filter_value" = "deb" ] && [ "$OS_PKGFORMAT" = "deb" ]; then
+            elif [ "$type" = "custom" ] && [ "$filter_value" = "deb" ] && [ "$OS_PKGFORMAT" = "deb" ]; then
                 if [ ${#current_packages_array[@]} -gt 0 ]; then
-                    SYSTEM_PACKAGES_TO_INSTALL+=("golang-go")
-                    GO_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+                    CUSTOM_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
                 fi
-            elif [ "$type" = "go" ] && [ "$filter_value" = "pkg" ] && [ "$OS_PKGFORMAT" = "pkg" ]; then
+            elif [ "$type" = "custom" ] && [ "$filter_value" = "pkg" ] && [ "$OS_PKGFORMAT" = "pkg" ]; then
                 if [ ${#current_packages_array[@]} -gt 0 ]; then
-                    SYSTEM_PACKAGES_TO_INSTALL+=("go")
-                    GO_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+                    CUSTOM_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
                 fi
-            elif [ "$type" = "go" ] && [ "$filter_value" = "rpm" ] && [ "$OS_PKGFORMAT" = "rpm" ]; then
+            elif [ "$type" = "custom" ] && [ "$filter_value" = "rpm" ] && [ "$OS_PKGFORMAT" = "rpm" ]; then
                 if [ ${#current_packages_array[@]} -gt 0 ]; then
-                    SYSTEM_PACKAGES_TO_INSTALL+=("go")
-                    GO_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
+                    CUSTOM_PACKAGES_TO_INSTALL+=("${current_packages_array[@]}")
                 fi
             elif [ "$type" = "check" ]; then
                 CHECK_COMMANDS+=("${current_packages_array[@]}")
@@ -249,7 +231,7 @@ parse_package_config() {
     deduplicate_array SYSTEM_PACKAGES_TO_INSTALL
     deduplicate_array AUR_PACKAGES_TO_INSTALL
     deduplicate_array PIP_PACKAGES_TO_INSTALL
-    deduplicate_array GO_PACKAGES_TO_INSTALL
+    deduplicate_array CUSTOM_PACKAGES_TO_INSTALL
     deduplicate_array CHECK_COMMANDS
     deduplicate_array ARCH_SYS_PACKAGES_FOR_CONTAINERFILE
     deduplicate_array ARCH_AUR_PACKAGES_FOR_CONTAINERFILE
@@ -279,7 +261,7 @@ Detected package format: $OS_PKGFORMAT
 System packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}
 AUR packages: ${AUR_PACKAGES_TO_INSTALL[@]}
 PIP packages: ${PIP_PACKAGES_TO_INSTALL[@]}
-Go packages: ${GO_PACKAGES_TO_INSTALL[@]}
+Custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}
 Check commands: ${CHECK_COMMANDS[@]}
 EOF
 
@@ -374,32 +356,32 @@ EOF
             fi
 
             if [ "$DRY_RUN" = "true" ]; then
-                echo "Dry-run: Would attempt to install system wide Go packages: ${GO_PACKAGES_TO_INSTALL[@]}"
+                echo "Dry-run: Would attempt to install system wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
             else
-                if [ ${#GO_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
-                    echo "Attempting to install system wide Go packages: ${GO_PACKAGES_TO_INSTALL[@]}"
-                    if ! command -v go &>/dev/null; then
-                        echo "Go command not found after system package installation. Cannot install Go packages." >&2
-                    else
-                        for pkg_name in "${GO_PACKAGES_TO_INSTALL[@]}"; do
-                            if test "$pkg_name" = "act"; then
-                                go_make "act" "https://github.com/nektos/act/archive/refs/tags/v0.2.77.tar.gz" "make build" "pwd; find dist"
-                            elif test "$pkg_name" = "butane"; then
-                                go_make "butane" "https://github.com/coreos/butane/archive/refs/tags/v0.23.0.tar.gz" \
-                                    "go build -o bin/butane -ldflags '-w -X github.com/coreos/butane/internal/version.Raw=0.23.0' internal/main.go" \
-                                    "pwd; find ."
-                            elif test "$pkg_name" = "coreos-installer"; then
-                                go_make "coreos-installer" "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.24.0.tar.gz" \
-                                    "cargo build --release" "pwd; find target"
-                            elif test "$pkg_name" = "pulumi"; then
-                                go_make "pulumi" "https://github.com/pulumi/pulumi/archive/refs/tags/v3.171.0.tar.gz" "make bin/pulumi" "pwd; find ."
-                            elif test "$pkg_name" = "vault"; then
-                                go_make "vault" "https://github.com/hashicorp/vault/archive/refs/tags/v1.19.4.tar.gz" "make bin" "pwd; find ."
-                            else
-                                echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
-                            fi
-                        done
-                    fi
+                if [ ${#CUSTOM_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
+                    echo "Attempting to install system wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
+                    make_dir=$(mktemp -d -t build_XXXXXXXXXX)
+                    for pkg_name in "${CUSTOM_PACKAGES_TO_INSTALL[@]}"; do
+                        if test "$pkg_name" = "act"; then
+                            curl -sSL -o $make_dir/act.tar.gz https://github.com/nektos/act/releases/download/v0.2.77/act_Linux_x86_64.tar.gz
+                            tar -xz -C $make_dir -f $make_dir/act.tar.gz act
+                            sudo install $make_dir/act /usr/local/bin/act
+                        elif test "$pkg_name" = "butane"; then
+                            curl -sSL -o $make_dir/butane https://github.com/coreos/butane/releases/download/v0.23.0/butane-x86_64-unknown-linux-gnu
+                            sudo install $make_dir/butane /usr/local/bin/butane
+                        elif test "$pkg_name" = "pulumi"; then
+                            curl -sSL -o $make_dir/pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v3.171.0/pulumi-v3.171.0-linux-x64.tar.gz
+                            tar -xz -C $make_dir -f $make_dir/pulumi.tar.gz pulumi
+                            for i in $(find $make_dir/pulumi -type f); do sudo install $i /usr/local/bin/$(basename $i); done
+                        elif test "$pkg_name" = "vault" -a "$OS_PKGFORMAT" = "deb"; then
+                            wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+                            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+                            sudo apt-get update && sudo apt-get install vault --yes
+                        else
+                            echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
+                        fi
+                    done
+                    rm -r $makedir
                 fi
             fi
         fi
@@ -423,7 +405,7 @@ EOF
 SYSTEM_PACKAGES_TO_INSTALL=()
 AUR_PACKAGES_TO_INSTALL=()
 PIP_PACKAGES_TO_INSTALL=()
-GO_PACKAGES_TO_INSTALL=()
+CUSTOM_PACKAGES_TO_INSTALL=()
 CHECK_COMMANDS=()
 ARCH_SYS_PACKAGES_FOR_CONTAINERFILE=()
 ARCH_AUR_PACKAGES_FOR_CONTAINERFILE=()
