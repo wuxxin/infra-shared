@@ -15,7 +15,7 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' | sort
 
 .PHONY: provision-local
-provision-local: .venv/bin/activate ## Build dependencies for provisioning using system apps
+provision-local: ## Build dependencies for provisioning using system apps
 	@echo "+++ $@"
 	@if ! ./scripts/requirements.sh --check; then ./scripts/requirements.sh --install && ./scripts/requirements.sh --install-extra; fi
 	@./scripts/requirements.sh --check
