@@ -1,0 +1,25 @@
+name: Test Local
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Install and build Dependencies
+      run: make provision-local
+    - name: Setup python build Environment
+      run: make build-env
+    - name: build Docs
+      run: make docs-online-build
+    - name: Run Test Scripts
+      run: make test-scripts
+    - name: Run sim up
+      run: make test-sim
