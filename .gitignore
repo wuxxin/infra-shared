@@ -2,3 +2,14 @@
 *.pyc
 __pycache__
 
+# egg-info for now
+infra_shared.egg-info
+
+# uv locked dependencies
+uv.lock
+
+# python virtualenv
+.venv
+
+# build artifacts
+build

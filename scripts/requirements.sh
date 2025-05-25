@@ -417,15 +417,15 @@ main() {
                     else
                         for pkg_name in "${GO_PACKAGES_TO_INSTALL[@]}"; do
                             if test "$pkg_name" = "act"; then
-                                go_make "act" "https://github.com/nektos/act/archive/refs/tags/v0.2.77.tar.gz" "make build" "sudo cp dist/local/act /usr/local/bin"
+                                go_make "act" "https://github.com/nektos/act/archive/refs/tags/v0.2.77.tar.gz" "make build" "sudo install dist/local/act /usr/local/bin"
                             elif test "$pkg_name" = "butane"; then
-                                go_make "butane" "https://github.com/coreos/butane/archive/refs/tags/v0.23.0.tar.gz" "export BIN_PATH=$(pwd)/bin; ./build" "sudo cp $(pwd)/bin/butane /usr/local/bin/"
+                                go_make "butane" "https://github.com/coreos/butane/archive/refs/tags/v0.23.0.tar.gz" "export BIN_PATH=$(pwd)/bin; ./build" "sudo install $(pwd)/bin/butane /usr/local/bin/"
                             elif test "$pkg_name" = "coreos-installer"; then
                                 go_make "coreos-installer" "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.24.0.tar.gz" "make all" "sudo make install"
                             elif test "$pkg_name" = "pulumi"; then
                                 go_make "pulumi" "https://github.com/pulumi/pulumi/archive/refs/tags/v3.171.0.tar.gz" "make build" "sudo make install"
                             elif test "$pkg_name" = "vault"; then
-                                go_make "vault" "https://github.com/hashicorp/vault/archive/refs/tags/v1.19.4.tar.gz" "make bin" "sudo cp vault /usr/local/bin"
+                                go_make "vault" "https://github.com/hashicorp/vault/archive/refs/tags/v1.19.4.tar.gz" "make bin" "sudo install vault /usr/local/bin"
                             else
                                 echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
                             fi
