@@ -32,7 +32,8 @@ EOF
 
 PKG_CONFIG="
 # # buildenv
-check: lsb_release uv openssl gpg gpgv age jose vault pulumi keymgr knotc atftp jq xz act
+check: lsb_release uv openssl gpg gpgv age jose keymgr knotc atftp jq xz zstd
+
 # lsb-release - LSB version query program
 sys: lsb-release
 # uv - extremely fast Python package installer and resolver written in Rust
@@ -46,42 +47,55 @@ sys: gnupg
 sys: age
 # jose - C-language implementation of Javascript Object Signing and Encryption
 sys: jose
-# vault - used for ca root creation
-sys-pkg: vault
-custom-deb: vault
 # knot - used for dns utilities
 sys: knot
 # atftp - TFTP client (RFC1350)
 sys: atftp
 # json manipulation
 sys: jq
-# decompression for coreos images
+# decompression of coreos images
 sys-pkg: xz
 sys-deb: xz-utils
-# act - run your github actions locally
-sys-pkg: act
-custom-deb: act
-# saltstack is installed in the python environment, not as system package
-# pulumi - imperativ infrastructure delaration using python
-#   use git tag build with python and nodejs dynamic resource provider
-aur: pulumi-git
-custom-deb: pulumi
+# decompression of zstd files
+sys: zstd
 
-# # extra packages build
+# # extra and custom packages buildenv
 check: go rustc cargo
 sys-pkg: go
 sys-deb: golang-go
 sys-pkg: rust
 sys-deb: rustc cargo
 
+# python environment; dbus-python
+sys-deb: libdbus-1-dev libglib2.0-dev
+# saltstack is installed in the python environment, not as system package
+
 # # coreos build
 check: butane coreos-installer
 # butane - transpile butane into fedora coreos ignition files
 aur: butane
+# build dependencies for butane
+sys-deb: libzstd-dev
 custom-deb: butane
 # coreos-installer - Installer for CoreOS disk images
 aur: coreos-installer
 custom-deb: coreos-installer
+
+# # pulumi - imperativ infrastructure delaration using python
+check: pulumi
+# aur: use git tag build with python and nodejs dynamic resource provider
+aur: pulumi-git
+custom-deb: pulumi
+
+# vault - used for ca root creation
+check: vault
+sys-pkg: vault
+custom-deb: vault
+
+# act - run your github actions locally
+check: act
+sys-pkg: act
+custom-deb: act
 
 # # mkdocs build
 check: pango-view
@@ -362,6 +376,7 @@ EOF
                     echo "Attempting to install system wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
                     make_dir=$(mktemp -d -t build_XXXXXXXXXX)
                     for pkg_name in "${CUSTOM_PACKAGES_TO_INSTALL[@]}"; do
+                        echo "Attempting to install system wide custom package $pkg_name"
                         if test "$pkg_name" = "act"; then
                             curl -sSL -o $make_dir/act.tar.gz https://github.com/nektos/act/releases/download/v0.2.77/act_Linux_x86_64.tar.gz
                             tar -xz -C $make_dir -f $make_dir/act.tar.gz act
@@ -373,6 +388,18 @@ EOF
                             curl -sSL -o $make_dir/pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v3.171.0/pulumi-v3.171.0-linux-x64.tar.gz
                             tar -xz -C $make_dir -f $make_dir/pulumi.tar.gz pulumi
                             for i in $(find $make_dir/pulumi -type f); do sudo install $i /usr/local/bin/$(basename $i); done
+                        elif test "$pkg_name" = "coreos-installer"; then
+                            # XXX ubuntu 24.04: coreos-installer 0.24.0 requires rustc 1.84.1 or newer, active rustc 1.75.0
+                            curl -sSL -o $make_dir/coreos-installer.tar.gz \
+                                "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.23.0.tar.gz"
+                            curl -sSL -o $make_dir/coreos-installer-vendor.tar.gz \
+                                "https://github.com/coreos/coreos-installer/releases/download/v0.23.0/coreos-installer-0.23.0-vendor.tar.gz"
+                            mkdir -p $make_dir/coreos-installer
+                            tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer.tar.gz --strip-components=1
+                            tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer-vendor.tar.gz
+                            pwd=$(pwd) && cd $make_dir/coreos-installer && cargo build --release
+                            cd $pwd
+                            sudo install $make_dir/coreos-installer/target/release/coreos-installer /usr/local/bin/coreos-installer
                         elif test "$pkg_name" = "vault" -a "$OS_PKGFORMAT" = "deb"; then
                             wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
                             echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
@@ -381,7 +408,7 @@ EOF
                             echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
                         fi
                     done
-                    rm -r $makedir
+                    rm -r $make_dir
                 fi
             fi
         fi
