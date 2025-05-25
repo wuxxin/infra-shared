@@ -158,12 +158,14 @@ unsupported_os() { # $1=message_context
 go_make() { # $1=bin_name $2=url $3=build_cmd $4=install_cmd
     local bin_name="$1" url="$2" build_cmd="$3" install_cmd="$4"
     local pwd=$(pwd) gomake_dir=$(mktemp -d -t gobuild_XXXXXXXXXX)
+    echo "+ Building $bin_name from url: $url"
     mkdir -p $gomake_dir/bin $gomake_dir/$bin_name
     wget -qO- "$url" | tar -xz -C "$gomake_dir/$bin_name" --strip-components=1
     cd "$gomake_dir/$bin_name"
-    eval "$build_cmd"
-    cd "$pwd"
-    eval $install_cmd
+    echo "Build Command: $build_cmd"
+    eval "$build_cmd" || true
+    echo "Install Command: $install_cmd"
+    eval "$install_cmd" || true
     cd "$pwd"
     rm -rf "$gomake_dir"
 }
@@ -381,15 +383,18 @@ EOF
                     else
                         for pkg_name in "${GO_PACKAGES_TO_INSTALL[@]}"; do
                             if test "$pkg_name" = "act"; then
-                                go_make "act" "https://github.com/nektos/act/archive/refs/tags/v0.2.77.tar.gz" "make build" "sudo install dist/local/act /usr/local/bin"
+                                go_make "act" "https://github.com/nektos/act/archive/refs/tags/v0.2.77.tar.gz" "make build" "pwd; find dist"
                             elif test "$pkg_name" = "butane"; then
-                                go_make "butane" "https://github.com/coreos/butane/archive/refs/tags/v0.23.0.tar.gz" "export BIN_PATH=$(pwd)/bin; ./build" "sudo install $(pwd)/bin/butane /usr/local/bin/"
+                                go_make "butane" "https://github.com/coreos/butane/archive/refs/tags/v0.23.0.tar.gz" \
+                                    "go build -o bin/butane -ldflags '-w -X github.com/coreos/butane/internal/version.Raw=0.23.0' internal/main.go" \
+                                    "pwd; find ."
                             elif test "$pkg_name" = "coreos-installer"; then
-                                go_make "coreos-installer" "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.24.0.tar.gz" "make all" "sudo make install"
+                                go_make "coreos-installer" "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.24.0.tar.gz" \
+                                    "cargo build --release" "pwd; find target"
                             elif test "$pkg_name" = "pulumi"; then
-                                go_make "pulumi" "https://github.com/pulumi/pulumi/archive/refs/tags/v3.171.0.tar.gz" "make build" "sudo make install"
+                                go_make "pulumi" "https://github.com/pulumi/pulumi/archive/refs/tags/v3.171.0.tar.gz" "make bin/pulumi" "pwd; find ."
                             elif test "$pkg_name" = "vault"; then
-                                go_make "vault" "https://github.com/hashicorp/vault/archive/refs/tags/v1.19.4.tar.gz" "make bin" "sudo install vault /usr/local/bin"
+                                go_make "vault" "https://github.com/hashicorp/vault/archive/refs/tags/v1.19.4.tar.gz" "make bin" "pwd; find ."
                             else
                                 echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
                             fi
