@@ -1,0 +1,25 @@
+name: Renovate
+
+on:
+  workflow_dispatch: # Allow manual triggering
+  schedule:
+    - cron: '0 0 * * 0' # Run every Sunday at midnight UTC
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Required for Renovate to be able to push changes to the repository
+          fetch-depth: 0 
+
+      - name: Renovate
+        uses: renovatebot/renovate-action@v40.2.4 # Use a specific version of the action
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # It's good practice to specify a commit author for Renovate's commits
+          # If not specified, it defaults to "renovate[bot]"
+          # renovate-bot-message: "chore: update dependencies" 
+          # (Uncomment and customize the above line if you want a custom commit message prefix)
