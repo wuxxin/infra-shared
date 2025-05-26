@@ -66,6 +66,7 @@ sys-pkg: go
 sys-deb: golang-go
 sys-pkg: rust
 sys-deb: rustc cargo
+sys-deb: python3-dev
 
 # python environment; dbus-python
 sys-deb: libdbus-1-dev libglib2.0-dev
