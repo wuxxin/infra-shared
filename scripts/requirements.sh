@@ -6,9 +6,10 @@ usage() {
     local base_dir_short=$(basename $(dirname "$(dirname "$(readlink -e "$0")")"))
     cat <<EOF
 Usage: $(basename $0)  --install [--dry-run] | --install-extra [--dry-run]
-   or: $(basename $0)  --check | --list | --containerfile
+   or: $(basename $0)  --check [--verbose] | --list | --containerfile
 
 --check         - if all needed packages are installed exit 0, else 1
+    --verbose     Show additional package information
 --list          - list all defined packages with comments
 --install       - unconditionally install all needed normal packages
     --dry-run     Show systempackages that would be installed, but dont install them
@@ -259,17 +260,26 @@ main() {
     REQUEST=$1
     shift
 
-    DRY_RUN=false
-    if [ "$1" = "--dry-run" ]; then
-        DRY_RUN=true
+    VERBOSE=false
+    if test "$REQUEST" = "--check" -a "$1" = "--verbose"; then
+        VERBOSE=true
         shift
+    fi
+
+    DRY_RUN=false
+    if test "$REQUEST" = "--install" -o "$REQUEST" = "--install-extra"; then
+        if [ "$1" = "--dry-run" ]; then
+            DRY_RUN=true
+            shift
+        fi
     fi
 
     parse_package_config
     self_path=$(dirname "$(readlink -e "$0")")
 
     if test "$REQUEST" = "--check"; then
-        cat <<EOF
+        if test "$VERBOSE" = "true"; then
+            cat <<EOF
 Detected distribution: $OS_DISTRONAME
 Detected package format: $OS_PKGFORMAT
 System packages: ${SYSTEM_PACKAGES_TO_INSTALL[@]}
@@ -278,7 +288,7 @@ PIP packages: ${PIP_PACKAGES_TO_INSTALL[@]}
 Custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}
 Check commands: ${CHECK_COMMANDS[@]}
 EOF
-
+        fi
         all_found="true"
         for cmd in "${CHECK_COMMANDS[@]}"; do
             if ! command -v "$cmd" &>/dev/null; then

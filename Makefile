@@ -18,7 +18,7 @@ help:
 provision-local: ## Build dependencies for provisioning using system apps
 	@echo "+++ $@"
 	@if ! ./scripts/requirements.sh --check; then ./scripts/requirements.sh --install && ./scripts/requirements.sh --install-extra; fi
-	@./scripts/requirements.sh --check
+	@./scripts/requirements.sh --check --verbose
 
 .PHONY: provision-container
 provision-container: ## Build dependencies for provisioning using a provision-client container
@@ -58,7 +58,6 @@ test-scripts: build-env ## Run script Tests
 .PHONY: test-sim
 test-sim: build-env ## Run sim up Tests
 	@echo "+++ $@"
-	@./scripts/requirements.sh --check
 	@mkdir -p $(ROOTDIR)build/pulumi $(ROOTDIR)build/tests
 	@git init $(ROOTDIR)build/tests
 	@./scripts/create_skeleton.sh --project-dir $(ROOTDIR)build/tests --name-library infra --yes
