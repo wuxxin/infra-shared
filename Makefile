@@ -61,7 +61,7 @@ test-sim: build-env ## Run sim up Tests
 	@./scripts/requirements.sh --check
 	@mkdir -p $(ROOTDIR)build/pulumi $(ROOTDIR)build/tests
 	@git init $(ROOTDIR)build/tests
-	@./scripts/create_skeleton.sh --project-dir $(ROOTDIR)build/tests --shared-dir infra --yes
+	@./scripts/create_skeleton.sh --project-dir $(ROOTDIR)build/tests --name-library infra --yes
 	@f=$(ROOTDIR)build/tests/infra && if test ! -e $$f; then ln -s "../../" $$f; fi
 	@sed -i -r "s#virtualenv: .venv#virtualenv: ../../.venv#g" $(ROOTDIR)build/tests/Pulumi.yaml
 	@cd $(ROOTDIR)build/tests && $(PULUMI) login file://$(ROOTDIR)build/pulumi

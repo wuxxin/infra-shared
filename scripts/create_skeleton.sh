@@ -10,7 +10,7 @@ project_dir="${this_dir}/../.."
 
 usage() {
   cat - <<EOF
-Usage: $(basename "$0") [--project-dir dirname] [--name-shared dirname] --yes
+Usage: $(basename "$0") [--project-dir dirname] [--name-library dirname] --yes
 
 Creates directories and minimal files needed for a new project.
 
@@ -21,8 +21,8 @@ Creates directories and minimal files needed for a new project.
     If not specified, defaults to '../../' 
     (relative to the script's parent directory: ${this_dir}/../..)
 
---name-shared dirname   If specified, this dirname will be used instead the current one
-  for the references to the shared infrastructure directory, eg. "infra"
+--name-library dirname  If specified, this dirname will be used instead the
+  current one for the references to the shared infrastructure dir, eg. "infra"
 
 EOF
 }
@@ -31,7 +31,7 @@ if test "$1" = "--project-dir" -a "$2" != ""; then
   project_dir="$2"
   shift 2
 fi
-if test "$1" = "--name-shared" -a "$2" != ""; then
+if test "$1" = "--name-library" -a "$2" != ""; then
   shared_dir_short="$2"
   shift 2
 fi
