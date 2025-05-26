@@ -40,6 +40,7 @@ import uuid
 
 from typing import Any, Optional, Type, Dict
 
+import netifaces
 import pulumi
 import pulumi.dynamic
 import pulumi_command as command
@@ -106,8 +107,6 @@ def get_ip_from_ifname(name: str) -> str | None:
         str | None: The first IPv4 address found on the interface,
             or None if the interface doesn't exist or has no IPv4 addresses.
     """
-    import netifaces
-
     try:
         # Check if the interface exists
         if name not in netifaces.interfaces():
@@ -135,8 +134,6 @@ def get_default_gateway_ip():
     """
     Return the IP address (as a string) of the default gateway, or None if not found
     """
-    import netifaces
-
     try:
         gws = netifaces.gateways()
         default_gateway = gws.get("default", {}).get(netifaces.AF_INET, None)
@@ -161,8 +158,6 @@ def get_default_host_ip():
     Returns:
         str: The IP address of the most likely external interface, or None if not found.
     """
-    import netifaces
-
     try:
         # Get the default gateway
         gws = netifaces.gateways()
