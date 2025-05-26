@@ -68,8 +68,8 @@ sys-pkg: rust
 sys-deb: rustc cargo
 sys-deb: python3-dev
 
-# python environment; dbus-python
-sys-deb: libdbus-1-dev libglib2.0-dev
+# python environment
+sys-deb: pkg-config libdbus-1-dev libglib2.0-dev
 # saltstack is installed in the python environment, not as system package
 
 # # coreos build
