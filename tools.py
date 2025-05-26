@@ -44,6 +44,8 @@ import netifaces
 import pulumi
 import pulumi.dynamic
 import pulumi_command as command
+from pulumi_command.local import Logging as LocalLogging
+from pulumi_command.remote import Logging as RemoteLogging
 import yaml
 
 from pulumi.output import Input, Output
@@ -218,6 +220,7 @@ class SSHPut(pulumi.ComponentResource):
                 create=copy_cmd.format(full_local_path, tmpfile),
                 delete=rm_cmd.format(tmpfile),
                 triggers=triggers,
+                logging=LocalLogging.NONE,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -355,6 +358,7 @@ class SSHDeployer(pulumi.ComponentResource):
                 delete=rm_cmd.format(tmpfile),
                 stdin=data.apply(lambda x: str(x)),
                 triggers=triggers,
+                logging=LocalLogging.NONE,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -371,6 +375,7 @@ class SSHDeployer(pulumi.ComponentResource):
                 delete=rm_cmd.format(full_remote_path),
                 stdin=data.apply(lambda x: str(x)),
                 triggers=triggers,
+                logging=RemoteLogging.NONE,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         return value_deployed
@@ -576,6 +581,7 @@ def ssh_execute(
             delete="rm {} || true".format(os.path.join(tmpdir, resource_name)),
             stdin=cmdline,
             triggers=triggers,
+            logging=LocalLogging.NONE,
             opts=opts,
         )
     else:
@@ -590,6 +596,7 @@ def ssh_execute(
             create=cmdline,
             triggers=triggers,
             environment=environment,
+            logging=RemoteLogging.NONE,
             opts=opts,
         )
     return ssh_executed
@@ -649,6 +656,7 @@ class DataExport(pulumi.ComponentResource):
             update=create_cmd,
             delete=delete_cmd,
             stdin=data,
+            logging=LocalLogging.NONE,
             opts=opts,
             dir=project_dir,
             triggers=[
@@ -799,6 +807,7 @@ class LocalSaltCall(pulumi.ComponentResource):
                 args=" ".join(args),
             ),
             environment=environment,
+            logging=LocalLogging.NONE,
             opts=pulumi.ResourceOptions(parent=self),
             **kwargs,
         )

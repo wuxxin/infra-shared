@@ -55,6 +55,7 @@ import pulumi
 import pulumi_tls as tls
 import pulumi_random as random
 import pulumi_command as command
+from pulumi_command.local import Logging
 
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import (
@@ -158,6 +159,7 @@ class TSIGKey(pulumi.ComponentResource):
             "{}_tsig_key".format(name),
             create=f"keymgr -t {name} hmac-sha256",
             dir=this_dir,
+            logging=Logging.NONE,
             opts=this_opts,
         )
         parsed_yaml = yaml_loads(tsig_key_command.stdout)
@@ -173,6 +175,7 @@ class DNSFactory(pulumi.ComponentResource):
             "{}_dns_root".format(name),
             create=f"scripts/dnssec_gen.sh --zone {name}",
             dir=this_dir,
+            logging=Logging.NONE,
             opts=ResourceOptions.merge(
                 ResourceOptions(additional_secret_outputs=["stdout"]), this_opts
             ),
@@ -203,6 +206,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
             create="scripts/vault_pipe.sh --yes",
             stdin=json.dumps(vault_config),
             dir=this_dir,
+            logging=Logging.NONE,
             opts=pulumi.ResourceOptions(
                 parent=self,
                 additional_secret_outputs=["stdout"],
@@ -220,6 +224,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
             "{}_root_hash".format(name),
             create="openssl x509 -hash -noout",
             stdin=Output.unsecret(ca_secrets["ca_root_cert_pem"]),
+            logging=Logging.NONE,
             opts=pulumi.ResourceOptions(
                 parent=self,
                 depends_on=[vault_ca],
@@ -354,6 +359,7 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
             "{}_root_hash".format(name),
             create="openssl x509 -hash -noout",
             stdin=ca_root_cert.cert_pem,
+            logging=Logging.NONE,
             opts=pulumi.ResourceOptions(parent=self),
         )
 
@@ -520,6 +526,7 @@ class SelfSignedCert(pulumi.ComponentResource):
             "{}_selfsigned_hash".format(name),
             create="openssl x509 -hash -noout",
             stdin=resource_cert.cert_pem,
+            logging=Logging.NONE,
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.key = resource_key
