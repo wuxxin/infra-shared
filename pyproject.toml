@@ -48,7 +48,8 @@ dependencies = [
     "tqdm",
 
     # /scripts/port_forward.py; NAT-PMP - interact with NAT-PMP version 0 draft specification gateways
-    # XXX 202505 disabled, because on jules (ubuntu 24.04) vm, netifaces breaks build
+    # XXX temporary disabled, is bitrotten
+    # "netifaces",
     # "NAT-PMP",
 
     # add ipykernel, to be able to use this venv as notebook kernel
