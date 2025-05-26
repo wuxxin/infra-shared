@@ -2,6 +2,14 @@
 
 ## Internal Networks
 
+```mermaid
+graph TB
+
+r(unbound) -- dns_resolver tcp/udp:853 --> i((internet))
+k(knot) -- dns_server tcp/udp:53  --> r((unbound))
+a(acme) -- https_cert_server tcp/443  --> k
+```
+
 **10.87.X.X - 10.89.X.X** are used as defaults for internal networking
 
 | network name | network range | Description |
