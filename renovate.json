@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "schedule": ["every week"],
+  "docker": {
+    "fileMatch": [
+      "**/Containerfile",
+      "**/Containerfile.*",
+      "**/Dockerfile",
+      "**/Dockerfile.*"
+    ]
+  },
+  "python": {
+    "fileMatch": [
+      "**/pyproject.toml"
+    ]
+  },
+  "labels": ["renovate"],
+  "prConcurrentLimit": 5
+}
