@@ -220,7 +220,6 @@ class SSHPut(pulumi.ComponentResource):
                 create=copy_cmd.format(full_local_path, tmpfile),
                 delete=rm_cmd.format(tmpfile),
                 triggers=triggers,
-                logging=LocalLogging.NONE,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -358,7 +357,6 @@ class SSHDeployer(pulumi.ComponentResource):
                 delete=rm_cmd.format(tmpfile),
                 stdin=data.apply(lambda x: str(x)),
                 triggers=triggers,
-                logging=LocalLogging.NONE,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -581,7 +579,6 @@ def ssh_execute(
             delete="rm {} || true".format(os.path.join(tmpdir, resource_name)),
             stdin=cmdline,
             triggers=triggers,
-            logging=LocalLogging.NONE,
             opts=opts,
         )
     else:
@@ -807,7 +804,6 @@ class LocalSaltCall(pulumi.ComponentResource):
                 args=" ".join(args),
             ),
             environment=environment,
-            logging=LocalLogging.NONE,
             opts=pulumi.ResourceOptions(parent=self),
             **kwargs,
         )
