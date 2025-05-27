@@ -440,6 +440,7 @@ class CASignedCert(pulumi.ComponentResource):
             ecdsa_curve="P256",
             opts=pulumi.ResourceOptions(parent=self),
         )
+
         resource_request = tls.CertRequest(
             "{}_cert_request".format(name),
             private_key_pem=resource_key.private_key_pem,
@@ -757,9 +758,10 @@ provision_host_names = [
 # TODO make provision_host_ip_addresses default more robust, but resourceful
 provision_ip_addresses = config.get(
     "provision_host_ip_addresses",
-    [get_default_host_ip(), get_ip_from_ifname("virbr0")],
+    [str(get_default_host_ip())],
 )
 # create a host cert usable for both server_auth and client_auth
+
 provision_host_tls = create_host_cert(
     provision_host_names[0],
     provision_host_names[0],

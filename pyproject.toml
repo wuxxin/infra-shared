@@ -48,7 +48,6 @@ dependencies = [
     "tqdm",
 
     # /scripts/port_forward.py; NAT-PMP - interact with NAT-PMP version 0 draft specification gateways
-    # XXX temporary disabled, is bitrotten
     "netifaces",
     "NAT-PMP",
 
