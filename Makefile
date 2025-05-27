@@ -113,8 +113,8 @@ test-all-container: clean provision-container ## Run all tests using container b
 	@echo "+++ $@"
 	@./scripts/provision_shell.sh make test-all-local
 
-.PHONY: renovate-dry-run
-renovate-dry-run: ## Run Renovate in dry-run mode
+.PHONY: try-renovate
+try-renovate: ## Run Renovate in dry-run mode
 	@echo "+++ $@"
 	@echo "Running Renovate dry-run. This may take a while..."
 	@$(_CONTAINER_CMD) run --rm -v "$(ROOTDIR):/usr/src/app" -e LOG_LEVEL=info renovate/renovate:latest renovate --dry-run=full
