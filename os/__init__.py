@@ -18,6 +18,8 @@ import re
 
 import pulumi
 import pulumi_command as command
+from pulumi_command.local import Logging as LocalLogging
+
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
 import yaml
@@ -90,16 +92,12 @@ class ButaneTranspiler(pulumi.ComponentResource):
         )
 
         # create jinja environment
-        default_env = yaml.safe_load(
-            open(os.path.join(this_dir, "jinja_defaults.yml"), "r")
-        )
+        default_env = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
         # add hostname from function call to environment
         default_env.update({"HOSTNAME": hostname})
 
         # merge default with calling env
-        this_env = merge_dict_struct(
-            default_env, {} if environment is None else environment
-        )
+        this_env = merge_dict_struct(default_env, {} if environment is None else environment)
 
         # ssh and tls keys into butane type yaml
         butane_security_keys = pulumi.Output.concat(
@@ -224,18 +222,14 @@ storage:
         # jinja template butane_input, basedir=basedir
         base_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_input, env=this_env).apply(
-                lambda args: yaml.safe_load(
-                    jinja_run(args["yaml_str"], basedir, args["env"])
-                )
+                lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
 
         # jinja template butane_security_keys, basedir=basedir
         security_dict = pulumi.Output.secret(
             pulumi.Output.all(yaml_str=butane_security_keys, env=this_env).apply(
-                lambda args: yaml.safe_load(
-                    jinja_run(args["yaml_str"], basedir, args["env"])
-                )
+                lambda args: yaml.safe_load(jinja_run(args["yaml_str"], basedir, args["env"]))
             )
         )
 
@@ -303,9 +297,8 @@ storage:
             create="butane -d . -r -p",
             stdin=self.butane_config,
             dir=basedir,
-            opts=pulumi.ResourceOptions(
-                parent=self, additional_secret_outputs=["stdout"]
-            ),
+            logging=LocalLogging.NONE,
+            opts=pulumi.ResourceOptions(parent=self, additional_secret_outputs=["stdout"]),
         )
         # ignition json str as result
         self.ignition_config = self.ignition_translation.stdout
@@ -343,9 +336,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
         user = update_config["UPDATE_USER"]
         update_fname = update_config["UPDATE_SERVICE"] + ".service"
         update_str = jinja_run_file(update_fname, this_dir, update_config)
-        root_dir = join_paths(
-            update_config["UPDATE_PATH"], update_config["UPDATE_SERVICE"]
-        )
+        root_dir = join_paths(update_config["UPDATE_PATH"], update_config["UPDATE_SERVICE"])
 
         # transport update service file content and main.sls (translated butane) to root_dir and sls_dir
         config_dict = {
@@ -448,9 +439,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
             else None
         )
 
-        self.imagepath = self.downloaded_image.stdout.apply(
-            lambda x: os.path.splitext(x)[0]
-        )
+        self.imagepath = self.downloaded_image.stdout.apply(lambda x: os.path.splitext(x)[0])
         self.result = self.imagepath
         self.register_outputs({})
 
@@ -492,9 +481,8 @@ ignition:
             "{}_ignition_remote_config".format(hostname),
             create="butane -d . -r -p",
             stdin=butane_remote_config,
-            opts=pulumi.ResourceOptions(
-                additional_secret_outputs=["stdout"], parent=self
-            ),
+            logging=LocalLogging.NONE,
+            opts=pulumi.ResourceOptions(additional_secret_outputs=["stdout"], parent=self),
         )
 
         self.result = ignition_remote_config.stdout
@@ -592,18 +580,12 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             memory=memory,
             vcpu=vcpu,
             coreos_ignition=self.ignition,
-            disks=[
-                libvirt.DomainDiskArgs(volume_id=vm_vol.id) for vm_vol in self.volumes
-            ],
+            disks=[libvirt.DomainDiskArgs(volume_id=vm_vol.id) for vm_vol in self.volumes],
             network_interfaces=[
-                libvirt.DomainNetworkInterfaceArgs(
-                    network_name="default", wait_for_lease=True
-                )
+                libvirt.DomainNetworkInterfaceArgs(network_name="default", wait_for_lease=True)
             ],
             qemu_agent=False,
-            tpm=libvirt.DomainTpmArgs(
-                backend_version="2.0", backend_persistent_state=True
-            ),
+            tpm=libvirt.DomainTpmArgs(backend_version="2.0", backend_persistent_state=True),
             xml=libvirt.DomainXmlArgs(xslt=self.domain_additions_xslt),
             opts=pulumi.ResourceOptions(
                 parent=self,
