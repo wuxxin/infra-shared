@@ -4,8 +4,7 @@ passwd:
   users:
     - name: unbound
       uid: 978
-      groups:
-        - unbound
+      primary_group: unbound
       home_dir: /var/lib/unbound
       shell: /sbin/nologin
   groups:
