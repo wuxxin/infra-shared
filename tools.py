@@ -798,7 +798,7 @@ class LocalSaltCall(pulumi.ComponentResource):
 
         self.executed = command.local.Command(
             resource_name,
-            create="uv run {scripts_dir}/salt-call.py -c {conf_dir} {args}".format(
+            create=". .venv/bin/activate && {scripts_dir}/salt-call.py -c {conf_dir} {args}".format(
                 scripts_dir=os.path.join(this_dir, "scripts"),
                 conf_dir=self.config["root_dir"],
                 args=" ".join(args),
@@ -1176,7 +1176,7 @@ class ServePrepare(pulumi.ComponentResource):
             # if enabled, run port_forward and update config with returned port_forward values
             self.forward = command.local.Command(
                 resource_name + "_forward",
-                create=f"uv run {os.path.join(this_dir, 'scripts/port_forward.py')} --yaml-from-stdin --yaml-to-stdout",
+                create=f". .venv/bin/activate && {os.path.join(this_dir, 'scripts/port_forward.py')} --yaml-from-stdin --yaml-to-stdout",
                 stdin=self.merged_config.apply(yaml.safe_dump),
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -1225,7 +1225,7 @@ class ServeOnce(pulumi.ComponentResource):
         super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
         self.executed = command.local.Command(
             resource_name,
-            create=f"uv run {os.path.join(this_dir, 'scripts/serve_once.py')} --verbose --yes",
+            create=f". .venv/bin/activate && {os.path.join(this_dir, 'scripts/serve_once.py')} --verbose --yes",
             stdin=config.apply(yaml.safe_dump),
             opts=pulumi.ResourceOptions(parent=self),
         )
@@ -1263,7 +1263,7 @@ class WriteRemovable(pulumi.ComponentResource):
         super().__init__("pkg:index:WriteRemovable", resource_name, None, opts)
 
         create_str = (
-            "uv run "
+            ". .venv/bin/activate && "
             + os.path.join(this_dir, "scripts/write_removable.py")
             + " --silent"
             + " --source-image {}".format(image)
