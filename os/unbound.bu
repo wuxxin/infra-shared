@@ -1,24 +1,24 @@
 # butane config
 
-passwd:
-  users:
-    - name: unbound
-      uid: 978
-      primary_group: unbound
-      home_dir: /var/lib/unbound
-      shell: /sbin/nologin
-  groups:
-    - name: unbound
-      gid: 978
+# passwd:
+#   users:
+#     - name: unbound
+#       uid: 978
+#       primary_group: unbound
+#       home_dir: /var/lib/unbound
+#       shell: /sbin/nologin
+#   groups:
+#     - name: unbound
+#       gid: 978
 
 storage:
-  directories:
-    - path: /var/lib/unbound
-      mode: 0700
-      user:
-        id: 978
-      group:
-        id: 978
+  # directories:
+  #   - path: /var/lib/unbound
+  #     mode: 0700
+  #     user:
+  #       id: 978
+  #     group:
+  #       id: 978
 
   files:
     # our unbound configuration

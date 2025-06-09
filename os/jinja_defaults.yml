@@ -67,5 +67,7 @@ LIBVIRT_CIDR: 192.168.122.1/24
 # DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
 DEBUG_CONSOLE_AUTOLOGIN: false
 
-# list of /etc/credstore entries to load into podman daemon for compose workloads
-PODMAN_LOAD_SECRETS: "root_ca.crt root_bundle.crt"
+# list of /etc/credstore entries to load into podman for container and compose workloads
+# default ("") means to load all secrets in /etc/credstore into podman secrets>
+# example: PODMAN_LOAD_SECRETS: "root_ca.crt root_bundle.crt"
+PODMAN_LOAD_SECRETS: ""

@@ -455,6 +455,10 @@ class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
             opts,
         )
 
+        this_opts = pulumi.ResourceOptions.merge(
+            pulumi.ResourceOptions(parent=self, additional_secret_outputs=["stdout"]), opts
+        )
+
         butane_remote_config = pulumi.Output.concat(
             """
 variant: fcos
@@ -482,7 +486,7 @@ ignition:
             create="butane -d . -r -p",
             stdin=butane_remote_config,
             logging=LocalLogging.NONE,
-            opts=pulumi.ResourceOptions(additional_secret_outputs=["stdout"], parent=self),
+            opts=this_opts,
         )
 
         self.result = ignition_remote_config.stdout

@@ -2,7 +2,7 @@
 """
 ## resource_call.py
 
-- `uv run $0 [--stack sim] library function *stringargs`
+- `. .venv/bin/activate && $0 [--stack sim] library function *stringargs`
 
 """
 
@@ -26,15 +26,13 @@ def main():
         description="""
 Equivalent to calling `pulumi up` on the selected library.function on the selected stack.
 useful for oneshots like image building or transfer. calling example:
-`uv run {shared_dir_short}/scripts/resource_call.py --stack sim {shared_dir_short}.build build_openwrt`""".format(
+`. .venv/bin/activate && {shared_dir_short}/scripts/resource_call.py --stack sim {shared_dir_short}.build build_openwrt`""".format(
             shared_dir_short=os.path.basename(shared_dir)
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--stack", type=str, help="Name of the stack", default="sim")
-    parser.add_argument(
-        "--preview", action="store_true", help="preview only", default=False
-    )
+    parser.add_argument("--preview", action="store_true", help="preview only", default=False)
     parser.add_argument("library", type=str, help="Name of the library")
     parser.add_argument(
         "function",

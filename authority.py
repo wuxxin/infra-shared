@@ -56,6 +56,7 @@ import pulumi_tls as tls
 import pulumi_random as random
 import pulumi_command as command
 from pulumi_command.local import Logging as LocalLogging
+from pulumi import Output, Alias, ResourceOptions
 
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import (
@@ -63,7 +64,6 @@ from cryptography.hazmat.primitives.serialization import (
     load_pem_private_key,
     pkcs12,
 )
-from pulumi import Output, Alias, ResourceOptions
 
 from .tools import (
     yaml_loads,

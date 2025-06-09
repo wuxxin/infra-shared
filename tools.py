@@ -6,7 +6,6 @@ https:
 - f: serve_simple
 - c: ServePrepare
 - c: ServeOnce
-- p: merge_payload_config
 
 ssh:
 - f: ssh_put
@@ -41,14 +40,16 @@ import uuid
 from typing import Any, Optional, Type, Dict
 
 import netifaces
+import yaml
+
 import pulumi
 import pulumi.dynamic
 import pulumi_command as command
 from pulumi_command.local import Logging as LocalLogging
 from pulumi_command.remote import Logging as RemoteLogging
-import yaml
-
 from pulumi.output import Input, Output
+from pulumi import ResourceOptions
+
 from .template import join_paths
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1098,7 +1099,9 @@ class ServePrepare(pulumi.ComponentResource):
     ) -> None:
         from .authority import config, ca_factory, provision_host_tls
 
-        super().__init__("pkg:index:ServeConfigure", resource_name, None, opts)
+        super().__init__(
+            "pkg:index:ServeConfigure", "{}_serve_prepare".format(resource_name), None, opts
+        )
 
         # Build the initial static config (*without* Output values)
         self.static_config = {
@@ -1210,6 +1213,7 @@ class ServeOnce(pulumi.ComponentResource):
     Args:
         resource_name (str): The name of the resource
         config (pulumi.Input[Dict]): The configuration for the server, provided as a YAML-serializable dict.
+        payload (pulumi.Input[Str]): The Payload
 
     Attributes:
         result (pulumi.Output[str]): The standard output of the `serve_once.py` script.
@@ -1217,43 +1221,38 @@ class ServeOnce(pulumi.ComponentResource):
 
     Example:
     ```python
-        ServeOnce("testing", config=merge_payload_config(payload, config))
+        ServeOnce("testing", config, payload)
     ```
     """
 
-    def __init__(self, resource_name, config, opts=None):
-        super().__init__("pkg:index:ServeOnce", resource_name, None, opts)
+    def __init__(self, resource_name, config, payload, opts=None):
+        super().__init__(
+            "pkg:index:ServeOnce", "{}_serve_once".format(resource_name), None, opts
+        )
+
+        def merge_func(args):
+            payload_value = args[0]
+            config_value = args[1]
+            return {**config_value, "payload": payload_value}
+
+        # Ensure both inputs are resolved before merging
+        this_config = pulumi.Output.all(payload, config).apply(merge_func)
+        this_opts = ResourceOptions.merge(
+            ResourceOptions(parent=self, additional_secret_outputs=["stdout"]), opts
+        )
         self.executed = command.local.Command(
-            resource_name,
+            "{}_serve_once".format(resource_name),
             create=f". .venv/bin/activate && {os.path.join(this_dir, 'scripts/serve_once.py')} --verbose --yes",
-            stdin=config.apply(yaml.safe_dump),
-            opts=pulumi.ResourceOptions(parent=self),
+            stdin=this_config.apply(yaml.safe_dump),
+            opts=this_opts,
         )
         self.result = self.executed.stdout
         self.register_outputs({})
 
 
-def merge_payload_config(payload, config):
-    """Merges payload (str) into config dictionary"""
-
-    def merge_func(args):
-        payload_value = args[0]
-        config_value = args[1]
-        return {**config_value, "payload": payload_value}
-
-    # Ensure both inputs are resolved before merging
-    merged_config = pulumi.Output.all(payload, config).apply(merge_func)
-    return merged_config
-
-
 def serve_simple(resource_name, yaml_str, opts=None):
-    config_dict = {"payload": yaml.safe_load(yaml_str)}
-    this_config = ServePrepare(
-        "serve_prepare_{}".format(resource_name),
-        config_str=yaml.safe_dump(config_dict),
-        opts=opts,
-    )
-    return ServeOnce("serve_once_{}".format(resource_name), this_config.config, opts=opts)
+    this_config = ServePrepare(resource_name, config_str="", opts=opts)
+    return ServeOnce(resource_name, this_config.config, yaml.safe_load(yaml_str), opts=opts)
 
 
 class WriteRemovable(pulumi.ComponentResource):

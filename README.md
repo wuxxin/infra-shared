@@ -173,10 +173,11 @@ pulumi stack select sim
 pulumi about
 ```
 
-#### Execute in provision python environment
+#### Execute anything in the provision python environment
 
 ```sh
-uv run ipython
+. .venv/bin/activate
+ipython
 ```
 
 #### Sim stack: destroy, cleanup, re/create

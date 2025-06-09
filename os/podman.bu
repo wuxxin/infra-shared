@@ -45,7 +45,7 @@ storage:
           [secrets.opts]
 
     # pipe string list of requested credentials from butane env to service env
-    - path: /etc/locals/environment/container-secrets.env
+    - path: /etc/local/environment/container-secrets.env
       contents:
         inline: |
           PODMAN_LOAD_SECRETS={{ PODMAN_LOAD_SECRETS }}

@@ -14,7 +14,7 @@ _ compose container ENV
 
 ### Single Container
 
-- `/etc/credstore` will be available as podman secrets
+- files from `/etc/credstore` will be available as podman secrets
 - Define in: `<instance>.container`
 
 ```ini

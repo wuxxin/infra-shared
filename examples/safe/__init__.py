@@ -46,7 +46,6 @@ from infra.os import (
 from infra.tools import (
     ServePrepare,
     ServeOnce,
-    merge_payload_config,
     write_removable,
     public_local_export,
 )
@@ -189,12 +188,15 @@ public_config = RemoteDownloadIgnitionConfig(
     "{}_public_ignition".format(shortname),
     hostname,
     serve_config.config.apply(lambda x: x["remote_url"]),
+    opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
 )
 
 # serve secret part of ignition config via ServeOnce
 serve_data = ServeOnce(
     shortname,
-    config=merge_payload_config(host_config.result, serve_config.config),
+    config=serve_config.config,
+    payload=host_config.result,
+    opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
 )
 pulumi.export("{}_served_once".format(shortname), serve_data)
 
@@ -242,7 +244,7 @@ else:
 
 
 # update host to newest config, should be a no-op (zero changes) on machine creation
-host_update = SystemConfigUpdate(shortname, target, host_config, simulate=False, opts=opts)
+host_update = SystemConfigUpdate(shortname, target, host_config, simulate=False)
 pulumi.export("{}_host_update".format(shortname), host_update)
 
 # make host postgresql.Provider pg_server available
