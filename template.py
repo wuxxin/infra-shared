@@ -212,9 +212,7 @@ class ToolsExtension(jinja2.ext.Extension):
             return
         return obj.groups()
 
-    def regex_replace(
-        self, value, pattern, replacement, ignorecase=False, multiline=False
-    ):
+    def regex_replace(self, value, pattern, replacement, ignorecase=False, multiline=False):
         """replaces occurrences of the regular expression with another string"""
         flags = 0
         if ignorecase:
@@ -328,9 +326,7 @@ def load_butane_dir(basedir, environment, subdir="", exclude=[], include=[]):
                 )
             ]
         )
-        files = [
-            f for f in files if f not in [os.path.join(subdir, ex) for ex in exclude]
-        ]
+        files = [f for f in files if f not in [os.path.join(subdir, ex) for ex in exclude]]
 
     for fname in files:
         source_dict = yaml.safe_load(jinja_run_file(fname, basedir, environment))
@@ -446,9 +442,7 @@ def inline_local_files(yaml_dict, basedir):
             if "contents_local" in u:
                 fname = u["contents_local"]
                 del ydict["systemd"]["units"][unr]["contents_local"]
-                ydict["systemd"]["units"][unr].update(
-                    {"contents": load_text(basedir, fname)}
-                )
+                ydict["systemd"]["units"][unr].update({"contents": load_text(basedir, fname)})
 
             if "dropins" in u:
                 for dnr in range(len(u["dropins"])):
@@ -456,9 +450,7 @@ def inline_local_files(yaml_dict, basedir):
 
                     if "contents_local" in d:
                         fname = d["contents_local"]
-                        del ydict["systemd"]["units"][unr]["dropins"][dnr][
-                            "contents_local"
-                        ]
+                        del ydict["systemd"]["units"][unr]["dropins"][dnr]["contents_local"]
                         ydict["systemd"]["units"][unr]["dropins"][dnr].update(
                             {"contents": load_text(basedir, fname)}
                         )
@@ -519,9 +511,7 @@ def expand_templates(yaml_dict, basedir, environment):
                 for dnr in range(len(u["dropins"])):
                     d = ydict["systemd"]["units"][unr]["dropins"][dnr]
                     if "template" in d and d["template"] not in ["jinja"]:
-                        raise ValueError(
-                            "Invalid option, template must be one of: jinja"
-                        )
+                        raise ValueError("Invalid option, template must be one of: jinja")
 
                     if "contents" in d and "template" in d:
                         data = jinja_run(d["contents"], basedir, environment)
@@ -658,9 +648,7 @@ def butane_to_salt(
                     dest[fname]["file"].append({"source": f["contents"]["source"]})
 
             if "verification" in f["contents"]:
-                dest[fname]["file"].append(
-                    {"source_hash": f["contents"]["verification"][7:0]}
-                )
+                dest[fname]["file"].append({"source_hash": f["contents"]["verification"][7:0]})
 
             target_changed(fname, ftype)
 
@@ -752,9 +740,7 @@ def compile_selinux_module(content):
         stderr=subprocess.PIPE,
         text=True,
     )
-    chk_output, chk_error = chk_process.communicate(
-        input=content, timeout=timeout_seconds
-    )
+    chk_output, chk_error = chk_process.communicate(input=content, timeout=timeout_seconds)
     if chk_process.returncode != 0:
         raise Exception("checkmodule failed:\n{}".format(chk_error))
     pkg_process = subprocess.Popen(
@@ -764,9 +750,7 @@ def compile_selinux_module(content):
         stderr=subprocess.PIPE,
         text=False,
     )
-    pkg_output, pkg_error = pkg_process.communicate(
-        input=chk_output, timeout=timeout_seconds
-    )
+    pkg_output, pkg_error = pkg_process.communicate(input=chk_output, timeout=timeout_seconds)
     if pkg_process.returncode != 0:
         raise Exception("semodule_package failed:\n{}".format(pkg_error))
 
