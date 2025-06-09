@@ -85,7 +85,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         update_config=UPDATE_CONFIG,
         opts=None,
     ):
-        from ..authority import ca_factory, ssh_factory, dns_factory
+        from ..authority import ca_factory, ssh_factory, dns_factory, config
 
         super().__init__(
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
@@ -95,6 +95,14 @@ class ButaneTranspiler(pulumi.ComponentResource):
         default_env = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
         # add hostname from function call to environment
         default_env.update({"HOSTNAME": hostname})
+        # add locale from config to environment
+        default_env.update(
+            {
+                "LOCALE": {
+                    key.upper(): value for key, value in config.get_object("locale").items()
+                }
+            }
+        )
 
         # merge default with calling env
         this_env = merge_dict_struct(default_env, {} if environment is None else environment)
