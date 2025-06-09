@@ -10,17 +10,21 @@
 #### Environment: POSTGRES_PASSWORD
 
 ```python
+import pulumi_random
+
 # update needed environment config
 pg_postgres_password = pulumi_random.RandomPassword(
     "{}_POSTGRES_PASSWORD".format(shortname), special=False, length=24
 )
 host_environment.update({"POSTGRES_PASSWORD": pg_postgres_password.result})
-
 ```
 
 #### Provider: create POSTGRESQL-Provider
 
 ```python
+import pulumi
+import pulumi_postgresql as postgresql
+
 # make host postgresql.Provider pg_server available
 pg_server = postgresql.Provider(
     "{}_POSTGRESQL_HOST".format(shortname),
@@ -38,7 +42,6 @@ pg_server = postgresql.Provider(
     opts=pulumi.ResourceOptions(depends_on=[host_update]),
 )
 pulumi.export("{}_pg_server".format(shortname), pg_server)
-
 ```
 
 ### Usage
@@ -46,6 +49,10 @@ pulumi.export("{}_pg_server".format(shortname), pg_server)
 #### Create Database and User on pg_server host Postgresql
 
 ```python
+import pulumi
+import pulumi_random
+import pulumi_postgresql as postgresql
+
 locale = config.get_object("locale")
 
 ha_user_password = pulumi_random.RandomPassword(
@@ -67,5 +74,4 @@ ha_db = postgresql.Database(
     lc_ctype=locale["lang"],
     opts=pulumi.ResourceOptions(provider=pg_server, depends_on=[ha_user]),
 )
-
 ```
