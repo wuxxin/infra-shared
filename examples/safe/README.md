@@ -21,11 +21,11 @@ with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
 
 public available `postgresql` server with mandatory ssl and optional clientcert auth
 
-- [container.bu](container.bu)
-- [container/postgresql.conf](container/postgresql.conf)
-- [container/postgresql.container](container/postgresql.container)
-- [container/postgresql.volume](container/postgresql.volume)
-- [Containerfile/postgresql/Containerfile](Containerfile/postgresql/Containerfile)
+- [module.bu](postgresql/module.bu)
+- [postgresql.conf](postgresql/container/postgresql.conf)
+- [postgresql.container](postgresql/container/postgresql.container)
+- [postgresql.volume](postgresqlcontainer/postgresql.volume)
+- [Containerfile](postgresql/Containerfile/postgresql/Containerfile)
 
 #### `Tang Server`
 

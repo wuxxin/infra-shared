@@ -17,23 +17,3 @@ storage:
         inline: |
           HOSTNAME=tang.{{ HOSTNAME }}
 
-    - path: /etc/containers/environment/postgresql.env
-      mode: 0600
-      contents:
-        inline: |
-          PGDATA=/var/lib/postgresql/data
-          POSTGRES_PASSWORD={{ POSTGRES_PASSWORD }}
-          POSTGRES_HOST_AUTH_METHOD=reject
-          # map username postgres@hostname to postgres if postgres@hostname matches hostname
-          POSTGRES_EXTRA_IDENT=tlsmap /^(.*)@{{ HOSTNAME }} \1
-          LANG={{ LOCALE["LANG"] }}
-
-systemd:
-  units:
-    - name: container-build@postgresql.service
-      dropins:
-        - name: dropin.conf
-          contents: |
-            [Service]
-            Environment="PODMAN_BUILD_OPTIONS=--build-arg ADDLOCALES={{ LOCALE["LANG"] }}"
-
