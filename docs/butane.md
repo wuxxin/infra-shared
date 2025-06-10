@@ -17,10 +17,25 @@ Documentation:
 
 ### Environment
 
+The Environment available for the butane translation.
+
 - environment defaults available in jinja
+- HOSTNAME: the hostname argument will be set from the ButaneTranspiler
+- any default environment can be overwritten to liking
+- some defaults (DNS_RESOLVER, LOCALE) can be set too on a project config (lowercase names)
+    eg.:
 
 ```yaml
-# include os/jinja_defaults.yml here
+projectname:dns_resolver:
+    upstream:
+        - "10.10.10.1@53"
+    upstream_tls: false
+```
+
+- os/jinja_defaults.yml:
+
+```yaml
+make an include for contents of jinja_defaults.yml here.
 ```
 
 ### available custom filter
