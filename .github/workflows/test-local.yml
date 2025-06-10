@@ -14,14 +14,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Read CACHE_VERSION
+      id: cache_version_reader
+      run: echo "CACHE_VERSION_FROM_FILE=$(cat CACHE_VERSION 2>/dev/null || echo 'initial')" >> $GITHUB_ENV
+
     - name: Cache apt packages
       uses: actions/cache@v4
       with:
         path: |
           /var/cache/apt/archives
           /var/lib/apt/lists
-        key: apt-cache-${{ runner.os }}-${{ hashFiles('./scripts/requirements.sh') }}
+        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-${{ hashFiles('./scripts/requirements.sh') }}
         restore-keys: |
+          apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-
           apt-cache-${{ runner.os }}-
     - name: Install and build Dependencies
       run: make provision-local
@@ -31,8 +36,9 @@ jobs:
       id: cache-uv
       with:
         path: ~/.cache/uv
-        key: uv-cache-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+        key: uv-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
+          uv-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-
           uv-cache-${{ runner.os }}-
     - name: Setup python build Environment
       run: make build-env
