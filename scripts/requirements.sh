@@ -5,7 +5,7 @@ set -eo pipefail
 usage() {
     local base_dir_short=$(basename $(dirname "$(dirname "$(readlink -e "$0")")"))
     cat <<EOF
-Usage: $(basename $0)  --install [--dry-run] | --install-extra [--dry-run]
+Usage: $(basename $0)  --install [--dry-run] | --install-extra [--user] [--dry-run]
    or: $(basename $0)  --check [--verbose] | --list | --containerfile
 
 --check         - if all needed packages are installed exit 0, else 1
@@ -14,6 +14,7 @@ Usage: $(basename $0)  --install [--dry-run] | --install-extra [--dry-run]
 --install       - unconditionally install all needed normal packages
     --dry-run     Show systempackages that would be installed, but dont install them
 --install-extra - unconditionally install AUR (Arch/*),Python Pip (Deb/*)or Custom (*) pkgs
+    --user        copy custom build packages to ~/.local/bin instead of /usr/local/bin
     --dry-run     Show AUR/Pip/Custom packages that would be installed, but dont install them
 --containerfile - update a Containerfile to include all needed packages
 
@@ -254,6 +255,10 @@ parse_package_config() {
 }
 
 main() {
+    VERBOSE=false
+    DRY_RUN=false
+    INSTALL_USER=false
+
     if test "$1" != "--check" -a "$1" != "--install" -a "$1" != "--install-extra" -a \
         "$1" != "--list" -a "$1" != "--containerfile"; then
         usage
@@ -261,14 +266,15 @@ main() {
     REQUEST=$1
     shift
 
-    VERBOSE=false
     if test "$REQUEST" = "--check" -a "$1" = "--verbose"; then
         VERBOSE=true
         shift
     fi
-
-    DRY_RUN=false
     if test "$REQUEST" = "--install" -o "$REQUEST" = "--install-extra"; then
+        if [ "$1" = "--user" ]; then
+            INSTALL_USER=true
+            shift
+        fi
         if [ "$1" = "--dry-run" ]; then
             DRY_RUN=true
             shift
@@ -381,29 +387,38 @@ EOF
             fi
 
             if [ "$DRY_RUN" = "true" ]; then
-                echo "Dry-run: Would attempt to install system wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
+                echo "Dry-run: Would attempt to install system/user wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
             else
                 if [ ${#CUSTOM_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
-                    echo "Attempting to install system wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
+                    echo "Attempting to install system/user wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
                     make_dir=$(mktemp -d -t build_XXXXXXXXXX)
+                    dir_prefix="/usr/local/bin"
+                    call_prefix="sudo"
+                    if test "$INSTALL_USER" = "true"; then
+                        dir_prefix="$HOME/.local/bin"
+                        call_prefix=""
+                        mkdir -p "$dir_prefix"
+                    fi
 
                     for pkg_name in "${CUSTOM_PACKAGES_TO_INSTALL[@]}"; do
-                        echo "Attempting to install system wide custom package $pkg_name"
+                        echo "Attempting to install system/user wide custom package $pkg_name"
 
-                        if test -e "/usr/local/bin/$pkg_name"; then
-                            echo "Skipping install of already existing /usr/local/bin/$pkg_name"
+                        if test -e "$dir_prefix/$pkg_name"; then
+                            echo "Skipping install of already existing $dir_prefix/$pkg_name"
                         else
                             if test "$pkg_name" = "act"; then
                                 curl -sSL -o $make_dir/act.tar.gz https://github.com/nektos/act/releases/download/v0.2.77/act_Linux_x86_64.tar.gz
                                 tar -xz -C $make_dir -f $make_dir/act.tar.gz act
-                                sudo install $make_dir/act /usr/local/bin/act
+                                $call_prefix install $make_dir/act $dir_prefix/act
                             elif test "$pkg_name" = "butane"; then
                                 curl -sSL -o $make_dir/butane https://github.com/coreos/butane/releases/download/v0.23.0/butane-x86_64-unknown-linux-gnu
-                                sudo install $make_dir/butane /usr/local/bin/butane
+                                $call_prefix install $make_dir/butane $dir_prefix/butane
                             elif test "$pkg_name" = "pulumi"; then
                                 curl -sSL -o $make_dir/pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v3.171.0/pulumi-v3.171.0-linux-x64.tar.gz
                                 tar -xz -C $make_dir -f $make_dir/pulumi.tar.gz pulumi
-                                for i in $(find $make_dir/pulumi -type f); do sudo install $i /usr/local/bin/$(basename $i); done
+                                for i in $(find $make_dir/pulumi -type f); do
+                                    $call_prefix install $i $dir_prefix/$(basename $i)
+                                done
                             elif test "$pkg_name" = "coreos-installer"; then
                                 # XXX ubuntu 24.04: coreos-installer 0.24.0 requires rustc 1.84.1 or newer, active rustc 1.75.0
                                 curl -sSL -o $make_dir/coreos-installer.tar.gz \
@@ -415,7 +430,7 @@ EOF
                                 tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer-vendor.tar.gz
                                 pwd=$(pwd) && cd $make_dir/coreos-installer && cargo build --release
                                 cd $pwd
-                                sudo install $make_dir/coreos-installer/target/release/coreos-installer /usr/local/bin/coreos-installer
+                                $call_prefix install $make_dir/coreos-installer/target/release/coreos-installer $dir_prefix/coreos-installer
                             elif test "$pkg_name" = "vault" -a "$OS_PKGFORMAT" = "deb"; then
                                 wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
                                 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
