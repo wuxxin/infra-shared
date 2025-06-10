@@ -13,8 +13,27 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Cache apt packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: apt-cache-${{ runner.os }}-${{ hashFiles('./scripts/requirements.sh') }}
+        restore-keys: |
+          apt-cache-${{ runner.os }}-
     - name: Install and build Dependencies
       run: make provision-local
+
+    - name: Cache uv packages
+      uses: actions/cache@v4
+      id: cache-uv
+      with:
+        path: ~/.cache/uv
+        key: uv-cache-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          uv-cache-${{ runner.os }}-
     - name: Setup python build Environment
       run: make build-env
     - name: build Docs
