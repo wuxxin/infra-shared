@@ -22,7 +22,7 @@ provision-local: ## Build dependencies for provisioning using system apps
 	./scripts/requirements.sh --check --verbose
 
 .PHONY: provision-container
-provision-container: ## Build dependencies for provisioning using a provision-client container
+provision-container: ## Build dependencies for provisioning using a container
 	@echo "+++ $@"
 	$(_CONTAINER_CMD) build -t provision-client:latest -f Containerfile/provision-client/Containerfile Containerfile/provision-client
 
@@ -82,18 +82,19 @@ test-sim-clean: ## Remove Application Artifacts
 	rm -rf $(ROOTDIR)build/tests $(ROOTDIR)build/pulumi/.pulumi/backups/sim $(ROOTDIR)build/pulumi/.pulumi/history/sim || true
 
 .PHONY: docs
-docs: build-env ## Build docs for local usage and open in browser
+docs: build-env ## Build docs for local usage
 	@echo "+++ $@"
 	mkdir -p build/docs-local
 	. .venv/bin/activate && mkdocs build --no-directory-urls -d build/docs-local -f mkdocs.yml
-	@echo "finished. browse documentation at build/docs-local/index.html"
-	$(BROWSER) build/docs-local/index.html
+	@echo "Finished. Browse at file:///$(ROOTDIR)build/docs-local/index.html"
 
 .PHONY: docs-online-build
 docs-online-build: build-env ## Build docs for http serve
 	@echo "+++ $@"
 	mkdir -p build/docs-online
 	. .venv/bin/activate && mkdocs build -d build/docs-online -f mkdocs.yml
+	@echo "Finished. serve with"
+	@echo ". .venv/bin/activate && python -m http.server --directory build/state/docs-online"
 
 .PHONY: docs-serve
 docs-serve: build-env ## Rebuild and serve docs with autoreload
@@ -123,4 +124,11 @@ test-all-container: clean provision-container ## Run all tests using container b
 try-renovate: ## Run Renovate in dry-run mode
 	@echo "+++ $@"
 	@echo "Running Renovate dry-run. This may take a while..."
-	$(_CONTAINER_CMD) run --rm -v "$(ROOTDIR):/usr/src/app" -e "GITHUB_COM_TOKEN" -e LOG_LEVEL=info renovate/renovate:latest renovate --dry-run=full
+	mkdir -p build/test
+	echo 'module.exports = {  "onboarding": false,  "requireConfig": "ignored" };' > build/test/config.js
+	$(_CONTAINER_CMD) run --rm \
+		-v "$(ROOTDIR):/usr/src/app" -v "$(ROOTDIR)build/test/config.js:/usr/src/app/config.js" \
+		-e GITHUB_COM_TOKEN -e LOG_LEVEL=debug \
+		renovate/renovate:latest \
+		renovate $(args)"
+
