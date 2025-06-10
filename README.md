@@ -144,8 +144,6 @@ CONTAINER_CMD=docker infra/scripts/provision_shell.sh
 
 ```sh
 make docs
-# build infra-shared documentation
-make docs-infra
 ```
 
 #### Create/build/install simulation target
