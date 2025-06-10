@@ -21,7 +21,7 @@ name = "athome"
 # version dynamic from git
 dynamic = ["version"]
 # demand reasonable new python
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 dependencies = [
 
@@ -154,6 +154,9 @@ dependencies = [
 
 # MkDocs Material additions used for pymdownx
 "mkdocs_pymdownx_material_extras",
+
+# Python-Markdown extension which provides an "include" function
+"markdown-include",
 
 ### Notebooks
 
