@@ -16,7 +16,7 @@ jobs:
 
     - name: Get Year and Week of Year for Cache
       id: get-date
-      run: echo "CACHE_VERSION=$(date +'%Y-W%V')" >> $GITHUB_OUTPUT
+      run: echo "CACHE_VERSION=$(date +'%Y-W%V')" | tee $GITHUB_OUTPUT
 
     - name: Restore ~/.cache/apt-cache
       uses: actions/cache/restore@v4
@@ -39,16 +39,16 @@ jobs:
     - name: Copy apt-cache and usr-local-cache to system
       run: |
         mkdir -p  ~/.cache/apt-cache ~/.cache/usr-local-cache
-        sudo cp -a ~/.cache/apt-cache /var/cache/apt/archives
-        sudo cp -a ~/.cache/usr-local-cache /usr/local
+        sudo rsync -av ~/.cache/apt-cache/ /var/cache/apt/archives/
+        sudo rsync -av ~/.cache/usr-local-cache/ /usr/local/
 
     - name: Install and build Dependencies
       run: make provision-local
 
     - name: Copy apt-cache and usr-local-cache back to user
       run: |
-        cp -a /var/cache/apt/archives ~/.cache/apt-cache
-        cp -a /usr/local ~/.cache/usr-local-cache
+        rsync -av --exclude 'partial' --exclude 'lock' /var/cache/apt/archives/ ~/.cache/apt-cache/
+        rsync -av /usr/local ~/.cache/usr-local-cache
 
     - name: Save apt-cache
       uses: actions/cache/save@v4
