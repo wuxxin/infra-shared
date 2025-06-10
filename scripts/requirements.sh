@@ -386,37 +386,43 @@ EOF
                 if [ ${#CUSTOM_PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
                     echo "Attempting to install system wide custom packages: ${CUSTOM_PACKAGES_TO_INSTALL[@]}"
                     make_dir=$(mktemp -d -t build_XXXXXXXXXX)
+
                     for pkg_name in "${CUSTOM_PACKAGES_TO_INSTALL[@]}"; do
                         echo "Attempting to install system wide custom package $pkg_name"
-                        if test "$pkg_name" = "act"; then
-                            curl -sSL -o $make_dir/act.tar.gz https://github.com/nektos/act/releases/download/v0.2.77/act_Linux_x86_64.tar.gz
-                            tar -xz -C $make_dir -f $make_dir/act.tar.gz act
-                            sudo install $make_dir/act /usr/local/bin/act
-                        elif test "$pkg_name" = "butane"; then
-                            curl -sSL -o $make_dir/butane https://github.com/coreos/butane/releases/download/v0.23.0/butane-x86_64-unknown-linux-gnu
-                            sudo install $make_dir/butane /usr/local/bin/butane
-                        elif test "$pkg_name" = "pulumi"; then
-                            curl -sSL -o $make_dir/pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v3.171.0/pulumi-v3.171.0-linux-x64.tar.gz
-                            tar -xz -C $make_dir -f $make_dir/pulumi.tar.gz pulumi
-                            for i in $(find $make_dir/pulumi -type f); do sudo install $i /usr/local/bin/$(basename $i); done
-                        elif test "$pkg_name" = "coreos-installer"; then
-                            # XXX ubuntu 24.04: coreos-installer 0.24.0 requires rustc 1.84.1 or newer, active rustc 1.75.0
-                            curl -sSL -o $make_dir/coreos-installer.tar.gz \
-                                "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.23.0.tar.gz"
-                            curl -sSL -o $make_dir/coreos-installer-vendor.tar.gz \
-                                "https://github.com/coreos/coreos-installer/releases/download/v0.23.0/coreos-installer-0.23.0-vendor.tar.gz"
-                            mkdir -p $make_dir/coreos-installer
-                            tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer.tar.gz --strip-components=1
-                            tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer-vendor.tar.gz
-                            pwd=$(pwd) && cd $make_dir/coreos-installer && cargo build --release
-                            cd $pwd
-                            sudo install $make_dir/coreos-installer/target/release/coreos-installer /usr/local/bin/coreos-installer
-                        elif test "$pkg_name" = "vault" -a "$OS_PKGFORMAT" = "deb"; then
-                            wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-                            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-                            sudo apt-get update && sudo apt-get install vault --yes
+
+                        if test -e "/usr/local/bin/$pkg_name"; then
+                            echo "Skipping install of already existing /usr/local/bin/$pkg_name"
                         else
-                            echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
+                            if test "$pkg_name" = "act"; then
+                                curl -sSL -o $make_dir/act.tar.gz https://github.com/nektos/act/releases/download/v0.2.77/act_Linux_x86_64.tar.gz
+                                tar -xz -C $make_dir -f $make_dir/act.tar.gz act
+                                sudo install $make_dir/act /usr/local/bin/act
+                            elif test "$pkg_name" = "butane"; then
+                                curl -sSL -o $make_dir/butane https://github.com/coreos/butane/releases/download/v0.23.0/butane-x86_64-unknown-linux-gnu
+                                sudo install $make_dir/butane /usr/local/bin/butane
+                            elif test "$pkg_name" = "pulumi"; then
+                                curl -sSL -o $make_dir/pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v3.171.0/pulumi-v3.171.0-linux-x64.tar.gz
+                                tar -xz -C $make_dir -f $make_dir/pulumi.tar.gz pulumi
+                                for i in $(find $make_dir/pulumi -type f); do sudo install $i /usr/local/bin/$(basename $i); done
+                            elif test "$pkg_name" = "coreos-installer"; then
+                                # XXX ubuntu 24.04: coreos-installer 0.24.0 requires rustc 1.84.1 or newer, active rustc 1.75.0
+                                curl -sSL -o $make_dir/coreos-installer.tar.gz \
+                                    "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.23.0.tar.gz"
+                                curl -sSL -o $make_dir/coreos-installer-vendor.tar.gz \
+                                    "https://github.com/coreos/coreos-installer/releases/download/v0.23.0/coreos-installer-0.23.0-vendor.tar.gz"
+                                mkdir -p $make_dir/coreos-installer
+                                tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer.tar.gz --strip-components=1
+                                tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer-vendor.tar.gz
+                                pwd=$(pwd) && cd $make_dir/coreos-installer && cargo build --release
+                                cd $pwd
+                                sudo install $make_dir/coreos-installer/target/release/coreos-installer /usr/local/bin/coreos-installer
+                            elif test "$pkg_name" = "vault" -a "$OS_PKGFORMAT" = "deb"; then
+                                wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+                                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+                                sudo apt-get update && sudo apt-get install vault --yes
+                            else
+                                echo "Error: package $pkg_name not supported for pkgformat $OS_PKGFORMAT and distribution $OS_DISTRONAME" >&2
+                            fi
                         fi
                     done
                     rm -r $make_dir

@@ -14,37 +14,72 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Read CACHE_VERSION
-      id: cache_version_reader
-      run: echo "CACHE_VERSION_FROM_FILE=$(cat CACHE_VERSION 2>/dev/null || echo 'initial')" >> $GITHUB_ENV
+    - name: Get Year and Week of Year for Cache
+      id: get-date
+      run: echo "CACHE_VERSION=$(date +'%Y-W%V')" >> $GITHUB_OUTPUT
 
-    - name: Cache apt packages
-      uses: actions/cache@v4
+    - name: Restore ~/.cache/apt-cache
+      uses: actions/cache/restore@v4
       with:
-        path: |
-          /var/cache/apt/archives
-          /var/lib/apt/lists
-        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-${{ hashFiles('./scripts/requirements.sh') }}
+        path: ~/.cache/apt-cache
+        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
         restore-keys: |
-          apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-
+          apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-
           apt-cache-${{ runner.os }}-
+
+    - name: Restore ~/.cache/usr-local-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/usr-local-cache
+        key: usr-local-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
+        restore-keys: |
+          usr-local-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-
+          usr-local-cache-${{ runner.os }}-
+
+    - name: Copy apt-cache and usr-local-cache to system
+      run: |
+        mkdir -p  ~/.cache/apt-cache ~/.cache/usr-local-cache
+        sudo cp -a ~/.cache/apt-cache /var/cache/apt/archives
+        sudo cp -a ~/.cache/usr-local-cache /usr/local
+
     - name: Install and build Dependencies
       run: make provision-local
+
+    - name: Copy apt-cache and usr-local-cache back to user
+      run: |
+        cp -a /var/cache/apt/archives ~/.cache/apt-cache
+        cp -a /usr/local ~/.cache/usr-local-cache
+
+    - name: Save apt-cache
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/apt-cache
+        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
+
+    - name: Save usr-local-cache
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/apt-cache
+        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
 
     - name: Cache uv packages
       uses: actions/cache@v4
       id: cache-uv
       with:
         path: ~/.cache/uv
-        key: uv-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-${{ hashFiles('pyproject.toml') }}
+        key: uv-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
-          uv-cache-${{ runner.os }}-${{ env.CACHE_VERSION_FROM_FILE }}-
+          uv-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-
           uv-cache-${{ runner.os }}-
-    - name: Setup python build Environment
+
+    - name: Setup python build Environment with UV
       run: make build-env
+
     - name: build Docs
       run: make docs-online-build
+
     - name: Run Test Scripts
       run: make test-scripts
+
     - name: Run sim up
       run: make test-sim
