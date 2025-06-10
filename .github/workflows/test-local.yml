@@ -19,6 +19,7 @@ jobs:
       run: echo "CACHE_VERSION=$(date +'%Y-W%V')" | tee $GITHUB_OUTPUT
 
     - name: Restore ~/.cache/apt-cache
+      id: restore-apt-cache
       uses: actions/cache/restore@v4
       with:
         path: ~/.cache/apt-cache
@@ -50,6 +51,7 @@ jobs:
 
     - name: Save apt-cache
       uses: actions/cache/save@v4
+      if: steps.restore-apt-cache.outputs.cache-hit != 'true'
       with:
         path: ~/.cache/apt-cache
         key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
