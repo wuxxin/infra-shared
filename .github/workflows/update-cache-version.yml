@@ -1,0 +1,39 @@
+name: Update Cache Version
+
+on:
+  workflow_dispatch: # Allow manual triggering
+  schedule:
+    - cron: '0 0 * * 1' # Run every Monday at 00:00 UTC
+
+permissions:
+  contents: write # Permission to write to the repository (to commit the CACHE_VERSION file)
+  actions: read # Optional: if it needs to read other workflow info, not strictly needed here
+
+jobs:
+  update_cache_file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Cache Version
+        id: cache_version
+        run: echo "VERSION=$(date +'%Y-W%V')" >> $GITHUB_OUTPUT
+
+      - name: Update CACHE_VERSION file
+        run: |
+          echo "Updating CACHE_VERSION to ${{ steps.cache_version.outputs.VERSION }}"
+          echo "${{ steps.cache_version.outputs.VERSION }}" > CACHE_VERSION
+
+      - name: Commit CACHE_VERSION file
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add CACHE_VERSION
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to CACHE_VERSION file."
+          else
+            git commit -m "chore: Update CACHE_VERSION to ${{ steps.cache_version.outputs.VERSION }}"
+            git push
+          fi
