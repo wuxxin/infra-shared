@@ -22,7 +22,7 @@ jobs:
       uses: actions/cache/restore@v4
       with:
         path: ~/.cache/apt-cache
-        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
+        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
         restore-keys: |
           apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-
           apt-cache-${{ runner.os }}-
@@ -31,7 +31,7 @@ jobs:
       uses: actions/cache/restore@v4
       with:
         path: ~/.cache/usr-local-cache
-        key: usr-local-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
+        key: usr-local-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
         restore-keys: |
           usr-local-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-
           usr-local-cache-${{ runner.os }}-
@@ -54,13 +54,13 @@ jobs:
       uses: actions/cache/save@v4
       with:
         path: ~/.cache/apt-cache
-        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
+        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
 
     - name: Save usr-local-cache
       uses: actions/cache/save@v4
       with:
         path: ~/.cache/apt-cache
-        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') 
+        key: apt-cache-${{ runner.os }}-${{ env.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
 
     - name: Cache uv packages
       uses: actions/cache@v4
