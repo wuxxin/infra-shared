@@ -1,5 +1,5 @@
 # makefile
-ROOTDIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+ROOTDIR := $(patsubst %/,%,$(dir $(realpath $(firstword $(MAKEFILE_LIST)))))
 .DEFAULT_GOAL := help
 _CONTAINER_CMD := $(shell test -z "$$CONTAINER_CMD" && echo "podman" || echo "$$CONTAINER_CMD")
 PULUMI := pulumi --logtostderr --logflow --non-interactive
@@ -13,18 +13,24 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
 .PHONY: help
 help:
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' | sort
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' | sort
 
 .PHONY: provision-local
 provision-local: ## Build dependencies for provisioning using system apps
 	@echo "+++ $@"
-	if ! ./scripts/requirements.sh --check; then ./scripts/requirements.sh --install && ./scripts/requirements.sh --install-extra; fi
+	if ! ./scripts/requirements.sh --check; then \
+		./scripts/requirements.sh --install && \
+		./scripts/requirements.sh --install-extra; \
+	fi
 	./scripts/requirements.sh --check --verbose
 
 .PHONY: provision-container
 provision-container: ## Build dependencies for provisioning using a container
 	@echo "+++ $@"
-	$(_CONTAINER_CMD) build -t provision-client:latest -f Containerfile/provision-client/Containerfile Containerfile/provision-client
+	$(_CONTAINER_CMD) build -t provision-client:latest \
+		-f Containerfile/provision-client/Containerfile \
+		Containerfile/provision-client
 
 uv.lock: pyproject.toml provision-local
 	@echo "+++ $@"
@@ -59,34 +65,47 @@ test-scripts: build-env ## Run script Tests
 .PHONY: test-sim
 test-sim: build-env ## Run sim up Tests
 	@echo "+++ $@"
-	mkdir -p $(ROOTDIR)build/pulumi $(ROOTDIR)build/tests
-	git init $(ROOTDIR)build/tests
-	./scripts/create_skeleton.sh --project-dir $(ROOTDIR)build/tests --name-library infra --yes
-	f=$(ROOTDIR)build/tests/infra && if test ! -e $$f; then ln -s "../../" $$f; fi
-	sed -i -r "s#virtualenv: .venv#virtualenv: ../../.venv#g" $(ROOTDIR)build/tests/Pulumi.yaml
-	cd $(ROOTDIR)build/tests && $(PULUMI) login file://$(ROOTDIR)build/pulumi
-	cd $(ROOTDIR)build/tests && PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack init sim --secrets-provider passphrase
-	cd $(ROOTDIR)build/tests && PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack "select" "sim"
-	cd $(ROOTDIR)build/tests && PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --suppress-outputs --yes $(args)
+	mkdir -p $(ROOTDIR)/build/pulumi $(ROOTDIR)/build/tests
+	git init $(ROOTDIR)/build/tests
+	./scripts/create_skeleton.sh \
+		--project-dir $(ROOTDIR)/build/tests --name-library infra --yes
+	f=$(ROOTDIR)/build/tests/infra && if test ! -e $$f; then ln -s "../../" $$f; fi
+	sed -i -r "s#virtualenv: .venv#virtualenv: ../../.venv#g" $(ROOTDIR)/build/tests/Pulumi.yaml
+	cd $(ROOTDIR)/build/tests && $(PULUMI) login file://$(ROOTDIR)/build/pulumi
+	cd $(ROOTDIR)/build/tests && \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack init sim --secrets-provider passphrase
+	cd $(ROOTDIR)/build/tests && \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack "select" "sim"
+	cd $(ROOTDIR)/build/tests && \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --suppress-outputs --yes $(args)
 
 .PHONY: sim__
 sim__: ## Run "pulumi $(args)"
 	@echo "+++ $@"
-	cd $(ROOTDIR)build/tests &&	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI_INTERACTIVE) $(args)
+	cd $(ROOTDIR)/build/tests &&	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI_INTERACTIVE) $(args)
 
 .PHONY: test-sim-clean
 test-sim-clean: ## Remove Application Artifacts
 	@echo "+++ $@"
-	if test -d $(ROOTDIR)build/tests; then cd $(ROOTDIR)build/tests && PULUMI_CONFIG_PASSPHRASE="sim" PULUMI_CONTINUE_ON_ERROR=true $(PULUMI) destroy --stack "sim" --yes || true; fi
-	if test -d $(ROOTDIR)build/tests; then cd $(ROOTDIR)build/tests && PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --force --yes  || true; fi
-	rm -rf $(ROOTDIR)build/tests $(ROOTDIR)build/pulumi/.pulumi/backups/sim $(ROOTDIR)build/pulumi/.pulumi/history/sim || true
+	if test -d $(ROOTDIR)/build/tests; then \
+		cd $(ROOTDIR)/build/tests && \
+		PULUMI_CONFIG_PASSPHRASE="sim" PULUMI_CONTINUE_ON_ERROR=true \
+			$(PULUMI) destroy --stack "sim" --yes || true; \
+	fi
+	if test -d $(ROOTDIR)/build/tests; then \
+		cd $(ROOTDIR)/build/tests && \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --force --yes  || true; \
+	fi
+	rm -rf $(ROOTDIR)/build/tests \
+		$(ROOTDIR)/build/pulumi/.pulumi/backups/sim \
+		$(ROOTDIR)/build/pulumi/.pulumi/history/sim || true
 
 .PHONY: docs
 docs: build-env ## Build docs for local usage
 	@echo "+++ $@"
 	mkdir -p build/docs-local
 	. .venv/bin/activate && mkdocs build --no-directory-urls -d build/docs-local -f mkdocs.yml
-	@echo "Finished. Browse at file:///$(ROOTDIR)build/docs-local/index.html"
+	@echo "Finished. Browse at file:///$(ROOTDIR)/build/docs-local/index.html"
 
 .PHONY: docs-online-build
 docs-online-build: build-env ## Build docs for http serve
@@ -127,7 +146,7 @@ try-renovate: ## Run Renovate in dry-run mode
 	mkdir -p build/test
 	echo 'module.exports = {  "onboarding": false,  "requireConfig": "ignored" };' > build/test/config.js
 	$(_CONTAINER_CMD) run --rm \
-		-v "$(ROOTDIR):/usr/src/app" -v "$(ROOTDIR)build/test/config.js:/usr/src/app/config.js" \
+		-v "$(ROOTDIR):/usr/src/app" -v "$(ROOTDIR)/build/test/config.js:/usr/src/app/config.js" \
 		-e GITHUB_COM_TOKEN -e LOG_LEVEL=debug \
 		renovate/renovate:latest \
 		renovate $(args)"
