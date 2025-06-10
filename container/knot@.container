@@ -9,7 +9,7 @@ EnvironmentFile=-/etc/containers/environment/%N-%i-systemd.env
 Restart=on-failure
 
 [Container]
-Image=localhost/%N:latest
+Image=localhost/%p:latest
 # If an image is updated in local storage, Podman restarts the systemd unit
 AutoUpdate=local
 
