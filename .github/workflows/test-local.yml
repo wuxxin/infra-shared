@@ -54,7 +54,7 @@ jobs:
         path: ~/.cache/apt-cache
         key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
 
-    - name: Cache uv packages
+    - name: Cache UV python packages
       uses: actions/cache@v4
       id: cache-uv
       with:
@@ -64,7 +64,17 @@ jobs:
           uv-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
           uv-cache-${{ runner.os }}-
 
-    - name: Setup python build Environment with UV
+    - name: Cache pulumi plugins
+      uses: actions/cache@v4
+      id: cache-pulumi-plugins
+      with:
+        path: ~/.pulumi/plugins
+        key: pulumi-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          pulumi-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
+          pulumi-cache-${{ runner.os }}-
+
+    - name: Setup python build Environment
       run: make build-env
 
     - name: build Docs
