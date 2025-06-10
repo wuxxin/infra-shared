@@ -27,40 +27,32 @@ jobs:
           apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
           apt-cache-${{ runner.os }}-
 
-    - name: Restore ~/.cache/usr-local-bin-cache
-      uses: actions/cache/restore@v4
-      with:
-        path: ~/.cache/usr-local-bin-cache
-        key: usr-local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
-        restore-keys: |
-          usr-local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
-          usr-local-bin-cache-${{ runner.os }}-
-
-    - name: Copy apt-cache and usr-local-bin-cache to system
+    - name: Copy ~/.cache/apt-cache to system
       run: |
-        mkdir -p  ~/.cache/apt-cache ~/.cache/usr-local-bin-cache
+        mkdir -p  ~/.cache/apt-cache
         sudo rsync -av ~/.cache/apt-cache/ /var/cache/apt/archives/
-        sudo rsync -av ~/.cache/usr-local-bin-cache/ /usr/local/bin/
 
-    - name: Install and build Dependencies
-      run: make provision-local
+    - name: Cache ~/.local/bin packages
+      uses: actions/cache@v4
+      id: cache-local-bin
+      with:
+        path: ~/.local/bin
+        key: local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
+        restore-keys: |
+          local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
+          local-bin-cache-${{ runner.os }}-
 
-    - name: Copy apt-cache and usr-local-bin-cache back to user
-      run: |
-        rsync -av --exclude 'partial' --exclude 'lock' /var/cache/apt/archives/ ~/.cache/apt-cache/
-        rsync -av /usr/local/bin ~/.cache/usr-local-bin-cache
+    - name: Install and build Dependencies (output custom binaries to ~/.local/bin)
+      run: make provision-local args="--user"
+
+    - name: Copy apt-cache back to user
+      run: rsync -av --exclude 'partial' --exclude 'lock' /var/cache/apt/archives/ ~/.cache/apt-cache/
 
     - name: Save apt-cache
       uses: actions/cache/save@v4
       with:
         path: ~/.cache/apt-cache
         key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
-
-    - name: Save usr-local-bin-cache
-      uses: actions/cache/save@v4
-      with:
-        path: ~/.cache/usr-local-bin-cache
-        key: usr-local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
 
     - name: Cache uv packages
       uses: actions/cache@v4

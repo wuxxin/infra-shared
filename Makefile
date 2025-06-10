@@ -21,7 +21,7 @@ provision-local: ## Build dependencies for provisioning using system apps
 	@echo "+++ $@"
 	if ! ./scripts/requirements.sh --check; then \
 		./scripts/requirements.sh --install && \
-		./scripts/requirements.sh --install-extra; \
+		./scripts/requirements.sh --install-extra $(args); \
 	fi
 	./scripts/requirements.sh --check --verbose
 
