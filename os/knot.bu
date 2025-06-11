@@ -45,17 +45,15 @@ storage:
             journal-content: changes
             file: '%s.zone'
           key:
-          - id: transfer-internal
+          - id: knot_transfer
             algorithm: hmac-sha256
-            secret: ${transfer-internal.key}
-
-          - id: update-internal
+            secret: ${knot_transfer}
+          - id: knot_update
             algorithm: hmac-sha256
-            secret: ${update-internal.key}
-
-          - id: notify-internal
+            secret: ${knot_update}
+          - id: knot_notify
             algorithm: hmac-sha256
-            secret: ${notify-internal.key}
+            secret: ${knot_notify}
 
 {% if "KEY" in LOCAL_DNS_SERVER %}
 {{ LOCAL_DNS_SERVER["KEY"]|indent(10, True) }}
@@ -67,33 +65,33 @@ storage:
             dnssec-signing-key: zsk-internal
             dnssec-ksk: ksk-internal
             allow-transfer:
-              - key: transfer-internal
+              - key: knot_transfer
             allow-update:
-              - key: update-internal
+              - key: knot_update
             notify:
-              - key: notify-internal
+              - key: knot_notify
 
           - domain: podman
             dnssec-signing: on
             dnssec-signing-key: zsk-internal
             dnssec-ksk: ksk-internal
             allow-transfer:
-              - key: transfer-internal
+              - key: knot_transfer
             allow-update:
-              - key: update-internal
+              - key: knot_update
             notify:
-              - key: notify-internal
+              - key: knot_notify
 
           - domain: nspawn
             dnssec-signing: on
             dnssec-signing-key: zsk-internal
             dnssec-ksk: ksk-internal
             allow-transfer:
-              - key: transfer-internal
+              - key: knot_transfer
             allow-update:
-              - key: update-internal
+              - key: knot_update
             notify:
-              - key: notify-internal
+              - key: knot_notify
 
 {% if "ZONE" in LOCAL_DNS_SERVER %}
 {{ LOCAL_DNS_SERVER["ZONE"]|indent(10, True) }}

@@ -196,7 +196,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/transfer-internal.key
+    - path: /etc/credstore/knot_transfer.key
       mode: 0600
       contents:
         inline: |
@@ -205,7 +205,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/update-internal.key
+    - path: /etc/credstore/knot_update.key
       mode: 0600
       contents:
         inline: |
@@ -214,7 +214,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/notify-internal.key
+    - path: /etc/credstore/knot_notify.key
       mode: 0600
       contents:
         inline: |

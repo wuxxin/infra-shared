@@ -10,9 +10,9 @@ Restart=on-failure
 
 # container ExecStartPre: copy TSK keys from credentials into config
 ExecStartPre=/usr/bin/bash -c '\
-    transfer-%i.key=$(cat /etc/credstore/transfer-%i.key) \
-    update-%i.key=$(cat /etc/credstore/update-%i.key) \
-    notify-%i.key=$(cat /etc/credstore/notify-%i.key) \
+    knot_transfer="$(cat /etc/credstore/knot_transfer.key)" \
+    knot_update="$(cat /etc/credstore/knot_update.key)" \
+    knot_notify="$(cat /etc/credstore/knot_notify.key)" \
     envsubst < /etc/local/knot/knot.template > /etc/local/knot/knot.cfg'
 
 [Container]
