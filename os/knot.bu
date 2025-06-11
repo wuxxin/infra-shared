@@ -13,11 +13,13 @@ storage:
       local: Containerfile/knot
 
   files:
-    # knot container
-    - path: /etc/containers/systemd/knot.container
+    # knot container and volume
+{% for f in ["knot.container", "knot.volume",] %}
+    - path: /etc/containers/systemd/{{ f }}
       contents:
-        local: container/knot.container
+        local: container/{{ f }}
         template: jinja
+{% endfor %}
 
     # knot server config
     - path: /etc/local/knot/knot.template
