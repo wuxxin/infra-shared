@@ -1,55 +1,26 @@
 #                 ttl: 2 hours, refresh: 4 hours, retry: 30 min, expire: 3 weeks,   nxdomain: 4 hours
 # {% set common={"ttl": 7200,  "refresh": 14400, "retry": 1800, "expire": 1814400, "nxdomain": 14400 } %}
 
-systemd:
-  units:
-    - name: knot@internal.service
-      enabled: {{ "true" if LOCAL_DNS_SERVER["ENABLED"] else "false" }}
-
 storage:
   directories:
     # knot zone files configuration directory
-    - path: /etc/local/knot/internal
+    - path: /etc/local/knot
       mode: 0700
 
+  trees:
+    # knotd Containerfile
+    - path: /etc/containers/build/knot
+      local: Containerfile/knot
+
   files:
-    # knot container template
-    - path: /etc/containers/systemd/knot@.container
+    # knot container
+    - path: /etc/containers/systemd/knot.container
       contents:
-        local: container/knot@.container
+        local: container/knot.container
+        template: jinja
 
-    # knot container exec-start-pre service: copy TSK keys from credentials into config
-    - path: /etc/systemd/system/knot-startpre@.service
-      contents:
-        inline: |
-          [Unit]
-          Description=Knot Pre-Start Script (%i)
-          BindsTo=knot@%i.service
-          Before=knot@%i.service
-
-          [Service]
-          Type=oneshot
-          RemainAfterExit=yes
-          
-          ExecStart=/usr/bin/bash -c '\
-            transfer-%i.key=$(cat /etc/credstore/transfer-%i.key)\
-            update-%i.key=$(cat /etc/credstore/update-%i.key)\
-            notify-%i.key=$(cat /etc/credstore/notify-%i.key)\
-            envsubst < /etc/local/knot/%i/knot.template > /etc/local/knot/%i/knot.cfg'
-
-          [Install]
-          WantedBy=multi-user.target
-
-    # internal container instance, publish to INTERNAL_CIDR|cidr2ip(1):53
-    - path: /etc/containers/systemd/knot@internal.container
-      contents:
-        inline: |          
-          [Container]
-          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:53:53/udp
-          PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:53:53/tcp
-    
-    # internal knot server config
-    - path: /etc/local/knot/internal/knot.template
+    # knot server config
+    - path: /etc/local/knot/knot.template
       contents:
         inline: |
           server:
@@ -129,7 +100,7 @@ storage:
 {% endif %}
 
     # internal zone
-    - path: /etc/local/knot/internal/internal.zone
+    - path: /etc/local/knot/internal.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
@@ -142,7 +113,7 @@ storage:
           {{ INTERNAL_CIDR|cidr2ip }} IN PTR self.internal.
     
     # podman zone
-    - path: /etc/local/knot/internal/podman.zone
+    - path: /etc/local/knot/podman.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
@@ -155,7 +126,7 @@ storage:
           {{ PODMAN_CIDR|cidr2ip }} IN PTR self.podman.
   
     # nspawn zone
-    - path: /etc/local/knot/internal/nspawn.zone
+    - path: /etc/local/knot/nspawn.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
@@ -166,4 +137,9 @@ storage:
           self  A {{ NSPAWN_CIDR|cidr2ip }}
           _dns.nspawn. IN SVCB 1 dns.nspawn alpn=dot port=853
           {{ NSPAWN_CIDR|cidr2ip }} IN PTR self.nspawn.
-    
+
+systemd:
+  units:
+    - name: knot.service
+      enabled: {{ "true" if LOCAL_DNS_SERVER["ENABLED"] else "false" }}
+

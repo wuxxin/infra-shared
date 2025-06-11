@@ -35,11 +35,12 @@ storage:
           # For historical reasons, localhost precedes localhost.localdomain:
           127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
           ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-          # add lookup for internal, podman and nspawn
-          {{ INTERNAL_CIDR|cidr2ip }}    dns.internal
+          # add lookup for self. internal, podman and nspawn, dns.internal, knot.internal
+          {{ NSPAWN_CIDR|cidr2ip }}      self.nspawn
+          {{ PODMAN_CIDR|cidr2ip }}      self.podman
           {{ INTERNAL_CIDR|cidr2ip }}    self.internal
-          {{ PODMAN_CIDR|cidr2ip }}    self.podman
-          {{ NSPAWN_CIDR|cidr2ip }}    self.nspawn
+          {{ INTERNAL_CIDR|cidr2ip }}    dns.internal
+          {{ INTERNAL_CIDR|cidr2ip(1) }} knot.internal
 
     # set keyboard layout
     - path: /etc/vconsole.conf
@@ -68,7 +69,8 @@ storage:
 
           [ipv4]
           method=manual
-          address={{ INTERNAL_CIDR }}
+          address1={{ INTERNAL_CIDR }}
+          address2={{ INTERNAL_CIDR|cidr2ip(1) }}
 
     # environment for RPM_OSTREE_INSTALL packages
     - path: /etc/local/environment/rpm-ostree-install.env

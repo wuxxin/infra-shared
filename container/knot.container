@@ -1,0 +1,41 @@
+[Unit]
+Description=Knot DNS Server
+After=container-build@%n.service container-secrets.service podman.service
+Wants=container-build@%n.service container-secrets.service podman.service
+
+[Service]
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%n-systemd.env
+Restart=on-failure
+
+# container ExecStartPre: copy TSK keys from credentials into config
+ExecStartPre=/usr/bin/bash -c '\
+    transfer-%i.key=$(cat /etc/credstore/transfer-%i.key) \
+    update-%i.key=$(cat /etc/credstore/update-%i.key) \
+    notify-%i.key=$(cat /etc/credstore/notify-%i.key) \
+    envsubst < /etc/local/knot/knot.template > /etc/local/knot/knot.cfg'
+
+[Container]
+Image=localhost/%n:latest
+
+# If an image is updated in local storage, Podman restarts the systemd unit
+AutoUpdate=local
+
+# environment loaded here is available for container scope, mind quadlet bug "=-"
+EnvironmentFile=-/etc/containers/environment/%n.env
+
+ContainerName=%n
+# Mount config and zone files
+Volume=%n-data:/var/lib/knot:rw
+Volume=/etc/local/knot:/etc/knot:ro
+# Run as knot user inside the container
+User=knot
+Group=knot
+# Expose port 53:udp/tcp on internal_cidr+1
+PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:53:53/udp
+PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:53:53/udp
+
+Exec=/usr/sbin/knotd
+
+[Install]
+WantedBy=multi-user.target
