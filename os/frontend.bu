@@ -24,28 +24,3 @@ storage:
     - path: /etc/containers/build/frontend
       local: Containerfile/frontend
 
-systemd:
-  units:
-    - name: frontend-post-start.service
-      enabled: {{ "true" if FRONTEND["ENABLED"] else "false" }}
-      contents: |
-        [Unit]
-        Description=Copy frontend.dynamic.yml into running container on every [re]start
-        After=frontend.service
-        Wants=frontend.service
-
-        [Service]
-        Type=oneshot
-
-        ExecStart=/usr/bin/bash -c 'set -eo pipefail; \
-          if systemctl -q is-active frontend.service; then \
-            echo "copying frontend.dynamic.yml to container"; \
-            podman cp /etc/containers/systemd/frontend.dynamic.yml \
-              "systemd-frontend:/traefik/frontend.dynamic.yml"; \
-          fi'
-
-        ExecStop=true
-
-        [Install]
-        WantedBy=multi-user.target
-

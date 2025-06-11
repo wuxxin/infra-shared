@@ -12,6 +12,11 @@ ConditionPathExists=/notexisting/frontend_disable
 EnvironmentFile=-/etc/containers/environment/%N-systemd.env
 Restart=on-failure
 
+# copy dynamic frontend config to container after container start
+ExecStartPost=/usr/bin/bash -c \
+  'podman cp /etc/containers/systemd/frontend.dynamic.yml \
+        "systemd-frontend:/traefik/frontend.dynamic.yml"'
+
 [Container]
 Image=localhost/%N:latest
 
