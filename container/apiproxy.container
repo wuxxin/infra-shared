@@ -3,17 +3,17 @@ Description=Container API Proxy (unix socket to tcp port) based on Haproxy \
     upstream socket: a running docker compatible API Server under API_SOCKET \
     downstream tcp: self.internal:API_PORT
 
-After=container-build@%N.service container-secrets.service podman.service
-Wants=container-build@%N.service container-secrets.service podman.service
-ConditionPathExists=/etc/containers/systemd/%N.cfg
+After=container-build@%n.service container-secrets.service podman.service
+Wants=container-build@%n.service container-secrets.service podman.service
+ConditionPathExists=/etc/containers/systemd/%n.cfg
 
 [Service]
 # environment loaded here is available in systemd-quadlet scope
-EnvironmentFile=-/etc/containers/environment/%N-systemd.env
+EnvironmentFile=-/etc/containers/environment/%n-systemd.env
 Restart=on-failure
 
 [Container]
-Image=localhost/%N:latest
+Image=localhost/%n:latest
 # If an image is updated in local storage, Podman restarts the systemd unit
 AutoUpdate=local
 
@@ -24,12 +24,12 @@ Environment=API_PORT=2375
 Environment=API_SOCKET=/run/podman/podman.sock
 # Environment=LOG_LEVEL=debug
 # environment loaded here is available for container scope, mind quadlet bug "=-"
-# EnvironmentFile=-/etc/containers/environment/%N.env
+# EnvironmentFile=-/etc/containers/environment/%n.env
 
 # disable selinux labels for accessing podman.sock
 PodmanArgs=--security-opt label=disable
 Volume=/run/podman/podman.sock:/run/podman/podman.sock
-Volume=/etc/containers/systemd/%N.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+Volume=/etc/containers/systemd/%n.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
 # publish filtered api to [hostip:]hostPort:containerPort
 PublishPort={{ INTERNAL_CIDR|cidr2ip }}:2375:2375
