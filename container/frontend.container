@@ -1,7 +1,7 @@
 [Unit]
 Description=Traefik Edge Router that uses container labels and yaml files for service discovery
-Wants=container-build@%n.service container-secrets.service apiproxy.service
-After=container-build@%n.service container-secrets.service apiproxy.service
+Wants=container-build@%N.service container-secrets.service apiproxy.service
+After=container-build@%N.service container-secrets.service apiproxy.service
 {% if not FRONTEND["ENABLED"] %}
 # frontend is disabled, but we are a quadlet, so we try to stop it with a nonexisting path
 ConditionPathExists=/notexisting/frontend_disable
@@ -9,17 +9,17 @@ ConditionPathExists=/notexisting/frontend_disable
 
 [Service]
 # environment loaded here is available in systemd-quadlet scope
-EnvironmentFile=-/etc/containers/environment/%n-systemd.env
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
 Restart=on-failure
 
 [Container]
-Image=localhost/%n:latest
+Image=localhost/%N:latest
 
 # If an image is updated in local storage, Podman restarts the systemd unit
 AutoUpdate=local
 
 # environment loaded here is available for container scope, mind quadlet bug "=-"
-# EnvironmentFile=/etc/containers/environment/%n.env
+# EnvironmentFile=/etc/containers/environment/%N.env
 
 # allow ports < 1024
 PodmanArgs=--sysctl=net.ipv4.ip_unprivileged_port_start=0
@@ -31,7 +31,7 @@ Secret=server.crt,mode=0640
 Secret=server.key,mode=0640
 
 # traefik static configuration
-Volume=/etc/containers/systemd/%n.static.yml:/etc/traefik/traefik.yml:ro
+Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
 # /traefik directory is used for service discovery
 # /traefik/letsencrypt.json for optional letsencrypt state
 # frontend-post-up.service writes frondend.dynamic.yml to /traefik
