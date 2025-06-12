@@ -1,5 +1,6 @@
 # butane config
 
+# # XXX disabled, because messes up unbound overlay. res: assume same uid,gid and use these
 # passwd:
 #   users:
 #     - name: unbound
@@ -12,13 +13,13 @@
 #       gid: 978
 
 storage:
-  # directories:
-  #   - path: /var/lib/unbound
-  #     mode: 0700
-  #     user:
-  #       id: 978
-  #     group:
-  #       id: 978
+  directories:
+    - path: /var/lib/unbound
+      mode: 0700
+      user:
+        id: 978
+      group:
+        id: 978
 
   files:
     # our unbound configuration
@@ -41,5 +42,5 @@ systemd:
         - name: mkdir_lib_unbound.conf
           contents: |
             [Service]
-            ExecStartPre=install -o unbound -g unbound -m "0700" -d /var/lib/unbound
+            ExecStartPre=install -o 978 -g 978 -m "0700" -d /var/lib/unbound
 

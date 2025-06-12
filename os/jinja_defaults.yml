@@ -48,11 +48,13 @@ LOCAL_ACME_SERVER:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
-  # unbound, needed as recursive dnsresolver for system, container, compose and nspawn workloads
+  # unbound, used as recursive dnsresolver for system, container, compose and nspawn workloads
   - unbound
-  # podman-compose, needed by compose.bu for compose container
+  # knot, used as authoritative DNS server for .internal, .podman, .nspawn domains
+  - knot
+  # podman-compose, used by compose.bu for compose container
   - podman-compose
-  # systemd-networkd, needed by nspawn.bu for nspawn container network setup
+  # systemd-networkd, used by nspawn.bu for nspawn container network setup
   - systemd-networkd
 
 # Network CIDR of Internal, Podman and Nspawn Network

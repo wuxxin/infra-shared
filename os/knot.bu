@@ -1,26 +1,38 @@
 #                 ttl: 2 hours, refresh: 4 hours, retry: 30 min, expire: 3 weeks,   nxdomain: 4 hours
 # {% set common={"ttl": 7200,  "refresh": 14400, "retry": 1800, "expire": 1814400, "nxdomain": 14400 } %}
 
+# passwd:
+#   users:
+#     - name: knot
+#       uid: 958
+#       primary_group: knot
+#       home_dir: /var/lib/knot
+#       shell: /sbin/nologin
+#   groups:
+#     - name: knot
+#       gid: 958
+
 storage:
   directories:
-    # knot zone files configuration directory
-    - path: /etc/local/knot
-      mode: 0700
+    # default knot config directory
+    - path: /etc/knot
 
-  trees:
-    # knotd Containerfile
-    - path: /etc/containers/build/knot
-      local: Containerfile/knot
+    # our knot zone files configuration directory
+    - path: /etc/local/knot
+      user:
+        id: 958
+      group:
+        id: 958
+
+    # default knot storage directory
+    - path: /var/lib/knot
+      mode: 0700
+      user:
+        id: 958
+      group:
+        id: 958
 
   files:
-    # knot container and volume
-{% for f in ["knot.container", "knot.volume",] %}
-    - path: /etc/containers/systemd/{{ f }}
-      contents:
-        local: container/{{ f }}
-        template: jinja
-{% endfor %}
-
     # knot server config
     - path: /etc/local/knot/knot.template
       contents:
@@ -29,7 +41,8 @@ storage:
             rundir: /run/knot
             user: knot:knot
             listen:
-              - 0.0.0.0@53
+              # listen to knot.internal@53
+              - {{ INTERNAL_CIDR|cidr2ip(1) }}@53
           log:
           - target: syslog
             any: info              
@@ -142,4 +155,6 @@ systemd:
   units:
     - name: knot.service
       enabled: {{ "true" if LOCAL_DNS_SERVER["ENABLED"] else "false" }}
+      contents_local: os/knot.service
+      template: jinja
 

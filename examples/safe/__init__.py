@@ -89,7 +89,7 @@ pg_postgres_client_cert = create_client_cert(
 # jinja environment for butane config
 host_environment = {
     # install mc on sim, prod should use toolbox
-    "RPM_OSTREE_INSTALL": ["mc"] if stack_name.endswith("sim") else [],
+    "RPM_OSTREE_INSTALL": ["mc", "strace"] if stack_name.endswith("sim") else [],
     "FRONTEND": {
         # enable debug dashboard
         "DASHBOARD": "traefik.{}".format(hostname),
@@ -111,6 +111,7 @@ host_environment = {
     "POSTGRES_PASSWORD": pg_postgres_password.result,
     "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose", True),
     "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn", True),
+    "LOCAL_DNS_SERVER": {"ENABLED": False},
 }
 
 

@@ -12,7 +12,6 @@ After=sys-subsystem-net-devices-internal.device
 Wants=sys-subsystem-net-devices-internal.device
 # also, as unbound is not part of base image, wait until binary is available
 ConditionPathExists=/usr/sbin/unbound
-ConditionPathExists=/etc/unbound/unbound.conf
 
 [Service]
 Type=simple
@@ -20,6 +19,7 @@ Restart=on-failure
 EnvironmentFile=-/etc/local/environment/%N
 ExecStartPre=/usr/sbin/unbound-checkconf
 ExecStart=/usr/sbin/unbound -d
+WorkingDirectory=/var/lib/unbound
 
 # set system DNS to self.internal, ignore auto supplied DNS
 ExecStartPost=/usr/bin/bash -c 'set -eo pipefail; \
