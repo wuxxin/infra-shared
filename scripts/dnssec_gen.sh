@@ -10,7 +10,9 @@ usage() {
 
 Usage: $0 --zone name
 
-  Generates DNSSEC KSK, ZSK and Anchor Data (DS records of KSK) for Knot DNS and outputs them as JSON.
+  Generates DNSSEC KSK, ZSK and Anchor Data (DS records of KSK) for Knot DNS
+  and outputs them as JSON.
+
   Ensures that created temporary files are in ram temp and deleted afterwards.
 EOF
 }
@@ -22,7 +24,7 @@ cleanup() {
   if test -d "${TEMP_DIR}"; then
     # Only print the config file on error (non-zero exit code)
     if test "$exit_code" -ne 0 && test -e "${TEMP_DIR}/knot.conf"; then
-      echo "An error occurred. Knot configuration:" >&2  # Output to stderr
+      echo "An error occurred. Knot configuration:" >&2 # Output to stderr
       cat "${TEMP_DIR}/knot.conf" >&2
     fi
     rm -rf "${TEMP_DIR}"
@@ -37,7 +39,7 @@ generate_keys() {
     exit 1
   fi
 
-  cat > "${TEMP_DIR}/knot.conf" <<EOF
+  cat >"${TEMP_DIR}/knot.conf" <<EOF
 server:
   # No server settings needed for key generation
 database:
@@ -69,7 +71,6 @@ EOF
       anchor: $anchor
     }'
 }
-
 
 # ### main
 
