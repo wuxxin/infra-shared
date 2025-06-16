@@ -2,13 +2,6 @@
 
 ## Internal Networks
 
-```mermaid
-graph TB
-
-r(unbound) -- dns_resolver tcp/udp:853 --> i((internet))
-k(knot) -- dns_server tcp/udp:53  --> r((unbound))
-a(acme) -- https_cert_server tcp/443  --> k
-```
 
 **10.87.X.X - 10.89.X.X** are used as defaults for internal networking
 
@@ -118,6 +111,30 @@ DNS_RESOLVER:
     - step-ca will be used for maintaining `*.on.internal` TLS certificates
     - needs LOCAL_DNS_SERVER to be enabled too
     - [Step-CA Documentation](https://smallstep.com/docs/step-ca/getting-started/)
+
+```mermaid
+graph TB
+
+f(traefik)
+c(acme)
+u(unbound)
+k(knot)
+a(application)
+p(pulumi)
+
+r(https serve of *.on.internal) --> f
+f -- request cert for a.on.internal --> c
+c -- request dns entries for on.internal domain --> u
+u -- forward requests to internal dns --> k
+k -- answer the request --> u
+u -- answer the request --> c
+c -- sign acme cert for a.on.internal --> f
+f -- handle https traffic <--> a
+p -- authority create dns-root for .internal --> k
+p -- authority create acme authority cert --> c
+p -- knsupdate (RFC2136) of ACME DNS-Proof for on.internal --> k
+
+```
 
 ## tls/http Web-Frontend
 
