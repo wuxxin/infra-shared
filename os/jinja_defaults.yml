@@ -38,13 +38,20 @@ LOCAL_DNS_SERVER:
   # KEY: |
   # ZONE: additional ZONE entries for .internal knot server
   #       multiline-string, must be formatted as list "-", will be added to "zone" entries
-  #       place dns data into /etc/etc/local/knot/internal/<zonename>.zone
+  #       place dns data into /etc/local/dns/internal/<zonename>.zone
   # ZONE: |
+  # ACL: additional ACL entries for .internal knot server
+  #      multiline-string, must be formatted as list "-", will be added to "acl" entries
+  # ACL: |
 
 # Dedicated ACME Certificate Server (step-ca) for *.on.internal
 LOCAL_ACME_SERVER:
   # if enabled, step-ca will be used for maintaining on.internal TLS certificates, needs LOCAL_DNS_SERVER to be enabled too
   ENABLED: false
+  # DOMAINS: list, which domains are availabel for acme to provision, defaults to "on.internal" if empty
+  # DOMAINS:
+  # - on.internal
+  # - at.internal
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
