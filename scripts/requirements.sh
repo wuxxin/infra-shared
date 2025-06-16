@@ -34,7 +34,7 @@ EOF
 
 PKG_CONFIG="
 # # buildenv
-check: lsb_release uv openssl gpg gpgv age jose keymgr knotc atftp jq xz zstd
+check: lsb_release uv openssl gpg gpgv age jose keymgr knotc knsupdate atftp jq xz zstd
 
 # lsb-release - LSB version query program
 sys: lsb-release
