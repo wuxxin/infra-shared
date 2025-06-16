@@ -50,6 +50,7 @@ import os
 import json
 import copy
 import base64
+import re
 
 import pulumi
 import pulumi_tls as tls
@@ -168,7 +169,8 @@ class TSIGKey(pulumi.ComponentResource):
 
 
 class DNSFactory(pulumi.ComponentResource):
-    def __init__(self, name, opts=None):
+    def __init__(self, name, anchor_list=None, opts=None):
+        "anchor_list: if list, list of strings is taken for anchorcert domains instead of name"
         super().__init__("pkg:index:DNSFactory", name, None, opts)
         this_opts = ResourceOptions.merge(ResourceOptions(parent=self), opts)
         dns_root = command.local.Command(
@@ -184,10 +186,28 @@ class DNSFactory(pulumi.ComponentResource):
 
         self.ksk_key = Output.secret(dns_secrets["ksk"])
         self.zsk_key = Output.secret(dns_secrets["zsk"])
-        self.anchor_cert = Output.unsecret(dns_secrets["anchor"])
+
+        # make anchor file contain all requested domains
+        base_anchor_cert = Output.unsecret(dns_secrets["anchor"])
+        all_anchor_outputs = []
+        if anchor_list:
+            for anchor_domain in anchor_list:
+                transformed_anchor = base_anchor_cert.apply(
+                    lambda cert_text, domain=anchor_domain: re.sub(
+                        "^[^.]+\\.", f"{domain}.", cert_text
+                    )
+                )
+                all_anchor_outputs.append(transformed_anchor)
+        else:
+            all_anchor_outputs.append(base_anchor_cert)
+
+        self.anchor_cert = Output.all(*all_anchor_outputs).apply(
+            lambda anchors: "\n".join(anchors)
+        )
 
         self.transfer_key = TSIGKey(f"transfer-{name}", this_opts)
         self.update_key = TSIGKey(f"update-{name}", this_opts)
+        self.acme_update_key = TSIGKey(f"acme-update-{name}", this_opts)
         self.notify_key = TSIGKey(f"notify-{name}", this_opts)
         self.register_outputs({})
 
@@ -761,7 +781,6 @@ provision_ip_addresses = config.get(
     [str(get_default_host_ip()), "10.87.240.1", "10.87.241.1", "10.88.0.1", "192.168.122.1"],
 )
 # create a host cert usable for both server_auth and client_auth
-
 provision_host_tls = create_host_cert(
     provision_host_names[0],
     provision_host_names[0],
@@ -781,6 +800,6 @@ ssh_factory = SSHFactory("ssh_factory", ssh_provision_name)
 pulumi.export("ssh_factory", ssh_factory)
 
 
-# ### DNS config
-dns_factory = DNSFactory("internal")
+# ### DNS config for internal domains, including trust anchors
+dns_factory = DNSFactory("internal", anchor_list=["internal", "podman", "nspawn"])
 pulumi.export("dns_factory", dns_factory)
