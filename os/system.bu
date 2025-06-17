@@ -98,6 +98,12 @@ systemd:
     - name: rpm-ostree-countme.timer
       mask: true
 
+    {% if DEBUG_DISABLE_AUTOUPDATE %}
+    # debugging: Disable autoupdate in case a specific version should be re/constructed
+    - name: zincati.service
+      mask: true
+    {% endif %}
+
     {% if DEBUG_CONSOLE_AUTOLOGIN %}
     # debugging: Add autologin on serial console
     - name: serial-getty@ttyS0.service
