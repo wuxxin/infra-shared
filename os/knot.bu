@@ -1,5 +1,6 @@
-#                 ttl: 2 hours, refresh: 4 hours, retry: 30 min, expire: 3 weeks,   nxdomain: 4 hours
-# {% set common={"ttl": 7200,  "refresh": 14400, "retry": 1800, "expire": 1814400, "nxdomain": 14400 } %}
+# set short ttl for responsive dns-01 challenges
+# ttl: 5min, refresh: 1hour, retry: 15min, expire: 7days, nxdomain: 1min
+# {% set common={"ttl": 300,  "refresh": 3600, "retry": 900, "expire": 604800, "nxdomain": 60 } %}
 
 # passwd:
 #   users:
@@ -17,13 +18,6 @@ storage:
     # default knot config directory
     - path: /etc/knot
 
-    # our knot zone files configuration directory
-    - path: /etc/local/knot
-      user:
-        id: 958
-      group:
-        id: 958
-
     # default knot storage directory
     - path: /var/lib/knot
       mode: 0700
@@ -32,9 +26,16 @@ storage:
       group:
         id: 958
 
+    # our knot zone files configuration directory
+    - path: /etc/local/dns
+      user:
+        id: 958
+      group:
+        id: 958
+
   files:
     # knot server config
-    - path: /etc/local/knot/knot.template
+    - path: /etc/local/dns/knot.template
       contents:
         inline: |
           server:
@@ -59,19 +60,46 @@ storage:
             zonefile-load: difference-no-serial
             journal-content: changes
             file: '%s.zone'
+
           key:
-          - id: knot_transfer
+          - id: transfer_internal
             algorithm: hmac-sha256
-            secret: ${knot_transfer}
-          - id: knot_update
+            secret: ${transfer_internal}
+
+          - id: update_internal
             algorithm: hmac-sha256
-            secret: ${knot_update}
-          - id: knot_notify
+            secret: ${update_internal}
+
+          - id: acme_update_internal
             algorithm: hmac-sha256
-            secret: ${knot_notify}
+            secret: ${acme_update_internal}
+
+          - id: notify_internal
+            algorithm: hmac-sha256
+            secret: ${notify_internal}
 
 {% if "KEY" in LOCAL_DNS_SERVER %}
 {{ LOCAL_DNS_SERVER["KEY"]|indent(10, True) }}
+{% endif %}
+
+          acl:
+          - id: update_internal_acl
+            key: update_internal
+            action: update
+
+          - id: acme_update_internal_acl
+            key: acme_update_internal
+            action: update
+            update-type: TXT
+            update-owner-match: pattern
+            update-owner-name:
+{%- for domain in LOCAL_ACME_SERVER["DOMAINS"] %}
+            - "_acme-challenge.{{ domain}}."
+            - "_acme-challenge.*.{{ domain }}."
+{%- endfor %}
+
+{% if "ACL" in LOCAL_DNS_SERVER %}
+{{ LOCAL_DNS_SERVER["ACL"]|indent(10, True) }}
 {% endif %}
 
           zone:
@@ -79,73 +107,74 @@ storage:
             dnssec-signing: on
             dnssec-signing-key: zsk-internal
             dnssec-ksk: ksk-internal
-            allow-transfer:
-              - key: knot_transfer
-            allow-update:
-              - key: knot_update
             notify:
-              - key: knot_notify
+              - key: notify_internal
+            allow-transfer:
+              - key: transfer_internal
+            acl:
+              - update_internal_acl
+              - acme_update_internal_acl
 
           - domain: podman
             dnssec-signing: on
             dnssec-signing-key: zsk-internal
             dnssec-ksk: ksk-internal
-            allow-transfer:
-              - key: knot_transfer
-            allow-update:
-              - key: knot_update
             notify:
-              - key: knot_notify
+              - key: notify_internal
+            allow-transfer:
+              - key: transfer_internal
+            allow-update:
+              - key: update_internal
 
           - domain: nspawn
             dnssec-signing: on
             dnssec-signing-key: zsk-internal
             dnssec-ksk: ksk-internal
-            allow-transfer:
-              - key: knot_transfer
-            allow-update:
-              - key: knot_update
             notify:
-              - key: knot_notify
+              - key: notify_internal
+            allow-transfer:
+              - key: transfer_internal
+            allow-update:
+              - key: update_internal
 
 {% if "ZONE" in LOCAL_DNS_SERVER %}
 {{ LOCAL_DNS_SERVER["ZONE"]|indent(10, True) }}
 {% endif %}
 
     # internal zone
-    - path: /etc/local/knot/internal.zone
+    - path: /etc/local/dns/internal.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
           @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
           @     NS  knot.internal.
-          knot  A   {{ INTERNAL_CIDR|cidr2ip(1) }}
           dns   A   {{ INTERNAL_CIDR|cidr2ip }}
           self  A   {{ INTERNAL_CIDR|cidr2ip }}
-          _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
+          acme  A   {{ INTERNAL_CIDR|cidr2ip }}
+          ca    A   {{ INTERNAL_CIDR|cidr2ip }}
+          knot  A   {{ INTERNAL_CIDR|cidr2ip(1) }}
+            _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
           {{ INTERNAL_CIDR|cidr2ip }} IN PTR self.internal.
     
     # podman zone
-    - path: /etc/local/knot/podman.zone
+    - path: /etc/local/dns/podman.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
           @     IN SOA knot.podman. postmaster.podman. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
           @     NS knot.podman.
-          knot  A {{ INTERNAL_CIDR|cidr2ip(1) }}
           dns   A {{ INTERNAL_CIDR|cidr2ip }}
           self  A {{ PODMAN_CIDR|cidr2ip }}
           _dns.podman. IN SVCB 1 dns.podman alpn=dot port=853
           {{ PODMAN_CIDR|cidr2ip }} IN PTR self.podman.
   
     # nspawn zone
-    - path: /etc/local/knot/nspawn.zone
+    - path: /etc/local/dns/nspawn.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
           @     IN SOA knot.nspawn. postmaster.nspawn. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
           @     NS knot.nspawn.
-          knot  A {{ INTERNAL_CIDR|cidr2ip(1) }}
           dns   A {{ INTERNAL_CIDR|cidr2ip }}
           self  A {{ NSPAWN_CIDR|cidr2ip }}
           _dns.nspawn. IN SVCB 1 dns.nspawn alpn=dot port=853

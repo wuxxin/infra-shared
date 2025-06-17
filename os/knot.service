@@ -4,7 +4,7 @@ Documentation=man:knotd(8) man:knot.conf(5) man:knotc(8)
 # wait until internal bridge is online
 After=sys-subsystem-net-devices-internal.device
 Wants=sys-subsystem-net-devices-internal.device
-# also, as knot is not part of base image, wait until binary is available
+# also, as knot is not part of base image, dont execute until the binary is available
 ConditionPathExists=/usr/bin/knot
 
 [Service]
@@ -26,11 +26,14 @@ Environment="KNOT_ZONE_LOAD_TIMEOUT_SEC=180"
 Environment="KNOT_CONF_MAX_SIZE=512"
 
 Restart=on-abort
+# use the secrets from the credstore to render knot config template to final config
 ExecStartPre=/usr/bin/bash -c '\
-    knot_transfer="$(cat /etc/credstore/knot_transfer.key)" \
-    knot_update="$(cat /etc/credstore/knot_update.key)" \
-    knot_notify="$(cat /etc/credstore/knot_notify.key)" \
-    envsubst < /etc/local/knot/knot.template > /etc/knot/knot.cfg'
+    transfer_internal="$(cat /etc/credstore/transfer-internal.key)" \
+    update_internal="$(cat /etc/credstore/update-internal.key)" \
+    notify_internal="$(cat /etc/credstore/notify-internal.key)" \
+    acme_update_internal="$(cat /etc/credstore/acme-update-internal.key)" \
+    envsubst < /etc/local/dns/knot.template > /etc/knot/knot.cfg'
+# check the generated config
 ExecStartPre=/usr/sbin/knotc conf-check
 ExecStart=/usr/sbin/knotd -m "$KNOT_CONF_MAX_SIZE"
 ExecReload=/bin/kill -HUP $MAINPID
