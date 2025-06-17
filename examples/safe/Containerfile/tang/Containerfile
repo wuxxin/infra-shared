@@ -1,4 +1,4 @@
-FROM docker.io/library/alpine:3.20.3 AS builder
+FROM ghcr.io/linuxcontainers/alpine:3.20.3 AS builder
 # based on https://github.com/padhi-homelab/docker_tang
 
 ARG JOSE_COMMIT_SHA=v14
@@ -17,7 +17,7 @@ RUN git clone https://github.com/latchset/tang.git \
   && mkdir build && cd build && meson .. --prefix=/usr/local && ninja install
 
 
-FROM docker.io/library/alpine:3.20.3
+FROM ghcr.io/linuxcontainers/alpine:3.20.3
 
 COPY --from=builder /usr/local/bin/jose /usr/local/bin/jose
 COPY --from=builder /usr/local/lib/libjose.so.0  /usr/local/lib/libjose.so.0

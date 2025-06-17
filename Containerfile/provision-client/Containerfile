@@ -1,4 +1,4 @@
-FROM docker.io/archlinux/archlinux:base-devel
+FROM quay.io/archlinux/archlinux:base-devel
 # archlinux container -- Provision Client
 #
 # to update package lists, execute from here:

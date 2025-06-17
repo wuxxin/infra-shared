@@ -1,0 +1,1 @@
+FROM ghcr.io/smallstep/step-ca:0.28.3
