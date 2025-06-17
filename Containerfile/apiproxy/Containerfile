@@ -46,8 +46,8 @@ EXPOSE 2375
 USER root
 
 # run as root, chown the inside podman socket to haproxy user,
-#   droppriv to id:99:99, start haproxy with config
+#   drop priv to id:haproxy:haproxy, start haproxy with config
 CMD /bin/sh -c "chown haproxy /run/podman/podman.sock && \
-    cd /var/lib/haproxy && setpriv --reuid=99 --regid=99 --nnp --init-groups \
+    cd /var/lib/haproxy && setpriv --reuid=haproxy --regid=haproxy --nnp --init-groups \
     env HOME=/var/lib/haproxy haproxy -f /usr/local/etc/haproxy/haproxy.cfg -W -db"
 
