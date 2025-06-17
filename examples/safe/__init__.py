@@ -20,6 +20,7 @@
 """
 
 import os
+import sys
 
 import pulumi
 import pulumi_postgresql as postgresql
@@ -120,6 +121,12 @@ if stack_name.endswith("sim"):
     # for simulation: add qemu-guest-agent, debug=True, and 1234 as disk passphrase
     host_environment["RPM_OSTREE_INSTALL"].append("qemu-guest-agent")
     host_environment.update({"DEBUG_CONSOLE_AUTOLOGIN": True})
+    print(
+        "WARNING: Disable autoupdate because of coreos fedora 42 and rpm-ostree layering issue!",
+        file=sys.stderr,
+    )
+    host_environment.update({"DEBUG_DISABLE_AUDOUPDATE": True})
+
     luks_root_passphrase = pulumi.Output.concat("1234")
     luks_var_passphrase = pulumi.Output.concat("1234")
     identifiers = yaml.safe_load(
@@ -205,8 +212,16 @@ pulumi.export("{}_served_once".format(shortname), serve_data)
 if stack_name.endswith("sim"):
     # create libvirt machine simulation:
     #   download suitable image, create similar virtual machine, same memsize, different arch
+    print(
+        "WARNING: Using pinned version of coreos fedora 41 because fedora 42 and rpm-ostree layering issue",
+        file=sys.stderr,
+    )
     host_machine = LibvirtIgniteFcos(
-        shortname, public_config.result, volumes=identifiers["storage"], memory=4096
+        shortname,
+        public_config.result,
+        volumes=identifiers["storage"],
+        memory=4096,
+        overwrite_url="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/41.20250331.3.0/x86_64/fedora-coreos-41.20250331.3.0-qemu.x86_64.qcow2.xz",
     )
     # write out ip of simulated host as target
     target = host_machine.vm.network_interfaces[0]["addresses"][0]
