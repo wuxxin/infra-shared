@@ -15,6 +15,7 @@
 import glob
 import os
 import re
+import sys
 
 import pulumi
 import pulumi_command as command
@@ -107,7 +108,8 @@ class ButaneTranspiler(pulumi.ComponentResource):
         # merge default with calling env
         this_env = merge_dict_struct(default_env, {} if environment is None else environment)
 
-        # ssh and tls keys into butane type yaml
+        # ssh and tls and other credstore related keys into butane type yaml
+        # XXX also: /etc/local/anchor-internal-public.key
         butane_security_keys = pulumi.Output.concat(
             """
 passwd:
@@ -187,16 +189,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/anchor-internal.cert
-      mode: 0600
-      contents:
-        inline: |
-""",
-            dns_factory.anchor_cert.apply(
-                lambda x: "\n".join(["          " + line for line in x.splitlines()])
-            ),
-            """
-    - path: /etc/credstore/knot_transfer.key
+    - path: /etc/credstore/transfer-internal.key
       mode: 0600
       contents:
         inline: |
@@ -205,7 +198,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/knot_update.key
+    - path: /etc/credstore/update-internal.key
       mode: 0600
       contents:
         inline: |
@@ -214,12 +207,30 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/knot_notify.key
+    - path: /etc/credstore/acme-update-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.acme_update_key.secret.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/notify-internal.key
       mode: 0600
       contents:
         inline: |
 """,
             dns_factory.notify_key.secret.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/local/anchor-internal-public.key
+      mode: 0644
+      contents:
+        inline: |
+""",
+            dns_factory.anchor_cert.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
@@ -393,6 +404,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
         architecture=None,
         platform=None,
         image_format=None,
+        overwrite_url=None,
         opts=None,
     ):
         from ..authority import project_dir, stack_name, config
@@ -415,18 +427,26 @@ class FcosImageDownloader(pulumi.ComponentResource):
         resource_name = "system_{s}_{a}_{p}_{f}".format(
             s=stream, a=architecture, p=platform, f=image_format
         )
+        if overwrite_url:
+            resource_name = "system_{o}".format(o=os.path.basename(overwrite_url).strip(".xz"))
 
         super().__init__("pkg:index:FcosImageDownloader", resource_name, None, opts)
         child_opts = pulumi.ResourceOptions(parent=self)
 
         workdir = os.path.join(project_dir, "state", "tmp", stack_name, "fcos")
         os.makedirs(workdir, exist_ok=True)
+        if overwrite_url:
+            create_cmd = "coreos-installer download -C {w} -u {u} 2>/dev/null".format(
+                w=workdir, u=overwrite_url
+            )
+        else:
+            create_cmd = "coreos-installer download -s {s} -a {a} -p {p} -f {f} -C {w} 2>/dev/null".format(
+                s=stream, a=architecture, p=platform, f=image_format, w=workdir
+            )
 
         self.downloaded_image = command.local.Command(
             "download_{}".format(resource_name),
-            create="coreos-installer download -s {s} -a {a} -p {p} -f {f} -C {w} 2>/dev/null".format(
-                s=stream, a=architecture, p=platform, f=image_format, w=workdir
-            ),
+            create=create_cmd,
             dir=workdir,
             opts=child_opts,
         )
@@ -542,6 +562,7 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
         volumes=[{"name": "boot", "size": 8192, "device": "/dev/vda"}],
         memory=2048,
         vcpu=2,
+        overwrite_url=None,
         opts=None,
     ):
         super().__init__(
@@ -566,6 +587,7 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
             architecture="x86_64",
             platform="qemu",
             image_format="qcow2.xz",
+            overwrite_url=overwrite_url,
             opts=child_opts,
         )
 
