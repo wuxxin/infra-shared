@@ -33,24 +33,23 @@ LOCAL_DNS_SERVER:
   # if enabled:  unbound will forward .internal requests to knot to answer requests
   # if disabled: unbound will answer and deliver .internal requests itself
   ENABLED: false
-  # KEY:  additional TSIG Keys for .internal knot server
-  #       multiline-string, must be formatted as list "-", will be added to "key" entries
-  # KEY: |
-  # ZONE: additional ZONE entries for .internal knot server
-  #       multiline-string, must be formatted as list "-", will be added to "zone" entries
-  #       place dns data into /etc/local/dns/internal/<zonename>.zone
-  # ZONE: |
-  # ACL: additional ACL entries for .internal knot server
-  #      multiline-string, must be formatted as list "-", will be added to "acl" entries
-  # ACL: |
+  # # optional zones:
+  #     place dns data into /etc/local/knot/<zonename>.zone
+  # # optional entries:
+  #     multiline | string, must be formatted as list "-", will be added to defined section
+  # TEMPLATE: additional TEMPLATE entries
+  # POLICY: additional POLICY entries
+  # KEY:  additional TSIG Keys
+  # ACL:  additional ACL entries
+  # ZONE: additional ZONE entries
 
 # Dedicated ACME Certificate Server (step-ca) for *.on.internal
 LOCAL_ACME_SERVER:
   # if enabled, step-ca will be used for maintaining on.internal TLS certificates, needs LOCAL_DNS_SERVER to be enabled too
   ENABLED: false
-  # DOMAINS: list, which domains are availabel for acme to provision, defaults to "on.internal" if empty
-  # DOMAINS:
-  # - on.internal
+  # DOMAINS: list, which domains are availabel for acme to provision, defaults to "on.internal"
+  DOMAINS:
+  - on.internal
   # - at.internal
 
 # Additional RPM packets to be available
