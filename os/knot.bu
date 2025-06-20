@@ -27,122 +27,21 @@ storage:
         id: 958
 
     # our knot zone files configuration directory
-    - path: /etc/local/dns
+    - path: /etc/local/knot
       user:
         id: 958
       group:
         id: 958
 
   files:
-    # knot server config
-    - path: /etc/local/dns/knot.template
+    # our knot server config template
+    - path: /etc/local/knot/knot-template.conf
       contents:
-        inline: |
-          server:
-            rundir: /run/knot
-            user: knot:knot
-            listen:
-              # listen to knot.internal@53
-              - {{ INTERNAL_CIDR|cidr2ip(1) }}@53
-          log:
-          - target: syslog
-            any: info              
-          database:
-            storage: /var/lib/knot
-          template:
-            id: default
-            storage: /var/lib/knot
-            semantic-checks: on
-            serial-policy: unixtime
-            # zonefile-sync: -1 do not touch source zone files, keep dnssec and ddns entries in journal
-            zonefile-sync: -1
-            # difference-no-serial: ignore serial, only look if file has changed
-            zonefile-load: difference-no-serial
-            journal-content: changes
-            file: '%s.zone'
-
-          key:
-          - id: transfer_internal
-            algorithm: hmac-sha256
-            secret: ${transfer_internal}
-
-          - id: update_internal
-            algorithm: hmac-sha256
-            secret: ${update_internal}
-
-          - id: acme_update_internal
-            algorithm: hmac-sha256
-            secret: ${acme_update_internal}
-
-          - id: notify_internal
-            algorithm: hmac-sha256
-            secret: ${notify_internal}
-
-{% if "KEY" in LOCAL_DNS_SERVER %}
-{{ LOCAL_DNS_SERVER["KEY"]|indent(10, True) }}
-{% endif %}
-
-          acl:
-          - id: update_internal_acl
-            key: update_internal
-            action: update
-
-          - id: acme_update_internal_acl
-            key: acme_update_internal
-            action: update
-            update-type: TXT
-            update-owner-match: pattern
-            update-owner-name:
-{%- for domain in LOCAL_ACME_SERVER["DOMAINS"] %}
-            - "_acme-challenge.{{ domain}}."
-            - "_acme-challenge.*.{{ domain }}."
-{%- endfor %}
-
-{% if "ACL" in LOCAL_DNS_SERVER %}
-{{ LOCAL_DNS_SERVER["ACL"]|indent(10, True) }}
-{% endif %}
-
-          zone:
-          - domain: internal
-            dnssec-signing: on
-            dnssec-signing-key: zsk-internal
-            dnssec-ksk: ksk-internal
-            notify:
-              - key: notify_internal
-            allow-transfer:
-              - key: transfer_internal
-            acl:
-              - update_internal_acl
-              - acme_update_internal_acl
-
-          - domain: podman
-            dnssec-signing: on
-            dnssec-signing-key: zsk-internal
-            dnssec-ksk: ksk-internal
-            notify:
-              - key: notify_internal
-            allow-transfer:
-              - key: transfer_internal
-            allow-update:
-              - key: update_internal
-
-          - domain: nspawn
-            dnssec-signing: on
-            dnssec-signing-key: zsk-internal
-            dnssec-ksk: ksk-internal
-            notify:
-              - key: notify_internal
-            allow-transfer:
-              - key: transfer_internal
-            allow-update:
-              - key: update_internal
-
-{% if "ZONE" in LOCAL_DNS_SERVER %}
-{{ LOCAL_DNS_SERVER["ZONE"]|indent(10, True) }}
-{% endif %}
+        local: os/knot-template.conf
+        template: jinja    
 
     # internal zone
-    - path: /etc/local/dns/internal.zone
+    - path: /etc/local/knot/internal.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
@@ -153,28 +52,29 @@ storage:
           acme  A   {{ INTERNAL_CIDR|cidr2ip }}
           ca    A   {{ INTERNAL_CIDR|cidr2ip }}
           knot  A   {{ INTERNAL_CIDR|cidr2ip(1) }}
-            _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
+          this-is-only-in-knot A {{ INTERNAL_CIDR|cidr2ip }}
+          _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
           {{ INTERNAL_CIDR|cidr2ip }} IN PTR self.internal.
     
     # podman zone
-    - path: /etc/local/dns/podman.zone
+    - path: /etc/local/knot/podman.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
-          @     IN SOA knot.podman. postmaster.podman. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
-          @     NS knot.podman.
+          @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS  knot.internal.
           dns   A {{ INTERNAL_CIDR|cidr2ip }}
           self  A {{ PODMAN_CIDR|cidr2ip }}
           _dns.podman. IN SVCB 1 dns.podman alpn=dot port=853
           {{ PODMAN_CIDR|cidr2ip }} IN PTR self.podman.
   
     # nspawn zone
-    - path: /etc/local/dns/nspawn.zone
+    - path: /etc/local/knot/nspawn.zone
       contents:
         inline: |
           $TTL {{ common.ttl }}
-          @     IN SOA knot.nspawn. postmaster.nspawn. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
-          @     NS knot.nspawn.
+          @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS  knot.internal.
           dns   A {{ INTERNAL_CIDR|cidr2ip }}
           self  A {{ NSPAWN_CIDR|cidr2ip }}
           _dns.nspawn. IN SVCB 1 dns.nspawn alpn=dot port=853

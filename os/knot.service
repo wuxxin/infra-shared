@@ -1,11 +1,11 @@
 [Unit]
-Description=Knot DNS server
+Description=internal Knot DNS server
 Documentation=man:knotd(8) man:knot.conf(5) man:knotc(8)
 # wait until internal bridge is online
 After=sys-subsystem-net-devices-internal.device
 Wants=sys-subsystem-net-devices-internal.device
 # also, as knot is not part of base image, dont execute until the binary is available
-ConditionPathExists=/usr/bin/knot
+ConditionPathExists=/usr/sbin/knotd
 
 [Service]
 Type=notify
@@ -13,6 +13,7 @@ User=knot
 Group=knot
 RuntimeDirectory=knot
 StateDirectory=knot
+Restart=on-abort
 
 NoNewPrivileges=yes
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETPCAP
@@ -24,20 +25,37 @@ TimeoutStopSec=300
 Environment="KNOT_ZONE_LOAD_TIMEOUT_SEC=180"
 # Maximum size (MiB) of a configuration database
 Environment="KNOT_CONF_MAX_SIZE=512"
+# Load KSK as secret for usage as knot user
+LoadCredential=ksk-internal.key:/etc/credstore/ksk-internal.key
 
-Restart=on-abort
-# use the secrets from the credstore to render knot config template to final config
-ExecStartPre=/usr/bin/bash -c '\
+# generate the config as root
+ExecStartPre=+/usr/bin/bash -c '\
+    umask 0026; \
     transfer_internal="$(cat /etc/credstore/transfer-internal.key)" \
     update_internal="$(cat /etc/credstore/update-internal.key)" \
     notify_internal="$(cat /etc/credstore/notify-internal.key)" \
     acme_update_internal="$(cat /etc/credstore/acme-update-internal.key)" \
-    envsubst < /etc/local/dns/knot.template > /etc/knot/knot.cfg'
+    envsubst < /etc/local/knot/knot-template.conf > /etc/knot/knot.conf'
+
 # check the generated config
 ExecStartPre=/usr/sbin/knotc conf-check
+
+# initialize kasp-db and import static KSK if not already present
+ExecStartPre=/usr/bin/bash -c 'set -ex; \
+    if test ! -e "/var/lib/knot/keys/data.mdb"; then \
+        echo "Initializing kasp Database"; \
+        keymgr internal. import-pem $CREDENTIALS_DIRECTORY/ksk-internal.key; \
+        KEYID=$(keymgr internal. list -j | jq -r ".[0].id"); \
+        CREATED=$(stat --format='%%W' $CREDENTIALS_DIRECTORY/ksk-internal.key); \
+        keymgr internal. set id=$KEYID ksk=true zsk=false created=$CREATED publish=$CREATED; \
+        for i in podman. nspawn.; do keymgr "$i" share $KEYID internal.; done; \
+        for i in internal. podman. nspawn.; do keymgr "$i" generate algorithm=ecdsap256sha256 zsk=true; done; \
+    fi'
+
+# Start Daemon
 ExecStart=/usr/sbin/knotd -m "$KNOT_CONF_MAX_SIZE"
+
 ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
-
