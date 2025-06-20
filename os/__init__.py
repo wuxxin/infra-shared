@@ -86,7 +86,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         update_config=UPDATE_CONFIG,
         opts=None,
     ):
-        from ..authority import ca_factory, ssh_factory, dns_factory, config
+        from ..authority import ca_factory, acme_sub_ca, ssh_factory, dns_factory, config
 
         super().__init__(
             "pkg:index:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
@@ -109,7 +109,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         this_env = merge_dict_struct(default_env, {} if environment is None else environment)
 
         # ssh and tls and other credstore related keys into butane type yaml
-        # XXX also: /etc/local/anchor-internal-public.key
+        # XXX also: /etc/local/ksk-anchor-internal.key
         butane_security_keys = pulumi.Output.concat(
             """
 passwd:
@@ -171,6 +171,15 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
+    - path: /etc/credstore/transfer-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.transfer_key.secret.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
     - path: /etc/credstore/ksk-internal.key
       mode: 0600
       contents:
@@ -180,21 +189,12 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/zsk-internal.key
-      mode: 0600
+    - path: /etc/local/ksk-anchor-internal.key
+      mode: 0644
       contents:
         inline: |
 """,
-            dns_factory.zsk_key.apply(
-                lambda x: "\n".join(["          " + line for line in x.splitlines()])
-            ),
-            """
-    - path: /etc/credstore/transfer-internal.key
-      mode: 0600
-      contents:
-        inline: |
-""",
-            dns_factory.transfer_key.secret.apply(
+            dns_factory.ksk_anchor.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
@@ -222,15 +222,6 @@ storage:
         inline: |
 """,
             dns_factory.notify_key.secret.apply(
-                lambda x: "\n".join(["          " + line for line in x.splitlines()])
-            ),
-            """
-    - path: /etc/local/anchor-internal-public.key
-      mode: 0644
-      contents:
-        inline: |
-""",
-            dns_factory.anchor_cert.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
@@ -288,6 +279,12 @@ storage:
         # make the used env for butane files processing available as secret
         self.this_env = pulumi.Output.secret(pulumi.Output.from_input(this_env))
 
+        # additional service changed pattern list for butane_to_salt translation
+        service_pattern_list = [
+            r"/etc/local/(knot)/.*",
+            r"/etc/unbound/(unbound).conf",
+        ]
+
         # translate butane merged_dict to saltstack dict, convert to yaml,
         # append update-system-config.sls and basedir/*.sls, export as saltstack_config
         self.saltstack_config = pulumi.Output.concat(
@@ -302,6 +299,7 @@ storage:
                         ),
                         update_user=update_config["UPDATE_UID"],
                         update_group=update_config["UPDATE_UID"],
+                        extra_pattern_list=service_pattern_list,
                     )
                 )
             ),
