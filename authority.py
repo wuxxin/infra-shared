@@ -26,7 +26,7 @@
 - ssh_factory
     - provision_key, provision_publickey, authorized_keys
 - dns_factory
-    - ksk_key, zsk_key, transfer_key, update_key, notify_key
+    - ksk_key, ksk_anchor, transfer_key, acme_update_key, update_key, notify_key
 
 ### Functions
 - create_host_cert
@@ -169,8 +169,8 @@ class TSIGKey(pulumi.ComponentResource):
 
 
 class DNSFactory(pulumi.ComponentResource):
-    def __init__(self, name, anchor_list=None, opts=None):
-        "anchor_list: if list, list of strings is taken for anchorcert domains instead of name"
+    def __init__(self, name, names_list=None, opts=None):
+        "names_list: list of strings taken as domains for anchorcert instead of name"
         super().__init__("pkg:index:DNSFactory", name, None, opts)
         this_opts = ResourceOptions.merge(ResourceOptions(parent=self), opts)
         dns_root = command.local.Command(
@@ -183,25 +183,22 @@ class DNSFactory(pulumi.ComponentResource):
             ),
         )
         dns_secrets = pulumi.Output.json_loads(dns_root.stdout)
-
-        self.ksk_key = Output.secret(dns_secrets["ksk"])
-        self.zsk_key = Output.secret(dns_secrets["zsk"])
+        self.ksk_key = Output.secret(dns_secrets["ksk_key"])
 
         # make anchor file contain all requested domains
-        base_anchor_cert = Output.unsecret(dns_secrets["anchor"])
+        base_anchor_key = Output.unsecret(dns_secrets["ksk_anchor"])
         all_anchor_outputs = []
-        if anchor_list:
-            for anchor_domain in anchor_list:
-                transformed_anchor = base_anchor_cert.apply(
+        if names_list:
+            for anchor_domain in names_list:
+                transformed_anchor = base_anchor_key.apply(
                     lambda cert_text, domain=anchor_domain: re.sub(
-                        "^[^.]+\\.", f"{domain}.", cert_text
+                        "^[^.]+\\.", f"{domain}.", cert_text, flags=re.M
                     )
                 )
                 all_anchor_outputs.append(transformed_anchor)
         else:
-            all_anchor_outputs.append(base_anchor_cert)
-
-        self.anchor_cert = Output.all(*all_anchor_outputs).apply(
+            all_anchor_outputs.append(base_anchor_key)
+        self.ksk_anchor = Output.all(*all_anchor_outputs).apply(
             lambda anchors: "\n".join(anchors)
         )
 
@@ -771,6 +768,17 @@ exported_ca_bundle = public_local_export(
 )
 
 
+# sub ca for optional acme provider
+acme_sub_ca = create_sub_ca(
+    "acme_sub_ca",
+    "{}-{}-ACME-Provision-Sub-CA".format(project_name, stack_name),
+    dns_names=["acme.{}".format(domain) for domain in ca_config["ca_permitted_domains_list"]],
+    use_provision_ca=True,
+    organizational_unit="ACME Certificate Provision Unit",
+)
+pulumi.export("acme_sub_ca", acme_sub_ca)
+
+
 # provision host cert for use in servce_once.py
 provision_host_names = [
     "provision_host.{}".format(domain) for domain in ca_config["ca_permitted_domains_list"]
@@ -800,6 +808,6 @@ ssh_factory = SSHFactory("ssh_factory", ssh_provision_name)
 pulumi.export("ssh_factory", ssh_factory)
 
 
-# ### DNS config for internal domains, including trust anchors
-dns_factory = DNSFactory("internal", anchor_list=["internal", "podman", "nspawn"])
+# ### DNS config for internal domains using one ksk and anchor
+dns_factory = DNSFactory("internal", names_list=["internal", "podman", "nspawn"])
 pulumi.export("dns_factory", dns_factory)
