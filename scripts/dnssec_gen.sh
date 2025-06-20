@@ -10,8 +10,7 @@ usage() {
 
 Usage: $0 --zone name
 
-  Generates DNSSEC KSK, ZSK and Anchor Data (DS records of KSK) for Knot DNS
-  and outputs them as JSON.
+Generates DNSSEC KSK private and public key (Anchor Data) and outputs them as JSON.
 
   Ensures that created temporary files are in ram temp and deleted afterwards.
 EOF
@@ -52,23 +51,23 @@ zone:
 EOF
 
   # Generate DNSSEC keys and capture Key IDs
-  KSK_ID=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" generate algorithm=ecdsap256sha256 ksk=true)
-  ZSK_ID=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" generate algorithm=ecdsap256sha256 zsk=true)
-
-  # Generate DS records for KSK (trust anchor)
-  ANCHOR_DATA=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" ds)
-  KSK_DATA=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" dnskey "$KSK_ID")
-  ZSK_DATA=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" dnskey "$ZSK_ID")
+  keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" generate algorithm=ecdsap256sha256 ksk=true
+  KSK_ID=$(keymgr internal. list -j | jq -r ".[0].id")
+  # Generate trust anchor (KSK public key)
+  ANCHOR_DATA=$(keymgr -c "${TEMP_DIR}/knot.conf" "${ZONE}" dnskey "$KSK_ID")
+  # get private key
+  KSK_DATA=$(cat ${TEMP_DIR}/keys/keys/${KSK_ID}.pem)
+  # find $TEMP_DIR
+  # echo "KSK_ID: $KSK_ID"
+  # DUMP=$(mdb_dump -a ${TEMP_DIR}/keys)
 
   # return JSON output
   jq -n \
     --arg ksk "$KSK_DATA" \
-    --arg zsk "$ZSK_DATA" \
     --arg anchor "$ANCHOR_DATA" \
     '{
-      ksk: $ksk,
-      zsk: $zsk,
-      anchor: $anchor
+      ksk_key: $ksk,
+      ksk_anchor: $anchor
     }'
 }
 
