@@ -528,6 +528,7 @@ def butane_to_salt(
     update_dir="/run/update-system-config",
     update_user=0,
     update_group=0,
+    extra_pattern_list=[],
 ):
     """translates a restricted butane dict into a saltstack dict
 
@@ -552,23 +553,26 @@ def butane_to_salt(
                 - env in /etc/[local,containers,compose]/environment/name.env
                 - file in /etc/containers/systemd/name*
                 - file in /etc/[containers,compose]/build/name/*
+                - the user supplied pattern list in extra_pattern_list
     """
 
     src = yaml_dict
     dest = {}
     service_list = {"enabled": [], "disabled": [], "masked": [], "changed": []}
+    default_pattern_list = [
+        r"/etc/systemd/system/([^/]+)\.[^\.]+",
+        r"/etc/systemd/system/([^/]+)\.[^\.]+\.d/.+\.conf",
+        r"/etc/local/environment/([^/.]+)\..*env",
+        r"/etc/containers/environment/([^/.]+)\..*env",
+        r"/etc/compose/environment/([^/.]+)\..*env",
+        r"/etc/containers/systemd/([^/.]+)\..+",
+        r"/etc/containers/build/([^/]+)/.+",
+        r"/etc/compose/build/([^/]+)/.+",
+    ]
+
     service_pattern_list = [
         re.compile("^" + pattern + "$")
-        for pattern in [
-            r"/etc/systemd/system/([^/]+)\.[^\.]+",
-            r"/etc/systemd/system/([^/]+)\.[^\.]+\.d/.+\.conf",
-            r"/etc/local/environment/([^/.]+)\..*env",
-            r"/etc/containers/environment/([^/.]+)\..*env",
-            r"/etc/compose/environment/([^/.]+)\..*env",
-            r"/etc/containers/systemd/([^/.]+)\..+",
-            r"/etc/containers/build/([^/]+)/.+",
-            r"/etc/compose/build/([^/]+)/.+",
-        ]
+        for pattern in [*default_pattern_list, *extra_pattern_list]
     ]
 
     def target_changed(target, target_type="file"):
