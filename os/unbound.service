@@ -22,6 +22,7 @@ EnvironmentFile=-/etc/local/environment/%N
 WorkingDirectory=/var/lib/unbound
 
 ExecStartPre=/usr/sbin/unbound-checkconf
+# strace -e trace=open,openat -f -y 
 ExecStart=/usr/sbin/unbound -d
 
 # set system DNS to self.internal, ignore auto supplied DNS
