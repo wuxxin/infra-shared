@@ -17,6 +17,7 @@ FRONTEND:
 
 # DNS Upstream Resolver for internal unbound dns server that serves to system, container and nspawn workloads
 DNS_RESOLVER:
+  # VERBOSITY: 1 | 2 | 3 | 4 | > => more verbose
   VERBOSITY: "1"
   # UPSTREAM_TLS: boolean, defaults: true
   # UPSTREAM: list, defaults: None
