@@ -51,6 +51,7 @@ sys: age
 sys: jose
 # knot - used for dns utilities
 sys: knot
+sys-deb: knot-dnsutils
 # atftp - TFTP client (RFC1350)
 sys: atftp
 # json manipulation
