@@ -40,7 +40,7 @@ ExecStartPre=+/usr/bin/bash -c '\
 # check the generated config
 ExecStartPre=/usr/sbin/knotc conf-check
 
-# initialize kasp-db and import static KSK if not already present
+# initialize kasp-db and import static KSK, create first ZSK for each domain
 ExecStartPre=/usr/bin/bash -c 'set -ex; \
     if test ! -e "/var/lib/knot/keys/data.mdb"; then \
         echo "Initializing kasp Database"; \
