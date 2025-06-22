@@ -1,0 +1,42 @@
+{
+    "root": "/run/secrets/root_ca.crt",
+    "crt": "/run/secrets/acme_sub_ca.crt",
+    "key": "/run/secrets/acme_sub_ca.key",
+    "address": ":9000",
+    "dnsNames": [
+        "acme.internal"
+    ],
+    "logger": {
+        "format": "text"
+    },
+    "db": {
+        "type": "badger",
+        "dataSource": "/home/step/db"
+    },
+    "tls": {
+        "minVersion": 1.2
+    },
+    "authority": {
+        "provisioners": [
+            {
+                "type": "ACME",
+                "name": "on-internal",
+                "challenges": ["dns-01"],
+                "claims": {
+                    "minTLSCertDuration": "5m",
+                    "maxTLSCertDuration": "24h",
+                    "defaultTLSCertDuration": "24h",
+                    "x509": {
+                        "allow": {
+                            "dns": [
+                                "*.on.internal"
+                            ]
+                        }
+                    },                    
+                    "disableRenewal": false
+                }
+            }
+        ]
+    }
+}
+

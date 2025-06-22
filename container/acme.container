@@ -1,0 +1,50 @@
+[Unit]
+Description=Step-CA ACME Provision Server
+Wants=network-online.target container-build@%N.service container-secrets.service
+After=network-online.target container-build@%N.service container-secrets.service
+# wait until internal bridge is online
+After=sys-subsystem-net-devices-internal.device
+Wants=sys-subsystem-net-devices-internal.device
+
+{% if not LOCAL_ACME_SERVER["ENABLED"] %}
+# XXX acme server is disabled, but we are a quadlet, so we try to stop it with a nonexisting path
+ConditionPathExists=/notexisting/acme_disable
+{% endif%}
+
+[Service]
+# environment loaded here is available in systemd-quadlet scope
+EnvironmentFile=-/etc/containers/environment/%N-systemd.env
+Restart=on-failure
+
+[Container]
+Image=localhost/acme:latest
+
+# If an image is updated in local storage, Podman restarts the systemd unit
+AutoUpdate=local
+
+# environment loaded here is available for container scope, mind quadlet bug "=-"
+# EnvironmentFile=/etc/containers/environment/%N.env
+
+# configure access to root bundle and the acme ca
+Secret=root_bundle.crt,mode=0644
+Secret=root_ca.crt,mode=0644
+Secret=acme_sub_ca.crt,mode=0644
+Secret=acme_sub_ca.key,mode=0644
+# Secret=acme_sub_ca.secret,mode=0644
+
+Exec=step-ca /home/step/ca.json 
+# --password-file ${CREDENTIALS_DIRECTORY}/acme_sub_ca.secret
+
+# static configuration
+Volume=/etc/containers/systemd/%N.config.json:/home/step/ca.json:ro
+Volume=acme.volume:/home/step/db
+
+# TODO find correct healthcheck for step-ca mimicking acme
+HealthCmd=wget -qSO /dev/null --no-check-certificate https://127.0.0.1:9000/health
+
+# Publish http and https to [hostip:]hostPort:containerPort
+# PublishPort=9000:9000
+
+[Install]
+WantedBy=multi-user.target
+

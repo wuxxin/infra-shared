@@ -171,6 +171,24 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
+    - path: /etc/credstore/acme_sub_ca.crt
+      mode: 0644
+      contents:
+        inline: |
+""",
+            acme_sub_ca.chain.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/acme_sub_ca.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            acme_sub_ca.key.private_key_pem.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
     - path: /etc/credstore/transfer-internal.key
       mode: 0600
       contents:
