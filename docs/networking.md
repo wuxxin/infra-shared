@@ -2,7 +2,6 @@
 
 ## Internal Networks
 
-
 **10.87.X.X - 10.89.X.X** are used as defaults for internal networking
 
 | network name | network range | Description |
@@ -13,9 +12,10 @@
 
 ## DNS-Resolver
 
-DNS Resolver for System, Container, Compose and Nspawn workloads is done using `Unbound`.
+DNS (+dnssec) Resolver for System, Container, Compose and Nspawn workloads is done using `Unbound`.
 
-- available under `INTERNAL_CIDR|cidr2ip(0)` on `udp/53`, `tcp/53` and `DoT:tcp/853`
+- available as `dns.internal`, `dns.podman`, `dns.nspawn`
+- under `INTERNAL_CIDR|cidr2ip(0)` on `udp/53`, `tcp/53` and `DoT:tcp/853`
 - default upstream is **split round robin DoT (DNS over TLS)**
     - over 2x dns.google, 2x dns-unfiltered.adguard.com, 2x cloudflare-dns.com
 - dynamic name and reverse ptr resolution for
@@ -95,9 +95,8 @@ DNS_RESOLVER:
 
 - if LOCAL_DNS_SERVER["ENABLED"]
     - requests to internal domains are gathered from an local knot DNS server instance
-    - its available under `INTERNAL_CIDR|cidr2ip(1)` on `udp/53`, `tcp/53`
-      as `knot.internal`, `knot.nspawn`, `knot.podman`
-    - it provides name resolution for
+    - its available as `knot.internal` under `INTERNAL_CIDR|cidr2ip(1)` on `udp/53`, `tcp/53`
+    - it provides name resolution with **dnssec** for
         - `.internal` local Workloads
         - `.podman` Container and Compose workloads
         - `.nspawn` Machine Container
@@ -113,26 +112,22 @@ DNS_RESOLVER:
     - [Step-CA Documentation](https://smallstep.com/docs/step-ca/getting-started/)
 
 ```mermaid
-graph TB
+sequenceDiagram
+  title ACME-Setup
 
-f(traefik)
-c(acme)
-u(unbound)
-k(knot)
-a(application)
-p(pulumi)
+  User ->> Traefik: requests app.on.internal
+  Traefik ->> ACME: request cert for app.on.internal
+  ACME ->> Traefik: propose dns entries for .app.on.internal
+  Traefik ->> Knot: knsupdate (RFC2136) of ACME DNS-Proof for on.internal
+  ACME ->> Unbound: request dns entries for .app.on.internal
+  Unbound ->> Knot: request dns entries for .app.on.internal
+  Knot ->> Unbound: answer with updated values from Traefik
+  Unbound ->> ACME: answer the request
+  ACME ->> Traefik: sign acme cert for app.on.internal
+  Traefik ->> Application: request page
+  Application ->> Traefik: answer the request
+  Traefik ->> User: return page in https traffic
 
-r(https serve of *.on.internal) --> f
-f -- request cert for a.on.internal --> c
-c -- request dns entries for on.internal domain --> u
-u -- forward requests to internal dns --> k
-k -- answer the request --> u
-u -- answer the request --> c
-c -- sign acme cert for a.on.internal --> f
-f -- handle https traffic <--> a
-p -- authority create dns-root for .internal --> k
-p -- authority create acme authority cert --> c
-p -- knsupdate (RFC2136) of ACME DNS-Proof for on.internal --> k
 
 ```
 

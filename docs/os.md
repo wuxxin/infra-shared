@@ -10,7 +10,8 @@ Library Features:
 - Reconfiguration / [Update Configuration](update.md) using translated butane to saltstack execution
 - Services
     - [`unbound.service`](networking.md#dns-resolver): unbound as recursive dns caching resolver
-    - [`frontend.service`](networking.md#tlshttp-web-frontend): optional traefik tls termination, middleware, container/compose/nspawn discovery
+    - [`knot.service`](networking.md#dns-resolver): knot as authorative, dnssec configured dns server
+    - [`frontend.service`](networking.md#tlshttp-web-frontend): traefik for tls termination, middleware, container/compose/nspawn discovery
     - [Credential Management](credentials.md): store and access Credentials and other Secrets
     - [Networking](networking.md): `.internal`,`.podman[1-99]`,`.nspawn` bridges with dns support
 - Deployment of

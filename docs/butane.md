@@ -121,9 +121,9 @@ Changed Services:
 
 - execution creates a commented, non uniqe, not sorted list of service base names
     - `update_dir=/run/user/1000/update-system-config`
-    - `{upadate_dir}/service_changed.list` for services with changed configuration
-    - `{upadate_dir}/service_enabled.list` for services to be enabled
-    - `{upadate_dir}/service_disabled.list` for services to be disabled
+    - `{update_dir}/service_changed.list` for services with changed configuration
+    - `{update_dir}/service_enabled.list` for services to be enabled
+    - `{update_dir}/service_disabled.list` for services to be disabled
 
 see `update-system-config.service` for detailed usage of service_*
 
