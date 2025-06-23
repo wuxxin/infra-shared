@@ -48,6 +48,9 @@ LOCAL_DNS_SERVER:
 LOCAL_ACME_SERVER:
   # if enabled, step-ca will be used for maintaining on.internal TLS certificates, needs LOCAL_DNS_SERVER to be enabled too
   ENABLED: false
+  # HOSTNAMES: list, under which hostnames acme provision will be available, defaults to "acme.internal"
+  HOSTNAMES:
+  - acme.internal
   # DOMAINS: list, which domains are availabel for acme to provision, defaults to "on.internal"
   DOMAINS:
   - on.internal

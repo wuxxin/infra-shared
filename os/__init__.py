@@ -109,7 +109,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         this_env = merge_dict_struct(default_env, {} if environment is None else environment)
 
         # ssh and tls and other credstore related keys into butane type yaml
-        # XXX also: /etc/local/ksk-anchor-internal.key
+        # XXX also: /etc/local/ksk_anchor_internal.key
         butane_security_keys = pulumi.Output.concat(
             """
 passwd:
@@ -189,7 +189,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/ksk-internal.key
+    - path: /etc/credstore/ksk_internal.key
       mode: 0600
       contents:
         inline: |
@@ -198,7 +198,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/local/ksk-anchor-internal.key
+    - path: /etc/local/ksk_anchor_internal.key
       mode: 0644
       contents:
         inline: |
@@ -207,7 +207,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/update-internal.key
+    - path: /etc/credstore/update_internal.key
       mode: 0600
       contents:
         inline: |
@@ -216,7 +216,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/acme-update-internal.key
+    - path: /etc/credstore/acme_update_internal.key
       mode: 0600
       contents:
         inline: |
@@ -225,7 +225,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/transfer-internal.key
+    - path: /etc/credstore/transfer_internal.key
       mode: 0600
       contents:
         inline: |
@@ -234,7 +234,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/notify-internal.key
+    - path: /etc/credstore/notify_internal.key
       mode: 0600
       contents:
         inline: |
