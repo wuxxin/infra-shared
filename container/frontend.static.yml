@@ -62,6 +62,33 @@ providers:
   {% endfor %}
 {% endif %}
 
+certificatesResolvers:
+{%- if LOCAL_ACME_SERVER["ENABLED"] %}
+  acmeinternal:
+    acme:
+      caServer: "https://acme.internal:9000/acme/internal/directory"
+      # certificates of caServer are signed by sub ca of root_bundle
+      caCertificates:
+        - /run/secrets/root_bundle.crt
+      dnsChallenge:
+        provider: rfc2136
+        # delayBeforeCheck: Time to wait for DNS propagation
+        delayBeforeCheck: 15s
+        resolvers:
+          - "knot.internal:53"
+      # storage: Path to store ACME certificates
+      storage: "/traefik/acme-internal.json"
+      # keyType: EC256 # Optional: Key type for ACME account (EC256, EC384, RSA2048, RSA4096, RSA8192)
+{%- endif %}
+{% if "CERTIFICATESRESOLVERS" in FRONTEND %}
+  # add custom resolvers
+  {% for key, value in FRONTEND["CERTIFICATESRESOLVERS"].items() %}
+    {% set resolver={key: value} %}
+{{ resolver|yaml|indent(2,True) }}
+  {% endfor %}
+{% endif %}
+
+
 {% if "EXTRA" in FRONTEND %}
 # add additional traefik static config string
 {{ FRONTEND["EXTRA"] }}

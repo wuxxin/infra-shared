@@ -37,12 +37,12 @@ Secret=server.key,mode=0640
 
 {% if LOCAL_ACME_SERVER["ENABLED"] %}
 # if local_acme_server is enabled, configure RFC2136 nsupdate for DNS-01 challenge
-Secret=acme-update-internal.key,mode=0640
+Secret=acme_update_internal.key,mode=0640
 
 # ACME DNS-01 challenge proof to knot.internal using RFC2136
 Environment=RFC2136_NAMESERVER=knot.internal
-Environment=RFC2136_TSIG_KEY=acme-update-internal
-Environment=RFC2136_TSIG_SECRET_FILE=${CREDENTIALS_DIRECTORY}/acme-udpate-internal.key
+Environment=RFC2136_TSIG_KEY=acme_update_internal
+Environment=RFC2136_TSIG_SECRET_FILE=/run/secrets/acme_update_internal.key
 {% endif %}
 
 # traefik static configuration
