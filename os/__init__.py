@@ -189,15 +189,6 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
-    - path: /etc/credstore/transfer-internal.key
-      mode: 0600
-      contents:
-        inline: |
-""",
-            dns_factory.transfer_key.secret.apply(
-                lambda x: "\n".join(["          " + line for line in x.splitlines()])
-            ),
-            """
     - path: /etc/credstore/ksk-internal.key
       mode: 0600
       contents:
@@ -231,6 +222,15 @@ storage:
         inline: |
 """,
             dns_factory.acme_update_key.secret.apply(
+                lambda x: "\n".join(["          " + line for line in x.splitlines()])
+            ),
+            """
+    - path: /etc/credstore/transfer-internal.key
+      mode: 0600
+      contents:
+        inline: |
+""",
+            dns_factory.transfer_key.secret.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """
