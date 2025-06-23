@@ -79,18 +79,15 @@ storage:
           RPM_OSTREE_INSTALL={{ RPM_OSTREE_INSTALL|join(" ") }}
 
   links:
-    # symlink root_ca,root_bundle,server.crt,server.key as systemd credentials
-    - path: /etc/credstore/root_ca.crt
-      target: /etc/ssl/certs/root_ca.crt
-
+    # symlink root_bundle, root_ca, server.crt, server.key as systemd credentials
     - path: /etc/credstore/root_bundle.crt
-      target: /etc/ssl/certs/root_bundle.crt
-
+      target: /etc/pki/ca-trust/source/anchors/root_bundle.crt
+    - path: /etc/credstore/root_ca.crt
+      target: /etc/pki/tls/certs/root_ca.crt
     - path: /etc/credstore/server.crt
-      target: /etc/ssl/certs/server.crt
-
+      target: /etc/pki/tls/certs/server.crt
     - path: /etc/credstore/server.key
-      target: /etc/ssl/private/server.key
+      target: /etc/pki/tls/private/server.key
 
 systemd:
   units:

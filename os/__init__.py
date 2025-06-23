@@ -135,7 +135,7 @@ ignition:
             """
 storage:
   files:
-    - path: /etc/ssl/certs/root_bundle.crt
+    - path: /etc/pki/ca-trust/source/anchors/root_bundle.crt
       mode: 0644
       contents:
         inline: |
@@ -144,7 +144,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """          
-    - path: /etc/ssl/certs/root_ca.crt
+    - path: /etc/pki/tls/certs/root_ca.crt
       mode: 0644
       contents:
         inline: |
@@ -153,7 +153,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """          
-    - path: /etc/ssl/certs/server.crt
+    - path: /etc/pki/tls/certs/server.crt
       mode: 0644
       contents:
         inline: |
@@ -162,7 +162,7 @@ storage:
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
             """          
-    - path: /etc/ssl/private/server.key
+    - path: /etc/pki/tls/private/server.key
       mode: 0600
       contents:
         inline: |
