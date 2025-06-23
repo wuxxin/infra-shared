@@ -1,7 +1,7 @@
 # static traefik config
 
 log:
-  level: warning
+  level:  {{ FRONTEND["VERBOSITY"] }}
 
 global:
   checkNewVersion: false
@@ -83,6 +83,7 @@ certificatesResolvers:
       storage: "/traefik/acme-internal.json"
       # Key type for requested certificates (EC256, EC384, RSA2048, RSA4096, RSA8192)
       keyType: EC256
+
 {%- endif %}
 {% if "CERTIFICATESRESOLVERS" in FRONTEND %}
   # add custom resolvers
