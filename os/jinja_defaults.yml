@@ -1,5 +1,4 @@
 # Jinja Default Environment
-
 # HOSTNAME: will be set to hostname from Butanetranspiler(resource_name, hostname, ...
 
 # Default locale (lang, keymap, timezone, country_code)
@@ -9,15 +8,9 @@ LOCALE:
   TIMEZONE: UTC
   COUNTRY_CODE: UN
 
-# FRONTEND:ENABLED true/false, if true traefik does tls termination and http routing
-FRONTEND:
-  ENABLED: true
-  # DASHBOARD: optional string, set to unique hostname eg. "traefik.host.domain" to enable traefik debug dashboard
-  DASHBOARD:
-
 # DNS Upstream Resolver for internal unbound dns server that serves to system, container and nspawn workloads
 DNS_RESOLVER:
-  # VERBOSITY: 1 | 2 | 3 | 4 | > => more verbose
+  # VERBOSITY: 1, 2, 3, 4, > more verbose
   VERBOSITY: "1"
   # UPSTREAM_TLS: boolean, defaults: true
   # UPSTREAM: list, defaults: None
@@ -29,20 +22,26 @@ DNS_RESOLVER:
   #   eg. zone entries and public dns overrides
   # EXTRA: multiline-string, custom text appended to unbound.conf, start with new section
 
+# FRONTEND:ENABLED true/false, if true traefik does tls termination and http routing
+FRONTEND:
+  ENABLED: true
+  # VERBOSITY: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, PANIC, < more verbose
+  VERBOSITY: "WARN"
+  # DASHBOARD: optional string, set to unique hostname eg. "traefik.host.domain" to enable traefik debug dashboard
+  DASHBOARD:
+
 # Dedicated DNS Server (Knot) for .internal, .podman, .nspawn
 LOCAL_DNS_SERVER:
   # if enabled:  unbound will forward .internal requests to knot to answer requests
   # if disabled: unbound will answer and deliver .internal requests itself
   ENABLED: false
+  # VERBOSITY: info | debug | > more verbose
+  VERBOSITY: info
   # # optional zones:
   #     place dns data into /etc/local/knot/<zonename>.zone
   # # optional entries:
+  #     TEMPLATE, POLICY, KEY, ACL, ZONE
   #     multiline | string, must be formatted as list "-", will be added to defined section
-  # TEMPLATE: additional TEMPLATE entries
-  # POLICY: additional POLICY entries
-  # KEY:  additional TSIG Keys
-  # ACL:  additional ACL entries
-  # ZONE: additional ZONE entries
 
 # Dedicated ACME Certificate Server (step-ca) for *.on.internal
 LOCAL_ACME_SERVER:
