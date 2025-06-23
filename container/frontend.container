@@ -41,6 +41,7 @@ Secret=acme_update_internal.key,mode=0640
 
 # ACME DNS-01 challenge proof to knot.internal using RFC2136
 Environment=RFC2136_NAMESERVER=knot.internal
+Environment=RFC2136_TSIG_ALGORITHM=hmac-sha256
 Environment=RFC2136_TSIG_KEY=acme_update_internal
 Environment=RFC2136_TSIG_SECRET_FILE=/run/secrets/acme_update_internal.key
 {% endif %}

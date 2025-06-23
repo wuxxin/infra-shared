@@ -1,5 +1,8 @@
 # static traefik config
 
+log:
+  level: warning
+
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
@@ -78,7 +81,8 @@ certificatesResolvers:
           - "knot.internal:53"
       # storage: Path to store ACME certificates
       storage: "/traefik/acme-internal.json"
-      # keyType: EC256 # Optional: Key type for ACME account (EC256, EC384, RSA2048, RSA4096, RSA8192)
+      # Key type for requested certificates (EC256, EC384, RSA2048, RSA4096, RSA8192)
+      keyType: EC256
 {%- endif %}
 {% if "CERTIFICATESRESOLVERS" in FRONTEND %}
   # add custom resolvers
