@@ -2,16 +2,16 @@
 # ttl: 5min, refresh: 1hour, retry: 15min, expire: 7days, nxdomain: 1min
 # {% set common={"ttl": 300,  "refresh": 3600, "retry": 900, "expire": 604800, "nxdomain": 60 } %}
 
-# passwd:
-#   users:
-#     - name: knot
-#       uid: 958
-#       primary_group: knot
-#       home_dir: /var/lib/knot
-#       shell: /sbin/nologin
-#   groups:
-#     - name: knot
-#       gid: 958
+passwd:
+  users:
+    - name: knot
+      uid: 977
+      primary_group: knot
+      home_dir: /var/lib/knot
+      shell: /sbin/nologin
+  groups:
+    - name: knot
+      gid: 977
 
 storage:
   directories:
@@ -22,16 +22,16 @@ storage:
     - path: /var/lib/knot
       mode: 0700
       user:
-        id: 958
+        id: 977
       group:
-        id: 958
+        id: 977
 
     # our knot zone files configuration directory
     - path: /etc/local/knot
       user:
-        id: 958
+        id: 977
       group:
-        id: 958
+        id: 977
 
   files:
     # our knot server config template
@@ -55,6 +55,11 @@ storage:
           _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
           this-is-only-in-knot A {{ INTERNAL_CIDR|cidr2ip }}
           {{ INTERNAL_CIDR|cidr2ip }} IN PTR self.internal.
+
+          @     CAA 0 issue ""
+          acme  CAA 0 issue "acme.internal;validationmethods=dns-01"
+          on    CAA 0 issue "acme.internal;validationmethods=dns-01"
+          on    CAA 0 issuewild "acme.internal;validationmethods=dns-01"
     
     # podman zone
     - path: /etc/local/knot/podman.zone
@@ -67,6 +72,7 @@ storage:
           self  A {{ PODMAN_CIDR|cidr2ip }}
           _dns.podman. IN SVCB 1 dns.podman alpn=dot port=853
           {{ PODMAN_CIDR|cidr2ip }} IN PTR self.podman.
+          @     CAA 0 issue ""
   
     # nspawn zone
     - path: /etc/local/knot/nspawn.zone
@@ -79,6 +85,7 @@ storage:
           self  A {{ NSPAWN_CIDR|cidr2ip }}
           _dns.nspawn. IN SVCB 1 dns.nspawn alpn=dot port=853
           {{ NSPAWN_CIDR|cidr2ip }} IN PTR self.nspawn.
+          @     CAA 0 issue ""
 
 systemd:
   units:

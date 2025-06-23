@@ -13,6 +13,7 @@ User=knot
 Group=knot
 RuntimeDirectory=knot
 StateDirectory=knot
+WorkingDirectory=/var/lib/knot
 Restart=on-abort
 
 NoNewPrivileges=yes
@@ -27,6 +28,9 @@ Environment="KNOT_ZONE_LOAD_TIMEOUT_SEC=180"
 Environment="KNOT_CONF_MAX_SIZE=512"
 # Load KSK as secret for usage as knot user
 LoadCredential=ksk_internal.key:/etc/credstore/ksk_internal.key
+
+# assure workingdirectory is existing and has right ownership
+ExecStartPre=install -o knot -g knot -m "0700" -d /var/lib/knot
 
 # generate the config as root
 ExecStartPre=+/usr/bin/bash -c '\
