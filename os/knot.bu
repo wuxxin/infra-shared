@@ -49,11 +49,11 @@ storage:
           @     NS  knot.internal.
           dns   A   {{ INTERNAL_CIDR|cidr2ip }}
           self  A   {{ INTERNAL_CIDR|cidr2ip }}
-          acme  A   {{ INTERNAL_CIDR|cidr2ip }}
           ca    A   {{ INTERNAL_CIDR|cidr2ip }}
+          acme  A   {{ INTERNAL_CIDR|cidr2ip(1) }}
           knot  A   {{ INTERNAL_CIDR|cidr2ip(1) }}
-          this-is-only-in-knot A {{ INTERNAL_CIDR|cidr2ip }}
           _dns.internal. IN SVCB 1 dns.internal alpn=dot port=853
+          this-is-only-in-knot A {{ INTERNAL_CIDR|cidr2ip }}
           {{ INTERNAL_CIDR|cidr2ip }} IN PTR self.internal.
     
     # podman zone
