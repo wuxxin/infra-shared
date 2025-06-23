@@ -48,7 +48,7 @@ providers:
     exposedbydefault: false
 
   file:
-    # frontend-post-up.service writes frondend.dynamic.yml to /traefik
+    # frontend-post-up.service writes frontend.dynamic.yml to /traefik
     # systemd-nspawn@.service.d/20_discovery.conf reads NSPAWN_TRAEFIK from env
     #   /etc/nspawn/environment/%i.env and writes results to /traefik volume as *.yml
     directory: /traefik

@@ -30,16 +30,27 @@ AutoUpdate=local
 PodmanArgs=--sysctl=net.ipv4.ip_unprivileged_port_start=0
 
 # configure access to tls, frontend can present itself with server.*
-Secret=root_bundle.crt,mode=0640
-Secret=root_ca.crt,mode=0640
-Secret=server.crt,mode=0640
+Secret=root_bundle.crt,mode=0644
+Secret=root_ca.crt,mode=0644
+Secret=server.crt,mode=0644
 Secret=server.key,mode=0640
+
+{% if LOCAL_ACME_SERVER["ENABLED"] %}
+# if local_acme_server is enabled, configure RFC2136 nsupdate for DNS-01 challenge
+Secret=acme-update-internal.key,mode=0640
+
+# ACME DNS-01 challenge proof to knot.internal using RFC2136
+Environment=RFC2136_NAMESERVER=knot.internal
+Environment=RFC2136_TSIG_KEY=acme-update-internal
+Environment=RFC2136_TSIG_SECRET_FILE=${CREDENTIALS_DIRECTORY}/acme-udpate-internal.key
+{% endif %}
 
 # traefik static configuration
 Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
 # /traefik directory is used for service discovery
+# /traefik/acme-internal.json for optional internal acme state
 # /traefik/letsencrypt.json for optional letsencrypt state
-# frontend-post-up.service writes frondend.dynamic.yml to /traefik
+# frontend-post-up.service writes frontend.dynamic.yml to /traefik
 Volume=frontend.volume:/traefik
 
 # use the ping api at port 8080 on localhost as a healthcheck
