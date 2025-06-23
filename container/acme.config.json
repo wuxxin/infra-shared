@@ -4,7 +4,9 @@
     "key": "/run/secrets/acme_sub_ca.key",
     "address": ":9000",
     "dnsNames": [
-        "acme.internal"
+{%- for hostname in LOCAL_ACME_SERVER["HOSTNAMES"] %}
+        "{{ hostname }}"{% if not loop.last %},{% endif %}
+{%- endfor %}
     ],
     "logger": {
         "format": "text"
@@ -20,7 +22,7 @@
         "provisioners": [
             {
                 "type": "ACME",
-                "name": "on-internal",
+                "name": "internal",
                 "challenges": ["dns-01"],
                 "claims": {
                     "minTLSCertDuration": "5m",
@@ -29,7 +31,9 @@
                     "x509": {
                         "allow": {
                             "dns": [
-                                "*.on.internal"
+{%- for domain in LOCAL_ACME_SERVER["DOMAINS"] %}
+                                "*.{{ domain }}"{% if not loop.last %},{% endif %}
+{%- endfor %}
                             ]
                         }
                     },                    

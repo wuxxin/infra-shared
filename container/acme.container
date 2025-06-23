@@ -42,8 +42,8 @@ Volume=acme.volume:/home/step/db
 # TODO find correct healthcheck for step-ca mimicking acme
 HealthCmd=wget -qSO /dev/null --no-check-certificate https://127.0.0.1:9000/health
 
-# Publish http and https to [hostip:]hostPort:containerPort
-# PublishPort=9000:9000
+# publish api to [hostip:]hostPort:containerPort
+PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:9000:9000
 
 [Install]
 WantedBy=multi-user.target
