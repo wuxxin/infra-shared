@@ -21,6 +21,7 @@ Restart=on-failure
 EnvironmentFile=-/etc/local/environment/%N
 WorkingDirectory=/var/lib/unbound
 
+ExecStartPre=install -o unbound -g unbound -m "0700" -d /var/lib/unbound
 ExecStartPre=/usr/sbin/unbound-checkconf
 # strace -e trace=open,openat -f -y 
 ExecStart=/usr/sbin/unbound -d
