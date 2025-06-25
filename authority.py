@@ -478,27 +478,26 @@ class CASignedCert(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        self.key = resource_key
+        self.request = resource_request
+        self.cert = resource_cert
+        self.chain = Output.concat(resource_cert.cert_pem, "\n", resource_chain)
+
         if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
             # Create a password encrypted PKCS#12 object if only client_auth
-            pkcs12_password = random.RandomPassword(
+            self.pkcs12_password = random.RandomPassword(
                 "{}_pkcs12_password".format(name), special=False, length=24
             )
-            pkcs12 = pulumi.Output.all(
-                cert=resource_cert.cert_pem,
-                key=resource_key.private_key_pem,
-                password=pkcs12_password.result,
+            self.pkcs12 = pulumi.Output.all(
+                key=self.key.private_key_pem,
+                cert=self.chain,
+                password=self.pkcs12_password.result,
             ).apply(
                 lambda args: pem_to_pkcs12_base64(
                     str(args["cert"]), str(args["key"]), str(args["password"])
                 )
             )
-            self.pkcs12_password = pkcs12_password
-            self.pkcs12 = pkcs12
 
-        self.key = resource_key
-        self.request = resource_request
-        self.cert = resource_cert
-        self.chain = Output.concat(resource_cert.cert_pem, "\n", resource_chain)
         self.register_outputs({})
 
 
@@ -588,7 +587,6 @@ def create_sub_ca(
         "custom_provision_ca": custom_provision_ca,
     }
     provision_ca_cert = CASignedCert(resource_name, provision_ca_config, opts=opts)
-    pulumi.export(resource_name, provision_ca_cert)
     return provision_ca_cert
 
 
@@ -629,7 +627,6 @@ def create_host_cert(
         "custom_provision_ca": custom_provision_ca,
     }
     host_cert = CASignedCert(resource_name, host_config, opts=opts)
-    pulumi.export(resource_name, host_cert)
     return host_cert
 
 
@@ -666,7 +663,6 @@ def create_client_cert(
         "custom_provision_ca": custom_provision_ca,
     }
     client_cert = CASignedCert(resource_name, client_config, opts=opts)
-    pulumi.export(resource_name, client_cert)
     return client_cert
 
 
@@ -701,7 +697,6 @@ def create_selfsigned_cert(
         "allowed_uses": allowed_uses,
     }
     selfsigned_cert = SelfSignedCert(resource_name, self_config, opts=opts)
-    pulumi.export(resource_name, selfsigned_cert)
     return selfsigned_cert
 
 
@@ -795,6 +790,7 @@ provision_host_tls = create_host_cert(
     provision_host_names,
     ip_addresses=provision_ip_addresses,
 )
+pulumi.export("provision_host_tls", provision_host_tls)
 
 
 # ### SSH config
