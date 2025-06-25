@@ -1,7 +1,7 @@
 # butane config
 
-# # XXX disabled, because messes up unbound overlay. res: assume same uid,gid and use these
-passwd:
+# # XXX disabled, because messes up rpm-ostree overlay. res: assume same uid,gid and use these
+{# passwd:
   users:
     - name: unbound
       uid: 978
@@ -11,6 +11,7 @@ passwd:
   groups:
     - name: unbound
       gid: 978
+ #}
 
 storage:
   directories:

@@ -5,6 +5,8 @@ Wants=network-online.target unbound.service
 ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
 ConditionPathExists=/etc/nspawn/environment/%i.env
 ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh
+StartLimitIntervalSec=0
+StartLimitBurst=5
 
 [Service]
 Type=oneshot

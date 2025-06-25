@@ -2,7 +2,8 @@
 # ttl: 5min, refresh: 1hour, retry: 15min, expire: 7days, nxdomain: 1min
 # {% set common={"ttl": 300,  "refresh": 3600, "retry": 900, "expire": 604800, "nxdomain": 60 } %}
 
-passwd:
+# # XXX disabled, because messes up rpm-ostree overlay. res: assume same uid,gid and use these
+{# passwd:
   users:
     - name: knot
       uid: 977
@@ -12,6 +13,7 @@ passwd:
   groups:
     - name: knot
       gid: 977
+#}
 
 storage:
   directories:

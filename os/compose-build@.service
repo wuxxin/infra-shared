@@ -3,6 +3,8 @@ Description=Build Compose Container for %I
 After=podman.service
 Wants=podman.service compose-build@%i.path
 ConditionPathExists=/etc/compose/build/%i/compose.yml
+StartLimitIntervalSec=0
+StartLimitBurst=5
 
 [Service]
 Type=oneshot

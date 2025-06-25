@@ -1,0 +1,34 @@
+# butane
+
+storage:
+  directories:
+    # default firewall config directory
+    - path: /etc/firewalld
+
+  files:
+    # default firewalld config file
+    - path: /etc/firewalld/firewalld.conf
+      contents:
+        inline: |
+            # firewalld config file
+            # DefaultZone - Default: public
+            # The default zone used if an empty zone string is used
+            DefaultZone=public
+
+            # Lockdown - Default: no
+            # If set to enabled, firewall changes with the D-Bus interface will be limited
+            # to applications that are listed in the lockdown whitelist
+            # The lockdown whitelist file is lockdown-whitelist.xml
+            Lockdown=no
+
+            # IndividualCalls - Default: no
+            # Do not use combined -restore calls, but individual calls. This increases the time
+            # that is needed to apply changes and to start the daemon, but is good for debugging
+            IndividualCalls={{ "no" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "yes" }}
+
+            # LogDenied - Default: off
+            # Add logging rules right before reject and drop rules in the INPUT, FORWARD
+            # and OUTPUT chains for the default rules and also final reject and drop rules
+            # in zones. Possible values are: all, unicast, broadcast, multicast and off.
+            LogDenied={{ "off" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "all" }}
+

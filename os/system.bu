@@ -35,7 +35,7 @@ storage:
           # For historical reasons, localhost precedes localhost.localdomain:
           127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
           ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-          # add lookup for self. internal, podman and nspawn, dns.internal, knot.internal
+          # harcode self. internal, podman and nspawn, dns.internal, knot.internal
           {{ NSPAWN_CIDR|cidr2ip }}      self.nspawn
           {{ PODMAN_CIDR|cidr2ip }}      self.podman
           {{ INTERNAL_CIDR|cidr2ip }}    self.internal
@@ -95,11 +95,9 @@ systemd:
     - name: rpm-ostree-countme.timer
       mask: true
 
-    {% if DEBUG_DISABLE_AUTOUPDATE %}
     # debugging: Disable autoupdate in case a specific version should be re/constructed
     - name: zincati.service
-      mask: true
-    {% endif %}
+      mask: {{ true if DEBUG_DISABLE_AUTOUPDATE else false }}
 
     {% if DEBUG_CONSOLE_AUTOLOGIN %}
     # debugging: Add autologin on serial console

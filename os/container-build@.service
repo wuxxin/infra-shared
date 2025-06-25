@@ -3,6 +3,8 @@ Description=Build Container for %I
 After=network-online.target unbound.service
 Wants=network-online.target unbound.service container-build@%i.path
 ConditionPathExists=/etc/containers/build/%i/Containerfile
+StartLimitIntervalSec=0
+StartLimitBurst=5
 
 [Service]
 Type=oneshot
