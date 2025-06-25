@@ -89,8 +89,19 @@ pg_postgres_client_cert = create_client_cert(
 
 # jinja environment for butane config
 host_environment = {
+    # copy locale from config to environment
+    "LOCALE": {key.upper(): value for key, value in config.get_object("locale").items()},
     # install mc on sim, prod should use toolbox
     "RPM_OSTREE_INSTALL": ["mc", "strace"] if stack_name.endswith("sim") else [],
+    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose", True),
+    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn", True),
+    "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
+    "POSTGRES_PASSWORD": pg_postgres_password.result,
+    "DNS_RESOLVER": {}
+    if not config.get_object("dns_resolver", None)
+    else {key.upper(): value for key, value in config.get_object("dns_resolver").items()},
+    "LOCAL_DNS_SERVER": {"ENABLED": True},
+    "LOCAL_ACME_SERVER": {"ENABLED": True},
     "FRONTEND": {
         # enable debug dashboard
         "DASHBOARD": "traefik.{}".format(hostname),
@@ -104,15 +115,6 @@ host_environment = {
         },
         "EXTRA": 'accessLog:\n  format: "common"',
     },
-    "LOCALE": {key.upper(): value for key, value in config.get_object("locale").items()},
-    "DNS_RESOLVER": {}
-    if not config.get_object("dns_resolver", None)
-    else {key.upper(): value for key, value in config.get_object("dns_resolver").items()},
-    "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
-    "POSTGRES_PASSWORD": pg_postgres_password.result,
-    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose", True),
-    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn", True),
-    "LOCAL_DNS_SERVER": {"ENABLED": False},
 }
 
 
@@ -125,7 +127,7 @@ if stack_name.endswith("sim"):
         "WARNING: Disable autoupdate because of coreos fedora 42 and rpm-ostree layering issue!",
         file=sys.stderr,
     )
-    host_environment.update({"DEBUG_DISABLE_AUDOUPDATE": True})
+    host_environment.update({"DEBUG_DISABLE_AUTOUPDATE": True})
 
     luks_root_passphrase = pulumi.Output.concat("1234")
     luks_var_passphrase = pulumi.Output.concat("1234")
