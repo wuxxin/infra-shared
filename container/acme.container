@@ -40,7 +40,7 @@ Volume=/etc/containers/systemd/%N.config.json:/home/step/ca.json:ro
 Volume=acme.volume:/home/step/db
 
 # healthcheck for step-ca
-HealthCmd=wget -qSO /dev/null https://127.0.0.1:9000/health
+HealthCmd=wget -qSO /dev/null --no-check-certificate https://127.0.0.1:9000/health
 
 # publish api to [hostip:]hostPort:containerPort
 PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:9000:9000
