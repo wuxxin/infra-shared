@@ -381,7 +381,7 @@ EOF
                     echo "Attempting to install system wide Pip packages: ${PIP_PACKAGES_TO_INSTALL[@]}"
                     pip_cmd="pip"
                     if command -v pip3 &>/dev/null; then pip_cmd="pip3"; fi
-                    sudo "$pip_cmd" install "${PIP_PACKAGES_TO_INSTALL[@]}"
+                    sudo "$pip_cmd" install --break-system-packages "${PIP_PACKAGES_TO_INSTALL[@]}"
                 else
                     unsupported_os "$OS_DISTRONAME for systemwide python Pip installation"
                 fi
