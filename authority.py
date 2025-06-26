@@ -118,6 +118,25 @@ def pem_to_pkcs12_base64(
     return formatted_base64_data
 
 
+class PKCS12(pulumi.ComponentResource):
+    def __init__(self, name, key_pem, cert_chain_pem, password, opts=None):
+        super().__init__("pkg:index:PKCS12", name, None, opts)
+
+        self.result = pulumi.Output.all(
+            key_pem=key_pem,
+            cert_chain_pem=cert_chain_pem,
+            password=password,
+        ).apply(
+            lambda args: pem_to_pkcs12_base64(
+                pem_cert=str(args["cert_chain_pem"]),
+                pem_key=str(args["key_pem"]),
+                password=str(args["password"]),
+                friendlyname=name, # Use resource name as friendlyname
+            )
+        )
+        self.register_outputs({"result": self.result})
+
+
 class SSHFactory(pulumi.ComponentResource):
     def __init__(self, name, ssh_provision_name, opts=None):
         super().__init__("pkg:index:SSHFactory", name, None, opts)
@@ -498,15 +517,15 @@ class CASignedCert(pulumi.ComponentResource):
                 keepers=password_keepers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
-            self.pkcs12 = pulumi.Output.all(
-                key=self.key.private_key_pem,
-                cert=self.chain,
+            # Instantiate the new PKCS12 component
+            self.pkcs12_resource = PKCS12(
+                name=f"{name}_pkcs12",
+                key_pem=self.key.private_key_pem,
+                cert_chain_pem=self.chain,
                 password=self.pkcs12_password.result,
-            ).apply(
-                lambda args: pem_to_pkcs12_base64(
-                    str(args["cert"]), str(args["key"]), str(args["password"])
-                )
+                opts=pulumi.ResourceOptions(parent=self),
             )
+            self.pkcs12 = self.pkcs12_resource.result
 
         self.register_outputs({})
 
