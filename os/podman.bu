@@ -15,7 +15,6 @@ storage:
       contents:
         inline: |
           # our podman configuration
-
           [containers]
           default_capabilities = [ "CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID", "KILL", "NET_BIND_SERVICE", "SETFCAP", "SETGID", "SETPCAP", "SETUID", "SYS_CHROOT",]
           default_sysctls = [  "net.ipv4.ping_group_range=0 0",]
@@ -31,7 +30,7 @@ storage:
           # make podman1 to podman99 a 8Bit Network
           default_subnet_pools=[
 {%- for subnet in range(1,100) %}
-            {"base" = "{{ PODMAN_POOL_BASE }}.{{ subnet }}.0/24", "size" = 24},
+            {"base" = "{{ PODMAN_POOL_CIDR|regex_search('^([0-9]+\\.[0-9]+)\\.[0-9]+.+')|first }}.{{ subnet }}.0/24", "size" = 24},
 {%- endfor %}
           ]
 
@@ -40,9 +39,33 @@ storage:
 
           [engine.runtimes]
           [engine.volume_plugins]
-
           [machine]
           [secrets.opts]
+
+    # define podman0 network to use firewalld and the zone podman
+    - path: /etc/containers/networks/podman.json
+      mode: 0644
+      contents:
+        inline: |
+          {
+            "name": "podman",
+            "driver": "bridge",
+            "network_interface": "podman0",
+            "subnets": [
+              {
+                "subnet": "{{ PODMAN_CIDR }}",
+                "gateway": "{{ PODMAN_CIDR|cidr2ip }}"
+              }
+            ],
+            "ipv6_enabled": false,
+            "internal": false,
+            "dns_enabled": false,
+            "ipam_options": {
+              "driver": "host-local"
+            },
+            "firewall_driver": "firewalld",
+            "dns_name": "podman"
+          }
 
     # pipe string list of requested credentials from butane env to service env
     - path: /etc/local/environment/container-secrets.env

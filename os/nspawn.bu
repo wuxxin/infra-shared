@@ -46,6 +46,7 @@ storage:
           Address={{ NSPAWN_CIDR }}
           IPMasquerade=ipv4
           LinkLocalAddressing=no
+          IPv6AcceptRA=no
           DHCPServer=yes
           ConfigureWithoutCarrier=yes
 

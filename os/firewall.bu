@@ -2,33 +2,124 @@
 
 storage:
   directories:
-    # default firewall config directory
+    # default firewall config directories
     - path: /etc/firewalld
+    - path: /etc/firewalld/zones
+    - path: /etc/firewalld/policies
 
   files:
     # default firewalld config file
     - path: /etc/firewalld/firewalld.conf
       contents:
         inline: |
-            # firewalld config file
-            # DefaultZone - Default: public
-            # The default zone used if an empty zone string is used
-            DefaultZone=public
+          # firewalld config file
+          # DefaultZone - Default: public
+          # The default zone used if an empty zone string is used
+          DefaultZone=public
 
-            # Lockdown - Default: no
-            # If set to enabled, firewall changes with the D-Bus interface will be limited
-            # to applications that are listed in the lockdown whitelist
-            # The lockdown whitelist file is lockdown-whitelist.xml
-            Lockdown=no
+          # Lockdown - Default: no
+          # If set to enabled, firewall changes with the D-Bus interface will be limited
+          # to applications that are listed in the lockdown whitelist
+          # The lockdown whitelist file is lockdown-whitelist.xml
+          Lockdown=no
 
-            # IndividualCalls - Default: no
-            # Do not use combined -restore calls, but individual calls. This increases the time
-            # that is needed to apply changes and to start the daemon, but is good for debugging
-            IndividualCalls={{ "no" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "yes" }}
+          # IndividualCalls - Default: no
+          # Do not use combined -restore calls, but individual calls. This increases the time
+          # that is needed to apply changes and to start the daemon, but is good for debugging
+          IndividualCalls={{ "no" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "yes" }}
 
-            # LogDenied - Default: off
-            # Add logging rules right before reject and drop rules in the INPUT, FORWARD
-            # and OUTPUT chains for the default rules and also final reject and drop rules
-            # in zones. Possible values are: all, unicast, broadcast, multicast and off.
-            LogDenied={{ "off" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "all" }}
+          # LogDenied - Default: off
+          # Add logging rules right before reject and drop rules in the INPUT, FORWARD
+          # and OUTPUT chains for the default rules and also final reject and drop rules
+          # in zones. Possible values are: all, unicast, broadcast, multicast and off.
+          LogDenied={{ "off" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "all" }}
 
+    # Zone Configurations
+    # define ssh in public zone as safety measure to be able to connect
+    - path: /etc/firewalld/zones/public.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <zone>
+            <short>Public</short>
+            <description>Public Zone. Only selected incoming connections are accepted.</description>
+            <service name="ssh"/>
+          </zone>
+
+    - path: /etc/firewalld/zones/internal.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <zone target="REJECT">
+            <short>internal</short>
+            <description>Zone for internal services on the host machine.</description>
+            <source address="{{ INTERNAL_CIDR }}"/>
+          </zone>
+
+    - path: /etc/firewalld/zones/podman.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <zone target="REJECT">
+            <short>Podman</short>
+            <description>Zone for Podman containers and networks.</description>
+            <source address="{{ PODMAN_CIDR }}"/>
+            <source address="{{ PODMAN_POOL_CIDR }}"/>
+          </zone>
+
+    - path: /etc/firewalld/zones/nspawn.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <zone target="REJECT">
+            <short>nspawn</short>
+            <description>Zone for systemd-nspawn containers.</description>
+            <source address="{{ NSPAWN_CIDR }}"/>
+          </zone>
+
+    # Policy Configurations
+    - path: /etc/firewalld/policies/ingress-public.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy target="ACCEPT">
+            <short>Allow Incoming http/s Traffic</short>
+            <description>Allow incoming http, https, and 9443 to the host from the public zone.</description>
+            <ingress-zone name="public"/>
+            <service name="http"/>
+            <service name="https"/>
+            <port protocol="tcp" port="9443"/>
+          </policy>
+
+    - path: /etc/firewalld/policies/egress-public.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy>
+            <short>Egress to Public</short>
+            <description>Allow and masquerade traffic from internal zones to the public zone.</description>
+            <ingress-zone name="internal"/>
+            <ingress-zone name="podman"/>
+            <ingress-zone name="nspawn"/>
+            <egress-zone name="public"/>
+            <masquerade/>
+          </policy>
+
+    - path: /etc/firewalld/policies/container-to-internal.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy>
+            <short>Container to Internal</short>
+            <description>Allow traffic from Podman and nspawn containers to the internal zone.</description>
+            <ingress-zone name="podman"/>
+            <ingress-zone name="nspawn"/>
+            <egress-zone name="internal"/>
+          </policy>

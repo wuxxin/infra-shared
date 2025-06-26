@@ -59,6 +59,7 @@ storage:
           interface-name=internal
           type=bridge
           autoconnect=true
+          zone=internal
 
           [device]
           type=bridge

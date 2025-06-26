@@ -72,13 +72,11 @@ RPM_OSTREE_INSTALL:
   # firewalld, use by firewall.bu for firewall rules
   - firewalld
 
-# Network CIDR of Internal, Podman and Nspawn Network
+# Network CIDR of Internal, Podman and Nspawn Networks
 INTERNAL_CIDR: 10.87.240.1/24
 NSPAWN_CIDR: 10.87.241.1/24
 PODMAN_CIDR: 10.88.0.1/16
-# Podman subnetworks (x.x.0-255.y)
-PODMAN_POOL_BASE: "10.89"
-# Libvirt "default" network bridge
+PODMAN_POOL_CIDR: 10.89.0.1/16
 LIBVIRT_CIDR: 192.168.122.1/24
 
 # DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
