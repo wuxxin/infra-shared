@@ -659,6 +659,7 @@ class DataExport(pulumi.ComponentResource):
             dir=project_dir,
             triggers=[
                 data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
+                self.filename, # Ensure changes to filename also trigger recreation
             ],
         )
         self.register_outputs({})
