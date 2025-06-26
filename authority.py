@@ -485,8 +485,18 @@ class CASignedCert(pulumi.ComponentResource):
 
         if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
             # Create a password encrypted PKCS#12 object if only client_auth
+            # Use the certificate's PEM and key PEM as keepers.
+            # If the cert or key changes, a new password will be generated.
+            password_keepers = {
+                "cert_pem": self.cert.cert_pem,
+                "key_pem": self.key.private_key_pem,
+            }
             self.pkcs12_password = random.RandomPassword(
-                "{}_pkcs12_password".format(name), special=False, length=24
+                "{}_pkcs12_password".format(name),
+                length=24,
+                special=False,
+                keepers=password_keepers,
+                opts=pulumi.ResourceOptions(parent=self),
             )
             self.pkcs12 = pulumi.Output.all(
                 key=self.key.private_key_pem,
