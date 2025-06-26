@@ -118,9 +118,9 @@ def pem_to_pkcs12_base64(
     return formatted_base64_data
 
 
-class PKCS12(pulumi.ComponentResource):
+class PKCS12Bundle(pulumi.ComponentResource):
     def __init__(self, name, key_pem, cert_chain_pem, password, opts=None):
-        super().__init__("pkg:index:PKCS12", name, None, opts)
+        super().__init__("pkg:index:PKCS12Bundle", name, None, opts)
 
         self.result = pulumi.Output.all(
             key_pem=key_pem,
@@ -131,7 +131,7 @@ class PKCS12(pulumi.ComponentResource):
                 pem_cert=str(args["cert_chain_pem"]),
                 pem_key=str(args["key_pem"]),
                 password=str(args["password"]),
-                friendlyname=name, # Use resource name as friendlyname
+                friendlyname=name,  # Use resource name as friendlyname
             )
         )
         self.register_outputs({"result": self.result})
@@ -423,7 +423,7 @@ class CASignedCert(pulumi.ComponentResource):
     - cert: tls.LocallySignedCert resource representing the signed certificate itself
     - chain: Pulumi Output object that concatenates the signed certificate with the certificate chain
     if "client_auth" in allowed_uses:
-    - pkcs12: base64 encoded transport password secured pkcs12 client certificate file data
+    - pkcs12_bundle: Pulumi Output object of base64 encoded transport password secured pkcs12 client certificate file data
     - pkcs12_password: Pulumi Output object of random password generator
     """
 
@@ -517,15 +517,13 @@ class CASignedCert(pulumi.ComponentResource):
                 keepers=password_keepers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
-            # Instantiate the new PKCS12 component
-            self.pkcs12_resource = PKCS12(
-                name=f"{name}_pkcs12",
+            self.pkcs12_bundle = PKCS12Bundle(
+                name=f"{name}_pkcs12_bundle",
                 key_pem=self.key.private_key_pem,
                 cert_chain_pem=self.chain,
                 password=self.pkcs12_password.result,
                 opts=pulumi.ResourceOptions(parent=self),
             )
-            self.pkcs12 = self.pkcs12_resource.result
 
         self.register_outputs({})
 
