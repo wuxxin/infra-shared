@@ -34,18 +34,19 @@ raspberry:
     sha256sum: 2fe99b68fff95bd420bd7c8b24a3ef3c76aac2b523046d5742befdc239475844
 
 openwrt:
-  version: "23.05.5"
+  version: "24.10.2"
   target: x86-64
   model: generic
   baseurl: https://downloads.openwrt.org/releases
   sign:
-    id: 626471F1
-    fingerprint: 6D9278A33A9AB3146262DCECF93525A88B699029
-    sha256sum: cc745af6043fd33b3407cd83d0f5e7476a01fc15328cacf576c083bd7987fcbd
+    id: B313E594
+    sha256sum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
     baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
     comment: |
-      23.05.0 and newer builds are signed with PGP key for unattended snapshot builds
-      User ID: OpenWrt Build System pgpsign-snapshots@openwrt.org
+      Since 2024-11-05 0x1D53D1877742E911 is used to production builds
+        User ID: OpenWrt Build System (Nitrokey3) contact@openwrt.org
+      Before for 23.05.0 and newer builds are signed with PGP key for unattended snapshot builds
+        User ID: OpenWrt Build System pgpsign-snapshots@openwrt.org
       see https://openwrt.org/docs/guide-user/security/signatures
   disabled_services:
     - uhttpd
@@ -107,11 +108,6 @@ openwrt:
     # make optional themes available for the web-ui
     - luci-theme-material
     - luci-theme-openwrt-2020
-
-homeassistant:
-  version: "13.2"
-  baseurl: https://github.com/home-assistant/operating-system/releases/download
-  target: generic-x86-64
 
 esphome:
   esp32:
