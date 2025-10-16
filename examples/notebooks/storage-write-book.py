@@ -137,7 +137,7 @@ def __(args, get_block_device, get_removable_drive, sys, udisks_manager):
                 else:
                     if drive_interface["Size"] != args["size"]:
                         print(
-                            "ERROR: Size Expected: {}, Actual: {]".format(
+                            "ERROR: Size Expected: {}, Actual: {}".format(
                                 args["size"], drive_interface["Size"]
                             )
                         )
