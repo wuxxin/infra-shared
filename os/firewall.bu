@@ -29,7 +29,7 @@ storage:
           IndividualCalls={{ "no" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "yes" }}
 
           # LogDenied - Default: off
-          # Add logging rules right before reject and drop rules in the INPUT, FORWARD
+          # Add logging rules right before and drop rules in the INPUT, FORWARD
           # and OUTPUT chains for the default rules and also final reject and drop rules
           # in zones. Possible values are: all, unicast, broadcast, multicast and off.
           LogDenied={{ "off" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "all" }}
@@ -52,7 +52,7 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <zone target="REJECT">
+          <zone target="%%REJECT%%">
             <short>internal</short>
             <description>Zone for internal services on the host machine.</description>
             <source address="{{ INTERNAL_CIDR }}"/>
@@ -63,7 +63,7 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <zone target="REJECT">
+          <zone target="%%REJECT%%">
             <short>Podman</short>
             <description>Zone for Podman containers and networks.</description>
             <source address="{{ PODMAN_CIDR }}"/>
@@ -75,7 +75,7 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <zone target="REJECT">
+          <zone target="%%REJECT%%">
             <short>nspawn</short>
             <description>Zone for systemd-nspawn containers.</description>
             <source address="{{ NSPAWN_CIDR }}"/>
