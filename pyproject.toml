@@ -21,7 +21,7 @@ name = "infra-shared"
 # version dynamic from git
 dynamic = ["version"]
 # demand reasonable new python
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
     # yaml handling
@@ -35,9 +35,6 @@ dependencies = [
 
     # tools.py: additional ssh/sftp connectivity
     "paramiko",
-
-    # tooly.py: saltstack - saltcall for local tools building
-    "salt>=3007.1",
 
     # authority.py, scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
     "cryptography",
@@ -63,6 +60,17 @@ dependencies = [
     "pulumi-random",
     "pulumi-tls",
 
+    # tooly.py: saltstack - saltcall for local tools building
+    "salt>=3007.1",
+    # include sometimes missing dependencies, add passlib and bcrypt for utils.pycrypto workaround
+    "distro",
+    "looseversion",
+    "msgpack",
+    "passlib",
+    "bcrypt",
+
+    # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
+    "esphome>=2025.10.1",
 ]
 
 [project.optional-dependencies]
