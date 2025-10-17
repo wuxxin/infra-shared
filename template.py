@@ -132,6 +132,7 @@ class ToolsExtension(jinja2.ext.Extension):
         self.environment.filters["regex_replace"] = self.regex_replace
         self.environment.filters["yaml"] = self.yaml
         self.environment.filters["cidr2ip"] = self.cidr2ip
+        self.environment.filters["cidr2reverse_ptr"] = self.cidr2reverse_ptr
 
     def list_files(self, value):
         "returns available files in searchpath[0]/value as string, newline seperated"
@@ -223,22 +224,26 @@ class ToolsExtension(jinja2.ext.Extension):
         return compiled_pattern.sub(replacement, value)
 
     def yaml(self, value, inline=False):
-        """converts a python object to a YAML string
-        inline: boolean indicating whether to use inline style for the YAML output
+        """
+        Converts a python object to a YAML string
+
+        Args:
+            value (object): The python object to be serialized
+            inline (boolean): indicating whether to use inline style for the YAML output
         """
         return yaml.safe_dump(value, default_flow_style=inline)
 
     def cidr2ip(self, value: str, index: int = 0) -> Optional[str]:
         """
-        Converts a CIDR notation to an IP address.
+        Converts a CIDR notation to an IP address
 
         Args:
             value (str): The CIDR notation (e.g., "192.168.1.0/24")
             index (int, optional): The 0-based index of the usable IP address to return
         Returns:
-            str | None: The IP address at the specified index as a string, or None if out of range
+            str: The IP address at the specified index as a string
         Raises:
-            ValueError: If the CIDR is invalid, or if index < 0
+            ValueError: If the CIDR is invalid, if index < 0, if index is out of range
         """
         if index < 0:
             raise ValueError("index must be non-negative")
@@ -252,12 +257,31 @@ class ToolsExtension(jinja2.ext.Extension):
             if index == 0:
                 return str(network.network_address)
             else:
-                return None
+                raise ValueError(f"Index out of range: {index} of 1")
 
         if index < len(hosts):
             return str(hosts[index])
         else:
-            return None
+            raise ValueError(f"Index out of range: {index} of {len(hosts)}")
+
+    def cidr2reverse_ptr(self, value: str) -> Optional[str]:
+        """
+        Converts an IPv4 or IPv6 CIDR string into its corresponding reverse DNS zone name.
+
+        Args: cidr_string: The network address in CIDR notation,
+                e.g., "10.87.240.1/24". Host bits in the address are ignored
+        Returns:
+            str: The reverse DNS zone name as a string (e.g., "240.87.10.in-addr.arpa.")
+        Raises:
+            ValueError: If the CIDR is invalid
+        """
+        try:
+            # strict=False allows for host bits to be set in the IP part (e.g., .1 in a /24).
+            net = ipaddress.ip_network(value, strict=False)
+            # The 'reverse_pointer' attribute automatically generates the correct in-addr.arpa or ip6.arpa name.
+            return net.reverse_pointer
+        except ValueError as e:
+            raise ValueError(f"Invalid CIDR: {value} - {e}") from e
 
 
 def jinja_run(
@@ -539,7 +563,7 @@ def butane_to_salt(
     - replace filename with /host_etc prefix
         - if in /etc/hostname, /etc/hosts, /etc/resolv.conf
 
-    - if update_service_status=True
+    - if update_status=True
 
         - write list of (enabled|disabled|masked) service names to
             - service_enabled.list
