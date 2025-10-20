@@ -52,7 +52,10 @@ dependencies = [
     "ipykernel",
 
     # pulumi - imperativ infrastructure delaration using python
-    "pulumi>=3.0.0,<4.0.0",
+    "pulumi>3.200.0,<4.0.0",
+    # XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
+    "grpcio>=1.71.0",
+
     # pip is needed for pulumi package auto detection
     "pip",
     # pulumi modules used in authorithy and tools
@@ -70,7 +73,8 @@ dependencies = [
     "bcrypt",
 
     # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-    "esphome>=2025.10.1",
+    # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
+    "esphome>=2025.7.1",
 ]
 
 [project.optional-dependencies]
