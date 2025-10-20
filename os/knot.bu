@@ -89,6 +89,40 @@ storage:
           {{ NSPAWN_CIDR|cidr2ip }} IN PTR self.nspawn.
           @     CAA 0 issue ""
 
+    # reverse ptr zones for INTERNAL_CIDR, NSPAWN_CIDR, PODMAN_CIDR, PODMAN_POOL_CIDR
+    - path: /etc/local/knot/{{ INTERNAL_CIDR|cidr2reverse_ptr }}.zone
+      contents:
+        inline: |
+          $TTL {{ common.ttl }}
+          @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS  knot.internal.
+          1     IN  PTR self.internal.
+          2     IN  PTR knot.internal.
+
+    - path: /etc/local/knot/{{ NSPAWN_CIDR|cidr2reverse_ptr }}.zone
+      contents:
+        inline: |
+          $TTL {{ common.ttl }}
+          @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS  knot.internal.
+          1     IN  PTR self.nspawn.
+
+    - path: /etc/local/knot/{{ PODMAN_CIDR|cidr2reverse_ptr }}.zone
+      contents:
+        inline: |
+          $TTL {{ common.ttl }}
+          @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS  knot.internal.
+          1     IN  PTR self.podman.
+
+    - path: /etc/local/knot/{{ PODMAN_POOL_CIDR|cidr2reverse_ptr }}.zone
+      contents:
+        inline: |
+          $TTL {{ common.ttl }}
+          @     IN  SOA knot.internal. postmaster.internal. 1 {{ common.refresh }} {{ common.retry }} {{ common.expire }} {{ common.nxdomain }}
+          @     NS  knot.internal.
+          1     IN  PTR self.podman.
+
 systemd:
   units:
     - name: knot.service
