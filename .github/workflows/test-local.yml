@@ -77,7 +77,7 @@ jobs:
           pulumi-cache-${{ runner.os }}-
 
     - name: Setup python build Environment
-      run: make build-env
+      run: make buildenv
 
     - name: build Docs
       run: make docs-online-build
