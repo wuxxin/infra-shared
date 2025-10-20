@@ -1,5 +1,5 @@
 """
-## Pulumi - Authority - TLS/X509 Certificates, OpenSSH Keys, DNSSEC Keys
+## Pulumi - Authority - TLS/X509 Certificates, DNSSEC Keys, OpenSSH Keys
 
 ### Config Values
 - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_max_path_length, ca_create_using_vault
@@ -8,6 +8,9 @@
 - ca_provision_name, ca_provision_unit, ca_provision_dns_names
 - ca_alt_provision_name, ca_alt_provision_unit, ca_alt_provision_dns_names
 - ca_extra_cert_bundle
+    - additional trusted ssl ca bundle
+- ns_extra_ksk_bundle
+    - additional trusted dns ksk public keys bundle
 - ssh_provision_name
 
 ### useful resources
@@ -25,8 +28,8 @@
 - ssh_provision_name
 - ssh_factory
     - provision_key, provision_publickey, authorized_keys
-- dns_factory
-    - ksk_key, ksk_anchor, transfer_key, acme_update_key, update_key, notify_key
+- ns_factory
+    - ksk_key, ksk_anchor, ksk_anchor_bundle, transfer_key, acme_update_key, update_key, notify_key
 
 ### Functions
 - create_host_cert
@@ -36,13 +39,14 @@
 - pem_to_pkcs12_base64
 
 ### Components
-- SSHFactory
 - CACertFactoryVault
 - CACertFactoryPulumi
 - CASignedCert
 - SelfSignedCert
+- PKCS12Bundle
+- NSFactory
 - TSIGKey
-- DNSFactory
+- SSHFactory
 
 """
 
@@ -120,7 +124,7 @@ def pem_to_pkcs12_base64(
 
 class PKCS12Bundle(pulumi.ComponentResource):
     def __init__(self, name, key_pem, cert_chain_pem, password, opts=None):
-        super().__init__("pkg:index:PKCS12Bundle", name, None, opts)
+        super().__init__("pkg:authority:PKCS12Bundle", name, None, opts)
 
         self.result = pulumi.Output.all(
             key_pem=key_pem,
@@ -131,15 +135,15 @@ class PKCS12Bundle(pulumi.ComponentResource):
                 pem_cert=str(args["cert_chain_pem"]),
                 pem_key=str(args["key_pem"]),
                 password=str(args["password"]),
-                friendlyname=name,  # Use resource name as friendlyname
+                friendlyname=name,
             )
         )
-        self.register_outputs({"result": self.result})
+        self.register_outputs({})
 
 
 class SSHFactory(pulumi.ComponentResource):
     def __init__(self, name, ssh_provision_name, opts=None):
-        super().__init__("pkg:index:SSHFactory", name, None, opts)
+        super().__init__("pkg:authority:SSHFactory", name, None, opts)
 
         ssh_provision_key = tls.PrivateKey(
             "ssh_provision_key",
@@ -171,7 +175,7 @@ class TSIGKey(pulumi.ComponentResource):
             except (KeyError, IndexError) as e:
                 raise Exception(f"Failed to find TSIG secret in YAML: {e}") from e
 
-        super().__init__("pkg:index:TSIGKey", name, None, opts)
+        super().__init__("pkg:authority:TSIGKey", name, None, opts)
         this_opts = ResourceOptions.merge(
             ResourceOptions(parent=self, additional_secret_outputs=["stdout"]), opts
         )
@@ -187,10 +191,10 @@ class TSIGKey(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-class DNSFactory(pulumi.ComponentResource):
-    def __init__(self, name, names_list=None, opts=None):
+class NSFactory(pulumi.ComponentResource):
+    def __init__(self, name, names_list=None, extra_ksk_bundle=None, opts=None):
         "names_list: list of strings taken as domains for anchorcert instead of name"
-        super().__init__("pkg:index:DNSFactory", name, None, opts)
+        super().__init__("pkg:authority:NSFactory", name, None, opts)
         this_opts = ResourceOptions.merge(ResourceOptions(parent=self), opts)
         dns_root = command.local.Command(
             "{}_dns_root".format(name),
@@ -201,12 +205,12 @@ class DNSFactory(pulumi.ComponentResource):
                 ResourceOptions(additional_secret_outputs=["stdout"]), this_opts
             ),
         )
-        dns_secrets = pulumi.Output.json_loads(dns_root.stdout)
+        dns_secrets = dns_root.stdout.apply(lambda x: json.loads(x))
         self.ksk_key = Output.secret(dns_secrets["ksk_key"])
 
         # make anchor file contain all requested domains
         base_anchor_key = Output.unsecret(dns_secrets["ksk_anchor"])
-        all_anchor_outputs = []
+        anchor_list = []
         if names_list:
             for anchor_domain in names_list:
                 transformed_anchor = base_anchor_key.apply(
@@ -214,12 +218,18 @@ class DNSFactory(pulumi.ComponentResource):
                         "^[^.]+\\.", f"{domain}.", cert_text, flags=re.M
                     )
                 )
-                all_anchor_outputs.append(transformed_anchor)
+                anchor_list.append(transformed_anchor)
         else:
-            all_anchor_outputs.append(base_anchor_key)
-        self.ksk_anchor = Output.all(*all_anchor_outputs).apply(
-            lambda anchors: "\n".join(anchors)
-        )
+            anchor_list.append(base_anchor_key)
+        self.ksk_anchor = Output.all(*anchor_list).apply(lambda anchors: "\n".join(anchors))
+
+        # append ksk anchor bundle to our bundle
+        if extra_ksk_bundle:
+            self.ksk_anchor_bundle = Output.all(*anchor_list, extra_ksk_bundle).apply(
+                lambda anchors: "\n".join(anchors)
+            )
+        else:
+            self.ksk_anchor_bundle = self.ksk_anchor
 
         self.transfer_key = TSIGKey(f"transfer-{name}", this_opts)
         self.update_key = TSIGKey(f"update-{name}", this_opts)
@@ -230,12 +240,12 @@ class DNSFactory(pulumi.ComponentResource):
 
 class CACertFactoryVault(pulumi.ComponentResource):
     def __init__(self, name, ca_config, opts=None):
-        super().__init__("pkg:index:CACertFactoryVault", name, None, opts)
+        super().__init__("pkg:authority:CACertFactoryVault", name, None, opts)
 
-        # asure that permitted_domains is set to empty list and empty string, if not configured
+        # delete permitted_domains for vault config, as it will become a critical CA Extension,
+        #   and mbed-tls connect from eg. an ESP32 (ESP-IDF Framework) will fail.
         vault_config = copy.deepcopy(ca_config)
-        if vault_config.get("ca_permitted_domains", None) is None:
-            vault_config.update({"ca_permitted_domains_list": [], "ca_permitted_domains": ""})
+        vault_config.update({"ca_permitted_domains_list": [], "ca_permitted_domains": ""})
 
         vault_ca = command.local.Command(
             "{}_vault_ca".format(name),
@@ -254,8 +264,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
                 aliases=[Alias(name="vault_ca")] if name == "ca_factory" else [],
             ),
         )
-        # XXX use json_loads to workaround https://github.com/pulumi/pulumi-command/issues/166
-        ca_secrets = pulumi.Output.json_loads(vault_ca.stdout)
+        ca_secrets = vault_ca.stdout.apply(lambda x: json.loads(x))
         ca_root_hash = command.local.Command(
             "{}_root_hash".format(name),
             create="openssl x509 -hash -noout",
@@ -274,7 +283,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
         self.root_cert_pem = Output.unsecret(ca_secrets["ca_root_cert_pem"])
         self.root_hash_id = ca_root_hash.stdout
         self.root_bundle_pem = Output.concat(
-            self.root_cert_pem, "\n", vault_config.get("ca_extra_cert_bundle", "\n")
+            self.root_cert_pem, "\n", vault_config.get("ca_extra_cert_bundle") or "\n"
         )
         self.provision_key_pem = Output.secret(ca_secrets["ca_provision_key_pem"])
         self.provision_request_pem = Output.unsecret(ca_secrets["ca_provision_request_pem"])
@@ -289,9 +298,9 @@ class CACertFactoryVault(pulumi.ComponentResource):
 
 class CACertFactoryPulumi(pulumi.ComponentResource):
     def __init__(self, name, ca_config, opts=None):
-        super().__init__("pkg:index:CACertFactoryPulumi", name, None, opts)
+        super().__init__("pkg:authority:CACertFactoryPulumi", name, None, opts)
 
-        if ca_config.get("ca_max_path_length", None) is not None:
+        if ca_config.get("ca_max_path_length") is not None:
             raise ValueError("'ca_max_path_length' is unsupported. use CACertFactoryVault")
 
         # create root key, root cert
@@ -404,7 +413,7 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
         self.root_cert_pem = ca_root_cert.cert_pem
         self.root_hash_id = ca_root_hash.stdout
         self.root_bundle_pem = Output.concat(
-            self.root_cert_pem, "\n", ca_config.get("ca_extra_cert_bundle", "\n")
+            self.root_cert_pem, "\n", ca_config.get("ca_extra_cert_bundle") or "", "\n"
         )
         self.provision_key_pem = ca_provision_key.private_key_pem
         self.provision_request_pem = ca_provision_request.cert_request_pem
@@ -422,7 +431,8 @@ class CASignedCert(pulumi.ComponentResource):
     - request: tls.CertRequest certificate request that was used to generate the signed certificate
     - cert: tls.LocallySignedCert resource representing the signed certificate itself
     - chain: Pulumi Output object that concatenates the signed certificate with the certificate chain
-    if "client_auth" in allowed_uses:
+
+    if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
     - pkcs12_bundle: Pulumi Output object of base64 encoded transport password secured pkcs12 client certificate file data
     - pkcs12_password: Pulumi Output object of random password generator
     """
@@ -431,18 +441,18 @@ class CASignedCert(pulumi.ComponentResource):
         def undef_or_none_def(struct, entry, default):
             return struct.get(entry) if struct.get(entry) is not None else default
 
-        super().__init__("pkg:index:CASignedCert", "{}_cacert".format(name), None, opts)
+        super().__init__("pkg:authority:CASignedCert", "{}_cacert".format(name), None, opts)
 
         ca_config = cert_config["ca_config"]
         ca_factory = cert_config["ca_factory"]
         common_name = cert_config["common_name"]
         dns_names = cert_config["dns_names"]
-        ip_addresses = cert_config.get("ip_addresses", [])
+        ip_addresses = cert_config.get("ip_addresses") or []
         allowed_uses = cert_config["allowed_uses"]
-        is_ca_certificate = cert_config.get("is_ca_certificate", False)
-        organizational_unit = cert_config.get("organizational_unit", None)
+        is_ca_certificate = cert_config.get("is_ca_certificate") or False
+        organizational_unit = cert_config.get("organizational_unit")
         use_provision_ca = undef_or_none_def(cert_config, "use_provision_ca", True)
-        custom_provision_ca = cert_config.get("custom_provision_ca", None)
+        custom_provision_ca = cert_config.get("custom_provision_ca")
         validity_period_hours = ca_config.get(
             "cert_validity_period_hours", default_hours_private_cert
         )
@@ -504,8 +514,6 @@ class CASignedCert(pulumi.ComponentResource):
 
         if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
             # Create a password encrypted PKCS#12 object if only client_auth
-            # Use the certificate's PEM and key PEM as keepers.
-            # If the cert or key changes, a new password will be generated.
             password_keepers = {
                 "cert_pem": self.cert.cert_pem,
                 "key_pem": self.key.private_key_pem,
@@ -530,11 +538,11 @@ class CASignedCert(pulumi.ComponentResource):
 
 class SelfSignedCert(pulumi.ComponentResource):
     def __init__(self, name, cert_config, opts=None):
-        super().__init__("pkg:index:SelfSignedCert", "{}_sscert".format(name), None, opts)
+        super().__init__("pkg:authority:SelfSignedCert", "{}_sscert".format(name), None, opts)
 
         common_name = cert_config["common_name"]
         dns_names = cert_config["dns_names"]
-        ip_addresses = cert_config.get("ip_addresses", [])
+        ip_addresses = cert_config.get("ip_addresses") or []
         org_name = cert_config["org_name"]
         allowed_uses = cert_config["allowed_uses"]
         validity_period_hours = cert_config.get(
@@ -622,6 +630,7 @@ def create_host_cert(
     common_name,
     dns_names,
     ip_addresses=[],
+    organizational_unit=None,
     custom_ca_config=None,
     custom_ca_factory=None,
     use_provision_ca=None,
@@ -650,6 +659,7 @@ def create_host_cert(
         "dns_names": dns_names,
         "ip_addresses": ip_addresses,
         "allowed_uses": ["client_auth", "server_auth"],
+        "organizational_unit": organizational_unit if organizational_unit else "host",
         "use_provision_ca": use_provision_ca,
         "custom_provision_ca": custom_provision_ca,
     }
@@ -661,6 +671,7 @@ def create_client_cert(
     resource_name,
     common_name,
     dns_names=[],
+    organizational_unit=None,
     custom_ca_config=None,
     custom_ca_factory=None,
     use_provision_ca=None,
@@ -686,6 +697,7 @@ def create_client_cert(
         "common_name": common_name,
         "dns_names": dns_names,
         "allowed_uses": ["client_auth"],
+        "organizational_unit": organizational_unit if organizational_unit else "client",
         "use_provision_ca": use_provision_ca,
         "custom_provision_ca": custom_provision_ca,
     }
@@ -728,53 +740,47 @@ def create_selfsigned_cert(
 
 
 # ### X509 ca_config
-__ca_permitted_list = config.get_object(
-    "ca_permitted_domains",
-    ["lan", project_name],
-)
-__ca_dns_list = config.get_object(
-    "ca_dns_names",
-    ["ca.{}.lan".format(project_name), "ca.{}.{}".format(project_name, project_name)],
-)
-__prov_dns_list = config.get_object("ca_provision_dns_names", __ca_dns_list)
-__alt_prov_dns_list = config.get_object("ca_alt_provision_dns_names", __ca_dns_list)
+
+__ca_permitted_list = config.get_object("ca_permitted_domains") or ["internal"]
+__ca_dns_list = config.get_object("ca_dns_names") or [
+    "ca.{}.internal".format(project_name),
+    "ca.{}.{}".format(project_name, project_name),
+]
+__prov_dns_list = config.get_object("ca_provision_dns_names") or __ca_dns_list
+__alt_prov_dns_list = config.get_object("ca_alt_provision_dns_names") or __ca_dns_list
 
 ca_config = {
-    "ca_name": config.get("ca_name", "{}-{}-Root-CA".format(project_name, stack_name)),
-    "ca_org": config.get("ca_org", "{}-{}".format(project_name, stack_name)),
-    "ca_unit": config.get("ca_unit", "Certificate Authority"),
-    "ca_locality": config.get("ca_locality", "World"),
-    "ca_country": config.get("ca_country", "UN"),
-    "ca_validity_period_hours": config.get_int("ca_validity_period_hours", default_hours_ca),
-    "cert_validity_period_hours": config.get_int(
-        "cert_validity_period_hours", default_hours_private_cert
-    ),
-    "ca_extra_cert_bundle": config.get("ca_extra_cert_bundle", "\n"),
+    "ca_name": config.get("ca_name") or "{}-{}-Root-CA".format(project_name, stack_name),
+    "ca_org": config.get("ca_org") or "{}-{}".format(project_name, stack_name),
+    "ca_unit": config.get("ca_unit") or "Certificate Authority",
+    "ca_locality": config.get("ca_locality") or "World",
+    "ca_country": config.get("ca_country") or "UN",
+    "ca_validity_period_hours": config.get_int("ca_validity_period_hours") or default_hours_ca,
+    "cert_validity_period_hours": config.get_int("cert_validity_period_hours")
+    or default_hours_private_cert,
+    "ca_extra_cert_bundle": config.get("ca_extra_cert_bundle") or "\n",
     "ca_permitted_domains": ",".join(__ca_permitted_list),
     "ca_permitted_domains_list": __ca_permitted_list,
     "ca_dns_names": ",".join(__ca_dns_list),
     "ca_dns_names_list": __ca_dns_list,
-    "ca_provision_name": config.get(
-        "ca_provision_name", "{}-{}-Provision-CA".format(project_name, stack_name)
-    ),
-    "ca_provision_unit": config.get("ca_provision_unit", "Certificate Provision"),
+    "ca_provision_name": config.get("ca_provision_name")
+    or "{}-{}-Provision-CA".format(project_name, stack_name),
+    "ca_provision_unit": config.get("ca_provision_unit") or "Certificate Provision",
     "ca_provision_dns_names": ",".join(__prov_dns_list),
     "ca_provision_dns_names_list": __prov_dns_list,
-    "ca_alt_provision_name": config.get(
-        "ca_alt_provision_name",
-        "{}-{}-Alternate-Provision-CA".format(project_name, stack_name),
-    ),
-    "ca_alt_provision_unit": config.get(
-        "ca_alt_provision_unit", "Alternate Certificate Provision"
-    ),
+    "ca_alt_provision_name": config.get("ca_alt_provision_name")
+    or "{}-{}-Alternate-Provision-CA".format(project_name, stack_name),
+    "ca_alt_provision_unit": config.get("ca_alt_provision_unit")
+    or "Alternate Certificate Provision",
     "ca_alt_provision_dns_names": ",".join(__alt_prov_dns_list),
     "ca_alt_provision_dns_names_list": __alt_prov_dns_list,
 }
+print(ca_config)
 pulumi.export("ca_config", ca_config)
 
 
 # ### X509 Certificate Authority
-if config.get_bool("ca_create_using_vault", True):
+if config.get_bool("ca_create_using_vault") in (None, True):
     # use vault for initial CA creation and permitted_domains support
     ca_factory = CACertFactoryVault("ca_factory", ca_config)
 else:
@@ -806,10 +812,14 @@ provision_host_names = [
     "provision_host.{}".format(domain) for domain in ca_config["ca_permitted_domains_list"]
 ]
 # TODO make provision_host_ip_addresses default more robust, but resourceful
-provision_ip_addresses = config.get(
-    "provision_host_ip_addresses",
-    [str(get_default_host_ip()), "10.87.240.1", "10.87.241.1", "10.88.0.1", "192.168.122.1"],
-)
+provision_ip_addresses = config.get("provision_host_ip_addresses") or [
+    str(get_default_host_ip()),
+    "10.87.240.1",
+    "10.87.241.1",
+    "10.88.0.1",
+    "192.168.122.1",
+]
+
 # create a host cert usable for both server_auth and client_auth
 provision_host_tls = create_host_cert(
     provision_host_names[0],
@@ -821,8 +831,8 @@ pulumi.export("provision_host_tls", provision_host_tls)
 
 
 # ### SSH config
-ssh_provision_name = config.get(
-    "ssh_provision_name", "provision@{}.{}".format(stack_name, project_name)
+ssh_provision_name = config.get("ssh_provision_name") or "provision@{}.{}".format(
+    stack_name, project_name
 )
 pulumi.export("ssh_provision_name", ssh_provision_name)
 
@@ -832,5 +842,9 @@ pulumi.export("ssh_factory", ssh_factory)
 
 
 # ### DNS config for internal domains using one ksk and anchor
-dns_factory = DNSFactory("internal", names_list=["internal", "podman", "nspawn"])
-pulumi.export("dns_factory", dns_factory)
+ns_factory = NSFactory(
+    "internal",
+    names_list=["internal", "podman", "nspawn"],
+    extra_ksk_bundle=config.get("ns_extra_ksk_bundle") or "\n",
+)
+pulumi.export("ns_factory", ns_factory)
