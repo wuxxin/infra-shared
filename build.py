@@ -41,7 +41,7 @@ def build_this(resource_name, sls_name, config_name, environment={}, opts=None):
     def_pillar = {
         "build": yaml.safe_load(open(os.path.join(this_dir, "build_defaults.yml"), "r"))
     }
-    pulumi_pillar = {"build": config.get_object("build", {config_name: {}})}
+    pulumi_pillar = {"build": config.get_object("build") or {config_name: {}}}
 
     # do a manual merge for flag salt_debug
     defd = get_nested_value(def_pillar, ["build", "meta", "debug"])
@@ -54,13 +54,14 @@ def build_this(resource_name, sls_name, config_name, environment={}, opts=None):
     if config_name not in pulumi_pillar["build"]:
         pulumi_pillar["build"].update({config_name: {}})
 
-    # calculate hashes from both pillars
+    # calculate hashes from both pillars and environment
     def_pillar_hash = hashlib.sha256(
         json.dumps(def_pillar["build"][config_name]).encode("utf-8")
     ).hexdigest()
     pulumi_pillar_hash = hashlib.sha256(
         json.dumps(pulumi_pillar["build"][config_name]).encode("utf-8")
     ).hexdigest()
+    environment_hash = hashlib.sha256(json.dumps(environment).encode("utf-8")).hexdigest()
 
     resource = LocalSaltCall(
         resource_name,
@@ -70,25 +71,11 @@ def build_this(resource_name, sls_name, config_name, environment={}, opts=None):
         pillar=pulumi_pillar,
         environment=environment,
         sls_dir=this_dir,
-        triggers=[def_pillar_hash, pulumi_pillar_hash],
+        triggers=[def_pillar_hash, pulumi_pillar_hash, environment_hash],
         opts=opts,
     )
     pulumi.export(resource_name, resource)
     return resource
-
-
-def build_openwrt():
-    "build an openwrt image"
-
-    from .authority import ssh_factory
-
-    environment = {
-        "authorized_keys": ssh_factory.authorized_keys.apply(lambda x: str(x))
-    }
-    opts = pulumi.ResourceOptions(depends_on=[ssh_factory])
-    return build_this(
-        "build_openwrt", "build_openwrt", "openwrt", environment, opts=opts
-    )
 
 
 def build_raspberry_extras():
@@ -96,11 +83,20 @@ def build_raspberry_extras():
     return build_this("build_raspberry_extras", "build_raspberry_extras", "raspberry")
 
 
-def build_homeassistant():
-    "build Homeassistant OS - Linux based home automation Control Bridge (Zigbee,BT,Wifi)"
-    pass
+def build_openwrt(resource_name, environment={}, opts=None):
+    """build an openwrt image
+
+    input environment:
+    - authorized_keys: multiline string for authorized_keys content
+    """
+    return build_this(resource_name, "build_openwrt", "openwrt", environment, opts=opts)
 
 
-def build_esphome_device():
-    "build yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF"
-    pass
+def build_esphome(resource_name, environment={}, opts=None):
+    """
+    build yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF
+
+    input environment:
+    - build: json of custom build overwrites
+    """
+    return build_this(resource_name, "build_esphome", "esphome", environment, opts=opts)

@@ -109,16 +109,6 @@ openwrt:
     - luci-theme-material
     - luci-theme-openwrt-2020
 
-esphome:
-  esp32:
-    board: adafruit_feather_esp32_v2
-    framework:
-      type: esp-idf
-      # version:
-      # platform_version:
-      sdkconfig_options:
-        # CONFIG_MBEDTLS_DEBUG: y
-
 android:
   emulator:
     magisk:
