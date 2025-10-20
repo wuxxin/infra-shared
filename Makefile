@@ -11,6 +11,14 @@ endef
 export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
+# skip annoying version information
+PULUMI_SKIP_UPDATE_CHECK=true
+PULUMI_DIY_BACKEND_GZIP=true
+
+# use python implementation of protoc to workaround different protoc versions in python-pulumi
+# see https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates
+# PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
 .PHONY: help
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -42,8 +50,8 @@ uv.lock: pyproject.toml provision-local
 	uv venv
 	uv sync --all-extras
 
-.PHONY: build-env
-build-env: .venv/bin/activate ## Build python environment
+.PHONY: buildenv
+buildenv: .venv/bin/activate ## Build python environment
 
 .PHONY: py-clean
 py-clean: ## Remove python related artifacts
@@ -52,18 +60,18 @@ py-clean: ## Remove python related artifacts
 	find . -type d -name '.ipynb_checkpoints' -exec rm -rf {} +
 	find . -type f -name '*.py[co]' -exec rm -f {} +
 
-.PHONY: build-env-clean
-build-env-clean: py-clean ## Remove build environment artifacts
+.PHONY: buildenv-clean
+buildenv-clean: py-clean ## Remove build environment artifacts
 	@echo "+++ $@"
 	rm -rf .venv
 
 .PHONY: test-scripts
-test-scripts: build-env ## Run script Tests
+test-scripts: buildenv ## Run script Tests
 	@echo "+++ $@"
 	. .venv/bin/activate && scripts/test_serve_once.py
 
 .PHONY: test-sim
-test-sim: build-env ## Run sim up Tests
+test-sim: buildenv ## Run sim up Tests
 	@echo "+++ $@"
 	mkdir -p $(ROOTDIR)/build/pulumi $(ROOTDIR)/build/tests
 	git init $(ROOTDIR)/build/tests
@@ -101,14 +109,14 @@ test-sim-clean: ## Remove Application Artifacts
 		$(ROOTDIR)/build/pulumi/.pulumi/history/sim || true
 
 .PHONY: docs
-docs: build-env ## Build docs for local usage
+docs: buildenv ## Build docs for local usage
 	@echo "+++ $@"
 	mkdir -p build/docs-local
 	. .venv/bin/activate && mkdocs build --no-directory-urls -d build/docs-local -f mkdocs.yml
 	@echo "Finished. Browse at file:///$(ROOTDIR)/build/docs-local/index.html"
 
 .PHONY: docs-online-build
-docs-online-build: build-env ## Build docs for http serve
+docs-online-build: buildenv ## Build docs for http serve
 	@echo "+++ $@"
 	mkdir -p build/docs-online
 	. .venv/bin/activate && mkdocs build -d build/docs-online -f mkdocs.yml
@@ -116,7 +124,7 @@ docs-online-build: build-env ## Build docs for http serve
 	@echo ". .venv/bin/activate && python -m http.server --directory build/state/docs-online"
 
 .PHONY: docs-serve
-docs-serve: build-env ## Rebuild and serve docs with autoreload
+docs-serve: buildenv ## Rebuild and serve docs with autoreload
 	@echo "+++ $@"
 	. .venv/bin/activate && mkdocs serve -f mkdocs.yml
 
@@ -127,11 +135,11 @@ docs-clean: ## Remove all generated docs
 	mkdir -p build/docs-local build/docs-online
 
 .PHONY: clean
-clean: docs-clean test-sim-clean build-env-clean  ## Remove all artifacts
+clean: docs-clean test-sim-clean buildenv-clean  ## Remove all artifacts
 	@echo "+++ $@"
 
 .PHONY: test-all-local
-test-all-local: clean provision-local build-env docs-online-build test-scripts test-sim ## Run all tests using local build deps
+test-all-local: clean provision-local buildenv docs-online-build test-scripts test-sim ## Run all tests using local build deps
 	@echo "+++ $@"
 
 .PHONY: test-all-container
