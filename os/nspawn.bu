@@ -69,9 +69,13 @@ systemd:
         - name: nspawnargs.conf
           contents: |
             [Service]
+            # https://www.freedesktop.org/software/systemd/man/latest/systemd-nspawn.html#Options
             # add "network-bridge=nspawn" to default parameter
+            # -j : Equivalent to --link-journal=try-guest
+            # -U : Equivalent to --private-users=pick and--private-users-ownership=auto
+            # --quiet
             ExecStart=
-            ExecStart=systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --network-veth --network-bridge=nspawn -U --settings=override --machine=%i
+            ExecStart=systemd-nspawn --keep-unit --boot -j -U --network-bridge=nspawn --settings=override --machine=%i
 
         - name: wantsunbound.conf
           contents: |
