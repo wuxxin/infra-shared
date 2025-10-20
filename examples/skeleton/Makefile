@@ -83,8 +83,8 @@ uv.lock: pyproject.toml
 	# register environment with local ipykernel environment
 	. .venv/bin/activate && python -m ipykernel install --user --name=$$(basename $(ROOTDIR))
 
-.PHONY: build-env
-build-env: .venv/bin/activate ## Build python environment
+.PHONY: buildenv
+buildenv: .venv/bin/activate ## Build python environment
 
 .PHONY: py-clean
 py-clean: ## Remove python related artifacts
@@ -93,13 +93,13 @@ py-clean: ## Remove python related artifacts
 	find . -type d -name '.ipynb_checkpoints' -exec rm -rf {} +
 	find . -type f -name '*.py[co]' -exec rm -f {} +
 
-.PHONY: build-env-clean
-build-env-clean: py-clean ## Remove build environment artifacts
+.PHONY: buildenv-clean
+buildenv-clean: py-clean ## Remove build environment artifacts
 	@echo "+ $@"
 	rm -rf .venv
 
 
-Pulumi.sim.yaml: build-env
+Pulumi.sim.yaml: buildenv
 ifeq ($(shell test -f Pulumi.sim.yaml && echo "ok"), ok)
 	@touch -c Pulumi.sim.yaml
 else
@@ -153,12 +153,12 @@ sim-clean: ## Remove/Destroy "sim" stack
 ifeq ($(shell test -f Pulumi.sim.yaml && echo "ok"), ok)
 	@echo "+ $@"
 	$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryVault$$command:local:Command::ca_factory_vault_ca' || true
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryVault$$command:local:Command::fake_ca_factory_vault_ca' || true
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::ca_factory_root_cert' || true
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::ca_factory_root_key' || true
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::fake_ca_factory_root_cert' || true
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:index:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::fake_ca_factory_root_key' || true
+	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryVault$$command:local:Command::ca_factory_vault_ca' || true
+	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryVault$$command:local:Command::fake_ca_factory_vault_ca' || true
+	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::ca_factory_root_cert' || true
+	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::ca_factory_root_key' || true
+	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::fake_ca_factory_root_cert' || true
+	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::fake_ca_factory_root_key' || true
 	PULUMI_CONFIG_PASSPHRASE="sim" PULUMI_CONTINUE_ON_ERROR=true $(PULUMI) destroy --stack "sim" --yes || true
 	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --yes  || true
 	rm -rf state/pulumi/.pulumi/backups/sim state/pulumi/.pulumi/history/sim
@@ -167,14 +167,14 @@ endif
 
 
 .PHONY: docs
-docs: build-env ## Build docs for local usage
+docs: buildenv ## Build docs for local usage
 	@echo "+ $@"
 	mkdir -p state/docs
 	. .venv/bin/activate && mkdocs build --no-directory-urls -d state/docs -f mkdocs.yml
 	@echo "Finished. Browse at file:///$(ROOTDIR)build/docs/index.html"
 
 .PHONY: docs-online-build
-docs-online-build: build-env ## Build docs for http serve
+docs-online-build: buildenv ## Build docs for http serve
 	@echo "+ $@"
 	mkdir -p state/docs-online
 	. .venv/bin/activate && mkdocs build -d state/docs-online -f mkdocs.yml
@@ -182,7 +182,7 @@ docs-online-build: build-env ## Build docs for http serve
 	@echo ". .venv/bin/activate && python -m http.server --directory build/state/docs-online"
 
 .PHONY: docs-serve
-docs-serve: build-env ## Rebuild and serve docs with autoreload
+docs-serve: buildenv ## Rebuild and serve docs with autoreload
 	@echo "+ $@"
 	. .venv/bin/activate && mkdocs serve -f mkdocs.yml
 
@@ -194,7 +194,7 @@ docs-clean: ## Remove all generated docs
 
 
 .PHONY: clean-all
-clean-all: sim-clean build-env-clean py-clean docs-clean ## Remove build, docs, tmp, salt & sim stack artifacts
+clean-all: sim-clean buildenv-clean py-clean docs-clean ## Remove build, docs, tmp, salt & sim stack artifacts
 	@echo "+ $@"
 	rm -rf state/tmp
 	rm -rf state/salt
@@ -205,7 +205,7 @@ clean-all: sim-clean build-env-clean py-clean docs-clean ## Remove build, docs, 
 check_authorized_keys:
 	@if test ! -s $(ROOTDIR)authorized_keys; then echo "ERROR: 'authorized_keys' is empty."; exit 1; fi
 
-prod_passphrase.age: build-env check_authorized_keys
+prod_passphrase.age: buildenv check_authorized_keys
 ifeq ($(shell test -f prod_passphrase.age && echo "ok"), ok)
 	@touch -c prod_passphrase.age
 else
@@ -213,7 +213,7 @@ else
 	@openssl rand --base64 24 | age --encrypt -R $(ROOTDIR)authorized_keys -a > prod_passphrase.age
 endif
 
-Pulumi.prod.yaml: build-env check_authorized_keys
+Pulumi.prod.yaml: buildenv check_authorized_keys
 ifeq ($(shell test -f Pulumi.prod.yaml && echo "ok"), ok)
 	@touch -c Pulumi.prod.yaml
 else
