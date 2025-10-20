@@ -67,7 +67,7 @@ def log_warn(x):
 
 def yaml_loads(s: Input[str], *, Loader: Optional[Type[yaml.Loader]] = None) -> "Output[Any]":
     """
-    Uses yaml.safe_load to deserialize the given YAML Input[str] value into a value.
+    Uses yaml.safe_load to deserialize the given YAML Input[str] value into a value
 
     Args:
         s: The YAML string to deserialize.  This should be an Input[str].
@@ -192,7 +192,7 @@ class SSHPut(pulumi.ComponentResource):
     """Pulumi Component: use with function ssh_put()"""
 
     def __init__(self, name, props, opts=None):
-        super().__init__("pkg:index:SSHPut", name, None, opts)
+        super().__init__("pkg:tools:SSHPut", name, None, opts)
 
         self.props = props
         self.triggers = []
@@ -242,7 +242,7 @@ class SSHPut(pulumi.ComponentResource):
 
 class SSHSftp(pulumi.CustomResource):
     def __init__(self, name, props, opts=None):
-        super().__init__("pkg:index:SSHSftp", name, props, opts)
+        super().__init__("pkg:tools:SSHSftp", name, props, opts)
         self.props = props
 
     def download_file(self, remote_path, local_path):
@@ -274,7 +274,7 @@ class SSHGet(pulumi.ComponentResource):
     """Pulumi Component: use with function ssh_get()"""
 
     def __init__(self, name, props, opts=None):
-        super().__init__("pkg:index:SSHGet", name, None, opts)
+        super().__init__("pkg:tools:SSHGet", name, None, opts)
         self.props = props
         self.triggers = []
         for key, value in self.props["files"].items():
@@ -325,7 +325,7 @@ class SSHDeployer(pulumi.ComponentResource):
     """Pulumi Component: use with function ssh_deploy()"""
 
     def __init__(self, name, props, opts=None):
-        super().__init__("pkg:index:SSHDeployer", name, None, opts)
+        super().__init__("pkg:tools:SSHDeployer", name, None, opts)
 
         self.props = props
         self.triggers = []
@@ -609,7 +609,7 @@ class DataExport(pulumi.ComponentResource):
     """
 
     def __init__(self, prefix, filename, data, key=None, filter="", delete=False, opts=None):
-        super().__init__("pkg:index:DataExport", "_".join([prefix, filename]), None, opts)
+        super().__init__("pkg:tools:DataExport", "_".join([prefix, filename]), None, opts)
 
         stack_name = pulumi.get_stack()
         filter += " | " if filter else ""
@@ -659,7 +659,7 @@ class DataExport(pulumi.ComponentResource):
             dir=project_dir,
             triggers=[
                 data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
-                self.filename, # Ensure changes to filename also trigger recreation
+                self.filename,  # Ensure changes to filename also trigger recreation
             ],
         )
         self.register_outputs({})
@@ -776,7 +776,7 @@ class LocalSaltCall(pulumi.ComponentResource):
         opts=None,
         **kwargs,
     ):
-        super().__init__("pkg:index:LocalSaltCall", resource_name, None, opts)
+        super().__init__("pkg:tools:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
         self.config = salt_config(resource_name, stack, project_dir)
         pillar_dir = self.config["grains"]["pillar_dir"]
@@ -840,7 +840,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
         **kwargs,
     ):
         super().__init__(
-            "pkg:index:RemoteSaltCall",
+            "pkg:tools:RemoteSaltCall",
             "{}_{}".format(resource_name, user),
             None,
             opts,
@@ -1101,7 +1101,7 @@ class ServePrepare(pulumi.ComponentResource):
         from .authority import config, ca_factory, provision_host_tls
 
         super().__init__(
-            "pkg:index:ServeConfigure", "{}_serve_prepare".format(resource_name), None, opts
+            "pkg:tools:ServeConfigure", "{}_serve_prepare".format(resource_name), None, opts
         )
 
         # Build the initial static config (*without* Output values)
@@ -1110,9 +1110,8 @@ class ServePrepare(pulumi.ComponentResource):
             "mtls": False,
             "mtls_clientid": mtls_clientid if mtls_clientid else "",
             "payload": None,
-            "port_forward": config.get_object(
-                "port_forward", {"enabled": False, "lifetime_sec": tokenlifetime_sec}
-            ),
+            "port_forward": config.get_object("port_forward")
+            or {"enabled": False, "lifetime_sec": tokenlifetime_sec},
         }
         # Merge in the user-provided config before adding Output-dependent values
         if config_str:
@@ -1228,7 +1227,7 @@ class ServeOnce(pulumi.ComponentResource):
 
     def __init__(self, resource_name, config, payload, opts=None):
         super().__init__(
-            "pkg:index:ServeOnce", "{}_serve_once".format(resource_name), None, opts
+            "pkg:tools:ServeOnce", "{}_serve_once".format(resource_name), None, opts
         )
 
         def merge_func(args):
@@ -1260,7 +1259,7 @@ class WriteRemovable(pulumi.ComponentResource):
     """Writes image from given image_path to specified serial_numbered removable storage device"""
 
     def __init__(self, resource_name, image, serial, size=0, patches=None, opts=None):
-        super().__init__("pkg:index:WriteRemovable", resource_name, None, opts)
+        super().__init__("pkg:tools:WriteRemovable", resource_name, None, opts)
 
         create_str = (
             ". .venv/bin/activate && "
