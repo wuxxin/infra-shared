@@ -57,21 +57,19 @@ files_basedir = os.path.join(this_dir)
 
 # configure hostnames
 shortname = "safe"
-dns_names = config.get_object(
-    "{}_dns_names".format(shortname),
-    [
-        "{}.{}".format(name, domain)
-        for name in [shortname, "*." + shortname]
-        for domain in ca_config["ca_permitted_domains_list"]
-    ],
-)
+dns_names = config.get_object("{}_dns_names".format(shortname)) or [
+    "{}.{}".format(name, domain)
+    for name in [shortname, "*." + shortname]
+    for domain in ca_config["ca_permitted_domains_list"]
+]
+
 hostname = dns_names[0]
 
 # create tls host certificate
 tls = create_host_cert(hostname, hostname, dns_names)
 
 # get tang config for storage unlock on boot
-tang_url = config.get("tang_url", None)
+tang_url = config.get("tang_url")
 tang_fingerprint = TangFingerprint(tang_url).result if tang_url else None
 
 # create local postgres master password
@@ -93,12 +91,12 @@ host_environment = {
     "LOCALE": {key.upper(): value for key, value in config.get_object("locale").items()},
     # install mc on sim, prod should use toolbox
     "RPM_OSTREE_INSTALL": ["mc", "strace"] if stack_name.endswith("sim") else [],
-    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose", True),
-    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn", True),
+    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose") in (None, True),
+    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn") in (None, True),
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRES_PASSWORD": pg_postgres_password.result,
     "DNS_RESOLVER": {}
-    if not config.get_object("dns_resolver", None)
+    if not config.get_object("dns_resolver")
     else {key.upper(): value for key, value in config.get_object("dns_resolver").items()},
     "LOCAL_DNS_SERVER": {"ENABLED": True},
     "LOCAL_ACME_SERVER": {"ENABLED": True},
@@ -175,7 +173,7 @@ host_environment.update(
 )
 
 # write the butane target specification, everything else is included from files_basedir/*.bu
-butane_yaml = pulumi.Output.format(
+butane_yaml = pulumi.Output.from_input(
     """
 variant: fcos
 version: 1.6.0
