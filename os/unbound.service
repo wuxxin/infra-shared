@@ -14,6 +14,9 @@ Wants=sys-subsystem-net-devices-internal.device
 ConditionPathExists=/usr/sbin/unbound
 # also, our anchor file must exist
 ConditionPathExists=/etc/local/ksk_anchor_internal.key
+{% if LOCAL_DNS_SERVER["ENABLED"] %}
+Wants=knot.service
+{% endif %}
 
 [Service]
 Type=simple
