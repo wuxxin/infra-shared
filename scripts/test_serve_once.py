@@ -459,7 +459,7 @@ class TestServeOnce(unittest.TestCase):
         # If dynamic port was requested (original config["serve_port"] == 0),
         # ensure it's now set to a non-zero value.
         # The 'serve_port_was_zero' flag is set by the test cases themselves.
-        if config.get("serve_port_was_zero", False) and config["serve_port"] == 0:
+        if not config.get("serve_port_was_zero") and config["serve_port"] == 0:
             raise ValueError(
                 "Server was expected to use a dynamic port, but reported port 0 or message not found."
             )
