@@ -5,8 +5,8 @@
 - the root README.md describes the examples/skeleton/Makefile usage, not the root Makefile usage
 - make help output:
 ```
-build-env            Build python environment
-build-env-clean      Remove build environment artifacts
+buildenv            Build python environment
+buildenv-clean      Remove build environment artifacts
 clean                Remove all artifacts
 docs                 Build docs for local usage and open in browser
 docs-clean           Remove all generated docs
