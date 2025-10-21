@@ -39,7 +39,7 @@ entryPoints:
   # add custom entrypoints
   {% for key, value in FRONTEND["ENTRYPOINTS"].items() %}
     {% set entry={key: value} %}
-{{ entry|yaml|indent(2,True) }}
+{{ entry|toyaml|indent(2,True) }}
   {% endfor %}
 {% endif %}
 
@@ -61,7 +61,7 @@ providers:
   # add custom providers
   {% for key, value in FRONTEND["PROVIDERS"].items() %}
     {% set provider={key: value} %}
-{{ provider|yaml|indent(2,True) }}
+{{ provider|toyaml|indent(2,True) }}
   {% endfor %}
 {% endif %}
 
@@ -89,7 +89,7 @@ certificatesResolvers:
   # add custom resolvers
   {% for key, value in FRONTEND["CERTIFICATESRESOLVERS"].items() %}
     {% set resolver={key: value} %}
-{{ resolver|yaml|indent(2,True) }}
+{{ resolver|toyaml|indent(2,True) }}
   {% endfor %}
 {% endif %}
 
