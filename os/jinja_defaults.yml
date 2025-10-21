@@ -26,7 +26,7 @@ DNS_RESOLVER:
 FRONTEND:
   ENABLED: true
   # VERBOSITY: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, PANIC, < more verbose, uppercase matters!
-  VERBOSITY: DEBUG
+  VERBOSITY: INFO
   # DASHBOARD: optional string, set to unique hostname eg. "traefik.host.domain" to enable traefik debug dashboard
   DASHBOARD:
 
@@ -56,7 +56,7 @@ LOCAL_ACME_SERVER:
   # - at.internal
 
 FIREWALL:
-  # VERBOSITY: 0, 1 > more verbose
+  # VERBOSITY: 0: not, 1: verbose logging of rejects into journal
   VERBOSITY: 1
 
 # Additional RPM packets to be available
@@ -71,6 +71,9 @@ RPM_OSTREE_INSTALL:
   - systemd-networkd
   # firewalld, use by firewall.bu for firewall rules
   - firewalld
+  # clevis, use by clevis-luks-slots.py for rekeying luks slots with new secrets
+  - clevis
+  - clevis-pin-tpm2
 
 # Network CIDR of Internal, Podman and Nspawn Networks
 INTERNAL_CIDR: 10.87.240.1/24
@@ -89,3 +92,16 @@ DEBUG_DISABLE_AUTOUPDATE: false
 # default ("") means to load all secrets in /etc/credstore into podman secrets>
 # example: PODMAN_LOAD_SECRETS: "root_ca.crt root_bundle.crt"
 PODMAN_LOAD_SECRETS: ""
+
+# common update parameter defaults
+#   connect as user core (with uid=1000), use update-system-config as the update service,
+#   expect files related to update on /run/user/1000, use sudo to become root.
+UPDATE_USER: core
+UPDATE_UID: "1000"
+UPDATE_SERVICE: update-system-config
+UPDATE_PATH: /run/user/1000
+UPDATE_USE_SUDO: True
+# UPDATE_CLEVIS_LUKS_SLOTS: true/false, if enabled, update/rekey LUKS Clevis bindings
+#   according to a butane configuration of boot_device:luks and storage:luks
+UPDATE_CLEVIS_LUKS_SLOTS: true
+
