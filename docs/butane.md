@@ -38,24 +38,49 @@ projectname:dns_resolver:
 make an include for contents of jinja_defaults.yml here.
 ```
 
-### available custom filter
+### available custom filter and functions
+
+#### Regex
 
 - `"text"|regex_escape()`
-- `"text"|regex_search(pattern)`
-- `"text"|regex_match(pattern)`
-- `"text"|regex_replace(pattern, replacement)`
-- `"a.b.c.d/xy"|cidr2ip(index=0)`
+- `"text"|regex_search(pattern, ignorecase=False, multiline=False)`
+- `"text"|regex_match(pattern, ignorecase=False, multiline=False)`
+- `"text"|regex_replace(pattern, replacement, ignorecase=False, multiline=False)`
+
+#### IPv4 Address Manipulation
+
+- `"192.168.1.0/24"|cidr2ip(index=0)`
     - Converts a CIDR notation to an IP address.
-    - Args: cidr  (str): The CIDR notation (e.g., "192.168.1.0/24").
-            index (int, optional): The 0-based index of the usable IP address to return.
-- `{"key": "value"}|yaml(inline=False)`
-    - dump dict structure to yaml string
+    - Args:
+        - cidr  (str): The CIDR notation (e.g., "192.168.1.0/24").
+        - index (int, optional): The 0-based index of the usable IP address to return.
+- `"10.87.240.1/24"|cidr2reverse_ptr()"`
+    - Converts an IPv4 or IPv6 CIDR string into its corresponding reverse DNS zone name.
+    - Args:
+        - cidr_string: The network address in CIDR notation,
+            e.g., "10.87.240.1/24". Host bits in the address are ignored
+    - Returns:
+        - str: The reverse DNS zone name as a string (e.g., "240.87.10.in-addr.arpa.")
+    - Raises:
+        - ValueError: If the CIDR is invalid
+
+#### YAML Output
+
+- `{"key": "value"}|toyaml(inline=False)`
+    - dump dict structure to yaml string, same as jinja buildin `tojson` but outputs yaml instead of json
     - set inline=True for compact representation, default is multiline
 
-regex_ search,match,replace support additional args
+#### Time Now and File Time
 
-- `ignorecase=True/*False`
-- `multiline=True/*False`
+- `"os/podman.bu"|created_at()`-> datetime.datetime | None
+    - Return file modification datetime in UTC or None
+    - Expects a relative path from the template search path
+- `utc_now()`-> datetime.datetime
+    - Return file modification datetime in UTC or None
+- `local_now()`-> datetime.datetime
+    - Return file modification datetime in local Timezone or None
+
+in jinja, you can then call all python methods on the datetime.datetime objects available.
 
 ## Butane Yaml
 
