@@ -13,7 +13,7 @@ Wants=sys-subsystem-net-devices-internal.device
 # also, as unbound is not part of base image, wait until the binary is available
 ConditionPathExists=/usr/sbin/unbound
 # also, our anchor file must exist
-ConditionPathExists=/etc/local/ksk_anchor_internal.key
+ConditionPathExists=/etc/local/ksk_anchor_bundle.key
 {% if LOCAL_DNS_SERVER["ENABLED"] %}
 Wants=knot.service
 {% endif %}
