@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Manages LUKS Clevis bindings based on a desired state provided as JSON lines
+Manages LUKS Clevis bindings based on a desired state provided as a JSON string.
 
-Expects an infra.os fedora coreos, with a podman container running fedora with saltstack installed.
-
-see docs/butane.md for details of the detailed container setup, this script expects /usr to point to coreos /usr
-
+This script is designed to run in a Fedora CoreOS environment to idempotently
+manage Clevis SSS (Shamir's Secret Sharing) bindings on LUKS-encrypted devices.
+It can check, update, or completely rewrite Clevis configurations to match a
+desired state defined in a JSON object or a list of JSON objects.
 """
 
 import sys
@@ -13,18 +13,17 @@ import os
 import json
 import subprocess
 import argparse
-import shlex
 import re
 from shutil import which
 
 
-def run_command(cmd, check=True):
-    """Executes a command and returns its stdout."""
+def run_command(cmd_list, check=True):
+    """Executes a command (as a list) and returns its stdout."""
     try:
-        process = subprocess.run(cmd, shell=True, check=check, capture_output=True, text=True)
+        process = subprocess.run(cmd_list, check=check, capture_output=True, text=True)
         return process.stdout.strip()
     except subprocess.CalledProcessError as e:
-        print(f"ERROR: Command failed: {e.cmd}", file=sys.stderr)
+        print(f"ERROR: Command failed: {' '.join(e.cmd)}", file=sys.stderr)
         print(f"Stderr: {e.stderr.strip()}", file=sys.stderr)
         raise
 
@@ -37,20 +36,16 @@ def check_root():
 
 
 def check_dependencies():
-    """Checks for required command-line tools available under /usr because we are running in a container."""
-    for cmd in [
-        "clevis",
-        "cryptsetup",
-        "systemd-inhibit",
-    ]:
-        if not os.path.exists(cmd):
+    """Checks for required command-line tools."""
+    for cmd in ["clevis", "cryptsetup", "systemd-inhibit"]:
+        if not which(cmd):
             print(f"ERROR: Required command '{cmd}' is not installed.", file=sys.stderr)
             sys.exit(1)
 
 
 def get_luks_slot_info(device):
     """Returns a dictionary with total, used, and free LUKS slots."""
-    dump = run_command(f"cryptsetup luksDump {shlex.quote(device)}")
+    dump = run_command(["cryptsetup", "luksDump", device])
     total = dump.count("Key Slot")
     enabled = dump.count("ENABLED")
     return {"total": total, "used": enabled, "free": total - enabled}
@@ -62,7 +57,7 @@ def get_current_bindings(device):
     Returns: [{'slot': int, 'type': str, 'config': str}, ...]
     """
     try:
-        output = run_command(f"clevis luks list -d {shlex.quote(device)}")
+        output = run_command(["clevis", "luks", "list", "-d", device])
     except subprocess.CalledProcessError:
         return []
 
@@ -78,10 +73,21 @@ def get_current_bindings(device):
     return bindings
 
 
-def normalize_json(json_str):
-    """Sorts keys in a JSON string for consistent comparison."""
+def to_normalized_json_string(data):
+    """
+    Takes a JSON string OR a Python dict/list and returns a
+    consistent, key-sorted JSON string for comparison. Returns None on failure.
+    """
     try:
-        return json.dumps(json.loads(json_str), sort_keys=True)
+        if isinstance(data, str):
+            # If it's a string, parse it into a Python object first
+            obj = json.loads(data)
+        else:
+            # Otherwise, assume it's already a Python object (dict, list, etc.)
+            obj = data
+
+        # Dump the Python object to a sorted, compact JSON string
+        return json.dumps(obj, sort_keys=True, separators=(",", ":"))
     except (json.JSONDecodeError, TypeError):
         return None
 
@@ -92,7 +98,7 @@ def compare_states(devices_config):
     for config in devices_config:
         device = config["device"]
         desired_config = config["clevis"]
-        print(f"--- Checking device: {device} ---")
+        print(f"Checking device: {device}")
 
         current_bindings = get_current_bindings(device)
         sss_bindings = [b for b in current_bindings if b["type"] == "sss"]
@@ -102,8 +108,11 @@ def compare_states(devices_config):
             overall_mismatch = True
             continue
 
-        desired_norm = normalize_json(desired_config)
-        current_norm = normalize_json(sss_bindings[0]["config"])
+        desired_norm = to_normalized_json_string(desired_config)
+        if desired_norm is None:
+            print("ERROR: Internal MISMATCH, could not read desired state", file=sys.stderr)
+            sys.exit(1)
+        current_norm = to_normalized_json_string(sss_bindings[0]["config"])
 
         if current_norm == desired_norm:
             print("OK: Current SSS configuration matches desired state.")
@@ -120,7 +129,12 @@ def _perform_rewrite(config):
     """Shared logic to replace all Clevis bindings with a new SSS binding."""
     device = config["device"]
     desired_config = config["clevis"]
-    print(f"--- Rewriting Clevis bindings for device: {device} ---")
+    if desired_config is None:
+        print("ERROR: Internal MISMATCH, could not read desired state", file=sys.stderr)
+        sys.exit(1)
+    # We need the original, un-normalized string for the command line
+    desired_config_str = json.dumps(desired_config)
+    print(f"Rewriting Clevis bindings for device: {device} with {desired_config_str}")
 
     # Safety check for free slots before we start
     if get_luks_slot_info(device)["free"] < 1:
@@ -132,7 +146,7 @@ def _perform_rewrite(config):
     # Add the new binding first (add-before-remove)
     print("Adding new SSS binding...")
     try:
-        run_command(f"clevis luks bind -y -d {shlex.quote(device)} sss '{desired_config}'")
+        run_command(["clevis", "luks", "bind", "-y", "-d", device, "sss", desired_config_str])
     except subprocess.CalledProcessError:
         print(
             f"ERROR: Failed to bind new SSS policy for {device}. Aborting rewrite.",
@@ -146,7 +160,8 @@ def _perform_rewrite(config):
         (
             b
             for b in all_bindings
-            if normalize_json(b["config"]) == normalize_json(desired_config)
+            if to_normalized_json_string(b["config"])
+            == to_normalized_json_string(desired_config)
         ),
         None,
     )
@@ -164,7 +179,7 @@ def _perform_rewrite(config):
         if old_binding["slot"] != new_binding["slot"]:
             print(f"  Unbinding old slot {old_binding['slot']}...")
             run_command(
-                f"clevis luks unbind -d {shlex.quote(device)} -s {old_binding['slot']}"
+                ["clevis", "luks", "unbind", "-d", device, "-s", str(old_binding["slot"])]
             )
 
     print(f"Rewrite for {device} complete.")
@@ -191,7 +206,9 @@ def update_from(devices_config):
         # Check if the state is already correct
         is_correct = False
         if len(sss_bindings) == 1 and not other_clevis_bindings:
-            if normalize_json(sss_bindings[0]["config"]) == normalize_json(desired_config):
+            if to_normalized_json_string(
+                sss_bindings[0]["config"]
+            ) == to_normalized_json_string(desired_config):
                 is_correct = True
 
         if is_correct:
@@ -205,7 +222,6 @@ def rebind(devices_config):
     """--rebind mode: Regenerates the existing SSS binding using 'clevis luks regen'."""
     for config in devices_config:
         device = config["device"]
-        # The desired_config from the JSON is not used by regen, but the device is.
         print(f"--- Regenerating SSS binding for device: {device} ---")
 
         current_bindings = get_current_bindings(device)
@@ -228,14 +244,12 @@ def rebind(devices_config):
             slot = binding["slot"]
             print(f"  Regenerating binding in slot {slot}...")
             try:
-                # Use -q for non-interactive mode
-                run_command(f"clevis luks regen -q -d {shlex.quote(device)} -s {slot}")
+                run_command(["clevis", "luks", "regen", "-q", "-d", device, "-s", str(slot)])
             except subprocess.CalledProcessError:
                 print(
                     f"ERROR: Failed to regenerate binding in slot {slot} for {device}.",
                     file=sys.stderr,
                 )
-                # Continue to the next binding/device
                 continue
 
         print(f"Regeneration for {device} complete.")
@@ -250,15 +264,14 @@ def main():
     )
     group = parser.add_mutually_exclusive_group(required=True)
 
-    help_text = 'A JSON Lines string, e.g., \'{"device":"/dev/sda1", "clevis":"..."}\''
-    group.add_argument("--is-equal-to", metavar="'<json_lines>'", help=help_text)
-    group.add_argument("--rewrite-from", metavar="'<json_lines>'", help=help_text)
-    group.add_argument("--update-from", metavar="'<json_lines>'", help=help_text)
-    group.add_argument("--rebind", metavar="'<json_lines>'", help=help_text)
+    help_text = 'A JSON string of an object or a list of objects, e.g., \'{"device":"/dev/sda1", "clevis":"..."}\''
+    group.add_argument("--is-equal-to", help=help_text)
+    group.add_argument("--rewrite-from", help=help_text)
+    group.add_argument("--update-from", help=help_text)
+    group.add_argument("--rebind", help=help_text)
 
     args = parser.parse_args()
 
-    # Determine which argument was used and get its value
     mode = None
     json_input = None
     if args.is_equal_to:
@@ -271,21 +284,41 @@ def main():
         mode, json_input = "rebind", args.rebind
 
     check_root()
-    # check_dependencies()
+    check_dependencies()
 
     # Re-execute under systemd-inhibit if modifying the disk
     modifying_modes = ["rewrite_from", "update_from", "rebind"]
     if mode in modifying_modes and "_INHIBITED_RUN" not in os.environ:
         print("Acquiring systemd reboot inhibitor lock...")
         os.environ["_INHIBITED_RUN"] = "1"
-        # sys.executable is the path to the current python interpreter
-        os.execv(sys.executable, [sys.executable] + sys.argv)
 
-    # Parse the JSON Lines input
+        inhibit_cmd = which("systemd-inhibit")
+        # The command to run is: /usr/bin/systemd-inhibit /usr/bin/python3 /path/to/script.py [args]
+        cmd_args = [inhibit_cmd, sys.executable] + sys.argv
+
+        try:
+            # os.execve replaces the current process with the new one
+            os.execve(inhibit_cmd, cmd_args, os.environ)
+        except OSError as e:
+            # This line will only be reached if execve fails
+            print(f"ERROR: Failed to execute systemd-inhibit: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Parse the input
     try:
-        devices_config = [json.loads(line) for line in json_input.strip().splitlines()]
-    except json.JSONDecodeError:
-        print("ERROR: Invalid JSON Lines string provided.", file=sys.stderr)
+        parsed_json = json.loads(json_input)
+
+        if isinstance(parsed_json, dict):
+            # If a single object is passed, wrap it in a list
+            devices_config = [parsed_json]
+        elif isinstance(parsed_json, list):
+            # If a list is passed, use it directly
+            devices_config = parsed_json
+        else:
+            raise TypeError("JSON input must be an object or a list of objects.")
+
+    except (json.JSONDecodeError, TypeError) as e:
+        print(f"ERROR: Invalid JSON. {e}", file=sys.stderr)
         sys.exit(1)
 
     # Dispatch to the correct function
