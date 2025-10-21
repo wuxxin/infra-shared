@@ -52,7 +52,7 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <zone target="%%REJECT%%">
+          <zone target="default">
             <short>internal</short>
             <description>Zone for internal services on the host machine.</description>
             <source address="{{ INTERNAL_CIDR }}"/>
@@ -63,7 +63,7 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <zone target="%%REJECT%%">
+          <zone target="default">
             <short>Podman</short>
             <description>Zone for Podman containers and networks.</description>
             <source address="{{ PODMAN_CIDR }}"/>
@@ -75,7 +75,7 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <zone target="%%REJECT%%">
+          <zone target="default">
             <short>nspawn</short>
             <description>Zone for systemd-nspawn containers.</description>
             <source address="{{ NSPAWN_CIDR }}"/>
@@ -101,7 +101,7 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <policy>
+          <policy target="ACCEPT">
             <short>Egress to Public</short>
             <description>Allow and masquerade traffic from internal zones to the public zone.</description>
             <ingress-zone name="internal"/>
@@ -111,15 +111,28 @@ storage:
             <masquerade/>
           </policy>
 
-    - path: /etc/firewalld/policies/container-to-internal.xml
+    - path: /etc/firewalld/policies/container-to-int.xml
       mode: 0644
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          <policy>
+          <policy target="ACCEPT">
             <short>Container to Internal</short>
             <description>Allow traffic from Podman and nspawn containers to the internal zone.</description>
             <ingress-zone name="podman"/>
             <ingress-zone name="nspawn"/>
             <egress-zone name="internal"/>
+          </policy>
+
+    - path: /etc/firewalld/policies/int-to-container.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy target="ACCEPT">
+            <short>Internal to Container</short>
+            <description>Allow traffic from internal zone to Podman and nspawn containers.</description>
+            <ingress-zone name="internal"/>
+            <egress-zone name="podman"/>
+            <egress-zone name="nspawn"/>
           </policy>
