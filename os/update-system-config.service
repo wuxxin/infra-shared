@@ -137,7 +137,17 @@ ExecStart=/usr/bin/bash -c 'set -e; \
         fi; \
     fi'
 
+# {% if UPDATE_CLEVIS_LUKS_SLOTS %}
+ExecStart=/usr/bin/bash -c 'set -e; \
+    clevis_json={{ CLEVIS_LUKS_CONFIG }}; \
+    if test -n "$clevis_json"; then \
+        if ! python /etc/local/update-clevis-luks-slots.py --is-equal-to "$clevis_json"; then \
+            python /etc/local/update-clevis-luks-slots.py --update-from "$clevis_json"; \
+        fi; \
+    fi'
+# {% endif %}
+
 # delete main.sls and var/cache|log because of secrets and as flag that update is done
-ExecStart=/usr/bin/bash -c 'rm -f ${sls_dir}/main.sls; rm -rf ${root_dir}/var/cache; rm -rf ${root_dir}/var/log'
+# ExecStart=/usr/bin/bash -c 'rm -f ${sls_dir}/main.sls; rm -rf ${root_dir}/var/cache; rm -rf ${root_dir}/var/log'
 
 # XXX have no [Install] section, because this service is only called from external
