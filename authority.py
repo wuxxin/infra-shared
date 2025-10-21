@@ -247,7 +247,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
         vault_config = copy.deepcopy(ca_config)
         vault_config.update({"ca_permitted_domains_list": [], "ca_permitted_domains": ""})
 
-        vault_ca = command.local.Command(
+        self.vault_ca = command.local.Command(
             "{}_vault_ca".format(name),
             create="scripts/vault_pipe.sh --yes",
             stdin=json.dumps(vault_config),
@@ -256,15 +256,13 @@ class CACertFactoryVault(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(
                 parent=self,
                 additional_secret_outputs=["stdout"],
-                # XXX protect CA Cert because it will always be an error to delete it
-                protect=True,
-                # XXX ignore changes to input of CA creation, because it can not be changed
+                # protect CA Cert because it will always be an error to delete it
+                protect=vault_config["ca_protect_rootcert"],
+                # ignore changes to input of CA creation, because it can not be changed
                 ignore_changes=["stdin"],
-                # XXX make pulumi find legacy name for ca_factory_fault_ca
-                aliases=[Alias(name="vault_ca")] if name == "ca_factory" else [],
             ),
         )
-        ca_secrets = vault_ca.stdout.apply(lambda x: json.loads(x))
+        ca_secrets = self.vault_ca.stdout.apply(lambda x: json.loads(x))
         ca_root_hash = command.local.Command(
             "{}_root_hash".format(name),
             create="openssl x509 -hash -noout",
@@ -272,7 +270,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
             logging=LocalLogging.NONE,
             opts=pulumi.ResourceOptions(
                 parent=self,
-                depends_on=[vault_ca],
+                depends_on=[self.vault_ca],
                 # XXX make pulumi find legacy name for ca_factory_root_hash
                 aliases=[Alias(name="ca_root_hash")] if name == "ca_factory" else [],
             ),
@@ -304,18 +302,21 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
             raise ValueError("'ca_max_path_length' is unsupported. use CACertFactoryVault")
 
         # create root key, root cert
-        # XXX protect CA Cert because it will always be an error to delete it
-        # XXX mtls requirements for eg. inside google cloud
-        #       https://cloud.google.com/load-balancing/docs/mtls#certificate-requirements
-        # XXX vault ignores everything except CRL,CertSign,DigitalSignature,
-        #       in root and intermediates, citing a CAB Forum requirement as reason.
-        #       https://developer.hashicorp.com/vault/api-docs/secret/pki#key_usage-2
+        # - protect CA Cert because it will always be an error to delete it
+        # - mtls requirements for eg. inside google cloud
+        #     https://cloud.google.com/load-balancing/docs/mtls#certificate-requirements
+        # - vault ignores everything except CRL,CertSign,DigitalSignature,
+        #     in root and intermediates, citing a CAB Forum requirement as reason.
+        #     https://developer.hashicorp.com/vault/api-docs/secret/pki#key_usage-2
         ca_uses = ["cert_signing", "crl_signing", "digital_signature"]
         ca_root_key = tls.PrivateKey(
             "{}_root_key".format(name),
             algorithm="ECDSA",
             ecdsa_curve="P384",
-            opts=pulumi.ResourceOptions(parent=self, protect=True),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                protect=ca_config["ca_protect_rootcert"],
+            ),
         )
         ca_root_cert = tls.SelfSignedCert(
             "{}_root_cert".format(name),
@@ -331,7 +332,10 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
                 country=ca_config["ca_country"],
                 locality=ca_config["ca_locality"],
             ),
-            opts=pulumi.ResourceOptions(parent=self, protect=True),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                protect=ca_config["ca_protect_rootcert"],
+            ),
         )
 
         # create provision and alt provision key
@@ -758,6 +762,9 @@ ca_config = {
     "ca_validity_period_hours": config.get_int("ca_validity_period_hours") or default_hours_ca,
     "cert_validity_period_hours": config.get_int("cert_validity_period_hours")
     or default_hours_private_cert,
+    "ca_protect_rootcert": True
+    if config.get_bool("ca_protect_rootcert") in (None, True)
+    else False,
     "ca_extra_cert_bundle": config.get("ca_extra_cert_bundle") or "\n",
     "ca_permitted_domains": ",".join(__ca_permitted_list),
     "ca_permitted_domains_list": __ca_permitted_list,
@@ -775,7 +782,6 @@ ca_config = {
     "ca_alt_provision_dns_names": ",".join(__alt_prov_dns_list),
     "ca_alt_provision_dns_names_list": __alt_prov_dns_list,
 }
-print(ca_config)
 pulumi.export("ca_config", ca_config)
 
 
