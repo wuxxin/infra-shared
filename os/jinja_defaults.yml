@@ -97,11 +97,13 @@ PODMAN_LOAD_SECRETS: ""
 #   connect as user core (with uid=1000), use update-system-config as the update service,
 #   expect files related to update on /run/user/1000, use sudo to become root.
 UPDATE_USER: core
-UPDATE_UID: "1000"
+# XXX UPDATE_UID must be an integer
+UPDATE_UID: 1000
+# XXX WARNING: currently os/__init__.py:SystemConfigUpdate hardcodes UPDATE_SERVICE to "update-system-config", this will revert to normal
 UPDATE_SERVICE: update-system-config
 UPDATE_PATH: /run/user/1000
 UPDATE_USE_SUDO: True
 # UPDATE_CLEVIS_LUKS_SLOTS: true/false, if enabled, update/rekey LUKS Clevis bindings
 #   according to a butane configuration of boot_device:luks and storage:luks
-UPDATE_CLEVIS_LUKS_SLOTS: true
+UPDATE_CLEVIS_LUKS_SLOTS: false
 
