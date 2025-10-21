@@ -24,6 +24,7 @@
 
 import base64
 import copy
+import datetime
 import glob
 import os
 import re
@@ -122,68 +123,24 @@ class ToolsExtension(jinja2.ext.Extension):
     def __init__(self, environment):
         super(ToolsExtension, self).__init__(environment)
         self.environment = environment
-        # self.environment.filters["list_files"] = self.list_files
-        # self.environment.filters["list_dirs"] = self.list_dirs
-        # self.environment.filters["has_executable_bit"] = self.has_executable_bit
-        # self.environment.filters["get_filemode"] = self.get_filemode
         self.environment.filters["regex_escape"] = self.regex_escape
         self.environment.filters["regex_search"] = self.regex_search
         self.environment.filters["regex_match"] = self.regex_match
         self.environment.filters["regex_replace"] = self.regex_replace
-        self.environment.filters["yaml"] = self.yaml
+        self.environment.filters["toyaml"] = self.toyaml
         self.environment.filters["cidr2ip"] = self.cidr2ip
         self.environment.filters["cidr2reverse_ptr"] = self.cidr2reverse_ptr
+        self.environment.filters["created_at"] = self.created_at
+        self.environment.globals["local_now"] = self.local_now
+        self.environment.globals["utc_now"] = self.utc_now
 
-    def list_files(self, value):
-        "returns available files in searchpath[0]/value as string, newline seperated"
-        loader = self.environment.loader
-        files = [
-            os.path.relpath(os.path.normpath(entry), loader.searchpath[0])
-            for entry in glob.glob(
-                join_paths(loader.searchpath[0], value, "**"), recursive=True
-            )
-            if os.path.isfile(entry)
-        ]
-        return "\n".join(files)
-
-    def list_dirs(self, value):
-        "returns available directories in searchpath[0]/dir as string, newline seperated"
-        loader = self.environment.loader
-
-        dirs = [
-            os.path.relpath(os.path.normpath(entry), loader.searchpath[0])
-            for entry in glob.glob(
-                join_paths(loader.searchpath[0], value, "**"), recursive=True
-            )
-            if os.path.isdir(entry)
-        ]
-        return "\n".join(dirs)
-
-    def has_executable_bit(self, value):
-        "return boolean True if searchpath[0]/file exists and has executable bit set, else False"
-        loader = self.environment.loader
-        f = join_paths(loader.searchpath[0], value)
-        if not os.path.exists(f):
-            return False
-        mode = os.stat(f).st_mode
-        if mode & stat.S_IXUSR:
-            return True
-        else:
-            return False
-
-    def get_filemode(self, value):
-        "return octal filemode as string of file in searchpath[0]/file or empty string"
-        loader = self.environment.loader
-        f = join_paths(loader.searchpath[0], value)
-        if not os.path.exists(f):
-            return ""
-        return oct(stat.S_IMODE(os.stat(f).st_mode))
-
-    def regex_escape(self, value):
+    def regex_escape(self, value: str) -> str:
         """escapes special characters in a string for use in a regular expression"""
         return re.escape(value)
 
-    def regex_search(self, value, pattern, ignorecase=False, multiline=False):
+    def regex_search(
+        self, value: str, pattern: str, ignorecase=False, multiline=False
+    ) -> tuple | None:
         """searches the string for a match to the regular expression
 
         Returns: a tuple containing the groups captured in the match, or None
@@ -198,7 +155,9 @@ class ToolsExtension(jinja2.ext.Extension):
             return
         return obj.groups()
 
-    def regex_match(self, value, pattern, ignorecase=False, multiline=False):
+    def regex_match(
+        self, value: str, pattern: str, ignorecase=False, multiline=False
+    ) -> tuple | None:
         """tries to apply the regular expression at the start of the string
 
         Returns: a tuple containing the groups captured in the match, or None
@@ -213,7 +172,9 @@ class ToolsExtension(jinja2.ext.Extension):
             return
         return obj.groups()
 
-    def regex_replace(self, value, pattern, replacement, ignorecase=False, multiline=False):
+    def regex_replace(
+        self, value: str, pattern: str, replacement: str, ignorecase=False, multiline=False
+    ) -> str:
         """replaces occurrences of the regular expression with another string"""
         flags = 0
         if ignorecase:
@@ -223,7 +184,7 @@ class ToolsExtension(jinja2.ext.Extension):
         compiled_pattern = re.compile(pattern, flags)
         return compiled_pattern.sub(replacement, value)
 
-    def yaml(self, value, inline=False):
+    def toyaml(self, value: object, inline=False) -> str:
         """
         Converts a python object to a YAML string
 
@@ -282,6 +243,40 @@ class ToolsExtension(jinja2.ext.Extension):
             return net.reverse_pointer
         except ValueError as e:
             raise ValueError(f"Invalid CIDR: {value} - {e}") from e
+
+    def created_at(self, value: str) -> datetime.datetime | None:
+        """
+        Return file modification datetime or None.
+        Expects a relative path name that the loader can find.
+        """
+        try:
+            source, file_path, uptodate = self.environment.loader.get_source(
+                self.environment, value
+            )
+
+            if file_path is None:
+                return None
+
+            epoch_time = os.path.getmtime(file_path)
+            utc_dt = datetime.datetime.fromtimestamp(epoch_time, datetime.timezone.utc)
+            # local_dt = utc_dt.astimezone()
+            return utc_dt
+        except Exception as e:
+            return None
+
+    def local_now(self) -> Optional[datetime.datetime]:
+        """
+        Returns a timezone-aware datetime object for the current
+        time in the system's local timezone.
+        """
+        return datetime.datetime.now(datetime.timezone.utc).astimezone()
+
+    def utc_now(self) -> Optional[datetime.datetime]:
+        """
+        Returns a timezone-aware datetime object for the current
+        time in the UTC (universal time coordinate) timezone.
+        """
+        return datetime.datetime.now(datetime.timezone.utc)
 
 
 def jinja_run(
