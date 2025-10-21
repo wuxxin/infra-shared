@@ -49,6 +49,8 @@ ca_config = {
     # XXX mimic a public available root-ca chain, validity hours of certs must meet public criteria
     # https://superuser.com/questions/1492207/
     "cert_validity_period_hours": default_hours_public_cert,
+    # this is a fake ca, if we throw away infrastructure, it ok to delete it too.
+    "ca_protect_rootcert": False,
 }
 
 # use vault, because of ca_max_path_length
