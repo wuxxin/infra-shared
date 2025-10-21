@@ -43,14 +43,17 @@ storage:
           [secrets.opts]
 
     # define podman0 network to use firewalld and the zone podman
+    # XXX set the creation time of the podman network to the modification time of this file
     - path: /etc/containers/networks/podman.json
       mode: 0644
       contents:
         inline: |
           {
             "name": "podman",
+            "id": "2f259bab93aaaaa2542ba43ef33eb990d0999ee1b9924b557b7be53c0b7a1bb9",
             "driver": "bridge",
             "network_interface": "podman0",
+            "created": "{% set c= 'os/podman.bu'|created_at %}{{ c.isoformat().replace('+00:00', 'Z') }}",
             "subnets": [
               {
                 "subnet": "{{ PODMAN_CIDR }}",
