@@ -1,12 +1,15 @@
-FROM ghcr.io/haproxytech/haproxy-docker-alpine:3.1.8
+FROM ghcr.io/haproxytech/haproxy-docker-alpine:3.2.6
 # based on https://github.com/Tecnativa/docker-socket-proxy
 # default access is readonly (API_POST=0)
 # default accessable API's are API_events, API_ping and API_version
 
 USER root
 
+RUN echo "https://mirror.alwyzon.net/alpine/v3.20/main" > /etc/apk/repositories && \
+    echo "https://mirror.alwyzon.net/alpine/v3.20/community" >> /etc/apk/repositories
+
 # curl as debugging aid, setpriv to change to user haproxy
-RUN apk add --no-cache curl setpriv
+RUN apk update --no-cache && apk add --no-cache curl setpriv
 
 USER haproxy
 
