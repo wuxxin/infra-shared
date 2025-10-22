@@ -3,12 +3,12 @@
 storage:
   files:
     # copy acme container configuration
-{% for f in ["acme.container", "acme.volume", "acme.config.json"] %}
+    # {% for f in ["acme.container", "acme.volume", "acme.config.json"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: container/{{ f }}
         template: jinja
-{% endfor %}
+    # {% endfor %}
 
   trees:
     # copy acme Containerfile
