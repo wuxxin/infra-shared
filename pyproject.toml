@@ -111,8 +111,11 @@ docs = [
 ]
 
 dev = [
-    # This syntax means "install this package with the 'docs' extra"
-    "infra-shared[docs]", 
+    # This syntax means: "install this package (itself) with the 'docs' extra"
+    "infra-shared[docs]",
+    # ruff - An extremely fast Python linter and code formatter, written in Rust.
+    "ruff",
+    # ty - An extremely fast Python type checker and language server, written in Rust.
+    "ty",
     # "pytest", # example for future test dependencies
-    # "ruff",   # example for future linting dependencies
 ]
