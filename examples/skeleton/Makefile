@@ -15,6 +15,10 @@ _CONTAINER_CMD := $(shell test -z "$$CONTAINER_CMD" && echo "podman" || echo "$$
 PULUMI_SKIP_UPDATE_CHECK=true
 PULUMI_DIY_BACKEND_GZIP=true
 
+# use python implementation of protoc to workaround different protoc versions in python-pulumi
+# see https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates
+# PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
 # add some default arguments to pulumi
 PULUMI := pulumi --logtostderr --logflow --non-interactive
 PULUMI_INTERACTIVE := pulumi --logtostderr --logflow
