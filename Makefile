@@ -104,9 +104,7 @@ test-sim-clean: ## Remove Application Artifacts
 		cd $(ROOTDIR)/build/tests && \
 		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --force --yes  || true; \
 	fi
-	rm -rf $(ROOTDIR)/build/tests \
-		$(ROOTDIR)/build/pulumi/.pulumi/backups/sim \
-		$(ROOTDIR)/build/pulumi/.pulumi/history/sim || true
+	rm -rf $(ROOTDIR)/build/tests $(ROOTDIR)/build/pulumi || true
 
 .PHONY: docs
 docs: buildenv ## Build docs for local usage

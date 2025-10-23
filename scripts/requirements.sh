@@ -85,7 +85,7 @@ custom-deb: butane
 aur: coreos-installer
 custom-deb: coreos-installer
 
-# # pulumi - imperativ infrastructure delaration using python
+# # pulumi - imperativ infrastructure declaration using python
 check: pulumi
 # aur: use git tag build with python and nodejs dynamic resource provider
 aur: pulumi-git
