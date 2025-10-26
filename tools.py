@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-## Pulumi - Tools
+## Pulumi - Tools - Serve HTTPS, SSH-put/get/execute, local and Remote Salt-Call, write Removeable-Media, State Data Export, Tools
 
 https:
 - f: serve_simple
@@ -59,9 +59,7 @@ project_dir = os.path.abspath(os.path.join(this_dir, ".."))
 def log_warn(x):
     "write str(var) to pulumi.log.warn with line numbering, to be used as var.apply(log_warn)"
     pulumi.log.warn(
-        "\n".join(
-            ["{}:{}".format(nr + 1, line) for nr, line in enumerate(str(x).splitlines())]
-        )
+        "\n".join(["{}:{}".format(nr + 1, line) for nr, line in enumerate(str(x).splitlines())])
     )
 
 
@@ -248,9 +246,7 @@ class SSHSftp(pulumi.CustomResource):
     def download_file(self, remote_path, local_path):
         import paramiko
 
-        privkey = paramiko.RSAKey(
-            data=self.props["sshkey"].private_key_openssh.apply(lambda x: x)
-        )
+        privkey = paramiko.RSAKey(data=self.props["sshkey"].private_key_openssh.apply(lambda x: x))
         ssh = paramiko.SSHClient()
         ssh.load_host_keys("")
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -608,7 +604,28 @@ class DataExport(pulumi.ComponentResource):
         - encrypted_local_export()
     """
 
-    def __init__(self, prefix, filename, data, key=None, filter="", delete=False, opts=None):
+    def __init__(
+        self,
+        prefix,
+        filename,
+        data,
+        key=None,
+        filter="",
+        delete=False,
+        triggers=None,
+        opts=None,
+    ):
+        """
+        :param prefix: A prefix for the resource name and directory.
+        :param filename: The name of the file to export.
+        :param data: The string data (pulumi.Output[str]) to be written to stdin.
+        :param key: (Optional) The public key to use for age encryption.
+        :param filter: (Optional) A shell command to pipe the data through (e.g., "base64 -d").
+        :param delete: (Optional) Whether to delete the file on resource deletion.
+        :param triggers: (Optional) A list of stable Pulumi Outputs. If provided,
+            these are used to trigger recreation, and 'stdin' will be ignored for diffs.
+        :param opts: (Optional) Standard Pulumi resource options.
+        """
         super().__init__("pkg:tools:DataExport", "_".join([prefix, filename]), None, opts)
 
         stack_name = pulumi.get_stack()
@@ -616,14 +633,12 @@ class DataExport(pulumi.ComponentResource):
 
         if key:
             self.filename = os.path.join(
-                project_dir,
-                "state",
-                "files",
-                stack_name,
-                prefix,
-                "{}.age".format(filename),
+                project_dir, "state", "files", stack_name, prefix, "{}.age".format(filename)
             )
             create_cmd = pulumi.Output.concat(
+                "mkdir -p ",
+                os.path.dirname(self.filename),
+                " && ",
                 filter,
                 "age -R ",
                 os.path.join(project_dir, "authorized_keys"),
@@ -632,12 +647,18 @@ class DataExport(pulumi.ComponentResource):
                 "' -o ",
                 self.filename,
             )
-
         else:
             self.filename = os.path.join(
                 project_dir, "state", "files", stack_name, "public", prefix, filename
             )
-            create_cmd = pulumi.Output.concat(filter, "cat - > ", self.filename)
+            create_cmd = pulumi.Output.concat(
+                "mkdir -p ",
+                os.path.dirname(self.filename),
+                " && ",
+                filter,
+                "cat - > ",
+                self.filename,
+            )
 
         resource_name = "{}_{}local_storage_{}".format(
             prefix,
@@ -646,26 +667,37 @@ class DataExport(pulumi.ComponentResource):
         )
         delete_cmd = "rm {} | true".format(self.filename) if delete else ""
 
-        os.makedirs(os.path.dirname(self.filename), exist_ok=True)
+        if triggers:
+            # If optional triggers are provided, use them and ignore stdin
+            final_triggers = triggers + [self.filename]
+            ignore_opts = pulumi.ResourceOptions(ignore_changes=["stdin"])
+            final_opts = pulumi.ResourceOptions.merge(opts, ignore_opts) if opts else ignore_opts
+        else:
+            # data is assumed stable, hash it for the trigger
+            final_triggers = [
+                data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
+                self.filename,
+            ]
+            final_opts = opts
 
         self.saved = command.local.Command(
             resource_name,
             create=create_cmd,
             update=create_cmd,
             delete=delete_cmd,
-            stdin=data,
-            logging=LocalLogging.NONE,
-            opts=opts,
             dir=project_dir,
-            triggers=[
-                data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
-                self.filename,  # Ensure changes to filename also trigger recreation
-            ],
+            stdin=data,
+            # DONT log output, as this might be security sensitive
+            logging=LocalLogging.NONE,
+            triggers=final_triggers,
+            opts=final_opts,
         )
         self.register_outputs({})
 
 
-def encrypted_local_export(prefix, filename, data, filter="", delete=False, opts=None):
+def encrypted_local_export(
+    prefix, filename, data, filter="", delete=False, triggers=None, opts=None
+):
     "store sensitive state data age encrypted in state/files/"
 
     from .authority import ssh_factory
@@ -677,14 +709,23 @@ def encrypted_local_export(prefix, filename, data, filter="", delete=False, opts
         ssh_factory.authorized_keys,
         filter=filter,
         delete=delete,
+        triggers=triggers,
         opts=opts,
     )
 
 
-def public_local_export(prefix, filename, data, filter="", delete=False, opts=None):
+def public_local_export(prefix, filename, data, filter="", delete=False, triggers=None, opts=None):
     "store public state data unencrypted in state/files/"
 
-    return DataExport(prefix, filename, data, filter=filter, delete=delete, opts=opts)
+    return DataExport(
+        prefix,
+        filename,
+        data,
+        filter=filter,
+        delete=delete,
+        triggers=triggers,
+        opts=opts,
+    )
 
 
 def salt_config(resource_name, stack_name, base_dir):
@@ -800,7 +841,7 @@ class LocalSaltCall(pulumi.ComponentResource):
 
         self.executed = command.local.Command(
             resource_name,
-            create=". .venv/bin/activate && {scripts_dir}/salt-call.py -c {conf_dir} {args}".format(
+            create="python {scripts_dir}/salt-call.py -c {conf_dir} {args}".format(
                 scripts_dir=os.path.join(this_dir, "scripts"),
                 conf_dir=self.config["root_dir"],
                 args=" ".join(args),
@@ -929,9 +970,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         """Returns the current time as a Unix timestamp (seconds)."""
         return int(time.time())
 
-    def _generate_value(
-        self, creation_type: str, base: Optional[str], range: Optional[str]
-    ) -> str:
+    def _generate_value(self, creation_type: str, base: Optional[str], range: Optional[str]) -> str:
         """
         Generates a value based on the creation type
         """
@@ -950,9 +989,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         """
         Creates a new TimedResource
         """
-        value = self._generate_value(
-            props["creation_type"], props.get("base"), props.get("range")
-        )
+        value = self._generate_value(props["creation_type"], props.get("base"), props.get("range"))
         last_updated = self._now()
         return pulumi.dynamic.CreateResult(
             id_=str(uuid.uuid4()),
@@ -1121,11 +1158,7 @@ class ServePrepare(pulumi.ComponentResource):
         self.serve_ip = (
             serve_ip
             if serve_ip
-            else (
-                get_ip_from_ifname(serve_interface)
-                if serve_interface
-                else get_default_host_ip()
-            )
+            else (get_ip_from_ifname(serve_interface) if serve_interface else get_default_host_ip())
         )
 
         # create a network port number, used for https serving the data
@@ -1179,7 +1212,7 @@ class ServePrepare(pulumi.ComponentResource):
             # if enabled, run port_forward and update config with returned port_forward values
             self.forward = command.local.Command(
                 resource_name + "_forward",
-                create=f". .venv/bin/activate && {os.path.join(this_dir, 'scripts/port_forward.py')} --yaml-from-stdin --yaml-to-stdout",
+                create=f"python {os.path.join(this_dir, 'scripts/port_forward.py')} --yaml-from-stdin --yaml-to-stdout",
                 stdin=self.merged_config.apply(yaml.safe_dump),
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -1226,9 +1259,7 @@ class ServeOnce(pulumi.ComponentResource):
     """
 
     def __init__(self, resource_name, config, payload, opts=None):
-        super().__init__(
-            "pkg:tools:ServeOnce", "{}_serve_once".format(resource_name), None, opts
-        )
+        super().__init__("pkg:tools:ServeOnce", "{}_serve_once".format(resource_name), None, opts)
 
         def merge_func(args):
             payload_value = args[0]
@@ -1242,7 +1273,7 @@ class ServeOnce(pulumi.ComponentResource):
         )
         self.executed = command.local.Command(
             "{}_serve_once".format(resource_name),
-            create=f". .venv/bin/activate && {os.path.join(this_dir, 'scripts/serve_once.py')} --verbose --yes",
+            create=f"python {os.path.join(this_dir, 'scripts/serve_once.py')} --verbose --yes",
             stdin=this_config.apply(yaml.safe_dump),
             opts=this_opts,
         )
@@ -1262,7 +1293,7 @@ class WriteRemovable(pulumi.ComponentResource):
         super().__init__("pkg:tools:WriteRemovable", resource_name, None, opts)
 
         create_str = (
-            ". .venv/bin/activate && "
+            "python "
             + os.path.join(this_dir, "scripts/write_removable.py")
             + " --silent"
             + " --source-image {}".format(image)
@@ -1275,7 +1306,7 @@ class WriteRemovable(pulumi.ComponentResource):
             create=create_str,
             opts=pulumi.ResourceOptions(parent=self),
         )
-        self.result = self.executed.returncode
+        self.result = self.executed
         self.register_outputs({})
 
 
