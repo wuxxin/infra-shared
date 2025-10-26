@@ -43,6 +43,7 @@ from infra.os import (
     TangFingerprint,
     FcosImageDownloader,
     RemoteDownloadIgnitionConfig,
+    WaitForHostReady,
 )
 from infra.tools import (
     ServePrepare,
@@ -156,15 +157,9 @@ else:
 # update environment to include storage id's, passphrases and tang setup
 host_environment.update(
     {
-        "boot_device": next(
-            s["device"] for s in identifiers["storage"] if s["name"] == "boot"
-        ),
-        "usb1_device": next(
-            s["device"] for s in identifiers["storage"] if s["name"] == "usb1"
-        ),
-        "usb2_device": next(
-            s["device"] for s in identifiers["storage"] if s["name"] == "usb2"
-        ),
+        "boot_device": next(s["device"] for s in identifiers["storage"] if s["name"] == "boot"),
+        "usb1_device": next(s["device"] for s in identifiers["storage"] if s["name"] == "usb1"),
+        "usb2_device": next(s["device"] for s in identifiers["storage"] if s["name"] == "usb2"),
         "luks_root_passphrase": luks_root_passphrase,
         "luks_var_passphrase": luks_var_passphrase,
         "tang_url": tang_url,
@@ -228,9 +223,7 @@ if stack_name.endswith("sim"):
     opts = pulumi.ResourceOptions(depends_on=[host_machine, serve_data])
 else:
     # download metal version of ARM64 os image (Raspberry PI compatible)
-    image = FcosImageDownloader(
-        architecture="aarch64", platform="metal", image_format="raw.xz"
-    )
+    image = FcosImageDownloader(architecture="aarch64", platform="metal", image_format="raw.xz")
 
     # download bios and other extras for Raspberry PI for customization
     extras = build_raspberry_extras()
@@ -247,7 +240,7 @@ else:
     host_boot_media = write_removable(
         shortname,
         image=image.imagepath,
-        serial=host_environment["bootdevice"].strip("/dev/disk/by-uuid/"),
+        serial=host_environment["boot_device"].strip("/dev/disk/by-uuid/"),
         patches=[
             (uboot_image_filename, "EFI-SYSTEM/boot/efi/u-boot.bin"),
             (public_config_file.filename, "boot/ignite.json"),
@@ -259,8 +252,22 @@ else:
     opts = pulumi.ResourceOptions(depends_on=[host_boot_media, serve_data])
 
 
+# wait until host is ready
+host_ready = WaitForHostReady(
+    shortname,
+    target,
+    user=host_config.this_env.apply(lambda env: env["UPDATE_USER"]),
+    opts=opts,
+)
+
 # update host to newest config, should be a no-op (zero changes) on machine creation
-host_update = SystemConfigUpdate(shortname, target, host_config, simulate=False)
+host_update = SystemConfigUpdate(
+    shortname,
+    target,
+    host_config,
+    simulate=False,
+    opts=pulumi.ResourceOptions(depends_on=[host_ready]),
+)
 pulumi.export("{}_host_update".format(shortname), host_update)
 
 # make host postgresql.Provider pg_server available
@@ -277,6 +284,6 @@ pg_server = postgresql.Provider(
     superuser=True,
     sslrootcert=exported_ca_cert.filename,
     sslmode="require",
-    opts=pulumi.ResourceOptions(depends_on=[host_machine, host_update]),
+    opts=pulumi.ResourceOptions(depends_on=[host_update]),
 )
 pulumi.export("{}_pg_server".format(shortname), pg_server)
