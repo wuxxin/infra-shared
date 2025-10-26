@@ -54,20 +54,6 @@ dependencies = [
     # add ipykernel, to be able to use this venv as notebook kernel
     "ipykernel",
 
-    # pulumi - imperativ infrastructure delaration using python
-    "pulumi>3.200.0,<4.0.0",
-    # XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
-    "grpcio>=1.71.0",
-
-    # pip is needed for pulumi package auto detection
-    "pip",
-    # pulumi modules used in authority, tools and os
-    "pulumi-command",
-    "pulumi-libvirt",
-    "pulumi-random",
-    "pulumi-tls",
-    "pulumiverse_purrl",
-
     # tooly.py: saltstack - saltcall for local tools building
     "salt>=3007.1",
     # include sometimes missing dependencies, add passlib and bcrypt for utils.pycrypto workaround
@@ -77,12 +63,51 @@ dependencies = [
     "passlib",
     "bcrypt",
 
+    # pulumi - imperativ infrastructure delaration using python
+    "pulumi>3.200.0,<4.0.0",
+    # XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
+    "grpcio>=1.71.0",
+    # pip is needed for pulumi package auto detection
+    "pip",
+    # pulumi modules used in authority, tools, os and butane pulumi modules
+    "pulumi-command",       # pulumi-command - execute commands locally or remotely as resource
+    "pulumi-libvirt",       # pulumi-libvirt - creating and managing libvirt cloud resources
+    "pulumi-postgresql",    # pulumi-postgresql - creating and managing postgresql cloud resources
+    "pulumi-random",        # pulumi-random - safely use randomness
+    "pulumi-tls",           # pulumi-tls - create TLS resources
+    "pulumiverse_purrl",    # pulumiverse_purrl - native provider for making HTTP API calls
+]
+
+
+[project.optional-dependencies]
+
+embedded = [
     # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
     # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
     "esphome>=2025.7.1",
 ]
 
-[project.optional-dependencies]
+examples = [
+    # pulumi-postgresql - needed for examples/safe
+    "pulumi-postgresql",
+    # marimo - needed for examples/notebooks/storage-write-book.py
+    "marimo",
+    # phao-mqtt - needed for examples/notebooks/mqtt-book.ipynb
+    "paho-mqtt",
+]
+
+dev = [
+    # This syntax means: "install this package (itself) with the 'docs' extra"
+    "infra-shared[docs]",
+    "infra-shared[embedded]",
+    "infra-shared[examples]",
+    # ruff - An extremely fast Python linter and code formatter, written in Rust.
+    "ruff",
+    # ty - An extremely fast Python type checker and language server, written in Rust.
+    "ty",
+    # "pytest", # example for future test dependencies
+]
+
 docs = [
     # mkdocs - Project documentation with Markdown
     "mkdocs",
@@ -104,24 +129,4 @@ docs = [
     "mkdocs-material-extensions",
     # MkDocs Material additions used for pymdownx
     "mkdocs_pymdownx_material_extras",
-]
-
-examples = [
-    # pulumi-postgresql - needed for examples/safe
-    "pulumi-postgresql",
-    # marimo - needed for examples/notebooks/storage-write-book.py
-    "marimo",
-    # phao-mqtt - needed for examples/notebooks/mqtt-book.ipynb
-    "paho-mqtt",
-]
-
-dev = [
-    # This syntax means: "install this package (itself) with the 'docs' extra"
-    "infra-shared[docs]",
-    "infra-shared[examples]",
-    # ruff - An extremely fast Python linter and code formatter, written in Rust.
-    "ruff",
-    # ty - An extremely fast Python type checker and language server, written in Rust.
-    "ty",
-    # "pytest", # example for future test dependencies
 ]

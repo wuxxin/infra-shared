@@ -44,20 +44,6 @@ dependencies = [
     # add ipykernel, to be able to use this venv as notebook kernel
     "ipykernel",
 
-    # pulumi - imperativ infrastructure delaration using python
-    "pulumi>3.200.0,<4.0.0",
-    # XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
-    "grpcio>=1.71.0",
-
-    # pip is needed for pulumi package auto detection
-    "pip",
-    # pulumi modules used in authority, tools and os
-    "pulumi-command",
-    "pulumi-libvirt",
-    "pulumi-random",
-    "pulumi-tls",
-    "pulumiverse_purrl",
-
     # tooly.py: saltstack - saltcall for local tools building
     "salt>=3007.1",
     # include sometimes missing dependencies, add passlib and bcrypt for utils.pycrypto workaround
@@ -67,50 +53,50 @@ dependencies = [
     "passlib",
     "bcrypt",
 
-    # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-    # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
-    "esphome>=2025.7.1",
+    # pulumi - imperativ infrastructure delaration using python
+    "pulumi>3.200.0,<4.0.0",
+    # XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
+    "grpcio>=1.71.0",
+    # pip is needed for pulumi package auto detection
+    "pip",
+    # pulumi modules used in authority, tools, os and butane pulumi modules
+    "pulumi-command",       # pulumi-command - execute commands locally or remotely as resource
+    "pulumi-libvirt",       # pulumi-libvirt - creating and managing libvirt cloud resources
+    "pulumi-postgresql",    # pulumi-postgresql - creating and managing postgresql cloud resources
+    "pulumi-random",        # pulumi-random - safely use randomness
+    "pulumi-tls",           # pulumi-tls - create TLS resources
+    "pulumiverse_purrl",    # pulumiverse_purrl - native provider for making HTTP API calls
 
     # additional pulumi modules
-    "pulumi-docker",
-    "pulumi-gitea",
-    "pulumi-keycloak",
-    "pulumi-postgresql",
-    # pulumi_synced_folder - synchronizes local folder to S3, Azure Storage, Google Storage
-    "pulumi_synced_folder",
-    "pulumiverse_time",
-    # pulumi-azure-native - Native Azure Pulumi Provider
-    # "pulumi-azure-native",
-    # pulumi-gcp - Google Cloud Platform (GCP) Pulumi resource
-    # "pulumi-gcp",
-    # pulumi-hcloud - manage Hetzner Cloud resources
-    # "pulumi-hcloud",
-    # pulumiverse_gandi - Pulumi provider for Gandi domains / cloud
-    # "pulumiverse_gandi",
-    # pulumi-github - Pulumi package to facilitate interacting with GitHub
-    # "pulumi-github",
-    # pulumiverse-harbor - manage Harbor (artifacts registry) resources
-    # "pulumiverse-harbor",
-    # "pulumi-cloudinit",
-    # "pulumi-kubernetes",
-    # "pulumi-minio",
-    # "pulumi-mysql",
-    # "pulumi-nomad",
-    # "pulumi-vault",
-    # "pulumiverse_acme",
-    # "pulumiverse_matchbox",
-    # "pulumiverse-sentry",
+    # "abklabs/pulumi-runner",  # pulumi-runner -alternative way to run scripts locally and remotely
+    # "pulumi-azure-native",    # pulumi-azure-native - Native Azure Pulumi Provider
+    # "pulumi-cloudinit",   # pulumi-cloudinit - creating and managing cloudinit cloud resources
+    # "pulumi-docker",      # pulumi-docker - interacting with Docker
+    # "pulumi-gcp",         # pulumi-gcp - Google Cloud Platform (GCP) Pulumi resource
+    # "pulumi-gitea",       # pulumi-gitea - creating and managing Gitea resources
+    # "pulumi-github",      # pulumi-github - creating and managing github cloud resources
+    # "pulumi-gitlab",      # pulumi-gitlab - creating and managing gitlab cloud resources
+    # "pulumi-hcloud",      # pulumi-hcloud - creating and managing Hetzner hcloud cloud resources
+    # "pulumi-keycloak",    # pulumi-keycloak - creating and managing keycloak cloud resources
+    # "pulumi-kubernetes",  # pulumi-kubetnetes - creating and managing Kubernetes resources
+    # "pulumi-minio",       # pulumi-minio - creating and managing minio cloud resources
+    # "pulumi-mysql",       # pulumi-mysql - creating and managing mysql cloud resources
+    # "pulumi-vault",       # pulumi-vault - creating and managing HashiCorp Vault cloud resources
+    # "pulumi_synced_folder",   # pulumi_synced_folder - synchronizes local folder to S3, Azure Storage, Google Storage
+    # "pulumiverse-harbor", # pulumiverse-harbor - creating and managing Harbor (artifacts registry) resources
+    # "pulumiverse-sentry", # pulumi-sentry - creating and managing Sentry resources
+    # "pulumiverse_acme",   # pulumiverse_acme - creating and managing ACME cloud resources
+    # "pulumiverse_gandi",  # pulumiverse_gandi - creating and managing gandi cloud resources
+    # "pulumiverse-ovh",    # pulumiverse-ovh - creating and managing OVH cloud resources
+    # "pulumiverse_matchbox",   # pulumiverse_matchbox - creating and managing the Matchbox iPXE server
+    # "pulumiverse_time",   # pulumiverse_time - creating and managing Time resources
 
-    # have marimo available for more interactive tinkering
-    "marimo",
-
-    # basic DataScientist
-    "bokeh",
-    "pandas",
-    "scipy",
-
+    # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
+    # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
+    # "esphome>=2025.7.1",
     # phao-mqtt - mqtt library for publish and subscribe to mqtt messages
-    "paho-mqtt",
+    # "paho-mqtt",
+
 ]
 
 [project.optional-dependencies]
@@ -141,6 +127,11 @@ docs = [
 dev = [
     # This syntax means: "install this package (itself) with the 'docs' extra"
     "project_name[docs]",
+    # have marimo and basic DataScientist available for more interactive tinkering
+    "marimo",
+    "bokeh",
+    "pandas",
+    "scipy",
     # ruff - An extremely fast Python linter and code formatter, written in Rust.
     "ruff",
     # ty - An extremely fast Python type checker and language server, written in Rust.
