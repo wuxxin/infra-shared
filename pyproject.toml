@@ -15,6 +15,16 @@ py-modules = ["__main__"]
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+reportMissingParameterType = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownLambdaType = false
+reportOptionalMemberAccess = false
+reportAny = false
+reportUnannotatedClassAttribute = false
+reportCallInDefaultInitializer = false
 
 [project]
 name = "infra-shared"
@@ -26,28 +36,21 @@ requires-python = ">=3.11"
 dependencies = [
     # yaml handling
     "pyyaml",
-
     # template.py: jinja templating library
     "jinja2",
-
     # template.py: detection of text or binary
     "chardet",
-
     # tools.py: additional ssh/sftp connectivity
     "paramiko",
-
     # authority.py, scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
     "cryptography",
-
     # scripts/write_removable.py: dbus handling for gdisk2 support, smart progress meter
     "dbus-python",
     # smart progress meter in write_removable
     "tqdm",
-
     # /scripts/port_forward.py; NAT-PMP - interact with NAT-PMP version 0 draft specification gateways
     "netifaces",
     "NAT-PMP",
-
     # add ipykernel, to be able to use this venv as notebook kernel
     "ipykernel",
 
@@ -58,10 +61,12 @@ dependencies = [
 
     # pip is needed for pulumi package auto detection
     "pip",
-    # pulumi modules used in authorithy and tools
+    # pulumi modules used in authority, tools and os
     "pulumi-command",
+    "pulumi-libvirt",
     "pulumi-random",
     "pulumi-tls",
+    "pulumiverse_purrl",
 
     # tooly.py: saltstack - saltcall for local tools building
     "salt>=3007.1",
@@ -81,38 +86,39 @@ dependencies = [
 docs = [
     # mkdocs - Project documentation with Markdown
     "mkdocs",
-
     # A Mermaid graphs plugin for MkDocs
     "mkdocs-mermaid2-plugin",
-
     # Python implementation of Lunr.js (for mkdocs)
     "lunr",
-
     # MkDocs plugin to add a last updated date to your site
     "mkdocs-git-revision-date-localized-plugin",
-
     # Plugin to generate a single PDF file from a MkDocs
     "mkdocs-with-pdf",
-
     # MkDocs plugin to automagically generate relative links
     "mkdocs-ezlinks-plugin",
-
     # Open source plugin for Mkdocs page redirects
     "mkdocs-redirects",
-
     # Material design theme for MkDocs
     "mkdocs-material",
-
     # Markdown extension resources for MkDocs Material
     "mkdocs-material-extensions",
-
     # MkDocs Material additions used for pymdownx
     "mkdocs_pymdownx_material_extras",
+]
+
+examples = [
+    # pulumi-postgresql - needed for examples/safe
+    "pulumi-postgresql",
+    # marimo - needed for examples/notebooks/storage-write-book.py
+    "marimo",
+    # phao-mqtt - needed for examples/notebooks/mqtt-book.ipynb
+    "paho-mqtt",
 ]
 
 dev = [
     # This syntax means: "install this package (itself) with the 'docs' extra"
     "infra-shared[docs]",
+    "infra-shared[examples]",
     # ruff - An extremely fast Python linter and code formatter, written in Rust.
     "ruff",
     # ty - An extremely fast Python type checker and language server, written in Rust.
