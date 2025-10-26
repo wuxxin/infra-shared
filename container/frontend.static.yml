@@ -1,17 +1,17 @@
 # static traefik config
 
 log:
-  level:  {{ FRONTEND["VERBOSITY"] }}
+  level: "{{ FRONTEND['VERBOSITY'] }}"
 
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
 
-{% if FRONTEND["DASHBOARD"] is not none %}
+# {% if FRONTEND["DASHBOARD"] is not none %}
 # define service api@internal if FRONTEND:DASHBOARD is enabled
 api:
   dashboard: true
-{% endif %}
+# {% endif %}
 
 # define service ping@internal, so healthcheck can be done
 ping:
@@ -35,13 +35,13 @@ entryPoints:
   healthcheck:
     address: ":8080"
 
-{% if "ENTRYPOINTS" in FRONTEND %}
+# {% if "ENTRYPOINTS" in FRONTEND %}
   # add custom entrypoints
-  {% for key, value in FRONTEND["ENTRYPOINTS"].items() %}
-    {% set entry={key: value} %}
+  # {% for key, value in FRONTEND["ENTRYPOINTS"].items() %}
+    # {% set entry={key: value} %}
 {{ entry|toyaml|indent(2,True) }}
-  {% endfor %}
-{% endif %}
+  # {% endfor %}
+# {% endif %}
 
 providers:
   docker:
@@ -57,16 +57,16 @@ providers:
     directory: /traefik
     watch: true
 
-{% if "PROVIDERS" in FRONTEND %}
+# {% if "PROVIDERS" in FRONTEND %}
   # add custom providers
-  {% for key, value in FRONTEND["PROVIDERS"].items() %}
-    {% set provider={key: value} %}
+  # {% for key, value in FRONTEND["PROVIDERS"].items() %}
+    # {% set provider={key: value} %}
 {{ provider|toyaml|indent(2,True) }}
-  {% endfor %}
-{% endif %}
+  # {% endfor %}
+# {% endif %}
 
 certificatesResolvers:
-{%- if LOCAL_ACME_SERVER["ENABLED"] %}
+# {%- if LOCAL_ACME_SERVER["ENABLED"] %}
   acmeinternal:
     acme:
       caServer: "https://acme.internal:9000/acme/internal/directory"
@@ -83,18 +83,17 @@ certificatesResolvers:
       storage: "/traefik/acme-internal.json"
       # Key type for requested certificates (EC256, EC384, RSA2048, RSA4096, RSA8192)
       keyType: EC256
-
-{%- endif %}
-{% if "CERTIFICATESRESOLVERS" in FRONTEND %}
+# {%- endif %}
+# {% if "CERTIFICATESRESOLVERS" in FRONTEND %}
   # add custom resolvers
-  {% for key, value in FRONTEND["CERTIFICATESRESOLVERS"].items() %}
-    {% set resolver={key: value} %}
+  # {% for key, value in FRONTEND["CERTIFICATESRESOLVERS"].items() %}
+    # {% set resolver={key: value} %}
 {{ resolver|toyaml|indent(2,True) }}
-  {% endfor %}
-{% endif %}
+  # {% endfor %}
+# {% endif %}
 
 
-{% if "EXTRA" in FRONTEND %}
+# {% if "EXTRA" in FRONTEND %}
 # add additional traefik static config string
 {{ FRONTEND["EXTRA"] }}
-{% endif %}
+# {% endif %}

@@ -47,13 +47,13 @@ http:
           sans: true
           subject:
             commonname: true
+            organizationalunit: true
 
-{% if FRONTEND["DASHBOARD"] is not none %}
+  # {% if FRONTEND["DASHBOARD"] is not none %}
   routers:
     # add route to traefik debug dashboard if enabled
     dashboard:
       rule: Host(`{{ FRONTEND["DASHBOARD"] }}`)
       service: api@internal
       entrypoints: https
-{% endif %}
-
+  # {% endif %}
