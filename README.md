@@ -51,6 +51,7 @@ See the [examples](examples/) for code of what else can be done with it
 - build Embedded-OS Images and IOT Images
     - **Raspberry PI Extras** - Eeprom, U-Boot and UEFI bios files
     - **Openwrt Linux** - Network Device Distribution for Router and other network devices
+    - **ESPHOME ESP32 Sensor/Actor Devices** - Wireless Sensor and Actors for MQTT/HomeAsssistant Management
 
 ### Technologies
 
@@ -63,22 +64,6 @@ See the [examples](examples/) for code of what else can be done with it
 - Pulumi, Butane, more Systemd, Fcos, Saltstack, Podman, compose.yml, makefile, pyproject.toml, libvirt, Bash, Mkdocs, Mermaid, Jupyter or Marimo Notebooks
 
 Provision can be run on **Arch** Linux, Manjaro Linux or as **Container Image**.
-
-#### Tools used
-
-- `pulumi` - imperativ infrastructure delaration using python
-- `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
-- `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
-- `systemd` - service, socker, path, timer, nspawn machine container
-- `podman` - build Container and NSpawn images, run Container using quadlet systemd container
-- `saltstack`
-    - local build environments and local services
-    - remote fcos config update using butane to saltstack translation and execution
-- `mkdocs` - documentation using markdown and mermaid
-- `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
-- `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
-- `age` - ssh keys based encryption of production files and pulumi master password
-- `uv`- virtualenv management using pyproject.toml and uv.lock
 
 ### Usage
 
@@ -135,7 +120,7 @@ cd infra/Containerfile/provision-client && \
     docker build -t provision-client:latest $(pwd)
 
 # call provision shell(defaults to /usr/bin/bash interactive shell)
-# defaults to podman, but can be overriden with CONTAINER_CMD=executable
+# defaults to podman, but can be overridden with CONTAINER_CMD=executable
 CONTAINER_CMD=docker infra/scripts/provision_shell.sh
 # use exit to return to base shell
 ```
@@ -161,6 +146,12 @@ make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
     openssl x509 -in /dev/stdin -noout -text
 ```
 
+#### Show the PKS12 password for an exported pks12 client certificate, for import into another app
+
+```sh
+make sim-show args="--show-secrets librewolf_client_cert_user_host" | jq -r .pkcs12_password.result
+```
+
 #### Manual pulumi invocation
 
 ```sh
@@ -182,7 +173,7 @@ ipython
 
 ```sh
 make sim-clean
-# in case something happend while destroying sim stack
+# in case something happens while destroying sim stack
 make sim__ args="stack rm --force"; rm Pulumi.sim.yaml
 # recreate stack
 make sim-create

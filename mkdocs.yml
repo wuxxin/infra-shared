@@ -22,9 +22,6 @@ nav:
   - networking.md
   - credentials.md
   - healthchecks.md
-  - pulumi.md
-  - scripts.md
+  - development.md
   - Examples:
-    - examples/safe/README.md
-  - architecture.md
-
+      - examples/safe/README.md

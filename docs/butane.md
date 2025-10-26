@@ -17,11 +17,11 @@ Documentation:
 
 ### Environment
 
-The Environment available for the butane translation.
+The Environment available in jinja for the butane translation.
 
 - environment defaults available in jinja
-- HOSTNAME: the hostname argument will be set from the ButaneTranspiler
 - any default environment can be overwritten to liking
+- HOSTNAME: the hostname argument will be set from the ButaneTranspiler
 - some defaults (DNS_RESOLVER, LOCALE) can be set too on a project config (lowercase names)
     eg.:
 
@@ -82,7 +82,7 @@ make an include for contents of jinja_defaults.yml here.
 
 in jinja, you can then call all python methods on the datetime.datetime objects available.
 
-## Butane Yaml
+## Butane Yaml Creation
 
 the butane configuration is created from
 
@@ -121,11 +121,11 @@ the butane configuration is created from
 
 - merge together
 
-## Ignition Json
+## Ignition Json Creation
 
 the ignition spec file is created from the merged final butane yaml.
 
-## Saltstack Yaml
+## Saltstack Yaml Creation
 
 The saltstack file is created from the resulting merged final butane yaml.
 It meets all restrictions for the saltstack conversion.

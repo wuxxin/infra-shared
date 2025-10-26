@@ -1,4 +1,4 @@
-# Project Development Documentation
+# Development
 
 ## Files and Directories Layout
 
@@ -12,13 +12,37 @@
 ### User Documentation
 
 - `README.md`: A user centric view on howto use the project
-- `docs/`:  mkdocs documentatio
-- see `docs/scripts.md` and `docs/pulumi.md` for scripts and tools
-- see `docs/os.md` and `docs/update.md` for coreos system and system update
-- see `docs/butane.md` for scripts and tools
-- see `docs/scripts.md` for scripts and tools
+- `docs/`:  mkdocs documentation
+- `docs/tools.md` for scripts and tools and pulumi components
+- `docs/os.md` and `docs/update.md` for coreos system and system update
+- `docs/networking.md` for network configuration of the coreos system
+- `docs/credentials.md` for credentials configuration in coreos and usage in container, compose and nspawn workloads
+- `docs/healthchecks.md` for healtheck configuration of container, compose and nspawn workloads
+- `docs/butane.md` for jinja templating butane and saltstack generation
 
-### Building
+### Development Pulumi Resources
+
+- `authority.py` - Authority - TLS/X509 CA and Certificates, DNSSEC Keys, OpenSSH Keys
+- [`os/__init__.py`](os.md) - CoreOS Centric System Config, Deployment, Operation, Update, Credentials, DNS, HTTPS, Container, Compose, Nspawn Workloads
+- `tools.py` - Tools - Serve HTTPS, SSH-put/get/execute, local and Remote Salt-Call, write Removeable-Media, State Data Export, Tools
+- `build.py` - build Embedded-OS Images and IOT Images, build OpenWRT Linux, Paspberry PI Extras, ESPHOME ESP32 Sensor/Actor Devices
+
+### Development Scripts
+
+all inside directory `scripts`:
+
+- `create_skeleton.sh`
+- `dnssec_gen.sh` - Generates DNSSEC KSK private and public key (Anchor Data) and outputs them as JSON
+- `from_git.sh` - clone and update from a git repository with ssh, gpg keys and known_hosts from STDIN
+- `port_forward.py` - request a port forwarding so that serve-port is reachable on public-port
+- `provision_shell.sh`
+- `requirements.sh`
+- `serve_once.py` - serve a HTTPS path once, use STDIN for config and payload, STDOUT for request_body
+- `shell_inside_sim.sh`
+- `vault_pipe.sh` - use vault as a commandline input JSON from STDIN, output a root CA and two provision CA as JSON to STDOUT
+- `write_removable.py` - write image to removable storage specified by serial_number
+
+## Building
 
 - the root `README.md` describes the `examples/skeleton/Makefile` usage, not the root Makefile usage
 
@@ -30,10 +54,10 @@
 - make help output:
 
 ```txt
-buildenv            Build python environment
-buildenv-clean      Remove build environment artifacts
+buildenv             Build python environment
+buildenv-clean       Remove build environment artifacts
 clean                Remove all artifacts
-docs                 Build docs for local usage and open in browser
+docs                 Build docs for local usage
 docs-clean           Remove all generated docs
 docs-online-build    Build docs for http serve
 docs-serve           Rebuild and serve docs with autoreload
@@ -46,8 +70,40 @@ test-all-local       Run all tests using local build deps
 test-scripts         Run script Tests
 test-sim             Run sim up Tests
 test-sim-clean       Remove Application Artifacts
-try-renovate         Run Renovate in dry-run mode
 ```
+
+### Tools used
+
+- `pulumi` - imperativ infrastructure declaration using python
+- `fcos` - Fedora-CoreOS, minimal OS with `clevis` (sss,tang,tpm) storage unlock
+- `butane` - create fcos `ignition` configs using `jinja` enhanced butane yaml
+- `systemd` - service, socker, path, timer, nspawn machine container
+- `podman` - build Container and NSpawn images, run Container using quadlet systemd container
+- `saltstack`
+    - local build environments and local services
+    - remote fcos config update using butane to saltstack translation and execution
+- `mkdocs` - documentation using markdown and mermaid
+- `libvirt` - simulation of machines using the virtualization api supporting qemu and kvm
+- `tang` - server used for getting a key shard for unattended encrypted storage unlock on boot
+- `age` - ssh keys based encryption of production files and pulumi master password
+- `uv`- virtualenv management using pyproject.toml and uv.lock
+
+## Architecture Style Objectives
+
+- **avoid legacy** technologies, build a clear **chain of trust**, support **encrypted storage** at rest
+    - use **ssh keys** as root of trust for pulumi **stack secret** using **age**
+    - store **secrets in the repository** using pulumi config secrets
+    - per project **tls root-ca, server-certs**, rollout **m-tls** client certificates where possible
+    - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
+- create **disposable/immutable-ish** infrastructure, aim for **structural isolation** and reusability
+- treat **state as code**, favor **state reconcilation** tools
+    - have the **complete encrypted state** in the **git repository** as **single source of truth**
+- have a **big/full featured provision client** as the center of operation
+    - target one **provision os** and a **container** for foreign distros and **continous integration** processes
+    - facilitate a comfortable local **simulation environment** with **fast reconfiguration** turnaround
+- **documentation** and **interactive notebooks** alongside code
+    - help onboarding with **interactive tinkering** using **marimo notebooks**
+    - use mkdocs, **markdown** and **mermaid** to build a static **documentation website**
 
 ## Python Style, Conventions and preferred libraries
 
@@ -83,3 +139,4 @@ try-renovate         Run Renovate in dry-run mode
         - 1 test for expected use
         - 1 edge case
         - 1 failure case
+
