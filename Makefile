@@ -77,8 +77,13 @@ test-sim: buildenv ## Run sim up Tests
 	git init $(ROOTDIR)/build/tests
 	./scripts/create_skeleton.sh \
 		--project-dir $(ROOTDIR)/build/tests --name-library infra --yes
-	f=$(ROOTDIR)/build/tests/infra && if test ! -e $$f; then ln -s "../../" $$f; fi
+	for i in infra uv.lock .venv; do \
+	    f=$(ROOTDIR)/build/tests/$$i && if test ! -e $$f; then ln -s "../../" $$f; fi \
+	done
 	sed -i -r "s#virtualenv: .venv#virtualenv: ../../.venv#g" $(ROOTDIR)/build/tests/Pulumi.yaml
+	mkdir -p $(ROOTDIR)/build/tests/target && cp -r $(ROOTDIR)/examples/safe $(ROOTDIR)/build/tests/target
+	cat $(ROOTDIR)/build/tests/config-template.yaml >> $(ROOTDIR)/build/tests/Pulumi.sim.yaml
+	# echo "import target.safe" >> $(ROOTDIR)/build/tests/__main__.py
 	cd $(ROOTDIR)/build/tests && $(PULUMI) login file://$(ROOTDIR)/build/pulumi
 	cd $(ROOTDIR)/build/tests && \
 		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack init sim --secrets-provider passphrase
@@ -95,6 +100,13 @@ sim__: ## Run "pulumi $(args)"
 .PHONY: test-sim-clean
 test-sim-clean: ## Remove Application Artifacts
 	@echo "+++ $@"
+	if test -d $(ROOTDIR)/build/tests; then \
+	    cd $(ROOTDIR)/build/tests && \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryVault$$command:local:Command::ca_factory_vault_ca' || true; \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryVault$$command:local:Command::fake_ca_factory_vault_ca' || true; \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::ca_factory_root_cert' || true; \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::ca_factory_root_key' || true; \
+	fi
 	if test -d $(ROOTDIR)/build/tests; then \
 		cd $(ROOTDIR)/build/tests && \
 		PULUMI_CONFIG_PASSPHRASE="sim" PULUMI_CONTINUE_ON_ERROR=true \
@@ -130,11 +142,11 @@ docs-serve: buildenv ## Rebuild and serve docs with autoreload
 docs-clean: ## Remove all generated docs
 	@echo "+++ $@"
 	rm -rf build/docs-local build/docs-online
-	mkdir -p build/docs-local build/docs-online
 
 .PHONY: clean
 clean: docs-clean test-sim-clean buildenv-clean  ## Remove all artifacts
 	@echo "+++ $@"
+	rm -rf build
 
 .PHONY: test-all-local
 test-all-local: clean provision-local buildenv docs-online-build test-scripts test-sim ## Run all tests using local build deps
