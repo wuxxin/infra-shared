@@ -92,15 +92,14 @@ default_hours_private_cert = 24 * 824
 default_early_renewal_hours = 48
 
 
-def pem_to_pkcs12_base64(
-    pem_cert: str, pem_key: str, password: str, friendlyname: str = ""
-) -> str:
+def pem_to_pkcs12_base64(pem_cert: str, pem_key: str, password: str, friendlyname: str = "") -> str:
     """Converts a TLS client certificate and its associated private key in PEM format
     into a password-protected PKCS#12 file, encoded as a base64 string
 
     :param pem_cert: The TLS client certificate in PEM format as a string
     :param pem_key: The private key in PEM format as a string
     :param password: The password to protect the PKCS#12 archive
+
     :return: Base64 encoded string of the PKCS#12 archive, formatted with line breaks
     """
     # Load the certificate from PEM
@@ -123,6 +122,19 @@ def pem_to_pkcs12_base64(
 
 
 class PKCS12Bundle(pulumi.ComponentResource):
+    """creates a PKCS12 Bundle Component
+
+    Warning:
+        Encryption is nondeterministic, meaning data will change on another conversion.
+
+    To use with public_local_export:
+        public_local_export("{}_PKCS12".format(user_host), "{}.p12".format(user_host),
+          clcert.pkcs12_bundle.result, filter="base64 -d",
+          triggers=[clcert.key.private_key_pem, clcert.cert.cert_pem, clcert.pkcs12_password.result],
+          opts=pulumi.ResourceOptions(depends_on=[librewolf_client_cert]))
+
+    """
+
     def __init__(self, name, key_pem, cert_chain_pem, password, opts=None):
         super().__init__("pkg:authority:PKCS12Bundle", name, None, opts)
 
@@ -154,9 +166,7 @@ class SSHFactory(pulumi.ComponentResource):
             lambda x: "{} {}".format(x.strip(), ssh_provision_name)
         )
         # read ssh_authorized_keys from project_dir/authorized_keys
-        ssh_authorized_keys = open(
-            os.path.join(project_dir, "authorized_keys"), "r"
-        ).readlines()
+        ssh_authorized_keys = open(os.path.join(project_dir, "authorized_keys"), "r").readlines()
         # combine with provision key
         ssh_authorized_keys += [Output.concat(ssh_provision_publickey, "\n")]
         ssh_authorized_keys = Output.concat(*ssh_authorized_keys)
@@ -287,9 +297,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
         self.provision_request_pem = Output.unsecret(ca_secrets["ca_provision_request_pem"])
         self.provision_cert_pem = Output.unsecret(ca_secrets["ca_provision_cert_pem"])
         self.alt_provision_key_pem = Output.secret(ca_secrets["ca_alt_provision_key_pem"])
-        self.alt_provision_request_pem = Output.unsecret(
-            ca_secrets["ca_alt_provision_request_pem"]
-        )
+        self.alt_provision_request_pem = Output.unsecret(ca_secrets["ca_alt_provision_request_pem"])
         self.alt_provision_cert_pem = Output.unsecret(ca_secrets["ca_alt_provision_cert_pem"])
         self.register_outputs({})
 
@@ -381,7 +389,7 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
         )
 
         # create provision and alt provision cert
-        # substract one day from validity_period_hours of root ca for [alt] provision ca
+        # subtract one day from validity_period_hours of root ca for [alt] provision ca
         ca_provision_cert = tls.LocallySignedCert(
             "{}_provision_cert".format(name),
             allowed_uses=ca_uses,
@@ -460,9 +468,7 @@ class CASignedCert(pulumi.ComponentResource):
         validity_period_hours = ca_config.get(
             "cert_validity_period_hours", default_hours_private_cert
         )
-        early_renewal_hours = ca_config.get(
-            "cert_early_renewal_hours", default_early_renewal_hours
-        )
+        early_renewal_hours = ca_config.get("cert_early_renewal_hours", default_early_renewal_hours)
 
         # decide which CA to use, root-ca, provision ca or custom sub ca
         if use_provision_ca:
@@ -797,9 +803,7 @@ pulumi.export("ca_factory", ca_factory)
 # write out public part of ca cert for usage as file
 exported_ca_cert = public_local_export("ca_factory", "ca_cert.pem", ca_factory.root_cert_pem)
 # write out public bundle of ca certs for usage as file
-exported_ca_bundle = public_local_export(
-    "ca_factory", "ca_bundle.pem", ca_factory.root_bundle_pem
-)
+exported_ca_bundle = public_local_export("ca_factory", "ca_bundle.pem", ca_factory.root_bundle_pem)
 
 
 # sub ca for optional acme provider
