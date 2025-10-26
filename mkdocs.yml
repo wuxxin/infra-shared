@@ -2,6 +2,7 @@ site_name: Infra-Shared
 
 theme:
   name: material
+
 plugins:
   - search
   - include-markdown

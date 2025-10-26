@@ -122,6 +122,8 @@ docs = [
     "mkdocs-material-extensions",
     # MkDocs Material additions used for pymdownx
     "mkdocs_pymdownx_material_extras",
+    # Mkdocs includer plugin
+    "mkdocs-include-markdown-plugin",
 ]
 
 dev = [
