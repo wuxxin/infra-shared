@@ -88,8 +88,6 @@ pg_postgres_client_cert = create_client_cert(
 
 # jinja environment for butane config
 host_environment = {
-    # copy locale from config to environment
-    "LOCALE": {key.upper(): value for key, value in config.get_object("locale").items()},
     # install mc on sim, prod should use toolbox
     "RPM_OSTREE_INSTALL": ["mc", "strace"] if stack_name.endswith("sim") else [],
     "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose") in (None, True),

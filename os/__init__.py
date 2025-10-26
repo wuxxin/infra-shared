@@ -13,6 +13,7 @@
 
 ### Functions
 
+- get_locale
 - butane_clevis_to_json_clevis
 
 """
@@ -141,6 +142,15 @@ def butane_clevis_to_json_clevis(butane_config):
     return json.dumps(clevis_config_entries)
 
 
+def get_locale():
+    """get default LOCALE settings from jinja_defaults.yml then merge with config.get_object("locale")"""
+    from ..authority import config
+
+    locale = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))["LOCALE"]
+    locale.update({key.upper(): value for key, value in config.get_object("locale").items()})
+    return locale
+
+
 class ButaneTranspiler(pulumi.ComponentResource):
     """Translate Jinja templated Butane files to Ignition and a subset to SaltStack Salt format
 
@@ -183,13 +193,10 @@ class ButaneTranspiler(pulumi.ComponentResource):
 
         # create jinja environment
         default_env = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
-        # add hostname from function call to environment
+        # add hostname
         default_env.update({"HOSTNAME": hostname})
-        # add locale from config to environment
-        default_env.update(
-            {"LOCALE": {key.upper(): value for key, value in config.get_object("locale").items()}}
-        )
-
+        # add locale
+        default_env.update({"LOCALE": get_locale()})
         # merge default with calling env
         this_env = merge_dict_struct(default_env, {} if environment is None else environment)
 

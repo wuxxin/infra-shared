@@ -53,7 +53,9 @@ import pulumi
 import pulumi_random
 import pulumi_postgresql as postgresql
 
-locale = config.get_object("locale")
+import infra.os
+
+locale = infra.os.get_locale()
 
 ha_user_password = pulumi_random.RandomPassword(
     "{}_POSTGRESQL_PASSWORD".format("homeassistant"), special=False, length=24
