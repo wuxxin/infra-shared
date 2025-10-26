@@ -100,7 +100,7 @@ systemd:
     - name: zincati.service
       mask: {{ true if DEBUG_DISABLE_AUTOUPDATE else false }}
 
-    {% if DEBUG_CONSOLE_AUTOLOGIN %}
+    # {% if DEBUG_CONSOLE_AUTOLOGIN %}
     # debugging: Add autologin on serial console
     - name: serial-getty@ttyS0.service
       dropins:
@@ -111,7 +111,7 @@ systemd:
             ExecStart=
             # Add new Execstart with `-` prefix to ignore failure
             ExecStart=-/usr/sbin/agetty --autologin core --noclear %I $TERM
-    {% endif %}
+    # {% endif %}
 
     # custom selinux policy loader, instance with %I.mod found in /etc/local/selinux
     - name: selinux-custom-policy@.service

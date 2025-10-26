@@ -136,3 +136,4 @@ storage:
             <egress-zone name="podman"/>
             <egress-zone name="nspawn"/>
           </policy>
+

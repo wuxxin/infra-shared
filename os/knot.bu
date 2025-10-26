@@ -3,17 +3,17 @@
 # {% set common={"ttl": 300,  "refresh": 3600, "retry": 900, "expire": 604800, "nxdomain": 60 } %}
 
 # # XXX disabled, because messes up rpm-ostree overlay. res: assume same uid,gid and use these
-{# passwd:
-  users:
-    - name: knot
-      uid: 977
-      primary_group: knot
-      home_dir: /var/lib/knot
-      shell: /sbin/nologin
-  groups:
-    - name: knot
-      gid: 977
-#}
+# passwd:
+#   users:
+#     - name: knot
+#       uid: 977
+#       primary_group: knot
+#       home_dir: /var/lib/knot
+#       shell: /sbin/nologin
+#   groups:
+#     - name: knot
+#       gid: 977
+
 
 storage:
   directories:
@@ -40,7 +40,7 @@ storage:
     - path: /etc/local/knot/knot-template.conf
       contents:
         local: os/knot-template.conf
-        template: jinja    
+        template: jinja
 
     # internal zone
     - path: /etc/local/knot/internal.zone
@@ -62,7 +62,7 @@ storage:
           acme  CAA 0 issue "acme.internal;validationmethods=dns-01"
           on    CAA 0 issue "acme.internal;validationmethods=dns-01"
           on    CAA 0 issuewild "acme.internal;validationmethods=dns-01"
-    
+
     # podman zone
     - path: /etc/local/knot/podman.zone
       contents:
@@ -75,7 +75,7 @@ storage:
           _dns.podman. IN SVCB 1 dns.podman alpn=dot port=853
           {{ PODMAN_CIDR|cidr2ip }} IN PTR self.podman.
           @     CAA 0 issue ""
-  
+
     # nspawn zone
     - path: /etc/local/knot/nspawn.zone
       contents:

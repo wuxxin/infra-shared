@@ -8,13 +8,12 @@ storage:
 
   files:
     # copy apiproxy and frontend configuration
-{% for f in ["apiproxy.container", "apiproxy.cfg",
-    "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
+    # {% for f in ["apiproxy.container", "apiproxy.cfg", "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: container/{{ f }}
         template: jinja
-{% endfor %}
+    # {% endfor %}
 
   trees:
     # copy apiproxy and frontend Containerfile
