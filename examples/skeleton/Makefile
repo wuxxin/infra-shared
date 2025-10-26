@@ -130,12 +130,6 @@ sim-preview: sim-create ## Run "pulumi preview --stack=sim --suppress-outputs $(
 	$(PULUMI) login file://$(ROOTDIR)state/pulumi
 	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) preview --stack "sim" --suppress-outputs $(args)
 
-.PHONY: sim-tool
-sim-tool: sim-create ## Run "infra/scripts/resource_call.py --stack sim $(args)"
-	@echo "+ $@"
-	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	. .venv/bin/activate && PULUMI_CONFIG_PASSPHRASE="sim" ./infra/scripts/resource_call.py --stack sim $(args)
-
 .PHONY: sim-show
 sim-show: ## Run "pulumi stack output --stack=sim --json $(args)"
 	@$(PULUMI) login file://$(ROOTDIR)state/pulumi &> /dev/null
@@ -161,8 +155,6 @@ ifeq ($(shell test -f Pulumi.sim.yaml && echo "ok"), ok)
 	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryVault$$command:local:Command::fake_ca_factory_vault_ca' || true
 	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::ca_factory_root_cert' || true
 	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::ca_factory_root_key' || true
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/selfSignedCert:SelfSignedCert::fake_ca_factory_root_cert' || true
-	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) --stack "sim" state unprotect --yes 'urn:pulumi:sim::athome::pkg:authority:CACertFactoryPulumi$$tls:index/privateKey:PrivateKey::fake_ca_factory_root_key' || true
 	PULUMI_CONFIG_PASSPHRASE="sim" PULUMI_CONTINUE_ON_ERROR=true $(PULUMI) destroy --stack "sim" --yes || true
 	PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack rm "sim" --yes  || true
 	rm -rf state/pulumi/.pulumi/backups/sim state/pulumi/.pulumi/history/sim
@@ -229,12 +221,6 @@ endif
 
 .PHONY: prod-create
 prod-create: prod_passphrase.age Pulumi.prod.yaml ## Create pulumi "prod" stack
-
-.PHONY: prod-tool
-prod-tool: prod-create ## Run "infra/scripts/resource_call.py --stack prod $(args)"
-	@echo "+ $@"
-	@$(PULUMI) login file://$(ROOTDIR)state/pulumi
-	@PULUMI_CONFIG_PASSPHRASE="$$(age --decrypt -i ~/.ssh/id_rsa prod_passphrase.age)" . .venv/bin/activate && ./infra/scripts/resource_call.py --stack prod $(args)
 
 .PHONY: prod-show
 prod-show: ## Run "pulumi stack output --stack "prod" --json $(args)"

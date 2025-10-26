@@ -24,109 +24,93 @@ dynamic = ["version"]
 requires-python = ">=3.11"
 
 dependencies = [
+    # yaml handling
+    "pyyaml",
+    # template.py: jinja templating library
+    "jinja2",
+    # template.py: detection of text or binary
+    "chardet",
+    # tools.py: additional ssh/sftp connectivity
+    "paramiko",
+    # authority.py, scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
+    "cryptography",
+    # scripts/write_removable.py: dbus handling for gdisk2 support, smart progress meter
+    "dbus-python",
+    # smart progress meter in write_removable
+    "tqdm",
+    # /scripts/port_forward.py; NAT-PMP - interact with NAT-PMP version 0 draft specification gateways
+    "netifaces",
+    "NAT-PMP",
+    # add ipykernel, to be able to use this venv as notebook kernel
+    "ipykernel",
 
-# yaml handling
-"pyyaml",
+    # pulumi - imperativ infrastructure delaration using python
+    "pulumi>3.200.0,<4.0.0",
+    # XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
+    "grpcio>=1.71.0",
 
-# template.py: jinja templating library
-"jinja2",
+    # pip is needed for pulumi package auto detection
+    "pip",
+    # pulumi modules used in authority, tools and os
+    "pulumi-command",
+    "pulumi-libvirt",
+    "pulumi-random",
+    "pulumi-tls",
+    "pulumiverse_purrl",
 
-# template.py: detection of text or binary
-"chardet",
+    # tooly.py: saltstack - saltcall for local tools building
+    "salt>=3007.1",
+    # include sometimes missing dependencies, add passlib and bcrypt for utils.pycrypto workaround
+    "distro",
+    "looseversion",
+    "msgpack",
+    "passlib",
+    "bcrypt",
 
-# tools.py: additional ssh/sftp connectivity
-"paramiko",
+    # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
+    # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
+    "esphome>=2025.7.1",
 
-# authority.py, scripts/serve_once.py: cryptography - cryptographic recipes and primitives in python
-"cryptography",
+    # additional pulumi modules
+    "pulumi-docker",
+    "pulumi-gitea",
+    "pulumi-keycloak",
+    "pulumi-postgresql",
+    # pulumi_synced_folder - synchronizes local folder to S3, Azure Storage, Google Storage
+    "pulumi_synced_folder",
+    "pulumiverse_time",
+    # pulumi-azure-native - Native Azure Pulumi Provider
+    # "pulumi-azure-native",
+    # pulumi-gcp - Google Cloud Platform (GCP) Pulumi resource
+    # "pulumi-gcp",
+    # pulumi-hcloud - manage Hetzner Cloud resources
+    # "pulumi-hcloud",
+    # pulumiverse_gandi - Pulumi provider for Gandi domains / cloud
+    # "pulumiverse_gandi",
+    # pulumi-github - Pulumi package to facilitate interacting with GitHub
+    # "pulumi-github",
+    # pulumiverse-harbor - manage Harbor (artifacts registry) resources
+    # "pulumiverse-harbor",
+    # "pulumi-cloudinit",
+    # "pulumi-kubernetes",
+    # "pulumi-minio",
+    # "pulumi-mysql",
+    # "pulumi-nomad",
+    # "pulumi-vault",
+    # "pulumiverse_acme",
+    # "pulumiverse_matchbox",
+    # "pulumiverse-sentry",
 
-# scripts/write_removable.py: dbus handling for gdisk2 support, smart progress meter
-"dbus-python",
-# smart progress meter in write_removable
-"tqdm",
+    # have marimo available for more interactive tinkering
+    "marimo",
 
-# /scripts/port_forward.py; NAT-PMP - interact with NAT-PMP version 0 draft specification gateways
-"netifaces",
-"NAT-PMP",
+    # basic DataScientist
+    "bokeh",
+    "pandas",
+    "scipy",
 
-# add ipykernel, to be able to use this venv as notebook kernel
-"ipykernel",
-
-# pulumi - imperativ infrastructure delaration using python
-"pulumi>3.200.0,<4.0.0",
-# XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
-"grpcio>=1.71.0",
-
-# pip is needed for pulumi package auto detection
-"pip",
-# pulumi modules used in authorithy and tools
-"pulumi-command",
-"pulumi-random",
-"pulumi-tls",
-
-# tooly.py: saltstack - saltcall for local tools building
-"salt>=3007.1",
-# include sometimes missing dependencies, add passlib and bcrypt for utils.pycrypto workaround
-"distro",
-"looseversion",
-"msgpack",
-"passlib",
-"bcrypt",
-
-# esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-# XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
-"esphome>=2025.7.1",
-
-# additional pulumi modules
-"pulumi-docker",
-"pulumi-gitea",
-"pulumi-keycloak",
-"pulumi-libvirt",
-"pulumi-postgresql",
-# pulumi_synced_folder - synchronizes local folder to S3, Azure Storage, Google Storage
-"pulumi_synced_folder",
-# pulumiverse_purrl - make HTTP get/put/post API calls to your target endpoint
-"pulumiverse_purrl",
-"pulumiverse_time",
-# pulumi-azure-native - Native Azure Pulumi Provider
-# "pulumi-azure-native",
-# pulumi-gcp - Google Cloud Platform (GCP) Pulumi resource
-# "pulumi-gcp",
-# pulumi-hcloud - manage Hetzner Cloud resources
-# "pulumi-hcloud",
-# pulumiverse_gandi - Pulumi provider for Gandi domains / cloud
-# "pulumiverse_gandi",
-# pulumi-github - Pulumi package to facilitate interacting with GitHub
-# "pulumi-github",
-# pulumiverse-harbor - manage Harbor (artifacts registry) resources
-# "pulumiverse-harbor",
-# "pulumi-cloudinit",
-# "pulumi-kubernetes",
-# "pulumi-minio",
-# "pulumi-mysql",
-# "pulumi-nomad",
-# "pulumi-vault",
-# "pulumiverse_acme",
-# "pulumiverse_matchbox",
-# "pulumiverse-sentry",
-
-# have marimo available for more interactive tinkering
-"marimo",
-
-# pre commit checks
-"pre-commit",
-
-# phao-mqtt - mqtt library for publish and subscribe to mqtt messages
-"paho-mqtt",
-
-# Python implementation of Pulumi passphrase encryption and decryption
-# "pulumi-crypto = {url = "https://github.com/sammck/pulumi-crypto/archive/refs/tags/v1.1.0.tar.gz"}
-
-### Notebooks - optional basic DataScientist
-"bokeh",
-"pandas",
-"scipy",
-
+    # phao-mqtt - mqtt library for publish and subscribe to mqtt messages
+    "paho-mqtt",
 ]
 
 [project.optional-dependencies]
@@ -134,38 +118,29 @@ dependencies = [
 docs = [
     # mkdocs - Project documentation with Markdown
     "mkdocs",
-
     # A Mermaid graphs plugin for MkDocs
     "mkdocs-mermaid2-plugin",
-
     # Python implementation of Lunr.js (for mkdocs)
     "lunr",
-
     # MkDocs plugin to add a last updated date to your site
     "mkdocs-git-revision-date-localized-plugin",
-
     # Plugin to generate a single PDF file from a MkDocs
     "mkdocs-with-pdf",
-
     # MkDocs plugin to automagically generate relative links
     "mkdocs-ezlinks-plugin",
-
     # Open source plugin for Mkdocs page redirects
     "mkdocs-redirects",
-
     # Material design theme for MkDocs
     "mkdocs-material",
-
     # Markdown extension resources for MkDocs Material
     "mkdocs-material-extensions",
-
     # MkDocs Material additions used for pymdownx
     "mkdocs_pymdownx_material_extras",
 ]
 
 dev = [
     # This syntax means: "install this package (itself) with the 'docs' extra"
-    "athome[docs]",
+    "project_name[docs]",
     # ruff - An extremely fast Python linter and code formatter, written in Rust.
     "ruff",
     # ty - An extremely fast Python type checker and language server, written in Rust.
