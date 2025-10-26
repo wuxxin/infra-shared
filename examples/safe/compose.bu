@@ -1,5 +1,5 @@
 # butane config
-{% if SHOWCASE_COMPOSE %}
+# {% if SHOWCASE_COMPOSE %}
 
 storage:
   trees:
@@ -21,4 +21,4 @@ systemd:
     - name: compose@hello-compose.service
       enabled: true
 
-{% endif %}
+# {% endif %}

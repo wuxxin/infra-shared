@@ -1,5 +1,5 @@
 # butane config
-{% if SHOWCASE_NSPAWN %}
+# {% if SHOWCASE_NSPAWN %}
 
 storage:
   directories:
@@ -84,4 +84,4 @@ systemd:
             [Service]
             ImportCredential=server.crt
 
-{% endif %}
+# {% endif %}

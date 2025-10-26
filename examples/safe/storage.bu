@@ -4,14 +4,14 @@
 boot_device:
   luks:
     threshold: 1
-{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
+    # {% if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
     tpm2: true
-{%- endif %}
-{%- if tang_url %}
+    # {% endif %}
+    # {% if tang_url %}
     tang:
       - url: {{ tang_url }}
         thumbprint: {{ tang_fingerprint }}
-{%- endif %}
+    # {% endif %}
 
 storage:
   disks:
@@ -44,14 +44,14 @@ storage:
         inline: {{ luks_var_passphrase }}
       clevis:
         threshold: 1
-{%- if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
+        # {% if tang_url is none or DEBUG_CONSOLE_AUTOLOGIN %}
         tpm2: true
-{%- endif %}
-{%- if tang_url %}
+        # {% endif %}
+        # {% if tang_url %}
         tang:
           - url: {{ tang_url }}
             thumbprint: {{ tang_fingerprint }}
-{%- endif %}
+        # {% endif %}
   filesystems:
     - device: /dev/mapper/var
       path: /var
