@@ -23,6 +23,7 @@ tool:
 - c: LocalSaltCall
 - c: RemoteSaltCall
 - r: TimedResource
+- p: salt_config
 - p: get_ip_from_ifname
 - p: get_default_host_ip
 - p: get_default_gateway_ip
@@ -616,14 +617,14 @@ class DataExport(pulumi.ComponentResource):
         opts=None,
     ):
         """
-        :param prefix: A prefix for the resource name and directory.
-        :param filename: The name of the file to export.
-        :param data: The string data (pulumi.Output[str]) to be written to stdin.
-        :param key: (Optional) The public key to use for age encryption.
-        :param filter: (Optional) A shell command to pipe the data through (e.g., "base64 -d").
-        :param delete: (Optional) Whether to delete the file on resource deletion.
+        :param prefix: A prefix for the resource name and directory
+        :param filename: The name of the file to export
+        :param data: The string data (pulumi.Output[str]) to be written to stdin
+        :param key: (Optional) The public key to use for age encryption
+        :param filter: (Optional) A shell command to pipe the data through (e.g., "base64 -d")
+        :param delete: (Optional) Whether to delete the file on resource deletion
         :param triggers: (Optional) A list of stable Pulumi Outputs. If provided,
-            these are used to trigger recreation, and 'stdin' will be ignored for diffs.
+            'stdin' will be ignored for diffs, and the listed triggers are used to trigger recreation
         :param opts: (Optional) Standard Pulumi resource options.
         """
         super().__init__("pkg:tools:DataExport", "_".join([prefix, filename]), None, opts)
