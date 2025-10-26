@@ -105,17 +105,13 @@ def butane_clevis_to_json_clevis(butane_config):
     # Process the boot_device, associating it with the root path
     if boot_device_luks and (boot_device_luks.get("tpm2") or boot_device_luks.get("tang")):
         clevis_config = boot_device_luks
-        device_path_to_use = (
-            root_device_path if root_device_path else clevis_config.get("device")
-        )
+        device_path_to_use = root_device_path if root_device_path else clevis_config.get("device")
 
         if device_path_to_use:
             # Generate the Clevis SSS config for this device
             sss_config = clevis_to_sss(clevis_config)
             if sss_config:
-                clevis_config_entries.update(
-                    {"device": device_path_to_use, "clevis": sss_config}
-                )
+                clevis_config_entries.update({"device": device_path_to_use, "clevis": sss_config})
                 boot_device_processed = True
         else:
             print(
@@ -183,9 +179,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
     ):
         from ..authority import ca_factory, acme_sub_ca, ssh_factory, ns_factory, config
 
-        super().__init__(
-            "pkg:os:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
-        )
+        super().__init__("pkg:os:ButaneTranspiler", "{}_butane".format(resource_name), None, opts)
 
         # create jinja environment
         default_env = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
@@ -193,11 +187,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         default_env.update({"HOSTNAME": hostname})
         # add locale from config to environment
         default_env.update(
-            {
-                "LOCALE": {
-                    key.upper(): value for key, value in config.get_object("locale").items()
-                }
-            }
+            {"LOCALE": {key.upper(): value for key, value in config.get_object("locale").items()}}
         )
 
         # merge default with calling env
@@ -238,7 +228,7 @@ storage:
             ca_factory.root_bundle_pem.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
-            """          
+            """
     - path: /etc/pki/tls/certs/root_ca.crt
       mode: 0644
       contents:
@@ -247,7 +237,7 @@ storage:
             ca_factory.root_cert_pem.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
-            """          
+            """
     - path: /etc/pki/tls/certs/server.crt
       mode: 0644
       contents:
@@ -256,7 +246,7 @@ storage:
             hostcert.chain.apply(
                 lambda x: "\n".join(["          " + line for line in x.splitlines()])
             ),
-            """          
+            """
     - path: /etc/pki/tls/private/server.key
       mode: 0600
       contents:
@@ -396,9 +386,9 @@ storage:
 
         # create clevis_luks_update_sls
         if this_env["UPDATE_CLEVIS_LUKS_SLOTS"]:
-            clevis_luks_config_json = pulumi.Output.all(
-                clevis_dict=self.clevis_luks_config
-            ).apply(lambda args: json.dumps(args["clevis_dict"]))
+            clevis_luks_config_json = pulumi.Output.all(clevis_dict=self.clevis_luks_config).apply(
+                lambda args: json.dumps(args["clevis_dict"])
+            )
             this_env.update({"CLEVIS_LUKS_CONFIG": clevis_luks_config_json})
 
             clspy = jinja_run_file("os/clevis-luks-slots.py", subproject_dir, this_env)
@@ -467,7 +457,7 @@ clevis_luks_updater:
 class SystemConfigUpdate(pulumi.ComponentResource):
     """reconfigure a remote system by executing salt-call on a butane to saltstack translated config
 
-    if simulate==True: data is not transfered but written out to state/tmp/stack_name
+    if simulate==True: data is not transferred but written out to state/tmp/stack_name
     if simulate==None: simulate=pulumi.get_stack().endswith("sim")
     """
 
@@ -560,10 +550,8 @@ class FcosImageDownloader(pulumi.ComponentResource):
     ):
         from ..authority import project_dir, stack_name, config
 
-        defaults = yaml.safe_load(
-            open(os.path.join(this_dir, "..", "build_defaults.yml"), "r")
-        )
-        config = config.get_object("build")
+        defaults = yaml.safe_load(open(os.path.join(this_dir, "..", "build_defaults.yml"), "r"))
+        config = config.get_object("build") or {}
         system_config = merge_dict_struct(defaults["fcos"], config.get("fcos") or {})
 
         if not stream:
@@ -591,8 +579,10 @@ class FcosImageDownloader(pulumi.ComponentResource):
                 w=workdir, u=overwrite_url
             )
         else:
-            create_cmd = "coreos-installer download -s {s} -a {a} -p {p} -f {f} -C {w} 2>/dev/null".format(
-                s=stream, a=architecture, p=platform, f=image_format, w=workdir
+            create_cmd = (
+                "coreos-installer download -s {s} -a {a} -p {p} -f {f} -C {w} 2>/dev/null".format(
+                    s=stream, a=architecture, p=platform, f=image_format, w=workdir
+                )
             )
 
         self.downloaded_image = command.local.Command(
@@ -638,7 +628,8 @@ class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
         )
 
         this_opts = pulumi.ResourceOptions.merge(
-            pulumi.ResourceOptions(parent=self, additional_secret_outputs=["stdout"]), opts
+            pulumi.ResourceOptions(parent=self, additional_secret_outputs=["stdout"]),
+            opts,
         )
 
         butane_remote_config = pulumi.Output.concat(
@@ -654,7 +645,7 @@ ignition:
   security:
     tls:
       certificate_authorities:
-        - inline: |        
+        - inline: |
 """,
             ca_factory.root_bundle_pem.apply(
                 lambda x: "\n".join(["            " + line for line in x.splitlines()])
@@ -822,84 +813,54 @@ class WaitForHostReady(pulumi.ComponentResource):
     This component implements a robust, multi-stage wait logic for Fedora CoreOS,
     which needs to boot, provision (and layer packages), and then reboot.
 
-    - **Connection Polling:** Actively polls for an SSH connection for configurable duration
-    - **Command Polling:** Once connected, it runs a script that polls for a command to be available
-    - **Reboot/Disconnect:** If the connection drops (e.g., FCOS reboots after rpm-ostree), the resource will fail
-        Pulumi's engine will then retry the *entire* resource, which starts the connection polling again
+    Args:
+        resource_name
+        host
+        file_to_exist="/usr/sbin/unbound"
+        port=22
+        user="core"
+        per_dial_timeout=200
+        dial_error_limit=30
+        opts: pulumi.ResourceOptions
     """
 
     def __init__(
         self,
-        name: str,
-        target: pulumi.Input[str],
-        private_key: pulumi.Input[str],
-        user: pulumi.Input[str] = "core",
-        connection_timeout: str = "5m",
-        connection_poll_interval_seconds: int = 10,
-        command_poll_timeout_seconds: int = 300,
-        command_poll_interval_seconds: int = 10,
+        resource_name,
+        host,
+        file_to_exist="/usr/sbin/unbound",
+        port=22,
+        user="core",
+        per_dial_timeout=200,
+        dial_error_limit=30,
         opts: pulumi.ResourceOptions = None,
     ):
-        super().__init__("custom:resource:WaitForHostReady", name, {}, opts)
+        super().__init__(
+            "pkg:os:WaitForHostReady", "{}_wait_for_host_ready".format(resource_name), None, opts
+        )
 
-        # Options for the child resource, ensuring it's parented to this component
+        from ..authority import ssh_factory
+
         child_opts = pulumi.ResourceOptions(parent=self)
 
-        # 1. --- Connection Logic ---
-        # This block handles your "try to connect for 5 minutes, every 10 seconds"
-        # 'timeout' is the max duration.
-        # 'dial_error_limit' is the number of "connection refused" retries.
-        # We calculate the limit based on your desired poll interval.
-        connection_retries = int(
-            (int(connection_timeout.rstrip("m")) * 60) / connection_poll_interval_seconds
-        )
-
-        connection_args = pulumi_command.remote.ConnectionArgs(
-            host=target,
+        connection_args = command.remote.ConnectionArgs(
+            host=host,
+            port=port,
             user=user,
-            private_key=private_key,
-            # Max time to wait for a successful connection.
-            timeout=connection_timeout,
-            # Retry connection errors this many times. This creates the
-            # 10-second poll behavior you wanted.
-            dial_error_limit=connection_retries,
+            private_key=ssh_factory.provision_key.private_key_openssh.apply(lambda x: x),
+            per_dial_timeout=per_dial_timeout,
+            dial_error_limit=dial_error_limit,
         )
-
-        # 2. --- Command Polling Logic ---
-        # This script handles your "if connect but no knotc, wait 5 minutes"
-        poll_attempts = command_poll_timeout_seconds // command_poll_interval_seconds
-
         poll_script = f"""
-        bash -c "
-        echo 'Successfully connected to host. Starting poll for knotc...';
-        for i in $(seq 1 {poll_attempts}); do
-            if which knotc; then
-                echo 'SUCCESS: knotc found. Host is ready.';
-                exit 0;
-            fi;
-            echo 'Waiting for knotc (rpm-ostree)... (Attempt $i/{poll_attempts})';
-            sleep {command_poll_interval_seconds};
-        done;
-        echo 'FAILURE: Timed out after {command_poll_timeout_seconds}s waiting for knotc.';
-        exit 1"
+        bash -c 'echo "Connected to host.";
+            if test -e "{file_to_exist}"; then exit 0; else echo "Missing file {file_to_exist}, WaitForHostReady"; exit 1; fi'
         """
 
-        # 3. --- The 'remote.Command' Resource ---
-        # This one resource handles both polling stages.
-        # If it fails (connection drops, script exits 1), Pulumi's
-        # engine will retry the *entire resource*, creating your outer loop.
-        self.wait_command = pulumi_command.remote.Command(
-            f"{name}-wait-script",
+        self.wait_command = command.remote.Command(
+            f"{resource_name}_wait_script",
             connection=connection_args,
-            # Run the same polling script for both create and update
             create=poll_script,
             update=poll_script,
             opts=child_opts,
         )
-
-        # Register this component's outputs
-        self.register_outputs(
-            {
-                "wait_command": self.wait_command,
-            }
-        )
+        self.register_outputs({})
