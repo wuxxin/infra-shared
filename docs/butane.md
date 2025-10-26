@@ -35,7 +35,7 @@ projectname:dns_resolver:
 - os/jinja_defaults.yml:
 
 ```yaml
-make an include for contents of jinja_defaults.yml here.
+{% include "jinja_defaults.yml" %}
 ```
 
 ### available custom filter and functions

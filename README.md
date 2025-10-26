@@ -66,14 +66,15 @@ See the [examples](examples/) for code of what else can be done with it
 Provision can be run on **Arch** Linux, Manjaro Linux or as **Container Image**.
 
 ### Usage
+#### Setup
 
-#### List available Makefile targets/commands
+##### List Makefile targets/commands
 
 ```sh
 make
 ```
 
-#### Bootstrap skeleton files to a new repo
+##### Bootstrap skeleton files to a new repo
 
 - from current directory, eg. pwd=~/code
 
@@ -96,7 +97,7 @@ infra/create_skeleton.sh --yes
         - README.md, \_\_main\_\_.py, Pulumi.yaml, Makefile, pyproject.toml
         - config-template.yaml, .gitignore, mkdocs.yml, empty authorized_keys
 
-#### Install build requirements
+##### Install build requirements
 
 - on arch linux or manjaro linux
 
@@ -125,34 +126,19 @@ CONTAINER_CMD=docker infra/scripts/provision_shell.sh
 # use exit to return to base shell
 ```
 
-#### Build documentation
+##### Build documentation
 
 ```sh
 make docs
 ```
 
-#### Create/build/install simulation target
+##### Create/build/install simulation target
 
 ```sh
 make sim-up
 ```
 
-#### Show/use root and provision cert
-
-```sh
-make sim-show args="ca_factory" | jq ".root_cert_pem" -r | \
-    openssl x509 -in /dev/stdin -noout -text
-make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
-    openssl x509 -in /dev/stdin -noout -text
-```
-
-#### Show the PKS12 password for an exported pks12 client certificate, for import into another app
-
-```sh
-make sim-show args="--show-secrets librewolf_client_cert_user_host" | jq -r .pkcs12_password.result
-```
-
-#### Manual pulumi invocation
+##### Manual pulumi invocation
 
 ```sh
 export PULUMI_SKIP_UPDATE_CHECK=1
@@ -162,7 +148,7 @@ pulumi stack select sim
 pulumi about
 ```
 
-#### Execute anything in the provision python environment
+##### Execute anything in the provision python environment
 
 ```sh
 . .venv/bin/activate
@@ -179,7 +165,7 @@ make sim__ args="stack rm --force"; rm Pulumi.sim.yaml
 make sim-create
 ```
 
-#### test if changes would compute before applying
+##### test if changes would compute before applying
 
 ```sh
 make sim-preview
@@ -188,7 +174,7 @@ make sim-up
 
 ```
 
-#### cancel an currently running/stuck pulumi update
+##### cancel an currently running/stuck pulumi update
 
 ```sh
 # "error: the stack is currently locked by 1 lock(s)."
@@ -196,19 +182,37 @@ make sim-up
 make sim__ args="cancel"
 ```
 
-#### show resource output as json
+
+#### Information Gathering
+
+##### Show/use root and provision cert
+
+```sh
+make sim-show args="ca_factory" | jq ".root_cert_pem" -r | \
+    openssl x509 -in /dev/stdin -noout -text
+make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
+    openssl x509 -in /dev/stdin -noout -text
+```
+
+##### Show the PKS12 password for an exported pks12 client certificate, for import into another app
+
+```sh
+make sim-show args="--show-secrets librewolf_client_cert_user_host" | jq -r .pkcs12_password.result
+```
+
+##### show resource output as json
 
 ```sh
 make sim-show
 ```
 
-#### show resource output key list as yaml
+##### show resource output key list as yaml
 
 ```sh
 make sim-list
 ```
 
-#### show resource output data as colorized formatted json or yaml
+##### show resource output data as colorized formatted json or yaml
 
 ```sh
 # use highlight and less
@@ -217,16 +221,16 @@ make sim-show | highlight --syntax json -O ansi | less
 make sim-show | bat -l json
 ```
 
-### Production
+#### Production
 
-#### Add SSH Keys of GitOps Developer
+##### Add SSH Keys of GitOps Developer
 
 ```sh
 # eg. add the own ssh public key in project_dir/authorized_keys
 cat ~/.ssh/id_rsa.pub >> authorized_keys
 ```
 
-#### Create stack
+##### Create stack
 
 ```sh
 make prod-create
