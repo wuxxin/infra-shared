@@ -21,7 +21,7 @@ def run_command(cmd_list, check=True):
     """Executes a command (as a list) and returns its stdout."""
     try:
         process = subprocess.run(cmd_list, check=check, capture_output=True, text=True)
-        return process.stdout.strip()
+        return (process.stdout.strip(), process.stderr.strip())
     except subprocess.CalledProcessError as e:
         print(f"ERROR: Command failed: {' '.join(e.cmd)}", file=sys.stderr)
         print(f"Stderr: {e.stderr.strip()}", file=sys.stderr)
@@ -68,7 +68,11 @@ def get_current_bindings(device):
         match = pattern.match(line)
         if match:
             bindings.append(
-                {"slot": int(match.group(1)), "type": match.group(2), "config": match.group(3)}
+                {
+                    "slot": int(match.group(1)),
+                    "type": match.group(2),
+                    "config": match.group(3),
+                }
             )
     return bindings
 
@@ -110,7 +114,10 @@ def compare_states(devices_config):
 
         desired_norm = to_normalized_json_string(desired_config)
         if desired_norm is None:
-            print("ERROR: Internal MISMATCH, could not read desired state", file=sys.stderr)
+            print(
+                "ERROR: Internal MISMATCH, could not read desired state",
+                file=sys.stderr,
+            )
             sys.exit(1)
         current_norm = to_normalized_json_string(sss_bindings[0]["config"])
 
@@ -139,14 +146,17 @@ def _perform_rewrite(config):
     # Safety check for free slots before we start
     if get_luks_slot_info(device)["free"] < 1:
         print(
-            f"ERROR: No free LUKS slots on {device}. Cannot add new binding.", file=sys.stderr
+            f"ERROR: No free LUKS slots on {device}. Cannot add new binding.",
+            file=sys.stderr,
         )
         return False
 
     # Add the new binding first (add-before-remove)
     print("Adding new SSS binding...")
     try:
-        run_command(["clevis", "luks", "bind", "-y", "-d", device, "sss", desired_config_str])
+        stdout, stderr = run_command(
+            ["clevis", "luks", "bind", "-y", "-d", device, "sss", desired_config_str]
+        )
     except subprocess.CalledProcessError:
         print(
             f"ERROR: Failed to bind new SSS policy for {device}. Aborting rewrite.",
@@ -160,8 +170,7 @@ def _perform_rewrite(config):
         (
             b
             for b in all_bindings
-            if to_normalized_json_string(b["config"])
-            == to_normalized_json_string(desired_config)
+            if to_normalized_json_string(b["config"]) == to_normalized_json_string(desired_config)
         ),
         None,
     )
@@ -178,8 +187,16 @@ def _perform_rewrite(config):
     for old_binding in all_bindings:
         if old_binding["slot"] != new_binding["slot"]:
             print(f"  Unbinding old slot {old_binding['slot']}...")
-            run_command(
-                ["clevis", "luks", "unbind", "-d", device, "-s", str(old_binding["slot"])]
+            stdout, stderr = run_command(
+                [
+                    "clevis",
+                    "luks",
+                    "unbind",
+                    "-d",
+                    device,
+                    "-s",
+                    str(old_binding["slot"]),
+                ]
             )
 
     print(f"Rewrite for {device} complete.")
@@ -189,7 +206,7 @@ def _perform_rewrite(config):
 def rewrite_from(devices_config):
     """--rewrite-from mode: Deletes all Clevis bindings and adds the new one."""
     for config in devices_config:
-        _perform_rewrite(config)
+        result = _perform_rewrite(config)
 
 
 def update_from(devices_config):
@@ -206,16 +223,16 @@ def update_from(devices_config):
         # Check if the state is already correct
         is_correct = False
         if len(sss_bindings) == 1 and not other_clevis_bindings:
-            if to_normalized_json_string(
-                sss_bindings[0]["config"]
-            ) == to_normalized_json_string(desired_config):
+            if to_normalized_json_string(sss_bindings[0]["config"]) == to_normalized_json_string(
+                desired_config
+            ):
                 is_correct = True
 
         if is_correct:
             print("OK: Configuration already matches desired state. No changes needed.")
         else:
             print("MISMATCH: Configuration differs. Performing update...")
-            _perform_rewrite(config)
+            result = _perform_rewrite(config)
 
 
 def rebind(devices_config):
@@ -244,7 +261,9 @@ def rebind(devices_config):
             slot = binding["slot"]
             print(f"  Regenerating binding in slot {slot}...")
             try:
-                run_command(["clevis", "luks", "regen", "-q", "-d", device, "-s", str(slot)])
+                stdout, stderr = run_command(
+                    ["clevis", "luks", "regen", "-q", "-d", device, "-s", str(slot)]
+                )
             except subprocess.CalledProcessError:
                 print(
                     f"ERROR: Failed to regenerate binding in slot {slot} for {device}.",
