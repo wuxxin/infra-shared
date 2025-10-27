@@ -105,7 +105,8 @@ dev = [
     "ruff",
     # ty - An extremely fast Python type checker and language server, written in Rust.
     "ty",
-    # "pytest", # example for future test dependencies
+    # pytest - simple powerful testing with Python
+    "pytest",
 ]
 
 docs = [
