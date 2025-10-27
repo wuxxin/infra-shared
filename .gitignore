@@ -1,15 +1,16 @@
-# compiled python
+# python artifacts
 *.pyc
 __pycache__
-
-# egg-info for now
-infra_shared.egg-info
-
-# uv locked dependencies
-uv.lock
+.pytest_cache
 
 # python virtualenv
 .venv
 
+# python egg-info for now
+infra_shared.egg-info
+
 # build artifacts
 build
+
+# uv locked dependencies for now
+uv.lock
