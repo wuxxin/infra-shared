@@ -2,88 +2,91 @@ name: Test Local
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Get Year and Week of Year for Cache
-      id: get-date
-      run: echo "CACHE_VERSION=$(date +'%Y-W%V')" | tee $GITHUB_OUTPUT
+      - name: Get Year and Week of Year for Cache
+        id: get-date
+        run: echo "CACHE_VERSION=$(date +'%Y-W%V')" | tee $GITHUB_OUTPUT
 
-    - name: Restore ~/.cache/apt-cache
-      id: restore-apt-cache
-      uses: actions/cache/restore@v4
-      with:
-        path: ~/.cache/apt-cache
-        key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
-        restore-keys: |
-          apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
-          apt-cache-${{ runner.os }}-
+      - name: Restore ~/.cache/apt-cache
+        id: restore-apt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/apt-cache
+          key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
+          restore-keys: |
+            apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
+            apt-cache-${{ runner.os }}-
 
-    - name: Copy ~/.cache/apt-cache to system
-      run: |
-        mkdir -p  ~/.cache/apt-cache
-        sudo rsync -av ~/.cache/apt-cache/ /var/cache/apt/archives/
+      - name: Copy ~/.cache/apt-cache to system
+        run: |
+          mkdir -p  ~/.cache/apt-cache
+          sudo rsync -av ~/.cache/apt-cache/ /var/cache/apt/archives/
 
-    - name: Cache ~/.local/bin packages
-      uses: actions/cache@v4
-      id: cache-local-bin
-      with:
-        path: ~/.local/bin
-        key: local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
-        restore-keys: |
-          local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
-          local-bin-cache-${{ runner.os }}-
+      - name: Cache ~/.local/bin packages
+        uses: actions/cache@v4
+        id: cache-local-bin
+        with:
+          path: ~/.local/bin
+          key: local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
+          restore-keys: |
+            local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
+            local-bin-cache-${{ runner.os }}-
 
-    - name: Install and build Dependencies (output custom binaries to ~/.local/bin)
-      run: make provision-local args="--user"
+      - name: Install and build Dependencies (output custom binaries to ~/.local/bin)
+        run: make provision-local args="--user"
 
-    - name: Copy apt-cache back to user
-      run: rsync -av --exclude 'partial' --exclude 'lock' /var/cache/apt/archives/ ~/.cache/apt-cache/
+      - name: Copy apt-cache back to user
+        run: rsync -av --exclude 'partial' --exclude 'lock' /var/cache/apt/archives/ ~/.cache/apt-cache/
 
-    - name: Save apt-cache
-      uses: actions/cache/save@v4
-      if: steps.restore-apt-cache.outputs.cache-hit != 'true'
-      with:
-        path: ~/.cache/apt-cache
-        key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
+      - name: Save apt-cache
+        uses: actions/cache/save@v4
+        if: steps.restore-apt-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cache/apt-cache
+          key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
 
-    - name: Cache UV python packages
-      uses: actions/cache@v4
-      id: cache-uv
-      with:
-        path: ~/.cache/uv
-        key: uv-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
-        restore-keys: |
-          uv-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
-          uv-cache-${{ runner.os }}-
+      - name: Cache UV python packages
+        uses: actions/cache@v4
+        id: cache-uv
+        with:
+          path: ~/.cache/uv
+          key: uv-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            uv-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
+            uv-cache-${{ runner.os }}-
 
-    - name: Cache pulumi plugins
-      uses: actions/cache@v4
-      id: cache-pulumi-plugins
-      with:
-        path: ~/.pulumi/plugins
-        key: pulumi-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
-        restore-keys: |
-          pulumi-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
-          pulumi-cache-${{ runner.os }}-
+      - name: Cache pulumi plugins
+        uses: actions/cache@v4
+        id: cache-pulumi-plugins
+        with:
+          path: ~/.pulumi/plugins
+          key: pulumi-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            pulumi-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
+            pulumi-cache-${{ runner.os }}-
 
-    - name: Setup python build Environment
-      run: make buildenv
+      - name: Setup python build Environment
+        run: make buildenv
 
-    - name: build Docs
-      run: make docs-online-build
+      - name: build Docs
+        run: make docs-online-build
 
-    - name: Run Test Scripts
-      run: make test-scripts
+      - name: Run Test Scripts
+        run: make test-scripts
 
-    - name: Run sim up
-      run: make test-sim
+      - name: Run sim up
+        run: make test-sim
+
+      - name: Run pytest
+        run: make pytest
