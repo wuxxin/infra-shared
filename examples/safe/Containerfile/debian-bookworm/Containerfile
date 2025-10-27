@@ -1,4 +1,4 @@
-FROM docker.io/library/debian:bookworm-20250610
+FROM docker.io/library/debian:bookworm-20251020
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
