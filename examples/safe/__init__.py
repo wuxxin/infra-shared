@@ -5,8 +5,9 @@
 - safe_dns_names: defaults to ["*.safe" for each authority.ca_config["ca_permitted_domains_list"]]
 - identifiers["safe"]["storage"]: production storage device serial numbers
 - tang_url
-- safe_showcase_compose: true, if false, dont include compose showcase
-- safe_showcaae_nspawn: true, if false, dont include nspawn showcase
+- safe_showcase_compose:    *true,  if false, dont include compose showcase
+- safe_showcaae_nspawn:     *true,  if false, dont include nspawn showcase
+- safe_showcase_unittest:   *false, if true,  dont spawn vm but finish with vm config
 
 ### host
 - host_environment
@@ -89,8 +90,9 @@ pg_postgres_client_cert = create_client_cert(
 host_environment = {
     # install mc on sim, prod should use toolbox
     "RPM_OSTREE_INSTALL": ["mc", "strace"] if stack_name.endswith("sim") else [],
-    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose") in (None, True),
-    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn") in (None, True),
+    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose") in (None, True, "true", "True"),
+    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn") in (None, True, "true", "True"),
+    "SHOWCASE_UNITTEST": config.get(shortname + "_showcase_unittest") in (True, "true", "True"),
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRES_PASSWORD": pg_postgres_password.result,
     "DNS_RESOLVER": {}
@@ -191,96 +193,96 @@ public_config = RemoteDownloadIgnitionConfig(
     opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
 )
 
-# serve secret part of ignition config via ServeOnce
-serve_data = ServeOnce(
-    shortname,
-    config=serve_config.config,
-    payload=host_config.result,
-    opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
-)
-pulumi.export("{}_served_once".format(shortname), serve_data)
-
-
-if stack_name.endswith("sim"):
-    # create libvirt machine simulation:
-    #   download suitable image, create similar virtual machine, same memsize, different arch
-    print(
-        "WARNING: Using pinned version of coreos fedora 41 because fedora 42 and rpm-ostree layering issue",
-        file=sys.stderr,
-    )
-    host_machine = LibvirtIgniteFcos(
+# skip rest if unittest (serve config, start vm, update vm, add postgresql server)
+if not host_environment["SHOWCASE_UNITTEST"]:
+    # serve secret part of ignition config via ServeOnce
+    serve_data = ServeOnce(
         shortname,
-        public_config.result,
-        volumes=identifiers["storage"],
-        memory=4096,
-        overwrite_url="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/41.20250331.3.0/x86_64/fedora-coreos-41.20250331.3.0-qemu.x86_64.qcow2.xz",
+        config=serve_config.config,
+        payload=host_config.result,
+        opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
     )
-    # write out ip of simulated host as target
-    target = host_machine.vm.network_interfaces[0]["addresses"][0]
-    opts = pulumi.ResourceOptions(depends_on=[host_machine, serve_data])
-else:
-    # download metal version of ARM64 os image (Raspberry PI compatible)
-    image = FcosImageDownloader(architecture="aarch64", platform="metal", image_format="raw.xz")
+    pulumi.export("{}_served_once".format(shortname), serve_data)
 
-    # download bios and other extras for Raspberry PI for customization
-    extras = build_raspberry_extras()
-    uboot_image_filename = os.path.join(
-        extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
-    )
+    if stack_name.endswith("sim"):
+        # create libvirt machine simulation:
+        #   download suitable image, create similar virtual machine, same memsize, different arch
+        print(
+            "WARNING: Using pinned version of coreos fedora 41 because fedora 42 and rpm-ostree layering issue",
+            file=sys.stderr,
+        )
+        host_machine = LibvirtIgniteFcos(
+            shortname,
+            public_config.result,
+            volumes=identifiers["storage"],
+            memory=4096,
+            overwrite_url="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/41.20250331.3.0/x86_64/fedora-coreos-41.20250331.3.0-qemu.x86_64.qcow2.xz",
+        )
+        # write out ip of simulated host as target
+        target = host_machine.vm.network_interfaces[0]["addresses"][0]
+        opts = pulumi.ResourceOptions(depends_on=[host_machine, serve_data])
+    else:
+        # download metal version of ARM64 os image (Raspberry PI compatible)
+        image = FcosImageDownloader(architecture="aarch64", platform="metal", image_format="raw.xz")
 
-    # export public config to be copied to the removable storage device
-    public_config_file = public_local_export(
-        shortname, "{}_public.ign".format(shortname), public_config.result
-    )
+        # download bios and other extras for Raspberry PI for customization
+        extras = build_raspberry_extras()
+        uboot_image_filename = os.path.join(
+            extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
+        )
 
-    # write customized image to removable storage device, include uboot image and ignition config
-    host_boot_media = write_removable(
+        # export public config to be copied to the removable storage device
+        public_config_file = public_local_export(
+            shortname, "{}_public.ign".format(shortname), public_config.result
+        )
+
+        # write customized image to removable storage device, include uboot image and ignition config
+        host_boot_media = write_removable(
+            shortname,
+            image=image.imagepath,
+            serial=host_environment["boot_device"].strip("/dev/disk/by-uuid/"),
+            patches=[
+                (uboot_image_filename, "EFI-SYSTEM/boot/efi/u-boot.bin"),
+                (public_config_file.filename, "boot/ignite.json"),
+            ],
+        )
+
+        # target is metal, write out real dns name
+        target = hostname
+        opts = pulumi.ResourceOptions(depends_on=[host_boot_media, serve_data])
+
+    # wait until host is ready
+    host_ready = WaitForHostReady(
         shortname,
-        image=image.imagepath,
-        serial=host_environment["boot_device"].strip("/dev/disk/by-uuid/"),
-        patches=[
-            (uboot_image_filename, "EFI-SYSTEM/boot/efi/u-boot.bin"),
-            (public_config_file.filename, "boot/ignite.json"),
-        ],
+        target,
+        user=host_config.this_env.apply(lambda env: env["UPDATE_USER"]),
+        opts=opts,
     )
 
-    # target is metal, write out real dns name
-    target = hostname
-    opts = pulumi.ResourceOptions(depends_on=[host_boot_media, serve_data])
+    # update host to newest config, should be a no-op (zero changes) on machine creation
+    host_update = SystemConfigUpdate(
+        shortname,
+        target,
+        host_config,
+        simulate=False,
+        opts=pulumi.ResourceOptions(depends_on=[host_ready]),
+    )
+    pulumi.export("{}_host_update".format(shortname), host_update)
 
-
-# wait until host is ready
-host_ready = WaitForHostReady(
-    shortname,
-    target,
-    user=host_config.this_env.apply(lambda env: env["UPDATE_USER"]),
-    opts=opts,
-)
-
-# update host to newest config, should be a no-op (zero changes) on machine creation
-host_update = SystemConfigUpdate(
-    shortname,
-    target,
-    host_config,
-    simulate=False,
-    opts=pulumi.ResourceOptions(depends_on=[host_ready]),
-)
-pulumi.export("{}_host_update".format(shortname), host_update)
-
-# make host postgresql.Provider pg_server available
-pg_server = postgresql.Provider(
-    "{}_POSTGRESQL_HOST".format(shortname),
-    host=target,
-    username="postgres",
-    password=pg_postgres_password.result,
-    # clientcert=postgresql.ProviderClientcertArgs(
-    #     key=pg_postgres_client_cert.key.private_key_pem,
-    #     cert=pg_postgres_client_cert.chain,
-    #     sslinline=True,
-    # ),
-    superuser=True,
-    sslrootcert=exported_ca_cert.filename,
-    sslmode="require",
-    opts=pulumi.ResourceOptions(depends_on=[host_update]),
-)
-pulumi.export("{}_pg_server".format(shortname), pg_server)
+    # make host postgresql.Provider pg_server available
+    pg_server = postgresql.Provider(
+        "{}_POSTGRESQL_HOST".format(shortname),
+        host=target,
+        username="postgres",
+        password=pg_postgres_password.result,
+        # clientcert=postgresql.ProviderClientcertArgs(
+        #     key=pg_postgres_client_cert.key.private_key_pem,
+        #     cert=pg_postgres_client_cert.chain,
+        #     sslinline=True,
+        # ),
+        superuser=True,
+        sslrootcert=exported_ca_cert.filename,
+        sslmode="require",
+        opts=pulumi.ResourceOptions(depends_on=[host_update]),
+    )
+    pulumi.export("{}_pg_server".format(shortname), pg_server)
