@@ -97,3 +97,5 @@ certificatesResolvers:
 # add additional traefik static config string
 {{ FRONTEND["EXTRA"] }}
 # {% endif %}
+
+# end of traefik "static" config

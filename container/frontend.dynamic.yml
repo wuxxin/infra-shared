@@ -57,3 +57,4 @@ http:
       service: api@internal
       entrypoints: https
   # {% endif %}
+# end of traefik "dynamic" config
