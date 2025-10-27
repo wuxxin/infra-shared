@@ -111,9 +111,8 @@ systemd:
         Delegate=true
         Type=exec
         KillMode=process
-        Environment=LOGGING="--log-level=info"
         ExecStartPre=/usr/bin/bash -c "if test ! -d /run/podman; then mkdir -m 0750 /run/podman; fi"
-        ExecStart=/usr/bin/podman $LOGGING system service --time 0 unix:///run/podman/podman.sock
+        ExecStart=/usr/bin/podman --log-level={{ PODMAN_API_LOG_LEVEL }} system service --time 0 unix:///run/podman/podman.sock
 
         [Install]
         WantedBy=multi-user.target
