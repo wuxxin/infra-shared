@@ -49,15 +49,11 @@ LOCAL_ACME_SERVER:
   ENABLED: false
   # HOSTNAMES: list, under which hostnames acme provision will be available,
   HOSTNAMES:
-  - acme.internal
-  # DOMAINS: list, which domains are availabel for acme to provision on
+    - acme.internal
+  # DOMAINS: list, which domains are available for acme to provision on
   DOMAINS:
-  - on.internal
+    - on.internal
   # - at.internal
-
-FIREWALL:
-  # VERBOSITY: 0: not, 1: verbose logging of rejects into journal
-  VERBOSITY: 1
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
@@ -82,16 +78,28 @@ PODMAN_CIDR: 10.88.0.1/16
 PODMAN_POOL_CIDR: 10.89.0.1/16
 LIBVIRT_CIDR: 192.168.122.1/24
 
+# firewalld configuring Internal, Podman and Nspawn network traffic
+FIREWALL:
+  # if disabled: firewalld will not be started
+  ENABLED: true
+  # VERBOSITY: 0: not verbose, 1: verbose logging of firewalld rejects into systemd journal
+  VERBOSITY: 1
+
 # DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
 DEBUG_CONSOLE_AUTOLOGIN: false
 
 # DEBUG_DISABLE_AUTOUPDATE: true/false, if true: Disable autoupdate to keep specific version
 DEBUG_DISABLE_AUTOUPDATE: false
 
-# list of /etc/credstore entries to load into podman for container and compose workloads
+# API_PROXY_LOG_HTTP: if true: Write HTTP Proxy Access to Log
+API_PROXY_LOG_HTTP: false
+
+# PODMAN_LOAD_SECRETS: list of /etc/credstore entries to load into podman for container and compose workloads
 # default ("") means to load all secrets in /etc/credstore into podman secrets>
 # example: PODMAN_LOAD_SECRETS: "root_ca.crt root_bundle.crt"
 PODMAN_LOAD_SECRETS: ""
+# PODMAN_API_LOGGING: str, one of "trace", "debug", "info", "warn", "warning", "error", "fatal", "panic"
+PODMAN_API_LOG_LEVEL: warning
 
 # common update parameter defaults
 #   connect as user core (with uid=1000), use update-system-config as the update service,
@@ -99,11 +107,10 @@ PODMAN_LOAD_SECRETS: ""
 UPDATE_USER: core
 # XXX UPDATE_UID must be an integer
 UPDATE_UID: 1000
-# XXX WARNING: currently os/__init__.py:SystemConfigUpdate hardcodes UPDATE_SERVICE to "update-system-config", this will revert to normal
+# FIXME WARNING: currently os/__init__.py:SystemConfigUpdate hardcodes UPDATE_SERVICE to "update-system-config", this will revert to normal
 UPDATE_SERVICE: update-system-config
 UPDATE_PATH: /run/user/1000
-UPDATE_USE_SUDO: True
+UPDATE_USE_SUDO: true
 # UPDATE_CLEVIS_LUKS_SLOTS: true/false, if enabled, update/rekey LUKS Clevis bindings
 #   according to a butane configuration of boot_device:luks and storage:luks
 UPDATE_CLEVIS_LUKS_SLOTS: false
-
