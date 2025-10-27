@@ -22,8 +22,8 @@ HealthCmd=wget -qSO /dev/null http://127.0.0.1:9090/adv
 # frontend config
 Label=traefik.enable=true
 
-# make service available on https port
-# do mandatory mutal TLS authentification, needs matching hostname
+# make service available on https port, needs matching hostname
+# do mandatory mutal TLS authentification
 Label=traefik.http.routers.%N.entrypoints=https
 Label=traefik.http.routers.%N.rule=Host(`${HOSTNAME}`)
 Label=traefik.http.routers.%N.tls.options=mtls@file
@@ -31,9 +31,9 @@ Label=traefik.http.routers.%N.middlewares=passtlsclientcert@file
 Label=traefik.http.routers.%N.service=systemd-%N
 
 # make service also available on tang-mtls port
-# ignore any send hostname on ip:port connection, do mtls
+# ignore any send hostname over ip:port connection, do mandatory mtls
 Label=traefik.http.routers.%N-direct.entrypoints=tang-mtls-nosni
-Label=traefik.http.routers.%N-direct.rule=HostSNI(`*`)
+Label=traefik.http.routers.%N-direct.rule=PathPrefix(`/`)
 Label=traefik.http.routers.%N-direct.middlewares=passtlsclientcert@file
 Label=traefik.http.routers.%N-direct.service=systemd-%N
 
