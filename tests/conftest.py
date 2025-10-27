@@ -3,17 +3,26 @@ import shutil
 import subprocess
 from pathlib import Path
 import pytest
-from pulumi.automation import create_or_select_stack, LocalWorkspace, UpResult, Stack, LocalWorkspaceOptions
+from pulumi.automation import (
+    create_or_select_stack,
+    UpResult,
+    LocalWorkspaceOptions,
+    Stack,
+    LocalWorkspace,
+)
+
 
 @pytest.fixture(scope="session")
 def project_root():
     """Returns the root directory of the infra-shared project."""
     return Path(__file__).parent.parent
 
+
 @pytest.fixture(scope="session")
-def test_project_dir(tmpdir_factory):
+def test_project_dir(tmp_path_factory):
     """Creates a temporary directory for the test project and returns its Path."""
-    return Path(tmpdir_factory.mktemp("infra-test-project"))
+    return tmp_path_factory.mktemp("infra-test-project")
+
 
 @pytest.fixture(scope="session")
 def pulumi_project_dir(test_project_dir, project_root):
@@ -31,9 +40,11 @@ def pulumi_project_dir(test_project_dir, project_root):
     create_skeleton_script = project_root / "scripts" / "create_skeleton.sh"
     cmd = [
         str(create_skeleton_script),
-        "--project-dir", str(project_path),
-        "--name-library", "infra",
-        "--yes"
+        "--project-dir",
+        str(project_path),
+        "--name-library",
+        "infra",
+        "--yes",
     ]
     subprocess.run(cmd, check=True, capture_output=True)
 
@@ -67,6 +78,7 @@ def pulumi_project_dir(test_project_dir, project_root):
 
     return project_path
 
+
 @pytest.fixture(scope="session")
 def pulumi_stack(pulumi_project_dir) -> UpResult:
     """
@@ -83,27 +95,17 @@ def pulumi_stack(pulumi_project_dir) -> UpResult:
 
     env_vars = {
         "PULUMI_CONFIG_PASSPHRASE": "sim",
-        "PULUMI_BACKEND_URL": f"file://{pulumi_home}"
+        "PULUMI_BACKEND_URL": f"file://{pulumi_home}",
     }
 
     print(f"Setting up Pulumi stack: {stack_name} in {work_dir}")
     stack = None
     try:
-        opts = LocalWorkspaceOptions(
-            work_dir=work_dir,
-            env_vars=env_vars,
-        )
-
-        stack = create_or_select_stack(
-            stack_name=stack_name,
-            work_dir=work_dir,
-            opts=opts,
-        )
-
+        opts = LocalWorkspaceOptions(work_dir=work_dir, env_vars=env_vars)
+        stack = create_or_select_stack(stack_name=stack_name, work_dir=work_dir, opts=opts)
         print("Running `pulumi up`...")
         up_result = stack.up(on_output=print)
         print("`pulumi up` complete.")
-
         yield up_result
 
     finally:
