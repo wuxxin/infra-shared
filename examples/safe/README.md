@@ -15,6 +15,8 @@ with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
     - a libvirt uefi machine with tpm and the corresponding features and volumes
         - 4gb ram, amd64 instead of arch64, 8gb boot, 2 x 8gb usb sticks
 
+For the simulation environment with libvirt the host system must also have a configured libvirt.
+
 ### Single Container Showcases
 
 #### `Postgresql Server`
