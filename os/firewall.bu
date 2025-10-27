@@ -78,7 +78,8 @@ storage:
           <zone target="default">
             <short>nspawn</short>
             <description>Zone for systemd-nspawn containers.</description>
-            <source address="{{ NSPAWN_CIDR }}"/>
+            <interface name="nspawn"/>
+            <service name="dhcp"/>
           </zone>
 
     # Policy Configurations
