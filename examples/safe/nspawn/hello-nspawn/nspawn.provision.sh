@@ -2,7 +2,7 @@
 set -eo pipefail
 
 if test "$1" != "--provision"; then
-    cat << EOF
+    cat <<EOF
 Usage: $0 --provision
 
 Provision bootstrap script. Expects an dpkg based linux.
@@ -19,6 +19,16 @@ stdin=$(cat -)
 codename=$(lsb_release -c -s)
 distribution="$(lsb_release -i -s)"
 echo "Provision running on distribution: $distribution , codename: $codename"
+echo "+++ networkctl status"
+networkctl status
+echo "+++ ip addr"
+ip addr
+echo "+++ ip route"
+ip route
+echo "+++ /etc/resolv.conf"
+cat /etc/resolv.conf
+echo "+++ resolvectl status"
+resolvectl status
 
 # create user, copy skeleton files
 USERNAME="user"
