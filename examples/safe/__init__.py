@@ -63,7 +63,6 @@ dns_names = config.get_object("{}_dns_names".format(shortname)) or [
     for name in [shortname, "*." + shortname]
     for domain in ca_config["ca_permitted_domains_list"]
 ]
-
 hostname = dns_names[0]
 
 # create tls host certificate
