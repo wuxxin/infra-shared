@@ -26,13 +26,13 @@ storage:
           # IndividualCalls - Default: no
           # Do not use combined -restore calls, but individual calls. This increases the time
           # that is needed to apply changes and to start the daemon, but is good for debugging
-          IndividualCalls={{ "no" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "yes" }}
+          IndividualCalls={{ "yes" if FIREWALL["LOG_DENIED"]|d(false) else "no" }}
 
           # LogDenied - Default: off
           # Add logging rules right before and drop rules in the INPUT, FORWARD
           # and OUTPUT chains for the default rules and also final reject and drop rules
           # in zones. Possible values are: all, unicast, broadcast, multicast and off.
-          LogDenied={{ "off" if FIREWALL["VERBOSITY"]|int|d(0) == 0 else "all" }}
+          LogDenied={{ "all" if FIREWALL["LOG_DENIED"]|d(false) else "off" }}
 
     # Zone Configurations
     # define ssh in public zone as safety measure to be able to connect

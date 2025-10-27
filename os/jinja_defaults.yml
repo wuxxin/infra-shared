@@ -1,5 +1,5 @@
 # Jinja Default Environment
-# HOSTNAME: will be set to hostname from Butanetranspiler(resource_name, hostname, ...
+# HOSTNAME: will be set to hostname from Butanetranspiler
 
 # Default locale (lang, keymap, timezone, country_code)
 LOCALE:
@@ -8,46 +8,50 @@ LOCALE:
   TIMEZONE: UTC
   COUNTRY_CODE: UN
 
-# DNS Upstream Resolver for internal unbound dns server that serves to system, container and nspawn workloads
+# DNS Upstream Resolver for internal unbound dns server
+#   that serves to system, container and nspawn workloads
 DNS_RESOLVER:
   # VERBOSITY: 0, 1, 2, 3, 4, > more verbose
   VERBOSITY: "1"
   # UPSTREAM_TLS: boolean, defaults: true
   # UPSTREAM: list, defaults: None
-  #   if undefined will be set to tls split upstream using 2x google, 2x adguard, 2xcloudflare
+  #   if undefined, will set to tls split upstream using 2x google, 2x adguard, 2xcloudflare
   #   example upstream list entry: - 1.2.3.4@567#dns.domain
   # FORWARD: list, defaults: None
   #   example forward list entry: - name: zone, addr: addr, tls: true/false
-  # SRV: multiline-string, custom text appended to unbound.conf, placed _inside_ the server section
-  #   eg. zone entries and public dns overrides
-  # EXTRA: multiline-string, custom text appended to unbound.conf, start with new section
+  # SRV: multiline-string, custom text appended to unbound.conf,
+  #   placed _inside_ the server section, eg. zone entries and public dns overrides
+  # EXTRA: multiline-string, custom text appended to unbound.conf,
+  #   must start with a new section.
 
 # FRONTEND:ENABLED true/false, if true traefik does tls termination and http routing
 FRONTEND:
   ENABLED: true
-  # VERBOSITY: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, PANIC, < more verbose, uppercase matters!
+  # VERBOSITY: uppercase any of TRACE, DEBUG, INFO, WARN, ERROR, FATAL, PANIC
   VERBOSITY: INFO
-  # DASHBOARD: optional string, set to unique hostname eg. "traefik.host.domain" to enable traefik debug dashboard
+  # DASHBOARD: optional string, set to unique hostname,
+  #   eg. "traefik.host.domain" to enable traefik debug dashboard
   DASHBOARD:
 
 # Dedicated DNS Server (Knot) for .internal, .podman, .nspawn and reverse ptr
 LOCAL_DNS_SERVER:
   # if enabled:  unbound will forward .internal requests to knot to answer requests
-  # if disabled: unbound will answer and deliver .internal requests itself, but without dnssec
+  # if disabled: unbound will answer for .internal requests itself, but without dnssec
   ENABLED: false
   # VERBOSITY: debug, info, notice. warning, error, critical, < more verbose
   VERBOSITY: info
   # # optional zones:
   #     place dns data into /etc/local/knot/<zonename>.zone
   # # optional entries:
-  #     TEMPLATE, POLICY, KEY, ACL, ZONE
-  #     multiline | string, must be formatted as list "-", will be added to defined section
+  #     TEMPLATE, POLICY, KEY, ACL, ZONE: multiline | string,
+  #       must be formatted as list "-", will be added to defined section
 
 # Dedicated ACME Certificate Server (step-ca) for *.on.internal
 LOCAL_ACME_SERVER:
-  # if enabled, step-ca will be used for maintaining on.internal TLS certificates, needs LOCAL_DNS_SERVER to be enabled too
+  # if enabled, step-ca will be used for maintaining on.internal TLS
+  #   certificates, needs LOCAL_DNS_SERVER to be enabled too.
   ENABLED: false
-  # HOSTNAMES: list, under which hostnames acme provision will be available,
+  # HOSTNAMES: list, under which hostnames acme provision will be available
   HOSTNAMES:
     - acme.internal
   # DOMAINS: list, which domains are available for acme to provision on
@@ -57,9 +61,9 @@ LOCAL_ACME_SERVER:
 
 # Additional RPM packets to be available
 RPM_OSTREE_INSTALL:
-  # unbound, used as recursive dnsresolver for system, container, compose and nspawn workloads
+  # unbound, recursive dnsresolver for system, container, compose and nspawn workloads
   - unbound
-  # knot, used as authoritative DNS server for .internal, .podman, .nspawn domains
+  # knot, authoritative DNS server for .internal, .podman, .nspawn domains
   - knot
   # podman-compose, used by compose.bu for compose container
   - podman-compose
@@ -82,32 +86,33 @@ LIBVIRT_CIDR: 192.168.122.1/24
 FIREWALL:
   # if disabled: firewalld will not be started
   ENABLED: true
-  # VERBOSITY: 0: not verbose, 1: verbose logging of firewalld rejects into systemd journal
-  VERBOSITY: 1
+  # LOG_DENIED: true/false, if true: firewalld writes rejects/drops into systemd journal
+  LOG_DENIED: false
 
 # DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
 DEBUG_CONSOLE_AUTOLOGIN: false
 
-# DEBUG_DISABLE_AUTOUPDATE: true/false, if true: Disable autoupdate to keep specific version
+# DEBUG_DISABLE_AUTOUPDATE: true/false, if true: disable autoupdate, keep specific version
 DEBUG_DISABLE_AUTOUPDATE: false
 
 # API_PROXY_LOG_HTTP: if true: Write HTTP Proxy Access to Log
 API_PROXY_LOG_HTTP: false
 
-# PODMAN_LOAD_SECRETS: list of /etc/credstore entries to load into podman for container and compose workloads
-# default ("") means to load all secrets in /etc/credstore into podman secrets>
-# example: PODMAN_LOAD_SECRETS: "root_ca.crt root_bundle.crt"
+# PODMAN_LOAD_SECRETS: default (""), string list of /etc/credstore entries
+#   to load into podman for container and compose workloads.
+#   "" means to load all secrets in /etc/credstore into podman secrets.
+#   example: PODMAN_LOAD_SECRETS: "root_ca.crt root_bundle.crt"
 PODMAN_LOAD_SECRETS: ""
-# PODMAN_API_LOGGING: str, one of "trace", "debug", "info", "warn", "warning", "error", "fatal", "panic"
+# PODMAN_API_LOGGING: str, one of trace debug info warn warning error fatal panic
 PODMAN_API_LOG_LEVEL: warning
 
 # common update parameter defaults
-#   connect as user core (with uid=1000), use update-system-config as the update service,
+#   connect as user core (uid=1000), use update-system-config as the update service,
 #   expect files related to update on /run/user/1000, use sudo to become root.
 UPDATE_USER: core
 # XXX UPDATE_UID must be an integer
 UPDATE_UID: 1000
-# FIXME WARNING: currently os/__init__.py:SystemConfigUpdate hardcodes UPDATE_SERVICE to "update-system-config", this will revert to normal
+# FIXME WARNING: currently os/__init__.py:SystemConfigUpdate hardcodes UPDATE_SERVICE to "update-system-config"
 UPDATE_SERVICE: update-system-config
 UPDATE_PATH: /run/user/1000
 UPDATE_USE_SUDO: true
