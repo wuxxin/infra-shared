@@ -624,6 +624,8 @@ class FcosImageDownloader(pulumi.ComponentResource):
 
 
 class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
+    "compile a minimal Ignition Config that downloads the final Ignition Config from https"
+
     def __init__(self, resource_name, hostname, remoteurl, opts=None):
         from ..authority import ca_factory
 
