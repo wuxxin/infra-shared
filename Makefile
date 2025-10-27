@@ -77,20 +77,26 @@ test-sim: buildenv ## Run sim up Tests
 	git init $(ROOTDIR)/build/tests
 	./scripts/create_skeleton.sh \
 		--project-dir $(ROOTDIR)/build/tests --name-library infra --yes
+
 	for i in infra uv.lock .venv; do \
 	    f=$(ROOTDIR)/build/tests/$$i && if test ! -e $$f; then ln -s "../../" $$f; fi \
 	done
 	sed -i -r "s#virtualenv: .venv#virtualenv: ../../.venv#g" $(ROOTDIR)/build/tests/Pulumi.yaml
-	mkdir -p $(ROOTDIR)/build/tests/target && cp -r $(ROOTDIR)/examples/safe $(ROOTDIR)/build/tests/target
+	mkdir -p $(ROOTDIR)/build/tests/target && \
+	    cp -r $(ROOTDIR)/examples/safe $(ROOTDIR)/build/tests/target
 	cat $(ROOTDIR)/build/tests/config-template.yaml >> $(ROOTDIR)/build/tests/Pulumi.sim.yaml
-	# echo "import target.safe" >> $(ROOTDIR)/build/tests/__main__.py
+	printf "  tests:safe_showcase_unittest: true\n\n" >> $(ROOTDIR)/build/tests/Pulumi.sim.yaml
+	echo "import target.safe" >> $(ROOTDIR)/build/tests/__main__.py
+
 	cd $(ROOTDIR)/build/tests && $(PULUMI) login file://$(ROOTDIR)/build/pulumi
 	cd $(ROOTDIR)/build/tests && \
 		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack init sim --secrets-provider passphrase
 	cd $(ROOTDIR)/build/tests && \
 		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack "select" "sim"
 	cd $(ROOTDIR)/build/tests && \
-		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --suppress-outputs --yes $(args)
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) up --stack "sim" --suppress-outputs --yes
+	cd $(ROOTDIR)/build/tests && \
+		PULUMI_CONFIG_PASSPHRASE="sim" $(PULUMI) stack output --json --stack "sim" --show-secrets safe_butane | jq -r .this_env
 
 .PHONY: sim__
 sim__: ## Run "pulumi $(args)"
