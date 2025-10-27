@@ -97,9 +97,25 @@ dependencies = [
     # phao-mqtt - mqtt library for publish and subscribe to mqtt messages
     # "paho-mqtt",
 
+    # have marimo and basic DataScientist available for more interactive tinkering
+    # "marimo",
+    # "bokeh",
+    # "pandas",
+    # "scipy",
 ]
 
 [project.optional-dependencies]
+
+dev = [
+    # This syntax means: "install this package (itself) with the 'docs' extra"
+    "project_name[docs]",
+    # ruff - An extremely fast Python linter and code formatter, written in Rust.
+    "ruff",
+    # ty - An extremely fast Python type checker and language server, written in Rust.
+    "ty",
+    # pytest - simple powerful testing with Python
+    "pytest",
+]
 
 docs = [
     # mkdocs - Project documentation with Markdown
@@ -124,19 +140,4 @@ docs = [
     "mkdocs_pymdownx_material_extras",
     # Mkdocs includer plugin
     "mkdocs-include-markdown-plugin",
-]
-
-dev = [
-    # This syntax means: "install this package (itself) with the 'docs' extra"
-    "project_name[docs]",
-    # have marimo and basic DataScientist available for more interactive tinkering
-    "marimo",
-    "bokeh",
-    "pandas",
-    "scipy",
-    # ruff - An extremely fast Python linter and code formatter, written in Rust.
-    "ruff",
-    # ty - An extremely fast Python type checker and language server, written in Rust.
-    "ty",
-    # "pytest", # example for future test dependencies
 ]
