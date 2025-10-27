@@ -106,13 +106,17 @@ def butane_clevis_to_json_clevis(butane_config):
     # Process the boot_device, associating it with the root path
     if boot_device_luks and (boot_device_luks.get("tpm2") or boot_device_luks.get("tang")):
         clevis_config = boot_device_luks
-        device_path_to_use = root_device_path if root_device_path else clevis_config.get("device")
+        device_path_to_use = (
+            root_device_path if root_device_path else clevis_config.get("device")
+        )
 
         if device_path_to_use:
             # Generate the Clevis SSS config for this device
             sss_config = clevis_to_sss(clevis_config)
             if sss_config:
-                clevis_config_entries.update({"device": device_path_to_use, "clevis": sss_config})
+                clevis_config_entries.update(
+                    {"device": device_path_to_use, "clevis": sss_config}
+                )
                 boot_device_processed = True
         else:
             print(
@@ -189,7 +193,9 @@ class ButaneTranspiler(pulumi.ComponentResource):
     ):
         from ..authority import ca_factory, acme_sub_ca, ssh_factory, ns_factory, config
 
-        super().__init__("pkg:os:ButaneTranspiler", "{}_butane".format(resource_name), None, opts)
+        super().__init__(
+            "pkg:os:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
+        )
 
         # create jinja environment
         default_env = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
@@ -393,9 +399,9 @@ storage:
 
         # create clevis_luks_update_sls
         if this_env["UPDATE_CLEVIS_LUKS_SLOTS"]:
-            clevis_luks_config_json = pulumi.Output.all(clevis_dict=self.clevis_luks_config).apply(
-                lambda args: json.dumps(args["clevis_dict"])
-            )
+            clevis_luks_config_json = pulumi.Output.all(
+                clevis_dict=self.clevis_luks_config
+            ).apply(lambda args: json.dumps(args["clevis_dict"]))
             this_env.update({"CLEVIS_LUKS_CONFIG": clevis_luks_config_json})
 
             clspy = jinja_run_file("os/clevis-luks-slots.py", subproject_dir, this_env)
@@ -557,7 +563,9 @@ class FcosImageDownloader(pulumi.ComponentResource):
     ):
         from ..authority import project_dir, stack_name, config
 
-        defaults = yaml.safe_load(open(os.path.join(this_dir, "..", "build_defaults.yml"), "r"))
+        defaults = yaml.safe_load(
+            open(os.path.join(this_dir, "..", "build_defaults.yml"), "r")
+        )
         config = config.get_object("build") or {}
         system_config = merge_dict_struct(defaults["fcos"], config.get("fcos") or {})
 
@@ -579,17 +587,15 @@ class FcosImageDownloader(pulumi.ComponentResource):
         super().__init__("pkg:os:FcosImageDownloader", resource_name, None, opts)
         child_opts = pulumi.ResourceOptions(parent=self)
 
-        workdir = os.path.join(project_dir, "state", "tmp", stack_name, "fcos")
+        workdir = os.path.join(project_dir, "build", "tmp", stack_name, "fcos")
         os.makedirs(workdir, exist_ok=True)
         if overwrite_url:
             create_cmd = "coreos-installer download -C {w} -u {u} 2>/dev/null".format(
                 w=workdir, u=overwrite_url
             )
         else:
-            create_cmd = (
-                "coreos-installer download -s {s} -a {a} -p {p} -f {f} -C {w} 2>/dev/null".format(
-                    s=stream, a=architecture, p=platform, f=image_format, w=workdir
-                )
+            create_cmd = "coreos-installer download -s {s} -a {a} -p {p} -f {f} -C {w} 2>/dev/null".format(
+                s=stream, a=architecture, p=platform, f=image_format, w=workdir
             )
 
         self.downloaded_image = command.local.Command(
@@ -845,7 +851,10 @@ class WaitForHostReady(pulumi.ComponentResource):
         opts: pulumi.ResourceOptions = None,
     ):
         super().__init__(
-            "pkg:os:WaitForHostReady", "{}_wait_for_host_ready".format(resource_name), None, opts
+            "pkg:os:WaitForHostReady",
+            "{}_wait_for_host_ready".format(resource_name),
+            None,
+            opts,
         )
 
         from ..authority import ssh_factory
