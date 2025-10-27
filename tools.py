@@ -396,7 +396,7 @@ def ssh_put(
         remote_prefix: path prefixed to each remotepath
         local_prefix: path prefixed to each locallpath
         if delete==True: files will be deleted from target on deletion of resource
-        if simulate==True: files are not transfered but written out to state/tmp/stack_name
+        if simulate==True: files are not transfered but written out to build/tmp/stack_name
         if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     Returns:
@@ -426,7 +426,7 @@ def ssh_put(
         "remote_prefix": remote_prefix,
         "local_prefix": local_prefix,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
-        "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
+        "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
     transfered = SSHPut(prefix, props, opts=opts)
     # pulumi.export("{}_put".format(prefix), transfered)
@@ -451,7 +451,7 @@ def ssh_get(
         files: {remotepath: localpath,}
         remote_prefix: path prefixed to each remotepath
         local_prefix: path prefixed to each locallpath
-        if simulate==True: files are not transfered but written out to state/tmp/stack_name
+        if simulate==True: files are not transfered but written out to build/tmp/stack_name
         if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     Returns:
@@ -472,7 +472,7 @@ def ssh_get(
         "remote_prefix": remote_prefix,
         "local_prefix": local_prefix,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
-        "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
+        "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
     transfered = SSHGet(prefix, props, opts=opts)
     # pulumi.export("{}_get".format(prefix), transfered)
@@ -498,7 +498,7 @@ def ssh_deploy(
         remote_prefix= path prefixed to each remotepath
         if secret==True: data is considered a secret, file mode will be 0600, dir mode will be 0700
         if delete==True: files will be deleted from target on deletion of resource
-        if simulate==True: data is not transfered but written out to state/tmp/stack_name
+        if simulate==True: data is not transfered but written out to build/tmp/stack_name
         if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     Returns:
@@ -527,7 +527,7 @@ def ssh_deploy(
         "secret": secret,
         "delete": delete,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
-        "tmpdir": os.path.join(project_dir, "state", "tmp", stack_name),
+        "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
     deployed = SSHDeployer(prefix, props, opts=opts)
     # pulumi.export("{}_deploy".format(prefix), deployed)
@@ -550,7 +550,7 @@ def ssh_execute(
     Args:
         cmdline: String to be executed on target host
         environment: Dict of environment entries to be available in cmdline
-        if simulate==True: command is not executed but written out to state/tmp/stack_name
+        if simulate==True: command is not executed but written out to build/tmp/stack_name
         if simulate==None: simulate = pulumi.get_stack().endswith("sim")
 
     """
@@ -562,7 +562,7 @@ def ssh_execute(
     simulate = stack_name.endswith("sim") if simulate is None else simulate
 
     if simulate:
-        tmpdir = os.path.join(project_dir, "state", "tmp", stack_name)
+        tmpdir = os.path.join(project_dir, "build", "tmp", stack_name)
         os.makedirs(tmpdir, exist_ok=True)
         # XXX write out environment if not empty on simulate, so we can look what env was set
         if environment != {}:
@@ -737,8 +737,8 @@ def salt_config(resource_name, stack_name, base_dir):
 
     """
 
-    root_dir = os.path.join(base_dir, "state", "salt", stack_name, resource_name)
-    tmp_dir = os.path.join(base_dir, "state", "tmp", stack_name, resource_name)
+    root_dir = os.path.join(base_dir, "build", "salt", stack_name, resource_name)
+    tmp_dir = os.path.join(base_dir, "build", "tmp", stack_name, resource_name)
     sls_dir = os.path.join(root_dir, "sls")
     pillar_dir = os.path.join(root_dir, "pillar")
 
@@ -792,7 +792,7 @@ class LocalSaltCall(pulumi.ComponentResource):
     """configure and execute a saltstack salt-call on a local provision machine
 
     - sls_dir defaults to project_dir
-    - config/run/tmp/cache and other files default to state/salt/stackname/resource_name
+    - config/run/tmp/cache and other files default to build/salt/stackname/resource_name
     - grains from salt_config available
 
     Args:

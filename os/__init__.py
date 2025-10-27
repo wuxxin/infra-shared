@@ -464,7 +464,7 @@ clevis_luks_updater:
 class SystemConfigUpdate(pulumi.ComponentResource):
     """reconfigure a remote system by executing salt-call on a butane to saltstack translated config
 
-    if simulate==True: data is not transferred but written out to state/tmp/stack_name
+    if simulate==True: data is not transferred but written out to build/tmp/stack_name
     if simulate==None: simulate=pulumi.get_stack().endswith("sim")
     """
 

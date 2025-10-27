@@ -143,13 +143,13 @@ create_ifnotexist .gitignore <<EOF
 .venv
 
 # directory for temporary files
-state/tmp
+build/tmp
 
 # saltstack state files
-state/salt
+build/salt
 
 # mkdocs generated documentation files
-state/docs
+build/docs
 
 # pulumi state for stacks "*sim"
 state/pulumi/.pulumi/backups/*sim
