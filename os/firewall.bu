@@ -138,3 +138,8 @@ storage:
             <egress-zone name="nspawn"/>
           </policy>
 
+systemd:
+  units:
+    - name: firewalld.service
+      enabled: {{ "true" if FIREWALL["ENABLED"] else "false" }}
+
