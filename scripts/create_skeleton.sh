@@ -174,7 +174,6 @@ ${project_name}.egg-info
 __pycache__
 
 # editor artifacts
-.vscode
 .zed
 
 EOF
