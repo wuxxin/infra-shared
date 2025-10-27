@@ -38,12 +38,10 @@ def __(dbus):
     args = {
         "serial": "20220100016184",
         "size": 127865454592,
-        "imagefile": "state/tmp/sim/fcos/fedora-coreos-41.20241122.1.0-metal.aarch64.raw",
+        "imagefile": "build/tmp/sim/fcos/fedora-coreos-41.20241122.1.0-metal.aarch64.raw",
     }
     bus = dbus.SystemBus()
-    udisks = bus.get_object(
-        "org.freedesktop.UDisks2", "/org/freedesktop/UDisks2", introspect=False
-    )
+    udisks = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2", introspect=False)
     udisks_manager = dbus.Interface(udisks, "org.freedesktop.DBus.ObjectManager")
     return args, bus, udisks, udisks_manager
 
