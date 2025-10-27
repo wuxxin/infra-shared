@@ -54,6 +54,16 @@ storage:
           ServerAddress={{ NSPAWN_CIDR }}
           DNS={{ INTERNAL_CIDR|cidr2ip }}
 
+    - path: /etc/systemd/network/80-container-vb.network
+      mode: 420
+      # override 80-container-vb.network to always attach to nspawn bridge
+      contents:
+        inline: |
+          [Match]
+          Name=vb-*
+
+          [Network]
+          Bridge=nspawn
   links:
     # symlink systemd-networkd for automatic start, because nspawn.bu uses networkd
     - path: /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
