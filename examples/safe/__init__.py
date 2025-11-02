@@ -90,9 +90,12 @@ pg_postgres_client_cert = create_client_cert(
 host_environment = {
     # install mc on sim, prod should use toolbox
     "RPM_OSTREE_INSTALL": ["mc", "strace"] if stack_name.endswith("sim") else [],
-    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose") in (None, True, "true", "True"),
-    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn") in (None, True, "true", "True"),
-    "SHOWCASE_UNITTEST": config.get(shortname + "_showcase_unittest") in (True, "true", "True"),
+    "SHOWCASE_COMPOSE": config.get(shortname + "_showcase_compose")
+    in (None, True, "true", "True"),
+    "SHOWCASE_NSPAWN": config.get(shortname + "_showcase_nspawn")
+    in (None, True, "true", "True"),
+    "SHOWCASE_UNITTEST": config.get(shortname + "_showcase_unittest")
+    in (True, "true", "True"),
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRES_PASSWORD": pg_postgres_password.result,
     "DNS_RESOLVER": {}
@@ -121,11 +124,6 @@ if stack_name.endswith("sim"):
     # for simulation: add qemu-guest-agent, debug=True, and 1234 as disk passphrase
     host_environment["RPM_OSTREE_INSTALL"].append("qemu-guest-agent")
     host_environment.update({"DEBUG_CONSOLE_AUTOLOGIN": True})
-    print(
-        "WARNING: Disable autoupdate because of coreos fedora 42 and rpm-ostree layering issue!",
-        file=sys.stderr,
-    )
-    host_environment.update({"DEBUG_DISABLE_AUTOUPDATE": True})
 
     luks_root_passphrase = pulumi.Output.concat("1234")
     luks_var_passphrase = pulumi.Output.concat("1234")
@@ -156,9 +154,15 @@ else:
 # update environment to include storage id's, passphrases and tang setup
 host_environment.update(
     {
-        "boot_device": next(s["device"] for s in identifiers["storage"] if s["name"] == "boot"),
-        "usb1_device": next(s["device"] for s in identifiers["storage"] if s["name"] == "usb1"),
-        "usb2_device": next(s["device"] for s in identifiers["storage"] if s["name"] == "usb2"),
+        "boot_device": next(
+            s["device"] for s in identifiers["storage"] if s["name"] == "boot"
+        ),
+        "usb1_device": next(
+            s["device"] for s in identifiers["storage"] if s["name"] == "usb1"
+        ),
+        "usb2_device": next(
+            s["device"] for s in identifiers["storage"] if s["name"] == "usb2"
+        ),
         "luks_root_passphrase": luks_root_passphrase,
         "luks_var_passphrase": luks_var_passphrase,
         "tang_url": tang_url,
@@ -207,23 +211,20 @@ if not host_environment["SHOWCASE_UNITTEST"]:
     if stack_name.endswith("sim"):
         # create libvirt machine simulation:
         #   download suitable image, create similar virtual machine, same memsize, different arch
-        print(
-            "WARNING: Using pinned version of coreos fedora 41 because fedora 42 and rpm-ostree layering issue",
-            file=sys.stderr,
-        )
         host_machine = LibvirtIgniteFcos(
             shortname,
             public_config.result,
             volumes=identifiers["storage"],
             memory=4096,
-            overwrite_url="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/41.20250331.3.0/x86_64/fedora-coreos-41.20250331.3.0-qemu.x86_64.qcow2.xz",
         )
         # write out ip of simulated host as target
         target = host_machine.vm.network_interfaces[0]["addresses"][0]
         opts = pulumi.ResourceOptions(depends_on=[host_machine, serve_data])
     else:
         # download metal version of ARM64 os image (Raspberry PI compatible)
-        image = FcosImageDownloader(architecture="aarch64", platform="metal", image_format="raw.xz")
+        image = FcosImageDownloader(
+            architecture="aarch64", platform="metal", image_format="raw.xz"
+        )
 
         # download bios and other extras for Raspberry PI for customization
         extras = build_raspberry_extras()
