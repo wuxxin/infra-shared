@@ -2,7 +2,7 @@
 
 Pulumi components and functions available in this project:
 
-## `os` - CoreOS System Config, Deployment, Operation, Update
+## `os` - CoreOS Config, Deployment, Operation, Update
 
 This module provides components for managing CoreOS systems.
 
@@ -21,7 +21,7 @@ This module provides components for managing CoreOS systems.
 -   `get_locale`: Gets the locale configuration
 -   `butane_clevis_to_json_clevis`: Converts a Butane clevis config to a JSON clevis config
 
-### Usage
+### Example
 
 ```python
 from infra.os import ButaneTranspiler, LibvirtIgniteFcos
@@ -40,7 +40,7 @@ host_machine = LibvirtIgniteFcos(
 )
 ```
 
-## `authority` - Authority - TLS/X509 CA and Certificates, DNSSEC Keys, OpenSSH Keys
+## `authority` - TLS/X509 CA & Certs, DNSSEC, OpenSSH
 
 This module provides components for managing TLS/X509 CAs and certificates, DNSSEC keys, and OpenSSH keys.
 
@@ -76,7 +76,7 @@ The `authority.py` module is configured through the `Pulumi.<stack>.yaml` file. 
 -   `ns_extra_ksk_bundle`
 -   `ssh_provision_name`
 
-### Usage
+### Example
 
 ```python
 from infra.authority import create_host_cert
@@ -86,7 +86,7 @@ tls = create_host_cert(hostname, hostname, dns_names)
 ```
 
 
-## `tools` - Serve HTTPS, SSH-put/get/execute, Salt-Call, write Removable-Media, other tools
+## `tools` - Serve HTTPS, SSH-put/get/exec, Salt-Call, Img-Transfer
 
 This module provides various tools for use with Pulumi.
 
@@ -116,7 +116,7 @@ This module provides various tools for use with Pulumi.
 -   `sha256sum_file`: Calculates the sha256sum of a file
 -   `yaml_loads`: Loads a YAML string
 
-### Usage
+### Example
 
 ```python
 from infra.tools import ServePrepare, ServeOnce
@@ -135,7 +135,7 @@ serve_data = ServeOnce(
 )
 ```
 
-## `build.py` - build OS- and IoT-Images
+## `build.py` - Embedded- & IoT- Images
 
 This module provides components for building OpenWRT Linux, Raspberry PI Extras, ESPHOME ESP32 Sensor/Actor Devices Images.
 

@@ -67,13 +67,13 @@ Provision can be run on **Arch** Linux, Manjaro Linux or as **Container Image**.
 ## Usage
 ### Setup
 
-#### List Makefile targets/commands
+**List Makefile targets/commands:**
 
 ```sh
 make
 ```
 
-#### Bootstrap skeleton files to a new repo
+**Bootstrap skeleton files to a new repo:**
 
 - `create_skeleton.sh`: creates default dirs and files in the `project_dir` relative from current directory.
 
@@ -89,7 +89,7 @@ mkdir -p ${project_dir} && \
 ```
 
 
-#### Install build requirements
+**Install build requirements:**
 
 - on **arch linux** or **manjaro linux** install dependencies as system packages
 
@@ -97,7 +97,7 @@ mkdir -p ${project_dir} && \
 make install-requirements
 ```
 
-#### Build and use provision container
+**Build and use provision container:**
 
 - on **other linux**, use a **provision container**.
 
@@ -118,13 +118,13 @@ CONTAINER_CMD=docker infra/scripts/provision_shell.sh
 # use exit to return to base shell
 ```
 
-#### Create/build/install simulation target
+**Create/build/install simulation target:**
 
 ```sh
 make sim-up
 ```
 
-#### Sim stack: destroy, cleanup, re/create
+- ** Sim stack: destroy, cleanup, re/create
 
 ```sh
 make sim-clean
@@ -134,7 +134,7 @@ make sim__ args="stack rm --force"; rm Pulumi.sim.yaml
 make sim-create
 ```
 
-#### test if changes would compute before applying
+**test if changes would compute before applying:**
 
 ```sh
 make sim-preview
@@ -142,7 +142,7 @@ make sim-preview
 make sim-up
 ```
 
-#### cancel an currently running/stuck pulumi update
+**cancel an currently running/stuck pulumi update:**
 
 in case you see an error stating:
 
@@ -155,14 +155,14 @@ in case you see an error stating:
 make sim__ args="cancel"
 ```
 
-#### Execute anything in the provision python environment
+**Execute anything in the provision python environment:**
 
 ```sh
 . .venv/bin/activate
 ipython
 ```
 
-#### Manual pulumi invocation
+**Manual pulumi invocation:**
 
 ```sh
 export PULUMI_SKIP_UPDATE_CHECK=1
@@ -173,7 +173,7 @@ pulumi about
 
 ### Information Gathering
 
-#### Show/use root and provision cert
+**Show/use root and provision cert:**
 
 ```sh
 make sim-show args="ca_factory" | jq ".root_cert_pem" -r | \
@@ -182,26 +182,26 @@ make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
     openssl x509 -in /dev/stdin -noout -text
 ```
 
-#### Show the PKS12 password for an exported pks12 client certificate, for import into another app
+**Show the PKS12 password for an exported pks12 client certificate, for import into another app:**
 
 ```sh
 make sim-show args="--show-secrets librewolf_client_cert_user_host" | \
     jq -r .pkcs12_password.result
 ```
 
-#### show resource output as json
+**show resource output as json:**
 
 ```sh
 make sim-show
 ```
 
-#### show resource output key list as yaml
+**show resource output key list as yaml:**
 
 ```sh
 make sim-list
 ```
 
-#### show resource output data as colorized formatted json or yaml
+**show resource output data as colorized formatted json or yaml:**
 
 ```sh
 # use highlight and less
@@ -212,14 +212,14 @@ make sim-show | bat -l json
 
 ### Production
 
-#### Add SSH Keys of GitOps Developer
+**Add SSH Keys of GitOps Developer:**
 
 ```sh
 # eg. add the own ssh public key in project_dir/authorized_keys
 cat ~/.ssh/id_rsa.pub >> authorized_keys
 ```
 
-#### Create stack
+**Create stack:**
 
 ```sh
 make prod-create

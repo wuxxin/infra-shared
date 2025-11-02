@@ -2,6 +2,16 @@ site_name: Infra-Shared
 
 theme:
   name: material
+  features:
+    - toc.integrate
+    - navigation.top
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+
+extra_css:
+  - docs/extra.css
 
 plugins:
   - search
