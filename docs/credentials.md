@@ -2,11 +2,7 @@
 
 ## Environment based Secrets
 
-TODO: write how to add
-
-- systemd-container ENV
-_ compose container ENV
-- nspawn ENV
+TODO: also write how to add systemd-container ENV, compose container ENV, nspawn ENV as example.
 
 ## File based Credentials
 

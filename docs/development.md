@@ -13,19 +13,18 @@
 
 - `README.md`: A user centric view on howto use the project
 - `docs/`:  mkdocs documentation
-- `docs/tools.md` for scripts and tools and pulumi components
+
+CoreOS related:
+
 - `docs/os.md` and `docs/update.md` for coreos system and system update
-- `docs/networking.md` for network configuration of the coreos system
+- `docs/networking.md` for coreos system network configuration
 - `docs/credentials.md` for credentials configuration in coreos and usage in container, compose and nspawn workloads
 - `docs/healthchecks.md` for healtheck configuration of container, compose and nspawn workloads
 - `docs/butane.md` for jinja templating butane and saltstack generation
 
-### Development Pulumi Resources
+Pulumi Resources related:
 
-- `authority.py` - Authority - TLS/X509 CA and Certificates, DNSSEC Keys, OpenSSH Keys
-- [`os/__init__.py`](os.md) - CoreOS Centric System Config, Deployment, Operation, Update, Credentials, DNS, HTTPS, Container, Compose, Nspawn Workloads
-- `tools.py` - Tools - Serve HTTPS, SSH-put/get/execute, local and Remote Salt-Call, write Removeable-Media, State Data Export, Tools
-- `build.py` - build Embedded-OS Images and IOT Images, build OpenWRT Linux, Paspberry PI Extras, ESPHOME ESP32 Sensor/Actor Devices
+- `docs/pulumi.md` for pulumi components
 
 ### Development Scripts
 
@@ -114,7 +113,7 @@ all inside directory `scripts`:
 - **Use `pyproject.toml`** to add or modify dependencies installed during a task execution. as long as there is no version controlled uv.lock, dont add one to the repository.
 - **Use python_dotenv and load_env()** for environment variables.
 - **Use `pydantic` for data validation**.
-- **Use `pytest` for testing**, `playwright` and `pytest-playwright` for gui testing.
+- **Use `pytest` for testing**, `playwright` with headless chromium and `pytest-playwright` for gui testing.
 - **Use `FastAPI` for APIs**.
 - **Use `FastHTML` for HTML**.
 - **Use `SQLAlchemy` or `SQLModel` for ORM**.
