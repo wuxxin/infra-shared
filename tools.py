@@ -217,7 +217,7 @@ class SSHPut(pulumi.ComponentResource):
             copy_cmd = "cp {} {}"
             rm_cmd = "rm {} || true" if self.props["delete"] else ""
 
-            file_transfered = command.local.Command(
+            file_transferred = command.local.Command(
                 resource_name,
                 create=copy_cmd.format(full_local_path, tmpfile),
                 delete=rm_cmd.format(tmpfile),
@@ -225,7 +225,7 @@ class SSHPut(pulumi.ComponentResource):
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
-            file_transfered = command.remote.CopyFile(
+            file_transferred = command.remote.CopyFile(
                 resource_name,
                 local_path=full_local_path,
                 remote_path=full_remote_path,
@@ -238,7 +238,7 @@ class SSHPut(pulumi.ComponentResource):
                 triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
-        return file_transfered
+        return file_transferred
 
 
 class SSHSftp(pulumi.CustomResource):
@@ -298,7 +298,7 @@ class SSHGet(pulumi.ComponentResource):
             copy_cmd = "cp {} {}"
             rm_cmd = "rm {} || true" if self.props["delete"] else ""
 
-            file_transfered = command.local.Command(
+            file_transferred = command.local.Command(
                 resource_name,
                 create=copy_cmd.format(full_local_path, tmpfile),
                 delete=rm_cmd.format(tmpfile),
@@ -306,7 +306,7 @@ class SSHGet(pulumi.ComponentResource):
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
-            file_transfered = SSHSftp(
+            file_transferred = SSHSftp(
                 resource_name,
                 props={
                     "host": self.props["host"],
@@ -319,7 +319,7 @@ class SSHGet(pulumi.ComponentResource):
                 triggers=triggers,
                 opts=pulumi.ResourceOptions(parent=self),
             )
-        return file_transfered
+        return file_transferred
 
 
 class SSHDeployer(pulumi.ComponentResource):
@@ -400,7 +400,7 @@ def ssh_put(
         remote_prefix: path prefixed to each remotepath
         local_prefix: path prefixed to each locallpath
         if delete==True: files will be deleted from target on deletion of resource
-        if simulate==True: files are not transfered but written out to build/tmp/stack_name
+        if simulate==True: files are not transferred but written out to build/tmp/stack_name
         if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     Returns:
@@ -432,9 +432,9 @@ def ssh_put(
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
-    transfered = SSHPut(prefix, props, opts=opts)
-    # pulumi.export("{}_put".format(prefix), transfered)
-    return transfered
+    transferred = SSHPut(prefix, props, opts=opts)
+    # pulumi.export("{}_put".format(prefix), transferred)
+    return transferred
 
 
 def ssh_get(
@@ -455,7 +455,7 @@ def ssh_get(
         files: {remotepath: localpath,}
         remote_prefix: path prefixed to each remotepath
         local_prefix: path prefixed to each locallpath
-        if simulate==True: files are not transfered but written out to build/tmp/stack_name
+        if simulate==True: files are not transferred but written out to build/tmp/stack_name
         if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     Returns:
@@ -478,9 +478,9 @@ def ssh_get(
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
-    transfered = SSHGet(prefix, props, opts=opts)
-    # pulumi.export("{}_get".format(prefix), transfered)
-    return transfered
+    transferred = SSHGet(prefix, props, opts=opts)
+    # pulumi.export("{}_get".format(prefix), transferred)
+    return transferred
 
 
 def ssh_deploy(
@@ -502,7 +502,7 @@ def ssh_deploy(
         remote_prefix= path prefixed to each remotepath
         if secret==True: data is considered a secret, file mode will be 0600, dir mode will be 0700
         if delete==True: files will be deleted from target on deletion of resource
-        if simulate==True: data is not transfered but written out to build/tmp/stack_name
+        if simulate==True: data is not transferred but written out to build/tmp/stack_name
         if simulate==None: simulate=pulumi.get_stack().endswith("sim")
 
     Returns:
