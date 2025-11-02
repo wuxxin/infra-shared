@@ -132,4 +132,6 @@ docs = [
     "mkdocs_pymdownx_material_extras",
     # Mkdocs includer plugin
     "mkdocs-include-markdown-plugin",
+    # mkdocs-gen-files sourcecode creation plugin
+    "mkdocs-gen-files",
 ]

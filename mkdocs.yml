@@ -15,6 +15,9 @@ extra_css:
 
 plugins:
   - search
+  - gen-files:
+      scripts:
+        - scripts/docs_srcpages_gen.py
   - include-markdown
 
 markdown_extensions:
@@ -23,6 +26,9 @@ markdown_extensions:
       permalink: "#"
   - pymdownx.magiclink
   - pymdownx.snippets
+  - pymdownx.highlight:
+      anchor_linenums: true # Allows linking to specific lines
+  - pymdownx.inlinehilite
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -40,6 +46,6 @@ nav:
       - healthchecks.md
   - pulumi.md
   - Examples:
-      - examples/safe/README.md
+      - src/examples/safe/README.md
   - scripts.md
   - development.md

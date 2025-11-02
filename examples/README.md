@@ -2,7 +2,7 @@
 
 - [Safe](safe/README.md) - Fedora-CoreOS on ARM Appliance on Raspberry Pi
 
-- [modules/postgresql](modules/postgresql) - Postgresql Example Module
+- [modules/postgresql](modules/postgresql/README.md) - Postgresql Example Module
 
 - [Fake CA](fake_ca) - create a Root, Provision and MitM CA and a example host cert based on that MitM CA
 
