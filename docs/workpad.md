@@ -7,6 +7,19 @@ Then, do each of the described tasks one by one, and update `docs/tasks.md` acco
 
 Required changes:
 
+documentation update:
+- write the expected contents of documentation `docs/scripts.md`
+- fix the todo in `docs/credentials.md`
+- `docs/pulumi.md`: the task is to look at:
+    - authority.py - Authority - TLS/X509 CA and Certificates, DNSSEC Keys, OpenSSH Keys
+    - os/__init__.py - CoreOS Centric System Config, Deployment, Operation, Update, Credentials, DNS, HTTPS, Container, Compose, Nspawn Workloads
+    - tools.py - Tools - Serve HTTPS, SSH-put/get/execute, local and Remote Salt-Call, write Removeable-Media, State Data Export, Tools
+    - build.py - build Embedded-OS Images and IOT Images, build OpenWRT Linux, Paspberry PI Extras, ESPHOME ESP32 Sensor/Actor Devices
+
+    get all pulumi relevant functions and components, and how to configure, and describe their usage with examples from examples/safe/*.py or other examples in the source how to use it.
+- go through any other `docs/*.md` and make additions, changes, or examples where missing information.
+
+
 
 - Add basic test and fixtures with pytest
   - use `make pytest` to run pytest
