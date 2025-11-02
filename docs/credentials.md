@@ -1,9 +1,5 @@
 # Credentials
 
-## Environment based Secrets
-
-TODO: also write how to add systemd-container ENV, compose container ENV, nspawn ENV as example.
-
 ## File based Credentials
 
 - place credential in `/etc/credstore` or symlink there
@@ -69,3 +65,47 @@ ImportCredential=server.crt
     - **root_bundle.crt**, **root_ca.crt** are already imported
 - Access: `$CREDENTIALS_DIRECTORY/*`
     - `cat "$CREDENTIALS_DIRECTORY/server.crt"`
+
+## Accessing Credentials as environment variable
+
+Secrets can also be exposed as environment variables to workloads using systemd's `LoadCredential` feature in service drop-in configuration files.
+
+- Create the credential file in `/etc/credstore/mysecret.env` with the following format:
+
+```
+MY_SECRET=myvalue
+```
+
+### Single Container
+
+- Define in: `<instance>.container`
+
+```ini
+[Service]
+LoadCredential=mysecret.env
+```
+
+- The secret will be available as an environment variable inside the container.
+
+### Compose Container
+
+- Define in: `compose@<instance>.service.d/*.conf`
+
+```ini
+[Service]
+LoadCredential=mysecret.env
+```
+
+- The secret will be available as an environment variable inside the container.
+
+### Nspawn Machine
+
+- Define in: `systemd-nspawn@<instance>.service.d/*.conf`
+
+```ini
+[Service]
+LoadCredential=mysecret.env
+```
+
+- The secret will be available as an environment variable inside the nspawn machine.
+

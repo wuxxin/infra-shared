@@ -20,6 +20,7 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
 
 nav:
+  - Introduction: README.md
   - CoreOS:
       - os.md
       - butane.md
@@ -27,8 +28,8 @@ nav:
       - networking.md
       - credentials.md
       - healthchecks.md
-  - scripts.md
   - pulumi.md
-  - development.md
   - Examples:
       - examples/safe/README.md
+  - scripts.md
+  - development.md
