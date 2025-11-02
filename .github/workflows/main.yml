@@ -79,6 +79,10 @@ jobs:
       - name: Setup python build Environment
         run: make buildenv
 
+      - name: Configure Page Url for Github Pages
+        id: pages-configure
+        uses: actions/configure-pages@v5
+
       - name: build Docs
         run: make docs-online-build
 
@@ -90,3 +94,8 @@ jobs:
 
       - name: Run pytest
         run: make pytest
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "build/docs-online"
