@@ -1,15 +1,20 @@
-name: Test Local
+name: Main Build, Test and Publish Documentation to Pages
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: ["main"]
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+    concurrency:
+      group: "build"
+      cancel-in-progress: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -99,3 +104,20 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "build/docs-online"
+
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy_pages.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Artifact to GitHub Pages
+        id: deploy_pages
+        uses: actions/deploy-pages@v4
