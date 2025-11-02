@@ -5,7 +5,7 @@ meta:
 
 fcos:
   # Fedora-CoreOS
-  stream: stable
+  stream: next
   architecture: x86_64
   platform: metal
   format: raw.xz

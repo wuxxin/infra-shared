@@ -1,5 +1,16 @@
 """
 ## Pulumi - Build Embedded-OS Images, IOT Images, Image Addons
+
+### Functions
+- build_this_salt
+
+- build_raspberry_extras
+- build_openwrt
+- build_esphome
+
+### Components
+- ESPhomeBuild
+
 """
 
 import hashlib
@@ -10,6 +21,7 @@ from functools import reduce
 from typing import Dict, Optional, List
 
 import pulumi
+import pulumi_command as command
 import yaml
 
 
@@ -31,7 +43,7 @@ def get_nested_value(
         return default
 
 
-def build_this(resource_name, sls_name, config_name, environment={}, opts=None):
+def build_this_salt(resource_name, sls_name, config_name, environment={}, opts=None):
     "build an image/os as running user with LocalSaltCall, trigger on config change, pass config as pillar, pass environment"
 
     from .tools import LocalSaltCall
@@ -80,7 +92,7 @@ def build_this(resource_name, sls_name, config_name, environment={}, opts=None):
 
 def build_raspberry_extras():
     "build raspberry extra files"
-    return build_this("build_raspberry_extras", "build_raspberry_extras", "raspberry")
+    return build_this_salt("build_raspberry_extras", "build_raspberry_extras", "raspberry")
 
 
 def build_openwrt(resource_name, environment={}, opts=None):
@@ -89,14 +101,72 @@ def build_openwrt(resource_name, environment={}, opts=None):
     input environment:
     - authorized_keys: multiline string for authorized_keys content
     """
-    return build_this(resource_name, "build_openwrt", "openwrt", environment, opts=opts)
+    return build_this_salt(resource_name, "build_openwrt", "openwrt", environment, opts=opts)
 
 
-def build_esphome(resource_name, environment={}, opts=None):
+class ESPhomeBuild(pulumi.ComponentResource):
     """
-    build yaml configured Sensor/Actor for ESP32 Devices on Arduino or ESP-IDF
+    Builds an ESPhome firmware image and uploads firmware to ESP32 for update
+
+    Runs `esphome compile` to build firmware, `esphome upload` to upload firmware, cleans up temporary build files
+    """
+
+    def __init__(self, resourcename, config_yaml: str, environment, opts=None):
+        """
+        :param str resourcename: The logical name of the resource (e.g., 'intercom').
+                                This name is used to determine paths and filenames
+        :param str config_yaml: The full YAML configuration for the ESPhome device as a string
+        :param dict environment: Environment variables to pass to the build command,
+                                 used for substitutions in the ESPhome config (e.g., `!env_var`)
+        :param pulumi.ResourceOptions opts: Optional Pulumi resource options
+        """
+        super().__init__("pkg:build:ESPhomeBuild", resourcename, None, opts)
+        child_opts = pulumi.ResourceOptions(parent=self)
+
+        stack = pulumi.get_stack()
+
+        build_base = f"build/tmp/{stack}/.esphome"
+        build_dir = f"{build_base}/build/{resourcename}"
+        config_file = f"{build_base}/{resourcename}.yaml"
+
+        # Create directories and pipe the config_yaml string into the config file
+        self.write_config = command.local.Command(
+            f"{resourcename}-write-config",
+            create=f"mkdir -p {build_base} {build_dir} && cat > {config_file}",
+            stdin=config_yaml,
+            opts=child_opts,
+        )
+
+        self.build = command.local.Command(
+            f"{resourcename}-build-image",
+            create=f"ESPHOME_build_dir={build_dir} esphome compile {config_file}",
+            environment=environment,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.write_config]),
+        )
+
+        self.upload = command.local.Command(
+            f"{resourcename}-upload-image",
+            create=f"ESPHOME_build_dir={build_dir} esphome upload {config_file}",
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.build]),
+        )
+
+        self.clean_build = command.local.Command(
+            f"{resourcename}-clean-build",
+            create=(
+                f"rm -rf {config_file} {build_base}/idedata/{resourcename}.json {build_base}/storage/{resourcename}.yaml.json {build_dir}"
+            ),
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.upload]),
+        )
+
+        self.register_outputs({})
+
+
+def build_esphome(resource_name, config_yaml: str, environment={}, opts=None):
+    """
+    Builds andencrypts a firmware image for ESP32/ESP8266 devices using ESPhome
 
     input environment:
-    - build: json of custom build overwrites
+    - Any key/value pairs to be substituted into the ESPhome YAML
+      (e.g., {'WIFI_SSID': 'my-network', 'WIFI_PASS': 'my-secret'})
     """
-    return build_this(resource_name, "build_esphome", "esphome", environment, opts=opts)
+    return ESPhomeBuild(resource_name, config_yaml, environment=environment, opts=opts)
