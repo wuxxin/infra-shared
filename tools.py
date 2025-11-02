@@ -60,7 +60,9 @@ project_dir = os.path.abspath(os.path.join(this_dir, ".."))
 def log_warn(x):
     "write str(var) to pulumi.log.warn with line numbering, to be used as var.apply(log_warn)"
     pulumi.log.warn(
-        "\n".join(["{}:{}".format(nr + 1, line) for nr, line in enumerate(str(x).splitlines())])
+        "\n".join(
+            ["{}:{}".format(nr + 1, line) for nr, line in enumerate(str(x).splitlines())]
+        )
     )
 
 
@@ -247,7 +249,9 @@ class SSHSftp(pulumi.CustomResource):
     def download_file(self, remote_path, local_path):
         import paramiko
 
-        privkey = paramiko.RSAKey(data=self.props["sshkey"].private_key_openssh.apply(lambda x: x))
+        privkey = paramiko.RSAKey(
+            data=self.props["sshkey"].private_key_openssh.apply(lambda x: x)
+        )
         ssh = paramiko.SSHClient()
         ssh.load_host_keys("")
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -672,7 +676,9 @@ class DataExport(pulumi.ComponentResource):
             # If optional triggers are provided, use them and ignore stdin
             final_triggers = triggers + [self.filename]
             ignore_opts = pulumi.ResourceOptions(ignore_changes=["stdin"])
-            final_opts = pulumi.ResourceOptions.merge(opts, ignore_opts) if opts else ignore_opts
+            final_opts = (
+                pulumi.ResourceOptions.merge(opts, ignore_opts) if opts else ignore_opts
+            )
         else:
             # data is assumed stable, hash it for the trigger
             final_triggers = [
@@ -715,7 +721,9 @@ def encrypted_local_export(
     )
 
 
-def public_local_export(prefix, filename, data, filter="", delete=False, triggers=None, opts=None):
+def public_local_export(
+    prefix, filename, data, filter="", delete=False, triggers=None, opts=None
+):
     "store public state data unencrypted in state/files/"
 
     return DataExport(
@@ -971,7 +979,9 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         """Returns the current time as a Unix timestamp (seconds)."""
         return int(time.time())
 
-    def _generate_value(self, creation_type: str, base: Optional[str], range: Optional[str]) -> str:
+    def _generate_value(
+        self, creation_type: str, base: Optional[str], range: Optional[str]
+    ) -> str:
         """
         Generates a value based on the creation type
         """
@@ -990,7 +1000,9 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         """
         Creates a new TimedResource
         """
-        value = self._generate_value(props["creation_type"], props.get("base"), props.get("range"))
+        value = self._generate_value(
+            props["creation_type"], props.get("base"), props.get("range")
+        )
         last_updated = self._now()
         return pulumi.dynamic.CreateResult(
             id_=str(uuid.uuid4()),
@@ -1127,7 +1139,7 @@ class ServePrepare(pulumi.ComponentResource):
         self,
         resource_name: str,
         config_str: str = "",
-        timeout_sec: int = 45,
+        timeout_sec: int = 150,
         tokenlifetime_sec: int = 10 * 60,
         port_base: int = 47000,
         port_range: int = 3000,
@@ -1159,7 +1171,11 @@ class ServePrepare(pulumi.ComponentResource):
         self.serve_ip = (
             serve_ip
             if serve_ip
-            else (get_ip_from_ifname(serve_interface) if serve_interface else get_default_host_ip())
+            else (
+                get_ip_from_ifname(serve_interface)
+                if serve_interface
+                else get_default_host_ip()
+            )
         )
 
         # create a network port number, used for https serving the data
@@ -1260,7 +1276,9 @@ class ServeOnce(pulumi.ComponentResource):
     """
 
     def __init__(self, resource_name, config, payload, opts=None):
-        super().__init__("pkg:tools:ServeOnce", "{}_serve_once".format(resource_name), None, opts)
+        super().__init__(
+            "pkg:tools:ServeOnce", "{}_serve_once".format(resource_name), None, opts
+        )
 
         def merge_func(args):
             payload_value = args[0]
