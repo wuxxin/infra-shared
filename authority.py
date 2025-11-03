@@ -92,7 +92,9 @@ default_hours_private_cert = 24 * 824
 default_early_renewal_hours = 48
 
 
-def pem_to_pkcs12_base64(pem_cert: str, pem_key: str, password: str, friendlyname: str = "") -> str:
+def pem_to_pkcs12_base64(
+    pem_cert: str, pem_key: str, password: str, friendlyname: str = ""
+) -> str:
     """Converts a TLS client certificate and its associated private key in PEM format
     into a password-protected PKCS#12 file, encoded as a base64 string
 
@@ -166,7 +168,9 @@ class SSHFactory(pulumi.ComponentResource):
             lambda x: "{} {}".format(x.strip(), ssh_provision_name)
         )
         # read ssh_authorized_keys from project_dir/authorized_keys
-        ssh_authorized_keys = open(os.path.join(project_dir, "authorized_keys"), "r").readlines()
+        ssh_authorized_keys = open(
+            os.path.join(project_dir, "authorized_keys"), "r"
+        ).readlines()
         # combine with provision key
         ssh_authorized_keys += [Output.concat(ssh_provision_publickey, "\n")]
         ssh_authorized_keys = Output.concat(*ssh_authorized_keys)
@@ -297,7 +301,9 @@ class CACertFactoryVault(pulumi.ComponentResource):
         self.provision_request_pem = Output.unsecret(ca_secrets["ca_provision_request_pem"])
         self.provision_cert_pem = Output.unsecret(ca_secrets["ca_provision_cert_pem"])
         self.alt_provision_key_pem = Output.secret(ca_secrets["ca_alt_provision_key_pem"])
-        self.alt_provision_request_pem = Output.unsecret(ca_secrets["ca_alt_provision_request_pem"])
+        self.alt_provision_request_pem = Output.unsecret(
+            ca_secrets["ca_alt_provision_request_pem"]
+        )
         self.alt_provision_cert_pem = Output.unsecret(ca_secrets["ca_alt_provision_cert_pem"])
         self.register_outputs({})
 
@@ -468,7 +474,9 @@ class CASignedCert(pulumi.ComponentResource):
         validity_period_hours = ca_config.get(
             "cert_validity_period_hours", default_hours_private_cert
         )
-        early_renewal_hours = ca_config.get("cert_early_renewal_hours", default_early_renewal_hours)
+        early_renewal_hours = ca_config.get(
+            "cert_early_renewal_hours", default_early_renewal_hours
+        )
 
         # decide which CA to use, root-ca, provision ca or custom sub ca
         if use_provision_ca:
@@ -803,7 +811,9 @@ pulumi.export("ca_factory", ca_factory)
 # write out public part of ca cert for usage as file
 exported_ca_cert = public_local_export("ca_factory", "ca_cert.pem", ca_factory.root_cert_pem)
 # write out public bundle of ca certs for usage as file
-exported_ca_bundle = public_local_export("ca_factory", "ca_bundle.pem", ca_factory.root_bundle_pem)
+exported_ca_bundle = public_local_export(
+    "ca_factory", "ca_bundle.pem", ca_factory.root_bundle_pem
+)
 
 
 # sub ca for optional acme provider
