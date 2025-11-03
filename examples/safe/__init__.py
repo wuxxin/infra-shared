@@ -197,8 +197,16 @@ public_config = RemoteDownloadIgnitionConfig(
     opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
 )
 
-# skip rest if unittest (serve config, start vm, update vm, add postgresql server)
-if not host_environment["SHOWCASE_UNITTEST"]:
+# only simulate SystemConfigUpdate, skip rest if unittest
+if host_environment["SHOWCASE_UNITTEST"]:
+    host_update = SystemConfigUpdate(
+        shortname,
+        hostname,
+        host_config,
+        simulate=True,
+    )
+    pulumi.export("{}_host_update".format(shortname), host_update)
+else:
     # serve secret part of ignition config via ServeOnce
     serve_data = ServeOnce(
         shortname,
