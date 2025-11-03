@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""
+This script can be used as replacement script,
+with an original salt package (3007.X) installed from pip in an local environment,
+to work on systems with newer python (>3.10 up to 3.13) versions by monkeypatching.
+
+"""
+
 import sys
 import types
 
@@ -42,7 +49,7 @@ def _patched_url_create(path, saltenv=None):
     path = salt.utils.data.decode(path)
 
     query = f"saltenv={saltenv}" if saltenv else ""
-    return f'salt://{salt.utils.data.decode(urlunsplit(("", "", path, query, "")))}'
+    return f"salt://{salt.utils.data.decode(urlunsplit(('', '', path, query, '')))}"
 
 
 # Monkeypatch salt.utils.pycrypto.gen_hash for Python > 3.13
@@ -123,6 +130,13 @@ def activate_pycrypto_patch():
         )
         return False
 
+    if not hasattr(pycrypto_module, "_gen_hash_crypt"):
+        print(
+            "WARNING: Could not apply patch. salt.utils.pycrypto does not have func _gen_hash_crypt. Probably already patched outside.",
+            file=sys.stderr,
+        )
+        return False
+
     mock_crypt_obj = types.ModuleType("crypt")
     MockMethod = namedtuple("MockMethod", ["name", "ident"])
     mock_methods_list = [
@@ -148,8 +162,8 @@ def activate_pycrypto_patch():
     return True
 
 
-def test_patched_pycrypto():
-    print("Testing the monkeypatch", file=sys.stderr)
+def test_pycrypto():
+    print("Testing salt.utils.pycrypto", file=sys.stderr)
     import salt.utils.pycrypto
 
     sha_hash = salt.utils.pycrypto.gen_hash(
@@ -178,6 +192,8 @@ if __name__ == "__main__":
             print("Monkeypatch utils.pycrypto for Python > 3.12", file=sys.stderr)
         else:
             print("Warning: could not monkeypatch salt.utils.pycypto", file=sys.stderr)
+
+        test_pycrypto()
 
     if sys.argv[0].endswith("-script.pyw"):
         sys.argv[0] = sys.argv[0][:-11]
