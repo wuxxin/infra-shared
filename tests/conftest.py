@@ -79,12 +79,11 @@ def pulumi_project_dir(test_project_dir, project_root):
     return project_path
 
 
-@pytest.fixture(scope="session")
-def pulumi_stack(pulumi_project_dir) -> UpResult:
+@pytest.fixture(scope="function")
+def pulumi_stack(pulumi_project_dir) -> Stack:
     """
-    This fixture sets up a Pulumi stack for the entire test session.
-    It creates the stack, runs `pulumi up`, yields the result to the tests,
-    and then tears down the stack.
+    This fixture sets up a Pulumi stack for each test function.
+    It creates the stack, yields it to the test, and then tears it down.
     """
     stack_name = "sim"
     work_dir = str(pulumi_project_dir)
@@ -103,10 +102,8 @@ def pulumi_stack(pulumi_project_dir) -> UpResult:
     try:
         opts = LocalWorkspaceOptions(work_dir=work_dir, env_vars=env_vars)
         stack = create_or_select_stack(stack_name=stack_name, work_dir=work_dir, opts=opts)
-        print("Running `pulumi up`...")
-        up_result = stack.up(on_output=print)
-        print("`pulumi up` complete.")
-        yield up_result
+        print("Yielding stack to test.")
+        yield stack
 
     finally:
         print(f"Tearing down Pulumi stack: {stack_name}...")

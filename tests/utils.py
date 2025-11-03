@@ -13,12 +13,12 @@ def assert_file_exists(base_dir: Path, file_path: str):
 
 def add_pulumi_program(pulumi_project_dir: Path, program_code: str):
     """
-    Appends a given string of Python code to the __main__.py of a Pulumi project.
+    Writes a given string of Python code to the __main__.py of a Pulumi project.
 
     Args:
         pulumi_project_dir: The path to the Pulumi project directory.
         program_code: A string containing the Python code to add.
     """
     main_py_path = pulumi_project_dir / "__main__.py"
-    with main_py_path.open("a") as f:
+    with main_py_path.open("w") as f:
         f.write(f"\n{program_code}\n")

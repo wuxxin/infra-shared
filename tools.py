@@ -198,45 +198,61 @@ class SSHPut(pulumi.ComponentResource):
         self.props = props
         self.triggers = []
         for key, value in self.props["files"].items():
-            setattr(self, key, self.__transfer(name, key, value))
+            setattr(self, key.replace("/", "_"), self.__transfer(name, key, value))
         self.register_outputs({})
 
     def __transfer(self, name, remote_path, local_path):
-        resource_name = "{}_put_{}".format(name, remote_path.replace("/", "_"))
-        full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
-        full_local_path = join_paths(self.props["local_prefix"], local_path)
+        remote_path_output = pulumi.Output.from_input(remote_path)
+        resource_name = remote_path_output.apply(lambda p: "{}_put_{}".format(name, p.replace("/", "_")))
+        full_remote_path = remote_path_output.apply(lambda p: join_paths(self.props["remote_prefix"], p))
+
+        local_path_output = pulumi.Output.from_input(local_path)
+        if self.props["local_prefix"]:
+            full_local_path_output = pulumi.Output.all(self.props["local_prefix"], local_path_output).apply(
+                lambda args: join_paths(args[0], args[1])
+            )
+        else:
+            full_local_path_output = local_path_output
+
         triggers = [
-            hashlib.sha256(full_remote_path.encode("utf-8")).hexdigest(),
-            pulumi.Output.concat(sha256sum_file(full_local_path)),
+            full_remote_path.apply(lambda p: hashlib.sha256(p.encode("utf-8")).hexdigest()),
+            full_local_path_output.apply(sha256sum_file),
         ]
         self.triggers.extend(triggers)
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
-            tmpfile = os.path.abspath(os.path.join(self.props["tmpdir"], resource_name))
-            copy_cmd = "cp {} {}"
-            rm_cmd = "rm {} || true" if self.props["delete"] else ""
+            tmpfile = resource_name.apply(lambda r: os.path.abspath(os.path.join(self.props["tmpdir"], r)))
 
-            file_transferred = command.local.Command(
-                resource_name,
-                create=copy_cmd.format(full_local_path, tmpfile),
-                delete=rm_cmd.format(tmpfile),
-                triggers=triggers,
-                opts=pulumi.ResourceOptions(parent=self),
+            copy_cmd = pulumi.Output.all(full_local_path_output, tmpfile).apply(
+                lambda args: "cp {} {}".format(args[0], args[1])
+            )
+            rm_cmd = tmpfile.apply(lambda t: "rm {} || true".format(t) if self.props["delete"] else "")
+
+            file_transferred = resource_name.apply(
+                lambda r: command.local.Command(
+                    r,
+                    create=copy_cmd,
+                    delete=rm_cmd,
+                    triggers=triggers,
+                    opts=pulumi.ResourceOptions(parent=self),
+                )
             )
         else:
-            file_transferred = command.remote.CopyFile(
-                resource_name,
-                local_path=full_local_path,
-                remote_path=full_remote_path,
-                connection=command.remote.ConnectionArgs(
-                    host=self.props["host"],
-                    port=self.props["port"],
-                    user=self.props["user"],
-                    private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
-                ),
-                triggers=triggers,
-                opts=pulumi.ResourceOptions(parent=self),
+            file_transferred = resource_name.apply(
+                lambda r: command.remote.CopyFile(
+                    r,
+                    local_path=full_local_path_output,
+                    remote_path=full_remote_path,
+                    connection=command.remote.ConnectionArgs(
+                        host=self.props["host"],
+                        port=self.props["port"],
+                        user=self.props["user"],
+                        private_key=self.props["sshkey"].private_key_openssh,
+                    ),
+                    triggers=triggers,
+                    opts=pulumi.ResourceOptions(parent=self),
+                )
             )
         return file_transferred
 
@@ -250,7 +266,7 @@ class SSHSftp(pulumi.CustomResource):
         import paramiko
 
         privkey = paramiko.RSAKey(
-            data=self.props["sshkey"].private_key_openssh.apply(lambda x: x)
+            data=self.props["sshkey"].private_key_openssh
         )
         ssh = paramiko.SSHClient()
         ssh.load_host_keys("")
@@ -267,8 +283,9 @@ class SSHSftp(pulumi.CustomResource):
         ssh.close()
         return sha256sum_file(local_path)
 
-    def create(self):
-        self.result = self.download_file(self.props["remote_path"], self.props["local_path"])
+    def create(self, props):
+        self.result = self.download_file(props["remote_path"], props["local_path"])
+        return pulumi.dynamic.CreateResult(id_=str(uuid.uuid4()), outs={"result": self.result})
 
 
 class SSHGet(pulumi.ComponentResource):
@@ -279,45 +296,58 @@ class SSHGet(pulumi.ComponentResource):
         self.props = props
         self.triggers = []
         for key, value in self.props["files"].items():
-            setattr(self, key, self.__transfer(name, key, value))
+            setattr(self, key.replace("/", "_"), self.__transfer(name, key, value))
         self.register_outputs({})
 
     def __transfer(self, name, remote_path, local_path):
-        resource_name = "get_{}".format(remote_path.replace("/", "_"))
-        full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
-        full_local_path = join_paths(self.props["local_prefix"], local_path)
+        remote_path_output = pulumi.Output.from_input(remote_path)
+        resource_name = remote_path_output.apply(lambda p: "get_{}".format(p.replace("/", "_")))
+        full_remote_path = remote_path_output.apply(lambda p: join_paths(self.props["remote_prefix"], p))
+
+        local_path_output = pulumi.Output.from_input(local_path)
+        if self.props["local_prefix"]:
+            full_local_path_output = pulumi.Output.all(self.props["local_prefix"], local_path_output).apply(
+                lambda args: join_paths(args[0], args[1])
+            )
+        else:
+            full_local_path_output = local_path_output
+
         triggers = [
-            hashlib.sha256(full_remote_path.encode("utf-8")).hexdigest(),
-            pulumi.Output.concat(sha256sum_file(full_local_path)),
+            full_remote_path.apply(lambda p: hashlib.sha256(p.encode("utf-8")).hexdigest()),
         ]
         self.triggers.extend(triggers)
 
         if self.props["simulate"]:
-            os.makedirs(self.props["tmpdir"], exist_ok=True)
-            tmpfile = os.path.abspath(os.path.join(self.props["tmpdir"], resource_name))
-            copy_cmd = "cp {} {}"
-            rm_cmd = "rm {} || true" if self.props["delete"] else ""
+            create_cmd = full_local_path_output.apply(
+                lambda p: f"mkdir -p $(dirname {p}) && touch {p}"
+            )
+            delete_cmd = full_local_path_output.apply(
+                lambda p: f"rm {p} || true"
+            ) if self.props["delete"] else ""
 
-            file_transferred = command.local.Command(
-                resource_name,
-                create=copy_cmd.format(full_local_path, tmpfile),
-                delete=rm_cmd.format(tmpfile),
-                triggers=triggers,
-                opts=pulumi.ResourceOptions(parent=self),
+            file_transferred = resource_name.apply(
+                lambda r: command.local.Command(
+                    r,
+                    create=create_cmd,
+                    delete=delete_cmd,
+                    triggers=triggers,
+                    opts=pulumi.ResourceOptions(parent=self),
+                )
             )
         else:
-            file_transferred = SSHSftp(
-                resource_name,
-                props={
-                    "host": self.props["host"],
-                    "user": self.props["user"],
-                    "port": self.props["port"],
-                    "sshkey": self.props["sshkey"],
-                    "remote_path": remote_path,
-                    "local_path": local_path,
-                },
-                triggers=triggers,
-                opts=pulumi.ResourceOptions(parent=self),
+            file_transferred = resource_name.apply(
+                lambda r: SSHSftp(
+                    r,
+                    props={
+                        "host": self.props["host"],
+                        "user": self.props["user"],
+                        "port": self.props["port"],
+                        "sshkey": self.props["sshkey"],
+                        "remote_path": full_remote_path,
+                        "local_path": full_local_path_output,
+                    },
+                    opts=pulumi.ResourceOptions(parent=self),
+                )
             )
         return file_transferred
 
@@ -331,52 +361,64 @@ class SSHDeployer(pulumi.ComponentResource):
         self.props = props
         self.triggers = []
         for key, value in self.props["files"].items():
-            setattr(self, key, self.__deploy(name, key, value))
+            setattr(self, key.replace("/", "_"), self.__deploy(name, key, value))
         self.register_outputs({})
 
     def __deploy(self, name, remote_path, data):
-        resource_name = "{}_deploy_{}".format(name, remote_path.replace("/", "_"))
-        cat_cmd = (
+        remote_path_output = pulumi.Output.from_input(remote_path)
+        resource_name = remote_path_output.apply(lambda p: "{}_deploy_{}".format(name, p.replace("/", "_")))
+        data_output = pulumi.Output.from_input(data)
+        full_remote_path = remote_path_output.apply(lambda p: join_paths(self.props["remote_prefix"], p))
+
+        cat_cmd_template = (
             'x="{}" && mkdir -m 0700 -p $(dirname "$x") && umask 066 && cat - > "$x"'
             if self.props["secret"]
             else 'x="{}" && mkdir -p $(dirname "$x") && cat - > "$x"'
         )
-        rm_cmd = "rm {} || true" if self.props["delete"] else ""
-        full_remote_path = join_paths(self.props["remote_prefix"], remote_path)
+        rm_cmd_template = "rm {} || true" if self.props["delete"] else ""
+
+        cat_cmd = full_remote_path.apply(lambda p: cat_cmd_template.format(p))
+        rm_cmd = full_remote_path.apply(lambda p: rm_cmd_template.format(p))
+
         triggers = [
-            hashlib.sha256(cat_cmd.format(full_remote_path).encode("utf-8")).hexdigest(),
-            data.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
+            cat_cmd.apply(lambda c: hashlib.sha256(c.encode("utf-8")).hexdigest()),
+            data_output.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
         ]
         self.triggers.extend(triggers)
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
-            tmpfile = os.path.abspath(os.path.join(self.props["tmpdir"], resource_name))
-            value_deployed = command.local.Command(
-                resource_name,
-                create=cat_cmd.format(tmpfile),
-                update=cat_cmd.format(tmpfile),
-                delete=rm_cmd.format(tmpfile),
-                stdin=data.apply(lambda x: str(x)),
-                triggers=triggers,
-                opts=pulumi.ResourceOptions(parent=self),
+            tmpfile = resource_name.apply(lambda r: os.path.abspath(os.path.join(self.props["tmpdir"], r)))
+            
+            value_deployed = resource_name.apply(
+                lambda r: command.local.Command(
+                    r,
+                    create=tmpfile.apply(lambda t: cat_cmd_template.format(t)),
+                    update=tmpfile.apply(lambda t: cat_cmd_template.format(t)),
+                    delete=tmpfile.apply(lambda t: rm_cmd_template.format(t)),
+                    stdin=data_output.apply(str),
+                    triggers=triggers,
+                    opts=pulumi.ResourceOptions(parent=self),
+                )
             )
         else:
-            value_deployed = command.remote.Command(
-                resource_name,
-                connection=command.remote.ConnectionArgs(
-                    host=self.props["host"],
-                    port=self.props["port"],
-                    user=self.props["user"],
-                    private_key=self.props["sshkey"].private_key_openssh.apply(lambda x: x),
-                ),
-                create=cat_cmd.format(full_remote_path),
-                update=cat_cmd.format(full_remote_path),
-                delete=rm_cmd.format(full_remote_path),
-                stdin=data.apply(lambda x: str(x)),
-                triggers=triggers,
-                logging=RemoteLogging.NONE,
-                opts=pulumi.ResourceOptions(parent=self),
+            value_deployed = resource_name.apply(
+                lambda r: command.remote.Command(
+                    r,
+                    connection=command.remote.ConnectionArgs(
+                        host=self.props["host"],
+                        port=self.props["port"],
+                        user=self.props["user"],
+                        private_key=self.props["sshkey"].private_key_openssh,
+                    ),
+                    create=cat_cmd,
+                    update=cat_cmd,
+                    delete=rm_cmd,
+                    stdin=data_output.apply(str),
+                    triggers=triggers,
+                    logging=RemoteLogging.NONE,
+                    opts=pulumi.ResourceOptions(parent=self),
+                )
             )
         return value_deployed
 
@@ -396,17 +438,18 @@ def ssh_put(
     """copy/put a set of files from localhost to ssh target using ssh/sftp
 
     Args:
-        files: {remotepath: localpath,}
-        remote_prefix: path prefixed to each remotepath
-        local_prefix: path prefixed to each locallpath
-        if delete==True: files will be deleted from target on deletion of resource
-        if simulate==True: files are not transferred but written out to build/tmp/stack_name
-        if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+        files (Dict[str, pulumi.Input[str]]): A dictionary of files to copy, 
+            mapping remotepath (str) to localpath (str or pulumi.Output[str]).
+        remote_prefix (str): path prefixed to each remotepath.
+        local_prefix (str): path prefixed to each localpath.
+        delete (bool): If True, files will be deleted from target on resource deletion.
+        simulate (bool): If True, files are not transferred but written to build/tmp/stack_name.
+                         If None, simulate is True if stack name ends with "sim".
 
     Returns:
-        [attr(remotepath, remote.CopyFile|local.Command) for remotepath in files]
-        triggers: list of key and data hashes for every file,
-            can be used for triggering another function if any file changed
+        SSHPut: A component resource with attributes for each transferred file.
+        triggers (list): A list of key and data hashes for every file,
+            can be used for triggering another function if any file changed.
 
     Example:
     ```python
@@ -433,7 +476,6 @@ def ssh_put(
         "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
     transferred = SSHPut(prefix, props, opts=opts)
-    # pulumi.export("{}_put".format(prefix), transferred)
     return transferred
 
 
@@ -445,6 +487,7 @@ def ssh_get(
     remote_prefix="",
     local_prefix="",
     port=22,
+    delete=False,
     simulate=None,
     triggers=None,
     opts=None,
@@ -452,16 +495,17 @@ def ssh_get(
     """get/copy a set of files from the target system to the local filesystem using ssh/sftp
 
     Args:
-        files: {remotepath: localpath,}
-        remote_prefix: path prefixed to each remotepath
-        local_prefix: path prefixed to each locallpath
-        if simulate==True: files are not transferred but written out to build/tmp/stack_name
-        if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+        files (Dict[str, pulumi.Input[str]]): A dictionary of files to copy, 
+            mapping remotepath (str) to localpath (str or pulumi.Output[str]).
+        remote_prefix (str): path prefixed to each remotepath.
+        local_prefix (str): path prefixed to each localpath.
+        simulate (bool): If True, files are not transferred but written to build/tmp/stack_name.
+                         If None, simulate is True if stack name ends with "sim".
 
     Returns:
-        [attr(remotepath, paramiko.sendfile) for remotepath in files]
-        triggers: list of key and data hashes for every file,
-            can be used for triggering another function if any file changed
+        SSHGet: A component resource with attributes for each transferred file.
+        triggers (list): A list of key and data hashes for every file,
+            can be used for triggering another function if any file changed.
     """
 
     from .authority import ssh_factory
@@ -473,13 +517,13 @@ def ssh_get(
         "user": user,
         "files": files,
         "sshkey": ssh_factory.provision_key,
+        "delete": delete,
         "remote_prefix": remote_prefix,
         "local_prefix": local_prefix,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
     transferred = SSHGet(prefix, props, opts=opts)
-    # pulumi.export("{}_get".format(prefix), transferred)
     return transferred
 
 
@@ -498,17 +542,18 @@ def ssh_deploy(
     """deploy a set of strings as small files to a ssh target
 
     Args:
-        files: {remotepath: data,}
-        remote_prefix= path prefixed to each remotepath
-        if secret==True: data is considered a secret, file mode will be 0600, dir mode will be 0700
-        if delete==True: files will be deleted from target on deletion of resource
-        if simulate==True: data is not transferred but written out to build/tmp/stack_name
-        if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+        files (Dict[str, pulumi.Input[str]]): A dictionary of files to deploy, 
+            mapping remotepath (str) to data (str or pulumi.Output[str]).
+        remote_prefix (str): path prefixed to each remotepath.
+        secret (bool): If True, data is considered a secret, file mode will be 0600, dir mode 0700.
+        delete (bool): If True, files will be deleted from target on resource deletion.
+        simulate (bool): If True, data is not transferred but written to build/tmp/stack_name.
+                         If None, simulate is True if stack name ends with "sim".
 
     Returns:
-        [attr(remotepath, remote.Command|local.Command) for remotepath in files]
-        triggers: list of key and data hashes for every file,
-            can be used for triggering another function if any file changed
+        SSHDeployer: A component resource with attributes for each deployed file.
+        triggers (list): A list of key and data hashes for every file,
+            can be used for triggering another function if any file changed.
 
     Example:
     ```python
@@ -534,7 +579,6 @@ def ssh_deploy(
         "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
     deployed = SSHDeployer(prefix, props, opts=opts)
-    # pulumi.export("{}_deploy".format(prefix), deployed)
     return deployed
 
 
@@ -705,7 +749,7 @@ class DataExport(pulumi.ComponentResource):
 def encrypted_local_export(
     prefix, filename, data, filter="", delete=False, triggers=None, opts=None
 ):
-    "store sensitive state data age encrypted in state/files/"
+    """store sensitive state data age encrypted in state/files/"""
 
     from .authority import ssh_factory
 
@@ -724,7 +768,7 @@ def encrypted_local_export(
 def public_local_export(
     prefix, filename, data, filter="", delete=False, triggers=None, opts=None
 ):
-    "store public state data unencrypted in state/files/"
+    """store public state data unencrypted in state/files/"""
 
     return DataExport(
         prefix,
@@ -868,7 +912,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
 
     - grains from salt_config available
     - NOTE: function replaces parameters "{base_dir}" and "{args}" in the "exec" string
-        - therefore avoid (rename) shell vars named "${base_dir}" or "${args}"
+        - therefore avoid (rename) shell vars named "${{base_dir}}" or "${{args}}"
 
     """
 
@@ -1229,7 +1273,7 @@ class ServePrepare(pulumi.ComponentResource):
             # if enabled, run port_forward and update config with returned port_forward values
             self.forward = command.local.Command(
                 resource_name + "_forward",
-                create=f"python {os.path.join(this_dir, 'scripts/port_forward.py')} --yaml-from-stdin --yaml-to-stdout",
+                create=f"python {os.path.join(this_dir, 'scripts/port_forward.py')}" + " --yaml-from-stdin --yaml-to-stdout",
                 stdin=self.merged_config.apply(yaml.safe_dump),
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -1288,11 +1332,12 @@ class ServeOnce(pulumi.ComponentResource):
         # Ensure both inputs are resolved before merging
         this_config = pulumi.Output.all(payload, config).apply(merge_func)
         this_opts = ResourceOptions.merge(
-            ResourceOptions(parent=self, additional_secret_outputs=["stdout"]), opts
+            ResourceOptions(parent=self, additional_secret_outputs=["stdout"]),
+            opts,
         )
         self.executed = command.local.Command(
             "{}_serve_once".format(resource_name),
-            create=f"python {os.path.join(this_dir, 'scripts/serve_once.py')} --verbose --yes",
+            create=f"python {os.path.join(this_dir, 'scripts/serve_once.py')}" + " --verbose --yes",
             stdin=this_config.apply(yaml.safe_dump),
             opts=this_opts,
         )
