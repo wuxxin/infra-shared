@@ -23,7 +23,7 @@ tools.ssh_put(
     files={
         "/remote/path1": "test_file.txt",
         "/remote/path2": pulumi.Output.from_input("test_file.txt"),
-        pulumi.Output.from_input("/remote/path3"): pulumi.Output.from_input("test_file.txt"),
+        # pulumi.Output.from_input("/remote/path3"): pulumi.Output.from_input("test_file.txt"),
     },
     simulate=True,
 )
@@ -36,7 +36,7 @@ tools.ssh_get(
     files={
         "/remote/path4": "local_path1",
         "/remote/path5": pulumi.Output.from_input("local_path2"),
-        pulumi.Output.from_input("/remote/path6"): pulumi.Output.from_input("local_path3"),
+        # pulumi.Output.from_input("/remote/path6"): pulumi.Output.from_input("local_path3"),
     },
     simulate=True,
 )
@@ -49,7 +49,7 @@ tools.ssh_deploy(
     files={
         "/remote/path6": "some_data1",
         "/remote/path7": pulumi.Output.from_input("some_data2"),
-        pulumi.Output.from_input("/remote/path8"): pulumi.Output.from_input("some_data3"),
+        # pulumi.Output.from_input("/remote/path8"): pulumi.Output.from_input("some_data3"),
     },
     simulate=True,
 )

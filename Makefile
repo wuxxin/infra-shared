@@ -142,7 +142,7 @@ docs: buildenv ## Build docs for local usage
 docs-online-build: buildenv ## Build docs for http serve
 	@echo "+++ $@"
 	mkdir -p build/docs-online
-	. .venv/bin/activate && mkdocs build -d build/docs-online -f mkdocs.yml
+	. .venv/bin/activate && mkdocs build -d build/docs-online -f mkdocs.yml -v
 	@echo "Finished. serve with"
 	@echo ". .venv/bin/activate && python -m http.server --directory build/docs-online"
 
