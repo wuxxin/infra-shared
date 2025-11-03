@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# /// script
+# dependencies = [
+#   "mkdocs_gen_files",
+# ]
+# ///
 """
 This script auto-generates Markdown pages for a glob list of sources
 to create a markdown display them with syntax highlighting.
