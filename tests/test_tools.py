@@ -23,7 +23,7 @@ tools.ssh_put(
     files={
         "/remote/path1": "test_file.txt",
         "/remote/path2": pulumi.Output.from_input("test_file.txt"),
-        # pulumi.Output.from_input("/remote/path3"): pulumi.Output.from_input("test_file.txt"),
+        pulumi.Output.from_input("/remote/path3"): pulumi.Output.from_input("test_file.txt"),
     },
     simulate=True,
 )
@@ -36,7 +36,7 @@ tools.ssh_get(
     files={
         "/remote/path4": "local_path1",
         "/remote/path5": pulumi.Output.from_input("local_path2"),
-        # pulumi.Output.from_input("/remote/path6"): pulumi.Output.from_input("local_path3"),
+        pulumi.Output.from_input("/remote/path6"): pulumi.Output.from_input("local_path3"),
     },
     simulate=True,
 )
@@ -49,7 +49,7 @@ tools.ssh_deploy(
     files={
         "/remote/path6": "some_data1",
         "/remote/path7": pulumi.Output.from_input("some_data2"),
-        # pulumi.Output.from_input("/remote/path8"): pulumi.Output.from_input("some_data3"),
+        pulumi.Output.from_input("/remote/path8"): pulumi.Output.from_input("some_data3"),
     },
     simulate=True,
 )
@@ -65,15 +65,15 @@ tools.ssh_deploy(
     # ssh_put assertions
     assert os.path.exists(os.path.join(tmpdir, "test_put_put__remote_path1"))
     assert os.path.exists(os.path.join(tmpdir, "test_put_put__remote_path2"))
-    # assert os.path.exists(os.path.join(tmpdir, "test_put_put__remote_path3"))
+    assert os.path.exists(os.path.join(tmpdir, "test_put_put__remote_path3"))
 
     # ssh_get assertions
     # In simulate mode, ssh_get also creates local files
     assert os.path.exists(os.path.join(tmpdir, "get__remote_path4"))
     assert os.path.exists(os.path.join(tmpdir, "get__remote_path5"))
-    # assert os.path.exists(os.path.join(tmpdir, "get__remote_path6"))
+    assert os.path.exists(os.path.join(tmpdir, "get__remote_path6"))
 
     # ssh_deploy assertions
     assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path6"))
     assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path7"))
-    # assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path8"))
+    assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path8"))

@@ -67,15 +67,6 @@ def pulumi_project_dir(test_project_dir, project_root):
         )
         pulumi_yaml_path.write_text(updated_yaml_content)
 
-    # Copy config-template.yaml to Pulumi.sim.yaml for the 'sim' stack
-    config_template = project_path / "config-template.yaml"
-    sim_config_path = project_path / "Pulumi.sim.yaml"
-    shutil.copy(config_template, sim_config_path)
-
-    # For tests, we don't want to protect the CA root cert, so it can be destroyed.
-    with sim_config_path.open("a") as f:
-        f.write("\n  ca_protect_rootcert: false\n")
-
     return project_path
 
 
@@ -91,6 +82,15 @@ def pulumi_stack(pulumi_project_dir) -> Stack:
     # Use a local filesystem backend for Pulumi state, stored within the test project dir
     pulumi_home = pulumi_project_dir / "state" / "pulumi"
     pulumi_home.mkdir(parents=True, exist_ok=True)
+
+    # Copy config-template.yaml to Pulumi.sim.yaml for the 'sim' stack
+    config_template = pulumi_project_dir / "config-template.yaml"
+    sim_config_path = pulumi_project_dir / "Pulumi.sim.yaml"
+    shutil.copy(config_template, sim_config_path)
+
+    # For tests, we don't want to protect the CA root cert, so it can be destroyed.
+    with sim_config_path.open("a") as f:
+        f.write("\n  ca_protect_rootcert: false\n")
 
     env_vars = {
         "PULUMI_CONFIG_PASSPHRASE": "sim",
