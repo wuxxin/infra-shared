@@ -519,9 +519,8 @@ class SystemConfigUpdate(pulumi.ComponentResource):
         )
 
         # transport update service file content and main.sls (translated butane) to root_dir and sls_dir
-        # XXX FIXME HARDCODED update filename and remote_prefix because we need to refactor ssh_deploy and others for dynamic filenames
         config_dict = {
-            "update-system-config.service": update_str,
+            update_fname: update_str,
             "sls/main.sls": system_config.saltstack_config,
         }
         self.config_deployed = ssh_deploy(
@@ -529,7 +528,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             host,
             user,
             files=config_dict,
-            remote_prefix="/run/user/1000/update-system-config",
+            remote_prefix=root_dir,
             simulate=simulate,
             opts=child_opts,
         )

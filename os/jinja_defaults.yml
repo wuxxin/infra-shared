@@ -107,12 +107,11 @@ PODMAN_LOAD_SECRETS: ""
 PODMAN_API_LOG_LEVEL: warning
 
 # common update parameter defaults
-#   connect as user core (uid=1000), use update-system-config as the update service,
+#   connect as user core (uid=1000), use "update-system-config" as the update service,
 #   expect files related to update on /run/user/1000, use sudo to become root.
 UPDATE_USER: core
 # XXX UPDATE_UID must be an integer
 UPDATE_UID: 1000
-# FIXME WARNING: currently os/__init__.py:SystemConfigUpdate hardcodes UPDATE_SERVICE to "update-system-config"
 UPDATE_SERVICE: update-system-config
 UPDATE_PATH: /run/user/1000
 UPDATE_USE_SUDO: true
