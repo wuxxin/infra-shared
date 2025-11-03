@@ -40,7 +40,7 @@ SOURCE_LIST = [
 ]
 
 OUTPUT_DOCS_DIR = "src"
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent
 
 for pattern in SOURCE_LIST:
     # Find all files matching the glob pattern, relative to the project root

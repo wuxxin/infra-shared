@@ -17,7 +17,7 @@ plugins:
   - search
   - gen-files:
       scripts:
-        - scripts/docs_srcpages_gen.py
+        - mkdocs_gensrc.py
   - include-markdown
 
 markdown_extensions:
