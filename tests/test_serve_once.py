@@ -323,15 +323,15 @@ class TestServeOnce(unittest.TestCase):
             )
         )
 
-    def start_server(
-        self, config: dict[str, Any], verbose_test: bool = False
-    ) -> subprocess.Popen:
+    def start_server(self, config: dict[str, Any]) -> subprocess.Popen:
         """Starts the serve_once script, sends config, and returns the running process."""
         config_str = yaml.dump(config)
-        command = [sys.executable, os.path.join(script_dir, "serve_once.py"), "--yes"]
-        if verbose_test or config.get("request_body_stdout"):
-            # Pass verbose if test needs it
-            command.append("--verbose")
+        command = [
+            sys.executable,
+            os.path.join(script_dir, "serve_once.py"),
+            "--yes",
+            "--verbose",
+        ]
 
         # Reset output capture lists and stop event
         self.stdout_lines = []
@@ -391,7 +391,7 @@ class TestServeOnce(unittest.TestCase):
         # Wait for the server to print the "SERVING_ON_PORT: <port>" message (or timeout)
         start_time = time.time()
         port_found = False
-        processed_stderr_len = 0  # Keep track of processed stderr lines for verbose_test
+        processed_stderr_len = 0  # Keep track of processed stderr lines
 
         # 5 second timeout for the specific port message
         while time.time() - start_time < 5:
@@ -399,7 +399,7 @@ class TestServeOnce(unittest.TestCase):
             # Create a local copy of self.stderr_lines for thread safety during iteration
             current_stderr_lines = list(self.stderr_lines)
 
-            if verbose_test and len(current_stderr_lines) > processed_stderr_len:
+            if len(current_stderr_lines) > processed_stderr_len:
                 new_stderr_output = "".join(current_stderr_lines[processed_stderr_len:])
                 print(f"Server Stderr: {new_stderr_output}", end="", file=sys.stderr)
             processed_stderr_len = len(current_stderr_lines)
@@ -411,20 +411,16 @@ class TestServeOnce(unittest.TestCase):
                     port_str = match.group(1)
                     if port_str.isdigit():
                         config["serve_port"] = int(port_str)
-                        if verbose_test:
-                            print(
-                                f"\nFound SERVING_ON_PORT: {config['serve_port']} in stderr."
-                            )
+                        print(f"\nFound SERVING_ON_PORT: {config['serve_port']} in stderr.")
                         port_found = True
-                        break  # Exit inner loop (line processing)
-                    elif verbose_test:
+                        break
+                    else:
                         print(
-                            f"\nWarning: Found 'SERVING_ON_PORT:' but port value '{port_str}' is not a digit.",
+                            f"\nWarning: 'SERVING_ON_PORT:' value '{port_str}' is not digit",
                             file=sys.stderr,
                         )
-
             if port_found:
-                break  # Exit outer loop (timeout loop)
+                break
 
             # Check for early exit or critical errors
             if self.process.poll() is not None:
@@ -479,6 +475,7 @@ class TestServeOnce(unittest.TestCase):
         ca_cert_path_for_client: str | None = None,
         client_cert: tuple[str, str] | None = None,
         data=None,
+        headers: Optional[dict[str, str]] = None,  # Add headers parameter
         # Shorter timeout for requests
         timeout: float = 3.0,
     ) -> Optional[http.client.HTTPResponse]:
@@ -534,7 +531,7 @@ class TestServeOnce(unittest.TestCase):
 
             # Encode data if it's a string
             body = data.encode("utf-8") if isinstance(data, str) else data
-            conn.request(method, path, body=body)
+            conn.request(method, path, body=body, headers=headers or {})
             response = conn.getresponse()
             # Read the body now to allow closing connection
             response_body = response.read()
@@ -762,7 +759,7 @@ class TestServeOnce(unittest.TestCase):
         config["key"] = None
         config["serve_port_was_zero"] = config["serve_port"] == 0
 
-        self.process = self.start_server(config, verbose_test=True)  # Verbose to see warning
+        self.process = self.start_server(config)  # Verbose to see warning
         port = config["serve_port"]
         self.wait_for_server(port)
 
@@ -1019,8 +1016,7 @@ class TestServeOnce(unittest.TestCase):
         config["request_method"] = "POST"
         config["serve_port_was_zero"] = config["serve_port"] == 0
 
-        # Start server (will also pass --verbose to serve_once.py)
-        self.process = self.start_server(config, verbose_test=True)
+        self.process = self.start_server(config)
         port = config["serve_port"]
         self.wait_for_server(port)
 
@@ -1035,12 +1031,69 @@ class TestServeOnce(unittest.TestCase):
         # Now check the captured stdout (after process exit)
         stdout_output = "".join(self.stdout_lines)
         # The request body should be printed exactly to stdout
-        # It might be preceded/followed by other verbose output, so use 'in'
         self.assertIn(request_data, stdout_output.strip())  # Strip potential extra newlines
+
+
+    def test_request_header_correct(self):
+        """Tests a correct request header."""
+        config = self.base_config.copy()
+        config["request_header"] = {"X-Test-Header": "correct_value"}
+        config["serve_port_was_zero"] = config["serve_port"] == 0
+
+        self.process = self.start_server(config)
+        port = config["serve_port"]
+        self.wait_for_server(port)
+
+        headers = {"X-Test-Header": "correct_value"}
+        response = self.make_request("GET", "/", port, headers=headers)
+
+        self.assertIsNotNone(response, "Request failed")
+        self.assertEqual(response.status, 200)
+        self.assert_server_exit_code(0, timeout=config["timeout"] + 1)
+
+    def test_request_header_incorrect_value(self):
+        """Tests an incorrect request header value."""
+        config = self.base_config.copy()
+        config["request_header"] = {"X-Test-Header": "correct_value"}
+        config["serve_port_was_zero"] = config["serve_port"] == 0
+
+        self.process = self.start_server(config)
+        port = config["serve_port"]
+        self.wait_for_server(port)
+
+        headers = {"X-Test-Header": "incorrect_value"}
+        response = self.make_request("GET", "/", port, headers=headers)
+
+        self.assertIsNotNone(response, "Request failed")
+        self.assertEqual(response.status, 400)
+        self.assertIsNone(
+            self.process.poll(), "Server exited unexpectedly on invalid header value"
+        )
+        self.process.terminate()
+        self.assert_server_exit_code(-15, timeout=1)
+
+    def test_request_header_missing_header(self):
+        """Tests a missing request header."""
+        config = self.base_config.copy()
+        config["request_header"] = {"X-Test-Header": "correct_value"}
+        config["serve_port_was_zero"] = config["serve_port"] == 0
+
+        self.process = self.start_server(config)
+        port = config["serve_port"]
+        self.wait_for_server(port)
+
+        headers = {"X-Another-Header": "some_value"}
+        response = self.make_request("GET", "/", port, headers=headers)
+
+        self.assertIsNotNone(response, "Request failed")
+        self.assertEqual(response.status, 400)
+        self.assertIsNone(
+            self.process.poll(), "Server exited unexpectedly on missing header"
+        )
+        self.process.terminate()
+        self.assert_server_exit_code(-15, timeout=1)
 
 
 if __name__ == "__main__":
     # Increase verbosity for unittest output
-    # To see verbose output from serve_once.py during tests,
-    # set verbose_test=True in start_server calls or globally.
     unittest.main(verbosity=2)

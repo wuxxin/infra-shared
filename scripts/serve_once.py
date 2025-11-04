@@ -24,6 +24,27 @@ notes:
 - invalid request paths, invalid request methods, invalid or missing client certificates
     return a request error but do not cause the exit of the program.
     only a successful transmission or a timeout will end execution.
+
+config:
+- request_ip: the ip that will make the request
+- request_path: the path to serve
+- request_header: a dictionary of expected headers to exist. The key is the header name and the value is the expected header value.
+- request_method: the request method, defaults to "GET"
+- request_body_stdout: false
+- serve_ip: 0.0.0.0
+- serve_port: 0
+- hostname: localhost
+- timeout: 30
+- cert:
+- key:
+- ca_cert:
+- mtls: false
+- mtls_clientid:
+- header:
+    "Content-Type": application/json
+- payload: |
+    true
+
 """
 
 import argparse
@@ -45,6 +66,7 @@ import yaml
 DEFAULT_CONFIG_STR = """
 request_ip:
 request_path: "/"
+request_header: {}
 request_method: "GET"
 request_body_stdout: false
 serve_ip: 0.0.0.0
@@ -163,8 +185,8 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
         self, code: int, message: str | None = None, explain: str | None = None
     ) -> None:
         """Sends an error response and optionally logs it."""
-        self.send_error(code, message, explain)
-        verbose_print(f"{code}: {message}")
+        self.send_error(code, message)
+        verbose_print(f"{code}: {message} {explain}")
 
     def log_message(self, format: str, *args: Any) -> None:
         """Logs a message if verbose mode is enabled."""
@@ -179,20 +201,21 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
             return subject.get("commonName")
         return None
 
-    def _check_client_mtls(self) -> bool:
-        """Checks if the client certificate is valid based on the configuration"""
-        if self.config["mtls"] and self.config["mtls_clientid"]:
-            client_cert_cn = self.get_client_cert_common_name()
-            if client_cert_cn != self.config["mtls_clientid"]:
-                self.verbose_error(401, f"Invalid Client certificate CN: {client_cert_cn}")
-                return False
-        return True
-
     def _check_client_mtls_enabled(self) -> bool:
+        """Checks if a client certificate is valid"""
         if self.config["mtls"]:
             cert = self.connection.getpeercert()
             if not cert:
                 self.verbose_error(401, "Client certificate required")
+                return False
+        return True
+
+    def _check_client_mtls_clientid(self) -> bool:
+        """Checks if the client certificate has a specific common name"""
+        if self.config["mtls"] and self.config["mtls_clientid"]:
+            client_cert_cn = self.get_client_cert_common_name()
+            if client_cert_cn != self.config["mtls_clientid"]:
+                self.verbose_error(401, f"Invalid Client certificate CN: {client_cert_cn}")
                 return False
         return True
 
@@ -208,6 +231,14 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
         if self.command != self.config["request_method"]:
             self.verbose_error(405, f"Invalid request method: {self.command}")
             return False
+        return True
+
+    def _check_request_header(self) -> bool:
+        """Checks if the request header is valid based on the configuration."""
+        for key, value in self.config["request_header"].items():
+            if self.headers.get(key) != value:
+                self.verbose_error(400, "Invalid request header", f"Missing or wrong value for header: {key}")
+                return False
         return True
 
     def _check_request_path(self) -> bool:
@@ -244,11 +275,13 @@ class OurRequestHandler(http.server.BaseHTTPRequestHandler):
         verbose_print(f"got request from {self.client_address[0]}")
         if not self._check_client_mtls_enabled():
             return
-        if not self._check_client_mtls():
+        if not self._check_client_mtls_clientid():
             return
         if not self._check_client_ip():
             return
         if not self._check_request_method():
+            return
+        if not self._check_request_header():
             return
         if not self._check_request_path():
             return
@@ -299,11 +332,9 @@ def serve_once(config: dict[str, Any]) -> int:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind((config["serve_ip"], 0))
                 config["serve_port"] = s.getsockname()[1]
-                # Print the dynamically allocated port to stderr
-                sys.stderr.write(f"SERVING_ON_PORT: {config['serve_port']}\n")
 
+        verbose_print(f"SERVING_ON_PORT: {config['serve_port']}\n")
         verbose_print(f"Starting server on port {config['serve_port']}")
-
         temp_dir = tempfile.mkdtemp()
         cert_fifo_path = os.path.join(temp_dir, "cert.fifo")
         key_fifo_path = os.path.join(temp_dir, "key.fifo")
