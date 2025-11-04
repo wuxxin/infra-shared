@@ -192,20 +192,22 @@ def get_default_host_ip():
 class SSHPut(pulumi.ComponentResource):
     """Pulumi Component: use with function ssh_put()"""
 
-    def __init__(self, name, props, opts=None):
-        super().__init__("pkg:tools:SSHPut", name, None, opts)
+    def __init__(self, resource_name, props, opts=None):
+        super().__init__("pkg:tools:SSHPut", resource_name, None, opts)
 
         self.props = props
         self.triggers = []
-        i = 0
+        self.basename = resource_name
+
         for key, value in self.props["files"].items():
-            unique_name = f"{name}-{i}"
-            i += 1
-            self.__transfer(unique_name, key, value)
+            self.__transfer(key, value)
         self.register_outputs({})
 
-    def __transfer(self, name, remote_path, local_path):
+    def __transfer(self, remote_path, local_path):
         remote_path_output = pulumi.Output.from_input(remote_path)
+        sub_resource_name = remote_path_output.apply(
+            lambda p: "{}_put_{}".format(self.basename.split("-")[0], p.replace("/", "_"))
+        )
         full_remote_path = pulumi.Output.all(
             self.props["remote_prefix"], remote_path_output
         ).apply(lambda args: join_paths(args[0], args[1]))
@@ -226,18 +228,16 @@ class SSHPut(pulumi.ComponentResource):
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
-            tmpfile = resource_name.apply(
+            tmpfile = sub_resource_name.apply(
                 lambda r: os.path.abspath(os.path.join(self.props["tmpdir"], r))
             )
-
             copy_cmd = pulumi.Output.all(full_local_path_output, tmpfile).apply(
                 lambda args: "cp {} {}".format(args[0], args[1])
             )
             rm_cmd = tmpfile.apply(
                 lambda t: "rm {} || true".format(t) if self.props["delete"] else ""
             )
-
-            _ = pulumi.Output.all(resource_name, copy_cmd, rm_cmd).apply(
+            _ = pulumi.Output.all(sub_resource_name, copy_cmd, rm_cmd).apply(
                 lambda args: command.local.Command(
                     args[0],
                     create=args[1],
@@ -248,7 +248,7 @@ class SSHPut(pulumi.ComponentResource):
             )
         else:
             _ = pulumi.Output.all(
-                resource_name, full_remote_path, full_local_path_output
+                sub_resource_name, full_remote_path, full_local_path_output
             ).apply(
                 lambda args: command.remote.CopyFile(
                     args[0],
@@ -267,8 +267,8 @@ class SSHPut(pulumi.ComponentResource):
 
 
 class SSHSftp(pulumi.CustomResource):
-    def __init__(self, name, props, opts=None):
-        super().__init__("pkg:tools:SSHSftp", name, props, opts)
+    def __init__(self, resource_name, props, opts=None):
+        super().__init__("pkg:tools:SSHSftp", resource_name, props, opts)
         self.props = props
 
     def download_file(self, remote_path, local_path):
@@ -298,21 +298,20 @@ class SSHSftp(pulumi.CustomResource):
 class SSHGet(pulumi.ComponentResource):
     """Pulumi Component: use with function ssh_get()"""
 
-    def __init__(self, name, props, opts=None):
-        super().__init__("pkg:tools:SSHGet", name, None, opts)
+    def __init__(self, resource_name, props, opts=None):
+        super().__init__("pkg:tools:SSHGet", resource_name, None, opts)
         self.props = props
         self.triggers = []
-        i = 0
+        self.basename = resource_name
+
         for key, value in self.props["files"].items():
-            unique_name = f"{name}-{i}"
-            i += 1
-            self.__transfer(unique_name, key, value)
+            self.__transfer(key, value)
         self.register_outputs({})
 
-    def __transfer(self, name, remote_path, local_path):
+    def __transfer(self, remote_path, local_path):
         remote_path_output = pulumi.Output.from_input(remote_path)
-        resource_name = remote_path_output.apply(
-            lambda p: "get_{}".format(p.replace("/", "_"))
+        sub_resource_name = remote_path_output.apply(
+            lambda p: "{}_get_{}".format(self.basename.split("-")[0], p.replace("/", "_"))
         )
         full_remote_path = pulumi.Output.all(
             self.props["remote_prefix"], remote_path_output
@@ -333,16 +332,15 @@ class SSHGet(pulumi.ComponentResource):
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
-            tmpfile = resource_name.apply(
+            tmpfile = sub_resource_name.apply(
                 lambda r: os.path.abspath(os.path.join(self.props["tmpdir"], r))
             )
-
             create_cmd = tmpfile.apply(lambda p: f"mkdir -p $(dirname {p}) && touch {p}")
             delete_cmd = (
                 tmpfile.apply(lambda p: f"rm {p} || true") if self.props["delete"] else ""
             )
 
-            _ = pulumi.Output.all(resource_name, create_cmd, delete_cmd).apply(
+            _ = pulumi.Output.all(sub_resource_name, create_cmd, delete_cmd).apply(
                 lambda args: command.local.Command(
                     args[0],
                     create=args[1],
@@ -353,7 +351,7 @@ class SSHGet(pulumi.ComponentResource):
             )
         else:
             _ = pulumi.Output.all(
-                resource_name, full_remote_path, full_local_path_output
+                sub_resource_name, full_remote_path, full_local_path_output
             ).apply(
                 lambda args: SSHSftp(
                     args[0],
@@ -373,22 +371,20 @@ class SSHGet(pulumi.ComponentResource):
 class SSHDeployer(pulumi.ComponentResource):
     """Pulumi Component: use with function ssh_deploy()"""
 
-    def __init__(self, name, props, opts=None):
-        super().__init__("pkg:tools:SSHDeployer", name, None, opts)
+    def __init__(self, resource_name, props, opts=None):
+        super().__init__("pkg:tools:SSHDeployer", resource_name, None, opts)
 
         self.props = props
         self.triggers = []
-        i = 0
+        self.basename = resource_name
         for key, value in self.props["files"].items():
-            unique_name = f"{name}-{i}"
-            i += 1
-            self.__deploy(unique_name, key, value)
+            self.__deploy(key, value)
         self.register_outputs({})
 
-    def __deploy(self, name, remote_path, data):
+    def __deploy(self, remote_path, data):
         remote_path_output = pulumi.Output.from_input(remote_path)
-        resource_name = remote_path_output.apply(
-            lambda p: "{}_deploy_{}".format(name.split("-")[0], p.replace("/", "_"))
+        sub_resource_name = remote_path_output.apply(
+            lambda p: "{}_deploy_{}".format(self.basename.split("-")[0], p.replace("/", "_"))
         )
         data_output = pulumi.Output.from_input(data)
         full_remote_path = pulumi.Output.all(
@@ -413,11 +409,11 @@ class SSHDeployer(pulumi.ComponentResource):
 
         if self.props["simulate"]:
             os.makedirs(self.props["tmpdir"], exist_ok=True)
-            tmpfile = resource_name.apply(
+            tmpfile = sub_resource_name.apply(
                 lambda r: os.path.abspath(os.path.join(self.props["tmpdir"], r))
             )
 
-            _ = pulumi.Output.all(resource_name, tmpfile).apply(
+            _ = pulumi.Output.all(sub_resource_name, tmpfile).apply(
                 lambda args: command.local.Command(
                     args[0],
                     create=cat_cmd_template.format(args[1]),
@@ -429,7 +425,7 @@ class SSHDeployer(pulumi.ComponentResource):
                 )
             )
         else:
-            _ = pulumi.Output.all(resource_name, cat_cmd, rm_cmd).apply(
+            _ = pulumi.Output.all(sub_resource_name, cat_cmd, rm_cmd).apply(
                 lambda args: command.remote.Command(
                     args[0],
                     connection=command.remote.ConnectionArgs(
