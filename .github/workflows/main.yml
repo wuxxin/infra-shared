@@ -49,7 +49,8 @@ jobs:
             local-bin-cache-${{ runner.os }}-
 
       - name: Install and build Dependencies (output custom binaries to ~/.local/bin)
-        run: make provision-local args="--user"
+        # remove man-db to keep it from regenerating its pages after installation of many packages.
+        run: apt-get remove --purge man-db && make provision-local args="--user"
 
       - name: Copy apt-cache back to user
         run: rsync -av --exclude 'partial' --exclude 'lock' /var/cache/apt/archives/ ~/.cache/apt-cache/
