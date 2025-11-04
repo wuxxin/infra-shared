@@ -48,10 +48,15 @@ def pulumi_project_dir(test_project_dir, project_root):
     ]
     subprocess.run(cmd, check=True, capture_output=True)
 
-    # The skeleton script assumes it's a submodule, but for tests, we symlink it.
-    infra_symlink = project_path / "infra"
-    if not infra_symlink.exists():
-        infra_symlink.symlink_to(project_root)
+    # The skeleton script assumes it's a submodule, but for tests, we copy it.
+    infra_path = project_path / "infra"
+    shutil.copytree(
+        project_root,
+        infra_path,
+        ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", ".venv", "build"),
+        dirs_exist_ok=True,
+        symlinks=False,
+    )
 
     # The Pulumi project needs access to the virtual environment of the main project.
     # We'll update Pulumi.yaml to point to it.
@@ -71,29 +76,39 @@ def pulumi_project_dir(test_project_dir, project_root):
 
 
 @pytest.fixture(scope="function")
-def pulumi_stack(pulumi_project_dir) -> Stack:
+def pulumi_stack_config():
+    """
+    Default configuration for the Pulumi stack.
+    This can be overridden in individual tests.
+    """
+    return {"stack_name": "sim", "add_conf": ""}
+
+
+@pytest.fixture(scope="function")
+def pulumi_stack(pulumi_project_dir, pulumi_stack_config) -> Stack:
     """
     This fixture sets up a Pulumi stack for each test function.
     It creates the stack, yields it to the test, and then tears it down.
     """
-    stack_name = "sim"
+    stack_name = pulumi_stack_config["stack_name"]
+    add_conf = pulumi_stack_config["add_conf"]
     work_dir = str(pulumi_project_dir)
 
-    # Use a local filesystem backend for Pulumi state, stored within the test project dir
+    # Pulumi state, stored within the test project dir
     pulumi_home = pulumi_project_dir / "state" / "pulumi"
     pulumi_home.mkdir(parents=True, exist_ok=True)
 
     # Copy config-template.yaml to Pulumi.sim.yaml for the 'sim' stack
     config_template = pulumi_project_dir / "config-template.yaml"
-    sim_config_path = pulumi_project_dir / "Pulumi.sim.yaml"
-    shutil.copy(config_template, sim_config_path)
+    stack_config_path = pulumi_project_dir / f"Pulumi.{stack_name}.yaml"
+    shutil.copy(config_template, stack_config_path)
 
-    # For tests, we don't want to protect the CA root cert, so it can be destroyed.
-    with sim_config_path.open("a") as f:
-        f.write("\n  ca_protect_rootcert: false\n")
+    # add custom conf and don't protect the CA root cert for tests
+    with stack_config_path.open("a") as f:
+        f.write(f"\n  ca_protect_rootcert: false\n{add_conf}\n")
 
     env_vars = {
-        "PULUMI_CONFIG_PASSPHRASE": "sim",
+        "PULUMI_CONFIG_PASSPHRASE": "test",
         "PULUMI_BACKEND_URL": f"file://{pulumi_home}",
     }
 

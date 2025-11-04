@@ -31,8 +31,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
 # Add the directory containing serve_once.py to the Python path
-# Assuming serve_once.py is in the same directory as test_serve_once.py
-script_dir = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../scripts")
+)
 sys.path.insert(0, script_dir)
 import serve_once  # noqa: E402
 

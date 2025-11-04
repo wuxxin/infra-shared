@@ -91,19 +91,13 @@ jobs:
       - name: build Docs
         run: make docs-online-build
 
-      - name: Run Test Scripts
-        run: make test-scripts
-
-      - name: Run sim up
-        run: make test-sim
-
-      - name: Run pytest
-        run: make pytest
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: "build/docs-online"
+
+      - name: Run Tests
+        run: make pytest
 
   deploy:
     needs: build
