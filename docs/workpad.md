@@ -7,24 +7,16 @@ Then, do each of the described tasks one by one, and update `docs/tasks.md` acco
 
 Required changes:
 
-refactor tools.py:
 
-- f: ssh_put
+feat: Add pytest for safe example
 
-        files: {remotepath: localpath,}
+Adds a new pytest in `tests/test_safe.py` that creates a test case by
+copying `examples/safe` into `target/safe`.
 
-- f: ssh_get
-        files: {remotepath: localpath,}
+The test replicates the `make sim-test` environment by creating a
+temporary directory, running `scripts/create_skeleton.sh`, and setting
+up a Pulumi stack for simulation. The `SHOWCASE_UNITTEST` environment
+variable is set to `true` to disable hardware-dependent components.
 
-- f: ssh_deploy
-        files: {remotepath: data,}
-
-make all remotepath, localpath, and data be either string or pulumi output object.
-make a pytest case for str and pulumi output.
-
-- **Refactor `tools.py`**
-  - Ensure `remotepath`, `localpath`, and `data` can be either a `str` or a `pulumi.Output`.
-  - Modify `ssh_put` to accept `files` as a dictionary of `{remotepath: localpath}`.
-  - Modify `ssh_get` to accept `files` as a dictionary of `{remotepath: localpath}`.
-  - Modify `ssh_deploy` to accept `files` as a dictionary of `{remotepath: data}`.
-
+A pytest fixture is included to handle the setup and teardown of the test
+environment, ens

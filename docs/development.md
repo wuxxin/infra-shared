@@ -6,7 +6,7 @@
 
 - `docs/development.md`: (This file) The project file layout, architectural overview and developer guidelines for working with project.
 - `docs/agent-workflow.md`: Development process and coding conventions for software agents.
-- `docs/marimo-development.md`: Developer Guidelines for working with marimo notebooks of this project.
+- `docs/marimo-development.md`: if present, Developer Guidelines for working with marimo notebooks of this project.
 - `docs/tasks.md`: A living document tracking tasks of types already completed, newly discovered, to be done, and tracking memories about discovered relations.
 
 ### User Documentation
@@ -53,15 +53,11 @@ Development Scripts:
 | provision-container |  Build dependencies for provisioning using a container |
 | provision-local |  Build dependencies for provisioning using system apps |
 | py-clean |  Remove python related artifacts |
-| pytest |  Run pytest Tests |
+| pytest |  Run Tests using "pytest $(args)" |
 | pytest-clean |  Remove pytest Artifacts |
 | sim__ |  Run "pulumi $(args)" |
+| test-all |  Run all tests using local build deps |
 | test-all-container |  Run all tests using container build deps |
-| test-all-local |  Run all tests using local build deps |
-| test-scripts |  Run script Tests |
-| test-sim |  Run sim up Tests |
-| test-sim-clean |  Remove Application Artifacts |
-| try-renovate |  Run Renovate in dry-run mode |
 
 ### Tools used
 
@@ -87,7 +83,7 @@ Development Scripts:
     - per project **tls root-ca, server-certs**, rollout **m-tls** client certificates where possible
     - support **unattended boot and storage decryption** using tang/clevis/luks using https and a ca cert
 - create **disposable/immutable-ish** infrastructure, aim for **structural isolation** and reusability
-- treat **state as code**, favor **state reconcilation** tools
+- treat **state as code**, favor **state reconciliation** tools
     - have the **complete encrypted state** in the **git repository** as **single source of truth**
 - have a **big/full featured provision client** as the center of operation
     - target one **provision os** and a **container** for foreign distros and **continous integration** processes
@@ -106,6 +102,7 @@ Development Scripts:
 - **Use `FastAPI` for APIs**.
 - **Use `FastHTML` for HTML**.
 - **Use `SQLAlchemy` or `SQLModel` for ORM**.
+- **Before adding a new library, look in `pyproject.yaml`** if there is already a fitting library to use.
 - **Follow PEP8**, use type hints, and format with `black` or equivalent.
 - Write **docstrings for every function** using the Google style:
 
