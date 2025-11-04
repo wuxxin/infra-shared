@@ -49,7 +49,7 @@ jobs:
             local-bin-cache-${{ runner.os }}-
 
       - name: Install and build Dependencies (output custom binaries to ~/.local/bin)
-        # remove man-db to keep it from regenerating its pages after installation of many packages.
+        # save 30sec: remove man-db to keep it from regenerating its pages after installation of many packages.
         run: sudo DEBIAN_FRONTEND=noninteractive apt-get remove --purge man-db && make provision-local args="--user"
 
       - name: Copy apt-cache back to user
