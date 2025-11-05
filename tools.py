@@ -37,6 +37,7 @@ import os
 import random
 import time
 import uuid
+import io
 
 from typing import Any, Optional, Type, Dict
 
@@ -1406,3 +1407,61 @@ def write_removable(resource_name, image, serial, size=0, patches=None, opts=Non
         patches=patches,
         opts=opts,
     )
+
+
+class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
+    """
+    Dynamic resource provider for WaitForHostReady
+    """
+    def create(self, props):
+        import paramiko
+        import time
+
+        host = props["host"]
+        port = props["port"]
+        user = props["user"]
+        private_key_pem = props["private_key"]
+        file_to_exist = props["file_to_exist"]
+        timeout = props["timeout"]
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                pkey = paramiko.RSAKey.from_private_key(io.StringIO(private_key_pem))
+                ssh.connect(host, port=port, username=user, pkey=pkey, timeout=10)
+
+                stdin, stdout, stderr = ssh.exec_command(f"/usr/bin/readlink -f {file_to_exist}")
+                exit_status = stdout.channel.recv_exit_status()
+
+                ssh.close()
+
+                if exit_status == 0:
+                    return pulumi.dynamic.CreateResult(id_=str(uuid.uuid4()), outs={})
+                else:
+                    time.sleep(5)
+            except Exception as e:
+                time.sleep(5)
+
+        raise Exception(f"Timeout waiting for host {host} to be ready.")
+
+
+class WaitForHostReady(pulumi.dynamic.Resource):
+    """
+    A Pulumi dynamic resource that waits for a remote host to be ready.
+    """
+    def __init__(self, name, host, user, file_to_exist, private_key, port=22, timeout=150, opts=None):
+        super().__init__(
+            WaitForHostReadyProvider(),
+            name,
+            {
+                "host": host,
+                "port": port,
+                "user": user,
+                "private_key": private_key,
+                "file_to_exist": file_to_exist,
+                "timeout": timeout,
+            },
+            opts,
+        )
