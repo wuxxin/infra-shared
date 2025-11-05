@@ -152,7 +152,7 @@ Development Scripts:
 - **Pulumi Automation API**: The project's pytest tests use the Pulumi Automation API (`pulumi.automation.Stack`) to programmatically create, update, and destroy infrastructure stacks.
 - **Local Filesystem Backend**: The test environment uses a local filesystem Pulumi backend, configured via the `PULUMI_BACKEND_URL` environment variable or `pulumi login` command.
 - **Resource Protection**: To ensure test stacks can be destroyed cleanly, resource protection is disabled in the test configuration (e.g., `ca_protect_rootcert: false`).
-
+- **More verbose and debug output of pulumi**: temporary override pulumi_up_args(): set debug to True and log_verbosity to 3 or higher, if no usable output is produced with default settings.
 
 ### Fedora CoreOS & Butane
 
