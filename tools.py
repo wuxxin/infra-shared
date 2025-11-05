@@ -374,75 +374,75 @@ class SSHDeployer(pulumi.ComponentResource):
     def __init__(self, resource_name, props, opts=None):
         super().__init__("pkg:tools:SSHDeployer", resource_name, None, opts)
 
-        self.props = props
-        self.triggers = []
-        self.basename = resource_name
-        for key, value in self.props["files"].items():
-            self.__deploy(key, value)
-        self.register_outputs({})
-
-    def __deploy(self, remote_path, data):
-        remote_path_output = pulumi.Output.from_input(remote_path)
-        sub_resource_name = remote_path_output.apply(
-            lambda p: "{}_deploy_{}".format(self.basename.split("-")[0], p.replace("/", "_"))
-        )
-        data_output = pulumi.Output.from_input(data)
-        full_remote_path = pulumi.Output.all(
-            self.props["remote_prefix"], remote_path_output
-        ).apply(lambda args: join_paths(args[0], args[1]))
-
-        cat_cmd_template = (
-            'x="{}" && mkdir -m 0700 -p $(dirname "$x") && umask 066 && cat - > "$x"'
-            if self.props["secret"]
-            else 'x="{}" && mkdir -p $(dirname "$x") && cat - > "$x"'
-        )
-        rm_cmd_template = "rm {} || true" if self.props["delete"] else ""
-
-        cat_cmd = full_remote_path.apply(lambda p: cat_cmd_template.format(p))
-        rm_cmd = full_remote_path.apply(lambda p: rm_cmd_template.format(p))
-
-        triggers = [
-            cat_cmd.apply(lambda c: hashlib.sha256(c.encode("utf-8")).hexdigest()),
-            data_output.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
-        ]
-        self.triggers.extend(triggers)
-
-        if self.props["simulate"]:
-            os.makedirs(self.props["tmpdir"], exist_ok=True)
-            tmpfile = sub_resource_name.apply(
-                lambda r: os.path.abspath(os.path.join(self.props["tmpdir"], r))
-            )
-
-            _ = pulumi.Output.all(sub_resource_name, tmpfile).apply(
-                lambda args: command.local.Command(
-                    args[0],
-                    create=cat_cmd_template.format(args[1]),
-                    update=cat_cmd_template.format(args[1]),
-                    delete=rm_cmd_template.format(args[1]),
-                    stdin=data_output.apply(str),
-                    triggers=triggers,
-                    opts=pulumi.ResourceOptions(parent=self),
+        def create_resources_and_get_triggers(files_dict, props=props):
+            all_triggers = []
+            for remote_path, data in files_dict.items():
+                remote_path_output = pulumi.Output.from_input(remote_path)
+                sub_resource_name = remote_path_output.apply(
+                    lambda p: "{}_deploy_{}".format(resource_name.split("-")[0], p.replace("/", "_"))
                 )
-            )
-        else:
-            _ = pulumi.Output.all(sub_resource_name, cat_cmd, rm_cmd).apply(
-                lambda args: command.remote.Command(
-                    args[0],
-                    connection=command.remote.ConnectionArgs(
-                        host=self.props["host"],
-                        port=self.props["port"],
-                        user=self.props["user"],
-                        private_key=self.props["sshkey"].private_key_openssh,
-                    ),
-                    create=args[1],
-                    update=args[1],
-                    delete=args[2],
-                    stdin=data_output.apply(str),
-                    triggers=triggers,
-                    logging=RemoteLogging.NONE,
-                    opts=pulumi.ResourceOptions(parent=self),
+                data_output = pulumi.Output.from_input(data)
+                full_remote_path = pulumi.Output.all(
+                    props["remote_prefix"], remote_path_output
+                ).apply(lambda args: join_paths(args[0], args[1]))
+
+                cat_cmd_template = (
+                    'x="{}" && mkdir -m 0700 -p $(dirname "$x") && umask 066 && cat - > "$x"'
+                    if props["secret"]
+                    else 'x="{}" && mkdir -p $(dirname "$x") && cat - > "$x"'
                 )
-            )
+                rm_cmd_template = "rm {} || true" if props["delete"] else ""
+
+                cat_cmd = full_remote_path.apply(lambda p: cat_cmd_template.format(p))
+                rm_cmd = full_remote_path.apply(lambda p: rm_cmd_template.format(p))
+
+                file_triggers = [
+                    cat_cmd.apply(lambda c: hashlib.sha256(c.encode("utf-8")).hexdigest()),
+                    data_output.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
+                ]
+                all_triggers.extend(file_triggers)
+
+                if props["simulate"]:
+                    os.makedirs(props["tmpdir"], exist_ok=True)
+                    tmpfile = sub_resource_name.apply(
+                        lambda r: os.path.abspath(os.path.join(props["tmpdir"], r))
+                    )
+
+                    _ = pulumi.Output.all(sub_resource_name, tmpfile).apply(
+                        lambda args: command.local.Command(
+                            args[0],
+                            create=cat_cmd_template.format(args[1]),
+                            update=cat_cmd_template.format(args[1]),
+                            delete=rm_cmd_template.format(args[1]),
+                            stdin=data_output.apply(str),
+                            triggers=file_triggers,
+                            opts=pulumi.ResourceOptions(parent=self),
+                        )
+                    )
+                else:
+                    _ = pulumi.Output.all(sub_resource_name, cat_cmd, rm_cmd).apply(
+                        lambda args: command.remote.Command(
+                            args[0],
+                            connection=command.remote.ConnectionArgs(
+                                host=props["host"],
+                                port=props["port"],
+                                user=props["user"],
+                                private_key=props["sshkey"].private_key_openssh,
+                            ),
+                            create=args[1],
+                            update=args[1],
+                            delete=args[2],
+                            stdin=data_output.apply(str),
+                            triggers=file_triggers,
+                            logging=RemoteLogging.NONE,
+                            opts=pulumi.ResourceOptions(parent=self),
+                        )
+                    )
+            return all_triggers
+
+        files_output = pulumi.Output.from_input(props["files"])
+        self.triggers = files_output.apply(create_resources_and_get_triggers)
+        self.register_outputs({"triggers": self.triggers})
 
 
 def ssh_put(

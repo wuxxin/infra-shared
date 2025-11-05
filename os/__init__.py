@@ -493,6 +493,9 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             opts,
         )
 
+        stack_name = pulumi.get_stack()
+        self.simulate = stack_name.endswith("sim") if simulate is None else simulate
+
         child_opts = pulumi.ResourceOptions(parent=self)
         this_env = system_config.this_env
 
@@ -521,17 +524,23 @@ class SystemConfigUpdate(pulumi.ComponentResource):
         )
 
         # transport update service file content and main.sls (translated butane) to root_dir and sls_dir
-        config_dict = {
-            update_fname: update_str,
-            "sls/main.sls": system_config.saltstack_config,
-        }
+        config_dict = pulumi.Output.all(
+            update_fname=update_fname,
+            update_str=update_str,
+            saltstack_config=system_config.saltstack_config,
+        ).apply(
+            lambda args: {
+                args["update_fname"]: args["update_str"],
+                "sls/main.sls": args["saltstack_config"],
+            }
+        )
         self.config_deployed = ssh_deploy(
             resource_name,
             host,
             user,
             files=config_dict,
             remote_prefix=root_dir,
-            simulate=simulate,
+            simulate=self.simulate,
             opts=child_opts,
         )
 
@@ -541,13 +550,13 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             host,
             user,
             cmdline=cmdline,
-            simulate=simulate,
+            simulate=self.simulate,
             triggers=self.config_deployed.triggers,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
         )
 
         self.result = self.config_updated
-        self.register_outputs({})
+        self.register_outputs({"simulate": self.simulate})
 
 
 class FcosImageDownloader(pulumi.ComponentResource):
@@ -706,13 +715,13 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
     <xsl:copy>
       <xsl:apply-templates select="@* | node()"/>
     </xsl:copy>
-  </xsl:template>
+  </template>
   <xsl:template match="/domain/devices">
     <xsl:copy>
       <xsl:apply-templates select="@* | node()"/>
 {}
     </xsl:copy>
-  </xsl:template>
+  </template>
 </xsl:stylesheet>
 """.format(serial_tty_addon)
 
