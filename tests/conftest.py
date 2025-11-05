@@ -85,6 +85,21 @@ def pulumi_stack_config():
 
 
 @pytest.fixture(scope="function")
+def pulumi_up_args():
+    return {
+        "on_output": print,
+        "on_error": print,
+        "suppress_progress": True,
+        "suppress_outputs": False,
+        "log_to_std_err": True,
+        "log_flow": True,
+        "color": False,
+        "log_verbosity": 1,
+        "debug": False,
+    }
+
+
+@pytest.fixture(scope="function")
 def pulumi_stack(pulumi_project_dir, pulumi_stack_config) -> Stack:
     """
     This fixture sets up a Pulumi stack for each test function.

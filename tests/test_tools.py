@@ -5,7 +5,9 @@ from .utils import add_pulumi_program, assert_file_exists
 import os
 
 
-def test_ssh_functions_with_pulumi_outputs(pulumi_stack: Stack, pulumi_project_dir):
+def test_ssh_functions_with_pulumi_outputs(
+    pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args
+):
     program = """
 import pulumi
 from infra import tools
@@ -56,7 +58,7 @@ tools.ssh_deploy(
 """
     add_pulumi_program(pulumi_project_dir, program)
 
-    up_result = pulumi_stack.up(on_output=print)
+    up_result = pulumi_stack.up(**pulumi_up_args)
     assert up_result.summary.result == "succeeded"
 
     # Assert that the simulated files were created

@@ -1,7 +1,6 @@
 import os
 import pytest
 import shutil
-import subprocess
 from pathlib import Path
 from pulumi.automation import Stack
 
@@ -15,7 +14,7 @@ def pulumi_stack_config(pulumi_project_dir):
     }
 
 
-def test_safe_example(pulumi_stack: Stack, pulumi_project_dir):
+def test_safe_example(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args):
     """
     Test the safe example
     """
@@ -32,7 +31,7 @@ def test_safe_example(pulumi_stack: Stack, pulumi_project_dir):
     shutil.move(pulumi_project_dir / "__init__.py", pulumi_project_dir / "__main__.py")
 
     # Run the Pulumi program
-    up_result = pulumi_stack.up(on_output=print)
+    up_result = pulumi_stack.up(**pulumi_up_args)
     assert up_result.summary.result == "succeeded"
 
     # Assert on specific outputs
