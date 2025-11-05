@@ -16,6 +16,11 @@
 
 ## Completed Tasks
 
+- **docs: Update `docs/development.md` with project memories**
+  - Gathers all recorded project memories.
+  - Organizes them into logical sections.
+  - Appends the organized memories to `docs/development.md`.
+
 ## Discovered Tasks
 
 ## Memory
