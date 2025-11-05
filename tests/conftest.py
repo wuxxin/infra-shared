@@ -94,8 +94,8 @@ def pulumi_up_args():
         "log_to_std_err": True,
         "log_flow": True,
         "color": False,
-        "log_verbosity": 1,
-        "debug": False,
+        "log_verbosity": 3,
+        "debug": True,
     }
 
 
