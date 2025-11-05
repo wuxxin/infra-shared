@@ -442,7 +442,7 @@ class SSHDeployer(pulumi.ComponentResource):
 
         files_output = pulumi.Output.from_input(props["files"])
         self.triggers = files_output.apply(create_resources_and_get_triggers)
-        self.register_outputs({"triggers": self.triggers})
+        self.register_outputs({})
 
 
 def ssh_put(
