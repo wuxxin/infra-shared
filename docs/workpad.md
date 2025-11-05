@@ -7,16 +7,60 @@ Then, do each of the described tasks one by one, and update `docs/tasks.md` acco
 
 Required changes:
 
+---
 
-feat: Add pytest for safe example
+tests/test_safe.py fails, because one of the last pulumi operation because SystemConfigUpdate does not find a acme.container file.
+the same directory that is tested in this test (all from dir examples/safe) works, so its a setup issue with paths, or some underlying issue in the butanetranspiler. follow the path of this bug, and try to find its source, and fix it.
+use `make pytest` for testing all tests, or `. .venv/bin/activate ; pytest tests/test_safe.py`
 
-Adds a new pytest in `tests/test_safe.py` that creates a test case by
-copying `examples/safe` into `target/safe`.
 
-The test replicates the `make sim-test` environment by creating a
-temporary directory, running `scripts/create_skeleton.sh`, and setting
-up a Pulumi stack for simulation. The `SHOWCASE_UNITTEST` environment
-variable is set to `true` to disable hardware-dependent components.
+---
 
-A pytest fixture is included to handle the setup and teardown of the test
-environment, ens
+feature: refactor waitforhostready:
+
+new waitforhostready: uses only one timeout (default 150 seconds),
+use paramiko, look at SSHSftp(pulumi.CustomResource): download_file for pulumi and paramiko ssh setup.
+use `/usr/bin/readlink -f` as single command for file_to_exist test.
+
+make new logic that total timeout (adjustable) = 150, try to connect every 5 seconds, if paramiko is able to connect, check for file_to exist,
+if not disconnect, wait 5 seconds, then go into try to connect every 5 seconds again (so 10 seconds after connect, file exists and disconnect), if connected and disconnected from the server, wait 5 seconds, loop, if 150 seconds is passed, fail.
+
+---
+
+
+Feature: make the sha256 hash of the compiled butane ignition file that will be transferred to the remote available in the remote download ignition file as header as security token for requesting the real ignition file and as verification hash of the expected file content.
+
+
+- `os.__init__.py`: add to Butanetranspiler():
+  self.ignition_config_hash generated from hash of (self.ignition_config)
+  hash (string): the hash of the config, in the form <type>-<value> where type is "sha256" and value is the computed hashvalue
+
+- `tools.ServePrepare`: add argument request_header={} , serve_once.py already handles it.
+
+- `os.__init__.py`: RemoteDownloadIgnitionConfig(... add argument remote_hash=""
+
+if not empty: remote_hash: add to butane: in the same category of "ignition:config:replace:source" append to replace
+
+```
+http_headers:
+  "Verification-Hash": remote_hash
+verification:
+  hash: remote_hash
+```
+
+- `examples/safe`:  modify the usage of ServePrepare, RemoteDownloadIgnitionConfig.
+
+add request_header={"Verification-Hash": host_config.ignition_config_hash},
+and remote_hash
+
+::
+
+implement a test case in tests/test_butane_verification.py:
+
+read conftest.py, do a minimal
+
+- ButaneTranspiler
+- ServePrepare
+- RemoteDownloadIgnitionConfig
+- SystemConfigUpdate
+and test for Verification Hash in ignition config and header
