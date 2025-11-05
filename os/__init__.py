@@ -679,7 +679,7 @@ ignition:
 """,
         )
 
-        ignition_remote_config = command.local.Command(
+        self.ignition_remote_config = command.local.Command(
             "{}_ignition_remote_config".format(hostname),
             create="butane -d . -r -p",
             stdin=butane_remote_config,
@@ -687,7 +687,9 @@ ignition:
             opts=this_opts,
         )
 
-        self.result = ignition_remote_config.stdout
+        # ignition json str as result
+        self.ignition_config = self.ignition_remote_config.stdout
+        self.result = self.ignition_config
         self.register_outputs({})
 
 
@@ -829,5 +831,3 @@ class TangFingerprint(pulumi.ComponentResource):
 
         self.result = self.fingerprint.stdout
         self.register_outputs({})
-
-
