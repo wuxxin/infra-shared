@@ -1,29 +1,54 @@
 # Workpad
 
-Read `docs/agent-workflow.md`, `docs/development.md` and `README.md`.
+Read `docs/development.md`.
 Read the following required changes, considering which parts should be combined and which should be separate tasks and in what order they should be performed.
-Read and Update `docs/tasks.md` under Section "Planned Tasks" with the detailed description of that tasks.
-Then, do each of the described tasks one by one, and update `docs/tasks.md` accordingly.
 
 Required changes:
 
 ---
 
-tests/test_safe.py fails, because one of the last pulumi operation because SystemConfigUpdate does not find a acme.container file.
-the same directory that is tested in this test (all from dir examples/safe) works, so its a setup issue with paths, or some underlying issue in the butanetranspiler. follow the path of this bug, and try to find its source, and fix it.
-use `make pytest` for testing all tests, or `. .venv/bin/activate ; pytest tests/test_safe.py`
+write out all recorded memory, group in sections and update `docs/development.md` with the contents.
+
+---
+
+
+        # read ssh_authorized_keys from project_dir/authorized_keys and combine with provision key
+        self.authorized_keys = ssh_provision_publickey.apply(
+            lambda key: "".join(
+                open(os.path.join(project_dir, "authorized_keys"), "r").readlines()
+                + ["{}\n".format(key)]
+            )
+        )
 
 
 ---
 
-feature: refactor waitforhostready:
+feature: refactor waitforhostready from os.__init__.py to tools.py:
 
-new waitforhostready: uses only one timeout (default 150 seconds),
+new waitforhostready (function), and WaitForHostReady(component or custom resource): uses only one timeout (default 150 seconds),
 use paramiko, look at SSHSftp(pulumi.CustomResource): download_file for pulumi and paramiko ssh setup.
 use `/usr/bin/readlink -f` as single command for file_to_exist test.
 
 make new logic that total timeout (adjustable) = 150, try to connect every 5 seconds, if paramiko is able to connect, check for file_to exist,
 if not disconnect, wait 5 seconds, then go into try to connect every 5 seconds again (so 10 seconds after connect, file exists and disconnect), if connected and disconnected from the server, wait 5 seconds, loop, if 150 seconds is passed, fail.
+
+implement a test case in tests/test_waitforhostready.py:
+read tests/conftest.py for fixtures knowledge, read tests/test_tools.py as example pulumi test.
+
+extend fixtures for test_waitforhostready that creates a paramiko ssh server,
+with or without a file ready in a temp directory, and then:
+
+test: start check for ssh connect exist file, but start sshserv after 20sec without file, then:
+restart sshserv after 10 sec with file
+
+test: start check set timeout to 3 and dont start sshserv for timeout case.
+
+use one time `make buildenv` to build env, then `. .venv/bin/activate ; pytest tests/test_waitforhostready.py` to execute this test, `make pytest` for executing all tests.
+
+change examples/safe/__init__.py for the new waithostready.
+
+after test_waitforhostready.py passes, execute `make pytest` to see if test_safe still passes too.
+
 
 ---
 
@@ -56,11 +81,15 @@ and remote_hash
 ::
 
 implement a test case in tests/test_butane_verification.py:
+read tests/conftest.py for fixtures knowledge, read tests/test_tools.py as example pulumi test,
 
-read conftest.py, do a minimal
-
+do a minimal:
+- create_host_cert
 - ButaneTranspiler
 - ServePrepare
 - RemoteDownloadIgnitionConfig
 - SystemConfigUpdate
+
 and test for Verification Hash in ignition config and header
+
+use one time `make buildenv` to build env, then `. .venv/bin/activate ; pytest tests/test_butane_verification.py` to execute this test, `make pytest` for executing all tests.
