@@ -63,7 +63,7 @@ buildenv-clean: py-clean ## Remove build environment artifacts
 	if test -e infra_shared.egg-info; then rm -rf infra_shared.egg-info; fi
 
 .PHONY: pytest
-pytest: buildenv ## Run Tests using "pytest $(args)"
+pytest: buildenv ## Run python Tests using "pytest $(args)"
 	@echo "+++ $@"
 	mkdir -p build/tests/
 	. .venv/bin/activate && pytest $(args)
