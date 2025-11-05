@@ -44,13 +44,13 @@ from infra.os import (
     TangFingerprint,
     FcosImageDownloader,
     RemoteDownloadIgnitionConfig,
-    WaitForHostReady,
 )
 from infra.tools import (
     ServePrepare,
     ServeOnce,
     write_removable,
     public_local_export,
+    WaitForHostReady,
 )
 from infra.build import build_raspberry_extras
 
@@ -265,6 +265,8 @@ else:
         shortname,
         target,
         user=host_config.this_env.apply(lambda env: env["UPDATE_USER"]),
+        private_key=ssh_factory.provision_key.private_key_openssh,
+        file_to_exist="/var/run/unbound.pid",
         opts=opts,
     )
 
