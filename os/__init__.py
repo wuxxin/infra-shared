@@ -168,7 +168,8 @@ class ButaneTranspiler(pulumi.ComponentResource):
     - basedir (str): Butane Basedir path
     - environment (dict, optional): env available in templating
         - defaults to `jinja_defaults.yml`
-    - system_exclude (list, optional): list of files to exclude from translation.
+    - basedir_exclude (list, optional): list of filenames to exclude from translation
+    - system_exclude (list, optional): list of filenames to exclude from translation
     - opts (pulumi.ResourceOptions): Defaults to None
 
     Returns: pulumi.ComponentResource: ButaneTranspiler resource results
@@ -188,6 +189,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         butane_input,
         basedir,
         environment=None,
+        basedir_exclude=[os.path.basename(subproject_dir) + "/*"],
         system_exclude=[],
         opts=None,
     ):
@@ -368,7 +370,7 @@ storage:
 
         # jinja template *.bu yaml files from basedir
         target_dict = pulumi.Output.all(env=this_env).apply(
-            lambda args: load_butane_dir(basedir, args["env"])
+            lambda args: load_butane_dir(basedir, args["env"], exclude=basedir_exclude)
         )
 
         # merged_dict= base_dict -> security_dict > target_dict -> system_dict

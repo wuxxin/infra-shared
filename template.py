@@ -36,7 +36,9 @@ import chardet
 import jinja2
 import jinja2.ext
 import yaml
+import fnmatch
 
+from pathlib import Path
 from typing import Optional, Union, List
 
 
@@ -330,24 +332,60 @@ def jinja_run_file(template_filename, searchpath, environment={}):
     return rendered
 
 
-def load_butane_dir(basedir, environment, subdir="", exclude=[], include=[]):
-    "read basedir/**/*.bu files recursive, jinja template, parse yaml, inline files, merge, return dict"
+def load_butane_dir(
+    basedir: str | Path,
+    environment: str,
+    subdir: str | Path = "",
+    exclude: list[str] = None,
+    include: list[str] = None,
+):
+    """
+    Reads basedir/**/*.bu files recursively, applies jinja, parses yaml,
+    inlines files, merges them, and returns a dict.
 
+    args:
+    - if 'include' is used, no other than this list of files will be included.
+        the paths relative to 'subdir',
+        e.g., subdir="config", include=["main.bu"] -> "config/main.bu"
+    - 'exclude' supports fnmatch matches, eg "build/*"
+        relative to 'subdir', e.g., "build/**/*.bu"
+    """
+
+    if exclude is None:
+        exclude = []
+    if include is None:
+        include = []
     merged_dict = {}
-    if include:
-        files = sorted([os.path.join(subdir, fname) for fname in include])
-    else:
-        files = sorted(
-            [
-                fname
-                for fname in glob.glob(
-                    os.path.join(subdir, "**", "*.bu"), recursive=True, root_dir=basedir
-                )
-            ]
-        )
-        files = [f for f in files if f not in [os.path.join(subdir, ex) for ex in exclude]]
+    base_path = Path(basedir).resolve()
+    files_to_process_relative: list[Path] = []
+    search_subdir = Path(subdir)
 
-    for fname in files:
+    if include:
+        files_to_process_relative = sorted([search_subdir / fname for fname in include])
+    else:
+        search_pattern = str(search_subdir / "**" / "*.bu")
+        absolute_paths = sorted(base_path.glob(search_pattern))
+        all_files_relative = [p.relative_to(base_path) for p in absolute_paths]
+        # Get paths relative to the subdir (e.g., "main.bu", "deep/other.bu")
+        # These are the strings our patterns will match against.
+        files_relative_to_subdir = [p.relative_to(search_subdir) for p in all_files_relative]
+        kept_files_relative_to_subdir = []
+        if exclude:
+            for f_path in files_relative_to_subdir:
+                # Check if f_path (as string) matches ANY exclude pattern
+                if not any(fnmatch.fnmatch(str(f_path), pattern) for pattern in exclude):
+                    # If it matches no patterns, keep it
+                    kept_files_relative_to_subdir.append(f_path)
+        else:
+            kept_files_relative_to_subdir = files_relative_to_subdir
+
+        # convert the kept files back to paths relative to basedir
+        files_to_process_relative = sorted(
+            [search_subdir / f_path for f_path in kept_files_relative_to_subdir]
+        )
+
+    for fname_path in files_to_process_relative:
+        fname = str(fname_path)
         source_dict = yaml.safe_load(jinja_run_file(fname, basedir, environment))
         inlined_dict = inline_local_files(source_dict, basedir)
         expanded_dict = expand_templates(inlined_dict, basedir, environment)
