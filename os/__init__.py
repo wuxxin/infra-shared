@@ -556,7 +556,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
         )
 
         self.result = self.config_updated
-        self.register_outputs({"simulate": self.simulate})
+        self.register_outputs({})
 
 
 class FcosImageDownloader(pulumi.ComponentResource):
@@ -715,13 +715,13 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
     <xsl:copy>
       <xsl:apply-templates select="@* | node()"/>
     </xsl:copy>
-  </template>
+  </xsl:template>
   <xsl:template match="/domain/devices">
     <xsl:copy>
       <xsl:apply-templates select="@* | node()"/>
 {}
     </xsl:copy>
-  </template>
+  </xsl:template>
 </xsl:stylesheet>
 """.format(serial_tty_addon)
 
