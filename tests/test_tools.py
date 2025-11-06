@@ -79,3 +79,42 @@ tools.ssh_deploy(
     assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path6"))
     assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path7"))
     assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path8"))
+
+
+def test_ssh_deploy_content(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args):
+    """
+    Tests that ssh_deploy correctly deploys files with distinct content.
+    """
+    program = """
+import pulumi
+from infra import tools
+import os
+
+files_to_deploy = {
+    "/remote/test1.txt": "content1",
+    "/remote/test2.txt": "content2",
+    "/remote/test3.txt": "content3",
+}
+
+tools.ssh_deploy(
+    "test_deploy_content",
+    "localhost",
+    "user",
+    files=files_to_deploy,
+    simulate=True,
+)
+"""
+    add_pulumi_program(pulumi_project_dir, program)
+
+    up_result = pulumi_stack.up(**pulumi_up_args)
+    assert up_result.summary.result == "succeeded"
+
+    tmpdir = os.path.join(pulumi_project_dir, "build", "tmp", "sim")
+
+    # Assert that the simulated files were created and have the correct content
+    with open(os.path.join(tmpdir, "test_deploy_content_deploy__remote_test1.txt"), "r") as f:
+        assert f.read() == "content1"
+    with open(os.path.join(tmpdir, "test_deploy_content_deploy__remote_test2.txt"), "r") as f:
+        assert f.read() == "content2"
+    with open(os.path.join(tmpdir, "test_deploy_content_deploy__remote_test3.txt"), "r") as f:
+        assert f.read() == "content3"
