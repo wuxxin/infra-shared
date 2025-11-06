@@ -87,6 +87,7 @@ class ParamikoSSHServer:
                 transport.close()
 
         def delayed_start():
+            logging.info(f"SSH server delayed start, sleeping for {self.startup_delay}")
             time.sleep(self.startup_delay)
             self.server = ThreadedTCPServer((self.host, self.port), Handler)
             # If port was 0, get the actual port assigned by the OS
@@ -99,7 +100,7 @@ class ParamikoSSHServer:
         self.server_thread.daemon = True
         self.server_thread.start()
         logging.info("Waiting for SSH server to be ready...")
-        if not self.server_started.wait(timeout=10):
+        if not self.server_started.wait(timeout=self.startup_delay + 5):
             raise RuntimeError("SSH Server failed to start in time.")
         logging.info("SSH server is ready.")
 
@@ -141,7 +142,7 @@ def robust_ssh_server():
     tempdir.cleanup()
 
 
-def test_waitforhostready_success(
+def test_waitforhostready_success_after5sec(
     pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args, robust_ssh_server
 ):
     robust_ssh_server.start()
@@ -158,7 +159,9 @@ tools.WaitForHostReady(
     user="testuser",
     file_to_exist="/tmp/ready_file",
     private_key='''{private_key}''',
-    timeout=30
+    timeout=30,
+    connect_timeout=1,
+    retry_delay=1,
 )
 """
     add_pulumi_program(pulumi_project_dir, program)
@@ -193,7 +196,9 @@ tools.WaitForHostReady(
     user="testuser",
     file_to_exist="/tmp/never_exists",
     private_key='''{private_key}''',
-    timeout=5
+    timeout=5,
+    connect_timeout=1,
+    retry_delay=1,
 )
 """
     add_pulumi_program(pulumi_project_dir, program)
@@ -222,7 +227,9 @@ tools.WaitForHostReady(
     user="testuser",
     file_to_exist="/tmp/ready_file",
     private_key='''{private_key}''',
-    timeout=30
+    timeout=30,
+    connect_timeout=1,
+    retry_delay=1,
 )
 """
     add_pulumi_program(pulumi_project_dir, program)

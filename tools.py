@@ -1843,6 +1843,8 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
         private_key_pem = props["private_key"]
         file_to_exist = props["file_to_exist"]
         timeout = props["timeout"]
+        connect_timeout = props["connect_timeout"]
+        retry_delay = props["retry_delay"]
 
         try:
             pkey = paramiko.Ed25519Key.from_private_key(io.StringIO(private_key_pem))
@@ -1865,7 +1867,7 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
             try:
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(host, port=port, username=user, pkey=pkey, timeout=10)
+                ssh.connect(host, port=port, username=user, pkey=pkey, timeout=connect_timeout)
                 print(f"Connected {user}@{host}:{port}")
 
                 stdin, stdout, stderr = ssh.exec_command(
@@ -1878,19 +1880,31 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
                     return pulumi.dynamic.CreateResult(id_=str(uuid.uuid4()), outs={})
                 else:
                     print(f"Warning: Did not find file: {file_to_exist}")
-                    time.sleep(5)
+                    time.sleep(retry_delay)
             except Exception as e:
-                print(f"Waiting for host... Connection failed (will retry): {e}")
-                time.sleep(5)
+                print(f"Waiting for host to be ready ({time.time() - start_time}): {e}")
+                time.sleep(retry_delay)
 
-        raise Exception(f"Timeout waiting for host {host} to be ready.")
+        raise Exception(
+            f"Timeout waiting for host {host} to be ready and file {file_to_exist} to exist."
+        )
 
 
 class WaitForHostReady(pulumi.dynamic.Resource):
     """A Pulumi dynamic resource that waits for a remote host to be ready."""
 
     def __init__(
-        self, name, host, user, file_to_exist, private_key, port=22, timeout=300, opts=None
+        self,
+        name,
+        host,
+        user,
+        file_to_exist,
+        private_key,
+        port=22,
+        timeout=300,
+        connect_timeout=15,
+        retry_delay=5,
+        opts=None,
     ):
         """Initializes a WaitForHostReady resource.
 
@@ -1909,6 +1923,10 @@ class WaitForHostReady(pulumi.dynamic.Resource):
                 The SSH port. Defaults to 22.
             timeout (int, optional):
                 The timeout in seconds. Defaults to 300.
+            connect_timeout (int, optional)
+                The connect timeout in seconds. Defaults to 15.
+            retry_delay (int, optional)
+                The retry delay in seconds between connect tries. Defaults to 5.
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
@@ -1922,6 +1940,8 @@ class WaitForHostReady(pulumi.dynamic.Resource):
                 "private_key": private_key,
                 "file_to_exist": file_to_exist,
                 "timeout": timeout,
+                "connect_timeout": connect_timeout,
+                "retry_delay": retry_delay,
             },
             opts,
         )
