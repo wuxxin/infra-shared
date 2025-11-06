@@ -266,7 +266,7 @@ else:
         target,
         user=host_config.this_env.apply(lambda env: env["UPDATE_USER"]),
         private_key=ssh_factory.provision_key.private_key_openssh,
-        file_to_exist="/usr/bin/unbound",
+        file_to_exist="/usr/sbin/unbound",
         opts=opts,
     )
 
