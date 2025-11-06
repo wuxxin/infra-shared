@@ -516,19 +516,21 @@ class SSHDeployer(pulumi.ComponentResource):
                         lambda r: os.path.abspath(os.path.join(props["tmpdir"], r))
                     )
 
-                    _ = pulumi.Output.all(sub_resource_name, tmpfile).apply(
+                    _ = pulumi.Output.all(sub_resource_name, tmpfile, data_output).apply(
                         lambda args: command.local.Command(
                             args[0],
                             create=cat_cmd_template.format(args[1]),
                             update=cat_cmd_template.format(args[1]),
                             delete=rm_cmd_template.format(args[1]),
-                            stdin=data_output.apply(str),
+                            stdin=args[2],
                             triggers=file_triggers,
                             opts=pulumi.ResourceOptions(parent=self),
                         )
                     )
                 else:
-                    _ = pulumi.Output.all(sub_resource_name, cat_cmd, rm_cmd).apply(
+                    _ = pulumi.Output.all(
+                        sub_resource_name, cat_cmd, rm_cmd, data_output
+                    ).apply(
                         lambda args: command.remote.Command(
                             args[0],
                             connection=command.remote.ConnectionArgs(
@@ -540,7 +542,7 @@ class SSHDeployer(pulumi.ComponentResource):
                             create=args[1],
                             update=args[1],
                             delete=args[2],
-                            stdin=data_output.apply(str),
+                            stdin=args[3],
                             triggers=file_triggers,
                             logging=RemoteLogging.NONE,
                             opts=pulumi.ResourceOptions(parent=self),
