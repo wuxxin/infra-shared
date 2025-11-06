@@ -146,8 +146,9 @@ Development Scripts:
 
 ### Testing
 
+- **Test Environment**: if make pytest fails, try to recreate the buildenv with `. .venv/bin/activate; make buildenv-clean; make buildenv`,
 - **Test Environment**: The project's testing strategy relies on a `pytest` fixture that recreates the `make sim-test` environment. This involves creating a temporary directory, running `scripts/create_skeleton.sh`, and setting up a Pulumi stack for simulation.
-- **Running Tests**: To run a single test file, create the build env at first with `. .venv/bin/activate && make buildenv`, afterwards use the command: `. .venv/bin/activate && pytest <path_to_test_file>.py` to test. The command `make pytest` is used to run the entire test suite.
+- **Running Tests**: To run a single test file, afterwards use the command: `. .venv/bin/activate && pytest <path_to_test_file>.py` to test. The command `make pytest` is used to run the entire test suite.
 - **Disabling Hardware Dependencies**: Unit tests for examples like 'safe' can disable hardware dependencies (e.g., libvirt) by setting the `SHOWCASE_UNITTEST` environment variable and the Pulumi configuration key `project_name:safe_showcase_unittest` to `true`.
 - **Pulumi Automation API**: The project's pytest tests use the Pulumi Automation API (`pulumi.automation.Stack`) to programmatically create, update, and destroy infrastructure stacks.
 - **Local Filesystem Backend**: The test environment uses a local filesystem Pulumi backend, configured via the `PULUMI_BACKEND_URL` environment variable or `pulumi login` command.

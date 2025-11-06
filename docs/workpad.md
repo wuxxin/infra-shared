@@ -5,15 +5,28 @@ Read the following required changes, considering which parts should be combined 
 
 Required changes:
 
+
+---
+Feature: Extend Documentation from sourcecode information.
+read at `mkdocs.yml`, `Makefile`, `docs/pulumi.md`.
+in pulumi the pulumi resources are documented. i want a link from there or under the current content, a generated documentation
+from `tools.py`, `authority.py` `os/__init__.py` `build.py` and `template.py` (which is mostly python).
+
+if possible split into pulumi specific and python parts.
+find ways to generate this documentaiton from the source.
+also: mkdocs_gensrc.py does not run under github runner.
+even on debug output, i only see "DEBUG   -  Running `files` event from plugin 'gen-files'" , but locally (where it is run with the same "make docs-online-build") it works and includes the example/safe files.
+
 ---
 
-        # read ssh_authorized_keys from project_dir/authorized_keys and combine with provision key
-        self.authorized_keys = ssh_provision_publickey.apply(
-            lambda key: "".join(
-                open(os.path.join(project_dir, "authorized_keys"), "r").readlines()
-                + ["{}\n".format(key)]
-            )
-        )
+fix tests/test_waitforhostready.py , make it more robust, make it a fixture to: start the openssh server with a delay of adjustable, default 5 seconds, (so just sleep, then start in thread, to keep it simple), with or without files as before, but paramiko serves respone without delay. still have the function to inject a file later with a thread that does sleep x, then file.add. add another test case.
+start with building a test_paramiko_serve.py that does that dunctionality (the server part) as expected, then test the server part from the command line with ssh. once this works, refactor it into a fixture.
+
+
+---
+
+
+
 ---
 
 Feature: make the sha256 hash of the compiled butane ignition file that will be transferred to the remote available in the remote download ignition file as header as security token for requesting the real ignition file and as verification hash of the expected file content.
@@ -55,3 +68,14 @@ read tests/conftest.py for fixtures knowledge, read tests/test_tools.py as examp
 and test for Verification Hash in ignition config and header
 
 - use one time `make buildenv` to build env, then `. .venv/bin/activate && pytest tests/test_butane_verification.py` to execute this test, `make pytest` for executing all tests.
+
+
+---
+
+        # read ssh_authorized_keys from project_dir/authorized_keys and combine with provision key
+        self.authorized_keys = ssh_provision_publickey.apply(
+            lambda key: "".join(
+                open(os.path.join(project_dir, "authorized_keys"), "r").readlines()
+                + ["{}\n".format(key)]
+            )
+        )

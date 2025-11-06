@@ -8,12 +8,6 @@ a **Pulumi** (Terraform-ish) and **Fedora Coreos** based **Gitops** Project in *
 > - See [safe](examples/safe) for usage in an example project
 
 
-## Documentation
-
-For a deep dive into the project's architecture, conventions, and operational
-details, please see the [documentation](docs/).
-
-
 ## Quick start
 
 create a base project, lock and install build requirements,
