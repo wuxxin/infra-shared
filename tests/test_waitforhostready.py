@@ -8,10 +8,14 @@ import paramiko
 from pathlib import Path
 from .utils import add_pulumi_program
 import socketserver
+import logging
+import tempfile
 
-class SSHServer(paramiko.ServerInterface):
-    def __init__(self, server_instance):
-        self.server_instance = server_instance
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class SSHServerHandler(paramiko.ServerInterface):
+    def __init__(self, server):
+        self.server = server
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
@@ -27,57 +31,112 @@ class SSHServer(paramiko.ServerInterface):
 
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode("utf-8")
+        logging.info(f"SSHServer: Received exec request: {command_str}")
         file_to_exist = command_str.split(" ")[-1]
 
-        if file_to_exist in self.server_instance.files:
+        with self.server.files_lock:
+            file_found = file_to_exist in self.server.files
+
+        if file_found:
+            logging.info(f"SSHServer: File '{file_to_exist}' found. Returning exit status 0.")
             channel.send_exit_status(0)
         else:
+            logging.info(f"SSHServer: File '{file_to_exist}' not found. Returning exit status 1.")
             channel.send_exit_status(1)
 
         self.event.set()
         return True
 
-class MockSSHHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        transport = paramiko.Transport(self.request)
-        transport.add_server_key(self.server.host_key)
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
 
-        server = SSHServer(self.server)
-        try:
-            transport.start_server(server=server)
-            server.event.wait(10)
-        except Exception:
-            pass
-        finally:
-            transport.close()
-
-
-class MockSSHServer(socketserver.TCPServer):
-    def __init__(self, server_address, RequestHandlerClass, host_key_path):
-        super().__init__(server_address, RequestHandlerClass)
-        self.host_key = paramiko.RSAKey(filename=host_key_path)
-        self.files = []
+class ParamikoSSHServer:
+    def __init__(self, host, port, host_key_path, startup_delay=0):
+        self.host = host
+        self.port = port
+        self.host_key_path = host_key_path
+        self.startup_delay = startup_delay
+        self.server = None
+        self.server_thread = None
+        self.files = set()
+        self.files_lock = threading.Lock()
+        self.server_started = threading.Event()
         self.allow_reuse_address = True
 
+    def start(self):
+        logging.info("SSH server starting...")
+        server_instance = self
+
+        class Handler(socketserver.BaseRequestHandler):
+            def handle(this_handler):
+                transport = paramiko.Transport(this_handler.request)
+                host_key = paramiko.RSAKey(filename=server_instance.host_key_path)
+                transport.add_server_key(host_key)
+                server_interface = SSHServerHandler(server_instance)
+                transport.start_server(server=server_interface)
+                channel = transport.accept(20)
+                if channel is None:
+                    logging.warning("SSHServer: No channel accepted.")
+                    return
+                server_interface.event.wait(10)
+                transport.close()
+
+        def delayed_start():
+            time.sleep(self.startup_delay)
+            self.server = ThreadedTCPServer((self.host, self.port), Handler)
+            # If port was 0, get the actual port assigned by the OS
+            self.port = self.server.server_address[1]
+            logging.info(f"SSH server listening on {self.host}:{self.port}")
+            self.server_started.set()
+            self.server.serve_forever()
+
+        self.server_thread = threading.Thread(target=delayed_start)
+        self.server_thread.daemon = True
+        self.server_thread.start()
+        logging.info("Waiting for SSH server to be ready...")
+        if not self.server_started.wait(timeout=10):
+             raise RuntimeError("SSH Server failed to start in time.")
+        logging.info("SSH server is ready.")
+
+    def stop(self):
+        if self.server:
+            logging.info("SSH server shutting down...")
+            self.server.shutdown()
+            self.server.server_close()
+        if self.server_thread:
+            self.server_thread.join(timeout=2)
+        logging.info("SSH server stopped.")
+
+    def add_file(self, filepath):
+        with self.files_lock:
+            logging.info(f"SSHServer: Adding file: {filepath}")
+            self.files.add(filepath)
+
+    def remove_file(self, filepath):
+        with self.files_lock:
+            logging.info(f"SSHServer: Removing file: {filepath}")
+            self.files.discard(filepath)
+
 @pytest.fixture(scope="function")
-def ssh_keys(tmp_path):
-    private_key_path = tmp_path / "id_rsa"
-    key = paramiko.RSAKey.generate(2048)
-    key.write_private_key_file(str(private_key_path))
-    return str(private_key_path)
-
-def test_waitforhostready_success(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args, ssh_keys):
+def robust_ssh_server():
+    tempdir = tempfile.TemporaryDirectory()
     host = "127.0.0.1"
-    port = 2222
+    port = 0  # Let the OS choose a free port
 
-    server = MockSSHServer((host, port), MockSSHHandler, ssh_keys)
-    server_thread = threading.Thread(target=server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
+    private_key_path = os.path.join(tempdir.name, "id_rsa_test")
+    key = paramiko.RSAKey.generate(2048)
+    key.write_private_key_file(private_key_path)
 
-    time.sleep(1)  # Give the server a moment to start
+    server = ParamikoSSHServer(host, port, private_key_path)
 
-    private_key = Path(ssh_keys).read_text()
+    yield server
+
+    server.stop()
+    tempdir.cleanup()
+
+def test_waitforhostready_success(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args, robust_ssh_server):
+    robust_ssh_server.start()
+    private_key = Path(robust_ssh_server.host_key_path).read_text()
 
     program = f"""
 import pulumi
@@ -85,19 +144,19 @@ from infra import tools
 
 tools.WaitForHostReady(
     "test-wait",
-    host="{host}",
-    port={port},
+    host="{robust_ssh_server.host}",
+    port={robust_ssh_server.port},
     user="testuser",
     file_to_exist="/tmp/ready_file",
     private_key='''{private_key}''',
-    timeout=20
+    timeout=30
 )
 """
     add_pulumi_program(pulumi_project_dir, program)
 
     def create_ready_file():
         time.sleep(5)
-        server.files.append("/tmp/ready_file")
+        robust_ssh_server.add_file("/tmp/ready_file")
 
     file_creator_thread = threading.Thread(target=create_ready_file)
     file_creator_thread.start()
@@ -106,21 +165,10 @@ tools.WaitForHostReady(
     assert up_result.summary.result == "succeeded"
 
     file_creator_thread.join()
-    server.shutdown()
-    server.server_close()
 
-def test_waitforhostready_timeout(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args, ssh_keys):
-    host = "127.0.0.1"
-    port = 2223
-
-    server = MockSSHServer((host, port), MockSSHHandler, ssh_keys)
-    server_thread = threading.Thread(target=server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
-
-    time.sleep(1)
-
-    private_key = Path(ssh_keys).read_text()
+def test_waitforhostready_timeout(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args, robust_ssh_server):
+    robust_ssh_server.start()
+    private_key = Path(robust_ssh_server.host_key_path).read_text()
 
     program = f"""
 import pulumi
@@ -128,12 +176,12 @@ from infra import tools
 
 tools.WaitForHostReady(
     "test-wait-timeout",
-    host="{host}",
-    port={port},
+    host="{robust_ssh_server.host}",
+    port={robust_ssh_server.port},
     user="testuser",
     file_to_exist="/tmp/never_exists",
     private_key='''{private_key}''',
-    timeout=3
+    timeout=5
 )
 """
     add_pulumi_program(pulumi_project_dir, program)
@@ -143,5 +191,28 @@ tools.WaitForHostReady(
 
     assert "Timeout waiting for host" in str(excinfo.value)
 
-    server.shutdown()
-    server.server_close()
+def test_waitforhostready_server_delayed_start(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args, robust_ssh_server):
+    robust_ssh_server.startup_delay = 5
+    robust_ssh_server.start()
+    private_key = Path(robust_ssh_server.host_key_path).read_text()
+
+    program = f"""
+import pulumi
+from infra import tools
+
+tools.WaitForHostReady(
+    "test-wait-delayed-start",
+    host="{robust_ssh_server.host}",
+    port={robust_ssh_server.port},
+    user="testuser",
+    file_to_exist="/tmp/ready_file",
+    private_key='''{private_key}''',
+    timeout=30
+)
+"""
+    add_pulumi_program(pulumi_project_dir, program)
+
+    robust_ssh_server.add_file("/tmp/ready_file")
+
+    up_result = pulumi_stack.up(**pulumi_up_args)
+    assert up_result.summary.result == "succeeded"

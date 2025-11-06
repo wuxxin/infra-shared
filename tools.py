@@ -1822,7 +1822,7 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
         import time
 
         host = props["host"]
-        port = props["port"]
+        port = int(props["port"])
         user = props["user"]
         private_key_pem = props["private_key"]
         file_to_exist = props["file_to_exist"]
