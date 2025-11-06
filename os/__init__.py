@@ -48,13 +48,19 @@ subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
 
 
 def butane_clevis_to_json_clevis(butane_config):
-    """
-    Parses a Butane config dictionary and returns JSON strings describing the
-        desired Clevis SSS (threshold) configuration for each LUKS device
+    """Parses a Butane config and extracts Clevis SSS configurations.
+
+    This function processes a Butane configuration dictionary and generates a
+    JSON string that describes the Clevis SSS (Shamir's Secret Sharing)
+    configuration for each LUKS-encrypted device.
+
     Args:
-        butane_config (dict): A dictionary representing the parsed Butane YAML
+        butane_config (dict):
+            The Butane configuration dictionary.
+
     Returns:
-        str: A JSON string  {"device": "/path/to/dev", "clevis": "{...json_config...}"}
+        str:
+            A JSON string representing the Clevis configurations for all LUKS devices.
     """
 
     def clevis_to_sss(clevis_config):
@@ -147,7 +153,16 @@ def butane_clevis_to_json_clevis(butane_config):
 
 
 def get_locale():
-    """get default LOCALE settings from jinja_defaults.yml then merge with config.get_object("locale")"""
+    """Retrieves and merges locale settings.
+
+    This function reads the default locale settings from `jinja_defaults.yml`
+    and merges them with any locale settings defined in the Pulumi
+    configuration.
+
+    Returns:
+        dict:
+            A dictionary of the merged locale settings.
+    """
     from ..authority import config
 
     locale = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))["LOCALE"]
@@ -156,29 +171,10 @@ def get_locale():
 
 
 class ButaneTranspiler(pulumi.ComponentResource):
-    """Translate Jinja templated Butane files to Ignition and a subset to SaltStack Salt format
+    """A Pulumi component for transpiling Butane configurations.
 
-    renders credentials, butane_input, os/*.bu (excluding system_exclude) and basedir/**.bu
-
-    Args:
-    - resource_name (str): pulumi resource name
-    - hostname (str): hostname
-    - hostcert (pulumi object): host certificate
-    - butane_input (str): Butane input string
-    - basedir (str): Butane Basedir path
-    - environment (dict, optional): env available in templating
-        - defaults to `jinja_defaults.yml`
-    - basedir_exclude (list, optional): list of filenames to exclude from translation
-    - system_exclude (list, optional): list of filenames to exclude from translation
-    - opts (pulumi.ResourceOptions): Defaults to None
-
-    Returns: pulumi.ComponentResource: ButaneTranspiler resource results
-    - butane_config (Output[str]): The merged Butane YAML configuration
-    - saltstack_config (Output[str]): The Butane translated to inlined SaltStack YAML
-    - ignition_config (Output[str], Alias result): The Butane translated to Ignition JSON
-    - this_env (Output.secret[dict)): Environment that was used for the translation
-    - clevis_luks_config (Output[Str]): JSON config string of the clevis luks setup
-
+    This component processes Jinja2-templated Butane files, merges them, and
+    transpiles the result into Ignition JSON and a SaltStack state.
     """
 
     def __init__(
@@ -193,6 +189,42 @@ class ButaneTranspiler(pulumi.ComponentResource):
         system_exclude=[],
         opts=None,
     ):
+        """Initializes a ButaneTranspiler component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            hostname (str):
+                The hostname for the target system.
+            hostcert (pulumi.Output):
+                The host certificate for the target system.
+            butane_input (str):
+                The primary Butane configuration as a string.
+            basedir (str):
+                The base directory for resolving file paths.
+            environment (dict, optional):
+                A dictionary of environment variables for templating. Defaults to None.
+            basedir_exclude (list[str], optional):
+                A list of file patterns to exclude from the base directory. Defaults to
+                excluding the subproject directory.
+            system_exclude (list[str], optional):
+                A list of file patterns to exclude from the system `os` directory.
+                Defaults to [].
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+
+        Returns:
+            butane_config (Output[str]):
+                The merged Butane YAML configuration.
+            saltstack_config (Output[str]):
+                The Butane translated to inlined SaltStack YAML.
+            ignition_config (Output[str], Alias result):
+                The Butane translated to Ignition JSON.
+            this_env (Output.secret[dict]):
+                Environment that was used for the translation.
+            clevis_luks_config (Output[Str]):
+                JSON config string of the clevis luks setup.
+        """
         from ..authority import ca_factory, acme_sub_ca, ssh_factory, ns_factory, config
 
         super().__init__(
@@ -470,10 +502,10 @@ clevis_luks_updater:
 
 
 class SystemConfigUpdate(pulumi.ComponentResource):
-    """reconfigure a remote system by executing salt-call on a butane to saltstack translated config
+    """A Pulumi component for updating the configuration of a remote system.
 
-    if simulate==True: data is not transferred but written out to build/tmp/stack_name
-    if simulate==None: simulate=pulumi.get_stack().endswith("sim")
+    This component uses a transpiled SaltStack state to reconfigure a remote
+    system. It deploys the necessary configuration and triggers a Salt run.
     """
 
     def __init__(
@@ -484,6 +516,21 @@ class SystemConfigUpdate(pulumi.ComponentResource):
         simulate=None,
         opts=None,
     ):
+        """Initializes a SystemConfigUpdate component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            host (pulumi.Input[str]):
+                The hostname or IP address of the remote host.
+            system_config (ButaneTranspiler):
+                The transpiled system configuration.
+            simulate (bool, optional):
+                Whether to simulate the update. If None, it is determined by the stack name.
+                Defaults to None.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         from ..tools import ssh_deploy, ssh_execute
 
         super().__init__(
@@ -560,7 +607,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
 
 
 class FcosImageDownloader(pulumi.ComponentResource):
-    "download a version of fedora-coreos to local path, decompress, return filename"
+    """A Pulumi component for downloading and decompressing a Fedora CoreOS image."""
 
     def __init__(
         self,
@@ -571,6 +618,26 @@ class FcosImageDownloader(pulumi.ComponentResource):
         overwrite_url=None,
         opts=None,
     ):
+        """Initializes an FcosImageDownloader component.
+
+        Args:
+            stream (str, optional):
+                The Fedora CoreOS stream (e.g., "stable"). Defaults to the value from the
+                build defaults.
+            architecture (str, optional):
+                The CPU architecture (e.g., "x86_64"). Defaults to the value from the build
+                defaults.
+            platform (str, optional):
+                The platform (e.g., "qemu"). Defaults to the value from the build defaults.
+            image_format (str, optional):
+                The image format (e.g., "qcow2.xz"). Defaults to the value from the build
+                defaults.
+            overwrite_url (str, optional):
+                A URL to an image to download instead of using the stream/architecture/platform.
+                Defaults to None.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         from ..authority import project_dir, stack_name, config
 
         defaults = yaml.safe_load(
@@ -640,9 +707,25 @@ class FcosImageDownloader(pulumi.ComponentResource):
 
 
 class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
-    "compile a minimal Ignition Config that downloads the final Ignition Config from https"
+    """A Pulumi component for creating a remote Ignition configuration.
+
+    This component generates a minimal Ignition configuration that downloads the
+    full Ignition configuration from a remote URL.
+    """
 
     def __init__(self, resource_name, hostname, remoteurl, opts=None):
+        """Initializes a RemoteDownloadIgnitionConfig component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            hostname (str):
+                The hostname for the target system.
+            remoteurl (pulumi.Input[str]):
+                The URL to download the full Ignition configuration from.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         from ..authority import ca_factory
 
         super().__init__(
@@ -692,7 +775,7 @@ ignition:
 
 
 class LibvirtIgniteFcos(pulumi.ComponentResource):
-    """create a libvirt based x86_64 virtual machine according to an ignition config"""
+    """A Pulumi component for creating a Fedora CoreOS virtual machine with Libvirt."""
 
     serial_tty_addon = """
       <serial type="pty">
@@ -735,6 +818,26 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
         overwrite_url=None,
         opts=None,
     ):
+        """Initializes a LibvirtIgniteFcos component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            ignition_config (pulumi.Input[str]):
+                The Ignition configuration in JSON format.
+            volumes (list[dict], optional):
+                A list of dictionaries defining the volumes for the VM. Defaults to a single
+                8GB boot volume.
+            memory (int, optional):
+                The amount of memory for the VM in MB. Defaults to 2048.
+            vcpu (int, optional):
+                The number of virtual CPUs for the VM. Defaults to 2.
+            overwrite_url (str, optional):
+                A URL to an image to download instead of using the default Fedora CoreOS
+                image. Defaults to None.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__(
             "pkg:os:LibvirtIgniteFcos",
             "{}_libvirt_ignite_fcos".format(resource_name),
@@ -804,9 +907,17 @@ class LibvirtIgniteFcos(pulumi.ComponentResource):
 
 
 class TangFingerprint(pulumi.ComponentResource):
-    """connect and request fingerprint from a tang-server"""
+    """A Pulumi component for retrieving a Tang server's fingerprint."""
 
     def __init__(self, tang_url, opts=None):
+        """Initializes a TangFingerprint component.
+
+        Args:
+            tang_url (str):
+                The URL of the Tang server.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:os:TangFingerprint", tang_url, None, opts)
         child_opts = pulumi.ResourceOptions(parent=self)
 

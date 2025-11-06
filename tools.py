@@ -59,7 +59,15 @@ project_dir = os.path.abspath(os.path.join(this_dir, ".."))
 
 
 def log_warn(x):
-    "write str(var) to pulumi.log.warn with line numbering, to be used as var.apply(log_warn)"
+    """Logs a multi-line string to the Pulumi console with line numbers.
+
+    This function is intended to be used with `pulumi.Output.apply` to inspect
+    the resolved value of an output.
+
+    Args:
+        x (any):
+            The value to log. It will be converted to a string.
+    """
     pulumi.log.warn(
         "\n".join(
             ["{}:{}".format(nr + 1, line) for nr, line in enumerate(str(x).splitlines())]
@@ -68,14 +76,24 @@ def log_warn(x):
 
 
 def yaml_loads(s: Input[str], *, Loader: Optional[Type[yaml.Loader]] = None) -> "Output[Any]":
-    """
-    Uses yaml.safe_load to deserialize the given YAML Input[str] value into a value
+    """Deserializes a YAML string into a Pulumi output.
+
+    This function takes a Pulumi input string containing YAML and deserializes
+    it into a Pulumi output of the corresponding Python object.
 
     Args:
-        s: The YAML string to deserialize.  This should be an Input[str].
-        Loader:  Optional YAML Loader to use. Defaults to yaml.SafeLoader.
+        s (Input[str]):
+            The YAML string to deserialize.
+        Loader (Optional[Type[yaml.Loader]], optional):
+            The YAML loader to use. Defaults to `yaml.SafeLoader`.
+
     Returns:
-        An Output[Any] representing the deserialized YAML value.
+        Output[Any]:
+            A Pulumi output representing the deserialized YAML.
+
+    Raises:
+        Exception:
+            If the YAML parsing fails.
     """
 
     def loads(s: str) -> Any:
@@ -91,8 +109,16 @@ def yaml_loads(s: Input[str], *, Loader: Optional[Type[yaml.Loader]] = None) -> 
 
 
 def sha256sum_file(filename):
-    "sha256sum of file, logically backported from python 3.11"
+    """Calculates the SHA256 checksum of a file.
 
+    Args:
+        filename (str):
+            The path to the file.
+
+    Returns:
+        str:
+            The hexadecimal SHA256 checksum of the file.
+    """
     h = hashlib.sha256()
     buf = bytearray(2**18)
     view = memoryview(buf)
@@ -103,14 +129,15 @@ def sha256sum_file(filename):
 
 
 def get_ip_from_ifname(name: str) -> str | None:
-    """
-    Retrieves the first IPv4 address associated with a given network interface name.
+    """Retrieves the first IPv4 address from a network interface.
 
     Args:
-        name (str): The name of the network interface (e.g., "eth0", "wlan0", "enp7s0")
+        name (str):
+            The name of the network interface (e.g., "eth0").
+
     Returns:
-        str | None: The first IPv4 address found on the interface,
-            or None if the interface doesn't exist or has no IPv4 addresses.
+        str | None:
+            The first IPv4 address of the interface, or None if not found.
     """
     try:
         # Check if the interface exists
@@ -136,8 +163,11 @@ def get_ip_from_ifname(name: str) -> str | None:
 
 
 def get_default_gateway_ip():
-    """
-    Return the IP address (as a string) of the default gateway, or None if not found
+    """Retrieves the IP address of the default gateway.
+
+    Returns:
+        str | None:
+            The IP address of the default gateway, or None if not found.
     """
     try:
         gws = netifaces.gateways()
@@ -154,14 +184,14 @@ def get_default_gateway_ip():
 
 
 def get_default_host_ip():
-    """
-    Return the IP address of the interface that is most likely connected to the outside world.
+    """Retrieves the IP address of the default network interface.
 
-    This function attempts to find the default gateway and then determine the IP address
-    of the interface associated with that gateway.
+    This function determines the default gateway and returns the IP address of
+    the associated network interface.
 
     Returns:
-        str: The IP address of the most likely external interface, or None if not found.
+        str | None:
+            The IP address of the default interface, or None if not found.
     """
     try:
         # Get the default gateway
@@ -191,9 +221,19 @@ def get_default_host_ip():
 
 
 class SSHPut(pulumi.ComponentResource):
-    """Pulumi Component: use with function ssh_put()"""
+    """A Pulumi component for securely copying files to a remote host over SSH."""
 
     def __init__(self, resource_name, props, opts=None):
+        """Initializes an SSHPut component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            props (dict):
+                A dictionary of properties for the component.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:tools:SSHPut", resource_name, None, opts)
 
         def create_resources_and_get_triggers(files_dict, props=props):
@@ -267,11 +307,35 @@ class SSHPut(pulumi.ComponentResource):
 
 
 class SSHSftp(pulumi.CustomResource):
+    """A Pulumi custom resource for downloading a file over SFTP."""
+
     def __init__(self, resource_name, props, opts=None):
+        """Initializes an SSHSftp custom resource.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            props (dict):
+                A dictionary of properties for the resource.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:tools:SSHSftp", resource_name, props, opts)
         self.props = props
 
     def download_file(self, remote_path, local_path):
+        """Downloads a file from a remote host.
+
+        Args:
+            remote_path (str):
+                The path to the file on the remote host.
+            local_path (str):
+                The path to save the file to on the local machine.
+
+        Returns:
+            str:
+                The SHA256 checksum of the downloaded file.
+        """
         import paramiko
 
         privkey = paramiko.RSAKey(data=self.props["sshkey"].private_key_openssh)
@@ -291,14 +355,34 @@ class SSHSftp(pulumi.CustomResource):
         return sha256sum_file(local_path)
 
     def create(self, props):
+        """Creates the SSHSftp resource.
+
+        Args:
+            props (dict):
+                The properties for the resource.
+
+        Returns:
+            pulumi.dynamic.CreateResult:
+                The result of the create operation.
+        """
         self.result = self.download_file(props["remote_path"], props["local_path"])
         return pulumi.dynamic.CreateResult(id_=str(uuid.uuid4()), outs={"result": self.result})
 
 
 class SSHGet(pulumi.ComponentResource):
-    """Pulumi Component: use with function ssh_get()"""
+    """A Pulumi component for securely copying files from a remote host over SSH."""
 
     def __init__(self, resource_name, props, opts=None):
+        """Initializes an SSHGet component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            props (dict):
+                A dictionary of properties for the component.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:tools:SSHGet", resource_name, None, opts)
 
         def create_resources_and_get_triggers(files_dict, props=props):
@@ -369,9 +453,19 @@ class SSHGet(pulumi.ComponentResource):
 
 
 class SSHDeployer(pulumi.ComponentResource):
-    """Pulumi Component: use with function ssh_deploy()"""
+    """A Pulumi component for deploying string data as files to a remote host."""
 
     def __init__(self, resource_name, props, opts=None):
+        """Initializes an SSHDeployer component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            props (dict):
+                A dictionary of properties for the component.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:tools:SSHDeployer", resource_name, None, opts)
 
         def create_resources_and_get_triggers(files_dict, props=props):
@@ -457,21 +551,38 @@ def ssh_put(
     simulate=None,
     opts=None,
 ):
-    """copy/put a set of files from localhost to ssh target using ssh/sftp
+    """Copies files from the local machine to a remote host over SSH.
+
+    This function creates an `SSHPut` component to manage the file transfer.
 
     Args:
-        files (Dict[str, pulumi.Input[str]]): A dictionary of files to copy,
-            mapping remotepath (str) to localpath (str or pulumi.Output[str]).
-        remote_prefix (str): path prefixed to each remotepath.
-        local_prefix (str): path prefixed to each localpath.
-        delete (bool): If True, files will be deleted from target on resource deletion.
-        simulate (bool): If True, files are not transferred but written to build/tmp/stack_name.
-                         If None, simulate is True if stack name ends with "sim".
+        prefix (str):
+            A prefix for the resource name.
+        host (pulumi.Input[str]):
+            The hostname or IP address of the remote host.
+        user (pulumi.Input[str]):
+            The username to connect with.
+        files (dict, optional):
+            A dictionary mapping remote file paths to local file paths. Defaults to {}.
+        remote_prefix (str, optional):
+            A prefix to add to all remote paths. Defaults to "".
+        local_prefix (str, optional):
+            A prefix to add to all local paths. Defaults to "".
+        port (int, optional):
+            The SSH port. Defaults to 22.
+        delete (bool, optional):
+            Whether to delete the remote files when the resource is destroyed. Defaults to False.
+        simulate (bool, optional):
+            Whether to simulate the file transfer. If None, it is determined by the stack name.
+            Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
 
     Returns:
-        SSHPut: A component resource with attributes for each transferred file.
-        triggers (list): A list of key and data hashes for every file,
-            can be used for triggering another function if any file changed.
+        SSHPut:
+            An `SSHPut` component with a `triggers` attribute. The `triggers` attribute is a list
+            of key and data hashes for every file, which can be used for triggering another
+            function if any file changed.
 
     Example:
     ```python
@@ -511,23 +622,40 @@ def ssh_get(
     port=22,
     delete=False,
     simulate=None,
-    triggers=None,
     opts=None,
 ):
-    """get/copy a set of files from the target system to the local filesystem using ssh/sftp
+    """Copies files from a remote host to the local machine over SSH.
+
+    This function creates an `SSHGet` component to manage the file transfer.
 
     Args:
-        files (Dict[str, pulumi.Input[str]]): A dictionary of files to copy,
-            mapping remotepath (str) to localpath (str or pulumi.Output[str]).
-        remote_prefix (str): path prefixed to each remotepath.
-        local_prefix (str): path prefixed to each localpath.
-        simulate (bool): If True, files are not transferred but written to build/tmp/stack_name.
-                         If None, simulate is True if stack name ends with "sim".
+        prefix (str):
+            A prefix for the resource name.
+        host (pulumi.Input[str]):
+            The hostname or IP address of the remote host.
+        user (pulumi.Input[str]):
+            The username to connect with.
+        files (dict, optional):
+            A dictionary mapping remote file paths to local file paths. Defaults to {}.
+        remote_prefix (str, optional):
+            A prefix to add to all remote paths. Defaults to "".
+        local_prefix (str, optional):
+            A prefix to add to all local paths. Defaults to "".
+        port (int, optional):
+            The SSH port. Defaults to 22.
+        delete (bool, optional):
+            Whether to delete the local files when the resource is destroyed. Defaults to False.
+        simulate (bool, optional):
+            Whether to simulate the file transfer. If None, it is determined by the stack name.
+            Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
 
     Returns:
-        SSHGet: A component resource with attributes for each transferred file.
-        triggers (list): A list of key and data hashes for every file,
-            can be used for triggering another function if any file changed.
+        SSHGet:
+            An `SSHGet` component with a `triggers` attribute. The `triggers` attribute is a list
+            of key and data hashes for every file, which can be used for triggering another
+            function if any file changed.
     """
 
     from .authority import ssh_factory
@@ -561,21 +689,39 @@ def ssh_deploy(
     simulate=None,
     opts=None,
 ):
-    """deploy a set of strings as small files to a ssh target
+    """Deploys string data as files to a remote host over SSH.
+
+    This function creates an `SSHDeployer` component to manage the file
+    deployment.
 
     Args:
-        files (Dict[str, pulumi.Input[str]]): A dictionary of files to deploy,
-            mapping remotepath (str) to data (str or pulumi.Output[str]).
-        remote_prefix (str): path prefixed to each remotepath.
-        secret (bool): If True, data is considered a secret, file mode will be 0600, dir mode 0700.
-        delete (bool): If True, files will be deleted from target on resource deletion.
-        simulate (bool): If True, data is not transferred but written to build/tmp/stack_name.
-                         If None, simulate is True if stack name ends with "sim".
+        prefix (str):
+            A prefix for the resource name.
+        host (pulumi.Input[str]):
+            The hostname or IP address of the remote host.
+        user (pulumi.Input[str]):
+            The username to connect with.
+        files (dict, optional):
+            A dictionary mapping remote file paths to string data. Defaults to {}.
+        remote_prefix (str, optional):
+            A prefix to add to all remote paths. Defaults to "".
+        port (int, optional):
+            The SSH port. Defaults to 22.
+        secret (bool, optional):
+            Whether the file content is a secret. Defaults to False.
+        delete (bool, optional):
+            Whether to delete the remote files when the resource is destroyed. Defaults to False.
+        simulate (bool, optional):
+            Whether to simulate the file deployment. If None, it is determined by the stack name.
+            Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
 
     Returns:
-        SSHDeployer: A component resource with attributes for each deployed file.
-        triggers (list): A list of key and data hashes for every file,
-            can be used for triggering another function if any file changed.
+        SSHDeployer:
+            An `SSHDeployer` component with a `triggers` attribute. The `triggers` attribute is a list
+            of key and data hashes for every file, which can be used for triggering another
+            function if any file changed.
 
     Example:
     ```python
@@ -615,14 +761,35 @@ def ssh_execute(
     triggers=None,
     opts=None,
 ):
-    """execute cmdline with environment as user on a ssh target host
+    """Executes a command on a remote host over SSH.
+
+    This function uses the `pulumi_command` provider to execute a command on a
+    remote host.
 
     Args:
-        cmdline: String to be executed on target host
-        environment: Dict of environment entries to be available in cmdline
-        if simulate==True: command is not executed but written out to build/tmp/stack_name
-        if simulate==None: simulate = pulumi.get_stack().endswith("sim")
+        prefix (str):
+            A prefix for the resource name.
+        host (pulumi.Input[str]):
+            The hostname or IP address of the remote host.
+        user (pulumi.Input[str]):
+            The username to connect with.
+        cmdline (pulumi.Input[str]):
+            The command to execute.
+        environment (dict, optional):
+            A dictionary of environment variables to set for the command. Defaults to {}.
+        port (int, optional):
+            The SSH port. Defaults to 22.
+        simulate (bool, optional):
+            Whether to simulate the command execution. If None, it is determined by the stack
+            name. Defaults to None.
+        triggers (list, optional):
+            A list of triggers to re-run the command. Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
 
+    Returns:
+        command.local.Command | command.remote.Command:
+            The command resource.
     """
 
     from .authority import ssh_factory
@@ -668,11 +835,11 @@ def ssh_execute(
 
 
 class DataExport(pulumi.ComponentResource):
-    """store state data (with optional encryption) as local files under state/files/
+    """A Pulumi component for exporting data to a local file.
 
-    use with
-        - public_local_export()
-        - encrypted_local_export()
+    This component writes data to a local file, with optional encryption using
+    `age`. It is used by the `public_local_export` and `encrypted_local_export`
+    functions.
     """
 
     def __init__(
@@ -686,16 +853,25 @@ class DataExport(pulumi.ComponentResource):
         triggers=None,
         opts=None,
     ):
-        """
-        :param prefix: A prefix for the resource name and directory
-        :param filename: The name of the file to export
-        :param data: The string data (pulumi.Output[str]) to be written to stdin
-        :param key: (Optional) The public key to use for age encryption
-        :param filter: (Optional) A shell command to pipe the data through (e.g., "base64 -d")
-        :param delete: (Optional) Whether to delete the file on resource deletion
-        :param triggers: (Optional) A list of stable Pulumi Outputs. If provided,
-            'stdin' will be ignored for diffs, and the listed triggers are used to trigger recreation
-        :param opts: (Optional) Standard Pulumi resource options.
+        """Initializes a DataExport component.
+
+        Args:
+            prefix (str):
+                A prefix for the resource name and directory.
+            filename (str):
+                The name of the file to export.
+            data (pulumi.Input[str]):
+                The data to export.
+            key (pulumi.Input[str], optional):
+                The public key to use for `age` encryption. Defaults to None.
+            filter (str, optional):
+                A shell command to pipe the data through. Defaults to "".
+            delete (bool, optional):
+                Whether to delete the file when the resource is destroyed. Defaults to False.
+            triggers (list, optional):
+                A list of triggers to re-run the export. Defaults to None.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
         """
         super().__init__("pkg:tools:DataExport", "_".join([prefix, filename]), None, opts)
 
@@ -771,7 +947,31 @@ class DataExport(pulumi.ComponentResource):
 def encrypted_local_export(
     prefix, filename, data, filter="", delete=False, triggers=None, opts=None
 ):
-    """store sensitive state data age encrypted in state/files/"""
+    """Exports and encrypts data to a local file using `age`.
+
+    This function creates a `DataExport` component to write data to a local
+    file, encrypting it with `age` using the project's authorized SSH keys.
+
+    Args:
+        prefix (str):
+            A prefix for the resource name and directory.
+        filename (str):
+            The name of the file to export.
+        data (pulumi.Input[str]):
+            The data to export.
+        filter (str, optional):
+            A shell command to pipe the data through before encryption. Defaults to "".
+        delete (bool, optional):
+            Whether to delete the file when the resource is destroyed. Defaults to False.
+        triggers (list, optional):
+            A list of triggers to re-run the export. Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        DataExport:
+            A `DataExport` component.
+    """
 
     from .authority import ssh_factory
 
@@ -790,7 +990,31 @@ def encrypted_local_export(
 def public_local_export(
     prefix, filename, data, filter="", delete=False, triggers=None, opts=None
 ):
-    """store public state data unencrypted in state/files/"""
+    """Exports data to a local file without encryption.
+
+    This function creates a `DataExport` component to write data to a local
+    file.
+
+    Args:
+        prefix (str):
+            A prefix for the resource name and directory.
+        filename (str):
+            The name of the file to export.
+        data (pulumi.Input[str]):
+            The data to export.
+        filter (str, optional):
+            A shell command to pipe the data through. Defaults to "".
+        delete (bool, optional):
+            Whether to delete the file when the resource is destroyed. Defaults to False.
+        triggers (list, optional):
+            A list of triggers to re-run the export. Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        DataExport:
+            A `DataExport` component.
+    """
 
     return DataExport(
         prefix,
@@ -804,11 +1028,25 @@ def public_local_export(
 
 
 def salt_config(resource_name, stack_name, base_dir):
-    """generate a saltstack salt config
+    """Generates a SaltStack minion configuration.
 
-    grains available:
+    This function creates a configuration dictionary for a SaltStack minion,
+    including paths for SLS files, pillars, and other directories.
+
+    Grains available:
       - resource_name, base_dir, root_dir, tmp_dir, sls_dir, pillar_dir
 
+    Args:
+        resource_name (str):
+            The name of the resource, used for directory names.
+        stack_name (str):
+            The name of the Pulumi stack.
+        base_dir (str):
+            The base directory for the SaltStack configuration.
+
+    Returns:
+        dict:
+            A dictionary representing the SaltStack minion configuration.
     """
 
     root_dir = os.path.join(base_dir, "build", "salt", stack_name, resource_name)
@@ -863,23 +1101,15 @@ log_file: /dev/null
 
 
 class LocalSaltCall(pulumi.ComponentResource):
-    """configure and execute a saltstack salt-call on a local provision machine
+    """A Pulumi component for executing a local SaltStack call.
+
+    This component configures and runs a `salt-call` command on the local
+    machine. It sets up the necessary directories and configuration files for
+    the SaltStack execution.
 
     - sls_dir defaults to project_dir
     - config/run/tmp/cache and other files default to build/salt/stackname/resource_name
     - grains from salt_config available
-
-    Args:
-        *args: salt command to execute
-        pillar: dict to use as pillar
-        environment: dict to use as process environment
-
-    Example:
-    ```python
-    # build openwrt image
-    LocalSaltCall("build_openwrt", "state.sls", "build_openwrt",
-        pillar={}, environment={}, sls_dir=this_dir)
-    ```
     """
 
     def __init__(
@@ -892,6 +1122,24 @@ class LocalSaltCall(pulumi.ComponentResource):
         opts=None,
         **kwargs,
     ):
+        """Initializes a LocalSaltCall component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            *args:
+                Arguments to pass to the `salt-call` command.
+            pillar (dict, optional):
+                A dictionary to use as pillar data. Defaults to {}.
+            environment (dict, optional):
+                A dictionary of environment variables for the command. Defaults to {}.
+            sls_dir (str, optional):
+                The directory containing the SLS files. Defaults to the project directory.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+            **kwargs:
+                Additional arguments to pass to the `command.local.Command`.
+        """
         super().__init__("pkg:tools:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
         self.config = salt_config(resource_name, stack, project_dir)
@@ -930,12 +1178,14 @@ class LocalSaltCall(pulumi.ComponentResource):
 
 
 class RemoteSaltCall(pulumi.ComponentResource):
-    """configure and execute a saltstack salt-call on a remote target machine
+    """A Pulumi component for executing a SaltStack call on a remote host.
+
+    This component deploys the necessary SaltStack configuration and SLS files
+    to a remote host, and then executes a `salt-call` command.
 
     - grains from salt_config available
     - NOTE: function replaces parameters "{{base_dir}}" and "{{args}}" in the "exec" string
         - therefore avoid (rename) shell vars named "${{base_dir}}" or "${{args}}"
-
     """
 
     def __init__(
@@ -955,6 +1205,40 @@ class RemoteSaltCall(pulumi.ComponentResource):
         opts=None,
         **kwargs,
     ):
+        """Initializes a RemoteSaltCall component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            host (pulumi.Input[str]):
+                The hostname or IP address of the remote host.
+            user (pulumi.Input[str]):
+                The username to connect with.
+            base_dir (str):
+                The base directory on the remote host for the SaltStack configuration.
+            *args:
+                Arguments to pass to the `salt-call` command.
+            pillar (dict, optional):
+                A dictionary to use as pillar data. Defaults to {}.
+            salt (str, optional):
+                The content of the main SLS file. Defaults to "".
+            environment (dict, optional):
+                A dictionary of environment variables for the command. Defaults to {}.
+            root_dir (str, optional):
+                The root directory for the SaltStack minion. Defaults to a path within
+                `base_dir`.
+            tmp_dir (str, optional):
+                The temporary directory for the SaltStack minion. Defaults to a path
+                within `base_dir`.
+            sls_dir (str, optional):
+                The directory for SLS files. Defaults to a path within `root_dir`.
+            exec (str, optional):
+                The command to execute. Defaults to "/usr/bin/salt-call -c {base_dir} {args}".
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+            **kwargs:
+                Additional arguments to pass to the `ssh_execute` function.
+        """
         super().__init__(
             "pkg:tools:RemoteSaltCall",
             "{}_{}".format(resource_name, user),
@@ -1019,9 +1303,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
 
 
 class _TimedResourceProviderInputs:
-    """
-    Helper class to represent the unwrapped inputs to the provider.
-    """
+    """Inputs for the TimedResourceProvider."""
 
     def __init__(
         self,
@@ -1030,6 +1312,18 @@ class _TimedResourceProviderInputs:
         base: Optional[str],
         range: Optional[str],
     ):
+        """Initializes the inputs for the TimedResourceProvider.
+
+        Args:
+            timeout_sec (str):
+                The timeout in seconds.
+            creation_type (str):
+                The type of value to generate.
+            base (Optional[str]):
+                The base value for `random_int`.
+            range (Optional[str]):
+                The range for `random_int`.
+        """
         self.timeout_sec = timeout_sec
         self.creation_type = creation_type
         self.base = base
@@ -1037,8 +1331,10 @@ class _TimedResourceProviderInputs:
 
 
 class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
-    """
-    Dynamic resource provider for TimedResource
+    """A Pulumi dynamic resource provider for the TimedResource.
+
+    This provider implements the logic for creating, reading, updating, and
+    deleting `TimedResource` resources.
     """
 
     def _now(self) -> int:
@@ -1048,9 +1344,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
     def _generate_value(
         self, creation_type: str, base: Optional[str], range: Optional[str]
     ) -> str:
-        """
-        Generates a value based on the creation type
-        """
+        """Generates a value based on the creation type."""
         if creation_type == "random_int":
             if base is None or range is None:
                 raise ValueError("For 'random_int', 'base' and 'range' must be provided.")
@@ -1063,9 +1357,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
             raise ValueError(f"Invalid creation_type: {creation_type}")
 
     def create(self, props: _TimedResourceProviderInputs) -> pulumi.dynamic.CreateResult:
-        """
-        Creates a new TimedResource
-        """
+        """Creates a new TimedResource."""
         value = self._generate_value(
             props["creation_type"], props.get("base"), props.get("range")
         )
@@ -1076,9 +1368,7 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         )
 
     def read(self, id_: str, props: _TimedResourceProviderInputs) -> pulumi.dynamic.ReadResult:
-        """
-        Reads the state of an existing TimedResource
-        """
+        """Reads the state of an existing TimedResource."""
         return pulumi.dynamic.ReadResult(id_=id_, outs=props)
 
     def diff(
@@ -1087,14 +1377,19 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         old_inputs: Dict[str, Any],
         new_inputs: _TimedResourceProviderInputs,
     ) -> pulumi.dynamic.DiffResult:
-        """Checks if the resource needs to be updated
+        """Checks if the resource needs to be updated.
 
         Args:
-            id_: The resource ID.
-            old_inputs: The previous input properties.
-            new_inputs: The new input properties.
+            id_ (str):
+                The resource ID.
+            old_inputs (Dict[str, Any]):
+                The previous input properties.
+            new_inputs (_TimedResourceProviderInputs):
+                The new input properties.
+
         Returns:
-           A DiffResult indicating if changes are needed and which inputs changed
+           pulumi.dynamic.DiffResult:
+               A DiffResult indicating if changes are needed and which inputs changed.
         """
         timeout_sec = int(new_inputs["timeout_sec"])
         last_updated = int(old_inputs["last_updated"])
@@ -1106,14 +1401,19 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
     def update(
         self, id_: str, _olds: Dict[str, Any], new_inputs: _TimedResourceProviderInputs
     ) -> pulumi.dynamic.UpdateResult:
-        """Updates an existing TimedResource
+        """Updates an existing TimedResource.
 
         Args:
-            id_: The resource ID
-            _olds: The previous output properties
-            new_inputs: The new input properties
+            id_ (str):
+                The resource ID.
+            _olds (Dict[str, Any]):
+                The previous output properties.
+            new_inputs (_TimedResourceProviderInputs):
+                The new input properties.
+
         Returns:
-            The UpdateResult containing the updated output properties
+            pulumi.dynamic.UpdateResult:
+                The UpdateResult containing the updated output properties.
         """
         value = self._generate_value(
             new_inputs["creation_type"], new_inputs.get("base"), new_inputs.get("range")
@@ -1124,22 +1424,13 @@ class TimedResourceProvider(pulumi.dynamic.ResourceProvider):
         )
 
     def delete(self, id: str, props: Dict[str, Any]) -> None:
-        """
-        Deletes a TimedResource.
-        """
+        """Deletes a TimedResource."""
         # pulumi will do the deletion
         pass
 
 
 class TimedResourceInputs:
-    """
-    Input properties for TimedResource.
-
-    :param int timeout_sec: timeout in seconds the service will be available
-    :param str creation_type: one of "random_int", "unixtime", "uuid"
-    :param int base: base number for random_int
-    :param int range: range for random_int
-    """
+    """Input properties for TimedResource."""
 
     def __init__(
         self,
@@ -1148,6 +1439,18 @@ class TimedResourceInputs:
         base: Optional[pulumi.Input[int]] = None,
         range: Optional[pulumi.Input[int]] = None,
     ):
+        """Initializes the inputs for TimedResource.
+
+        Args:
+            timeout_sec (pulumi.Input[int]):
+                Timeout in seconds the service will be available.
+            creation_type (pulumi.Input[str]):
+                One of "random_int", "unixtime", "uuid".
+            base (Optional[pulumi.Input[int]], optional):
+                Base number for random_int. Defaults to None.
+            range (Optional[pulumi.Input[int]], optional):
+                Range for random_int. Defaults to None.
+        """
         self.timeout_sec = timeout_sec
         self.creation_type = creation_type
         self.base = base
@@ -1155,8 +1458,11 @@ class TimedResourceInputs:
 
 
 class TimedResource(pulumi.dynamic.Resource):
-    """
-    Custom resource that regenerates a value based on a specified type of logic if a timeout has passed.
+    """A Pulumi dynamic resource that regenerates its value after a timeout.
+
+    This resource generates a value based on a specified creation type (e.g.,
+    random integer, UUID, Unix timestamp) and updates it if a certain amount
+    of time has passed since the last update.
     """
 
     value: pulumi.Output[str]
@@ -1168,6 +1474,16 @@ class TimedResource(pulumi.dynamic.Resource):
         args: TimedResourceInputs,
         opts: Optional[pulumi.ResourceOptions] = None,
     ):
+        """Initializes a TimedResource.
+
+        Args:
+            name (str):
+                The name of the resource.
+            args (TimedResourceInputs):
+                The input properties for the resource.
+            opts (Optional[pulumi.ResourceOptions], optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__(
             TimedResourceProvider(),
             name,
@@ -1177,28 +1493,17 @@ class TimedResource(pulumi.dynamic.Resource):
 
 
 class ServePrepare(pulumi.ComponentResource):
-    """a serve-prepare component to configure a future available web resource
+    """A Pulumi component for preparing to serve a one-time web resource.
 
-    It creates a `TimedResource` object to manage the local port configuration
-    and another `TimedResource` object to create a request_path uuid
-    and initializes port forwarding to the local port if requested.
-
-    Args:
-    :param str config_str: yaml str input added on top of the default resource config
-    :param int timeout_sec: timeout in seconds the service will be available
-    :param int tokenlifetime_sec: lifetime in seconds for the randomized
-        port number and path assignments, before it will be recreated on demand
-    :param str serve_ip: defaults "": if set, the ip address specified is used for serving
-    :param str serve_interface: defaults "": if set, the ip address of the specified interface is used for serving
-        else it uses get_default_host_ip(), serve_ip takes precedence over serve_interface
-    :param str mtls_clientid: if set, client must present a matching client certificate with cn=mtls_clientid
-    :param int port_base: base port number of the web resource
-    :param int port_range: range of ports for the web resource
+    This component generates a dynamic configuration for a temporary web
+    server, including a random port and a unique request path. It can also
+    initiate port forwarding.
 
     Attributes:
-    :attribute pulumi.Output[dict] config: Final serve config as dict
-    :attribute pulumi.Output[str] result: Final serve config as yaml string
-
+        config (pulumi.Output[dict]):
+            The final server configuration.
+        result (pulumi.Output[str]):
+            The final server configuration as a YAML string.
     """
 
     def __init__(
@@ -1214,6 +1519,30 @@ class ServePrepare(pulumi.ComponentResource):
         mtls_clientid: str = "",
         opts: pulumi.Input[object] = None,
     ) -> None:
+        """Initializes a ServePrepare component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            config_str (str, optional):
+                A YAML string to be merged into the default configuration. Defaults to "".
+            timeout_sec (int, optional):
+                The timeout in seconds for the server. Defaults to 150.
+            tokenlifetime_sec (int, optional):
+                The lifetime of the generated port and path. Defaults to 600.
+            port_base (int, optional):
+                The base for the random port number. Defaults to 47000.
+            port_range (int, optional):
+                The range for the random port number. Defaults to 3000.
+            serve_interface (str, optional):
+                The network interface to serve on. Defaults to "".
+            serve_ip (str, optional):
+                The IP address to serve on. Defaults to "".
+            mtls_clientid (str, optional):
+                The client ID for mTLS. Defaults to "".
+            opts (pulumi.Input[object], optional):
+                The options for the resource. Defaults to None.
+        """
         from .authority import config, ca_factory, provision_host_tls
 
         super().__init__(
@@ -1322,27 +1651,30 @@ class ServePrepare(pulumi.ComponentResource):
 
 
 class ServeOnce(pulumi.ComponentResource):
-    """one time secure web data server for single request data, eg. ignition data or one time webhook
+    """A Pulumi component for serving a one-time, secure web resource.
 
-    It uses a temporary server that shuts down after the data has been retrieved once.
-    The server is configured via YAML passed as `stdin`.
-
-    Args:
-        resource_name (str): The name of the resource
-        config (pulumi.Input[Dict]): The configuration for the server, provided as a YAML-serializable dict.
-        payload (pulumi.Input[Str]): The Payload
+    This component starts a temporary web server that serves a given payload
+    and shuts down after the first request.
 
     Attributes:
-        result (pulumi.Output[str]): The standard output of the `serve_once.py` script.
-            This contains any POST information, if provided.
-
-    Example:
-    ```python
-        ServeOnce("testing", config, payload)
-    ```
+        result (pulumi.Output[str]):
+            The standard output of the server script, which may contain information
+            from the request.
     """
 
     def __init__(self, resource_name, config, payload, opts=None):
+        """Initializes a ServeOnce component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            config (pulumi.Input[dict]):
+                The configuration for the server.
+            payload (pulumi.Input[str]):
+                The payload to serve.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__(
             "pkg:tools:ServeOnce", "{}_serve_once".format(resource_name), None, opts
         )
@@ -1370,14 +1702,47 @@ class ServeOnce(pulumi.ComponentResource):
 
 
 def serve_simple(resource_name, yaml_str, opts=None):
+    """Serves a one-time web resource with a simple configuration.
+
+    This function is a simplified wrapper around `ServePrepare` and `ServeOnce`
+    for common use cases.
+
+    Args:
+        resource_name (str):
+            The name of the resource.
+        yaml_str (str):
+            The YAML payload to serve.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        ServeOnce:
+            A `ServeOnce` component.
+    """
     this_config = ServePrepare(resource_name, config_str="", opts=opts)
     return ServeOnce(resource_name, this_config.config, yaml.safe_load(yaml_str), opts=opts)
 
 
 class WriteRemovable(pulumi.ComponentResource):
-    """Writes image from given image_path to specified serial_numbered removable storage device"""
+    """A Pulumi component for writing an image to a removable storage device."""
 
     def __init__(self, resource_name, image, serial, size=0, patches=None, opts=None):
+        """Initializes a WriteRemovable component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            image (pulumi.Input[str]):
+                The path to the image file to write.
+            serial (pulumi.Input[str]):
+                The serial number of the target device.
+            size (pulumi.Input[int], optional):
+                The expected size of the device. Defaults to 0.
+            patches (list, optional):
+                A list of patches to apply to the image. Defaults to None.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:tools:WriteRemovable", resource_name, None, opts)
 
         create_str = (
@@ -1399,6 +1764,28 @@ class WriteRemovable(pulumi.ComponentResource):
 
 
 def write_removable(resource_name, image, serial, size=0, patches=None, opts=None):
+    """Writes an image to a removable storage device.
+
+    This function is a wrapper around the `WriteRemovable` component.
+
+    Args:
+        resource_name (str):
+            The name of the resource.
+        image (pulumi.Input[str]):
+            The path to the image file to write.
+        serial (pulumi.Input[str]):
+            The serial number of the target device.
+        size (pulumi.Input[int], optional):
+            The expected size of the device. Defaults to 0.
+        patches (list, optional):
+            A list of patches to apply to the image. Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        WriteRemovable:
+            A `WriteRemovable` component.
+    """
     return WriteRemovable(
         "write_removable_{}".format(resource_name),
         image=image,
@@ -1410,10 +1797,27 @@ def write_removable(resource_name, image, serial, size=0, patches=None, opts=Non
 
 
 class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
-    """
-    Dynamic resource provider for WaitForHostReady
-    """
+    """A Pulumi dynamic resource provider for waiting for a host to be ready."""
+
     def create(self, props):
+        """Creates the WaitForHostReady resource.
+
+        This method is called when the resource is created. It attempts to
+        connect to the host and check for the file until the timeout is
+        reached.
+
+        Args:
+            props (dict):
+                The properties for the resource.
+
+        Returns:
+            pulumi.dynamic.CreateResult:
+                The result of the create operation.
+
+        Raises:
+            Exception:
+                If the host is not ready within the timeout.
+        """
         import paramiko
         import time
 
@@ -1448,10 +1852,29 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
 
 
 class WaitForHostReady(pulumi.dynamic.Resource):
-    """
-    A Pulumi dynamic resource that waits for a remote host to be ready.
-    """
+    """A Pulumi dynamic resource that waits for a remote host to be ready."""
+
     def __init__(self, name, host, user, file_to_exist, private_key, port=22, timeout=150, opts=None):
+        """Initializes a WaitForHostReady resource.
+
+        Args:
+            name (str):
+                The name of the resource.
+            host (pulumi.Input[str]):
+                The hostname or IP address of the remote host.
+            user (pulumi.Input[str]):
+                The username to connect with.
+            file_to_exist (pulumi.Input[str]):
+                The path to a file that should exist on the remote host.
+            private_key (pulumi.Input[str]):
+                The private key for SSH authentication.
+            port (int, optional):
+                The SSH port. Defaults to 22.
+            timeout (int, optional):
+                The timeout in seconds. Defaults to 150.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__(
             WaitForHostReadyProvider(),
             name,
