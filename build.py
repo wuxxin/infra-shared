@@ -31,9 +31,24 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 def get_nested_value(
     data: Dict, keys: List[str], default: Optional[bool] = None
 ) -> Optional[bool]:
-    """
-    Safely retrieves a nested value from a dictionary using reduce.
-    Handles missing keys and ensures the final value is a boolean.
+    """Safely retrieves a nested boolean value from a dictionary.
+
+    This function navigates through a nested dictionary using a list of keys
+    and returns the value at the specified path. It handles cases where keys
+    are missing or the path contains non-dictionary values.
+
+    Args:
+        data (Dict):
+            The dictionary to search.
+        keys (List[str]):
+            A list of keys representing the path to the value.
+        default (Optional[bool], optional):
+            The default value to return if the key is not found or the value is not
+            a boolean. Defaults to None.
+
+    Returns:
+        Optional[bool]:
+            The retrieved boolean value, or the default value.
     """
     try:
         value = reduce(lambda d, k: d[k], keys, data)
@@ -44,7 +59,29 @@ def get_nested_value(
 
 
 def build_this_salt(resource_name, sls_name, config_name, environment={}, opts=None):
-    "build an image/os as running user with LocalSaltCall, trigger on config change, pass config as pillar, pass environment"
+    """Executes a local SaltStack state to build an image or OS.
+
+    This function triggers a SaltStack execution to build a specified target,
+    such as an OS image. It passes configuration from Pulumi and a defaults
+    file as pillars to the Salt state. The build is triggered when the
+    configuration or environment changes.
+
+    Args:
+        resource_name (str):
+            The name of the Pulumi resource.
+        sls_name (str):
+            The name of the Salt state (SLS) file to execute.
+        config_name (str):
+            The name of the configuration section in the build defaults and Pulumi config.
+        environment (dict, optional):
+            A dictionary of environment variables to pass to the Salt call. Defaults to {}.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        LocalSaltCall:
+            A `LocalSaltCall` resource representing the Salt execution.
+    """
 
     from .tools import LocalSaltCall
 
@@ -91,34 +128,62 @@ def build_this_salt(resource_name, sls_name, config_name, environment={}, opts=N
 
 
 def build_raspberry_extras():
-    "build raspberry extra files"
+    """Builds extra files for Raspberry Pi.
+
+    This function triggers a SaltStack build to create extra files needed for
+    Raspberry Pi devices, such as bootloader firmware.
+
+    Returns:
+        LocalSaltCall:
+            A `LocalSaltCall` resource representing the Salt execution.
+    """
     return build_this_salt("build_raspberry_extras", "build_raspberry_extras", "raspberry")
 
 
 def build_openwrt(resource_name, environment={}, opts=None):
-    """build an openwrt image
+    """Builds an OpenWrt image.
 
-    input environment:
-    - authorized_keys: multiline string for authorized_keys content
+    This function triggers a SaltStack build to create a customized OpenWrt
+    firmware image.
+
+    Input environment:
+        authorized_keys:
+            Multiline string for authorized_keys content.
+
+    Args:
+        resource_name (str):
+            The name of the Pulumi resource.
+        environment (dict, optional):
+            A dictionary of environment variables to pass to the build. Defaults to {}.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        LocalSaltCall:
+            A `LocalSaltCall` resource representing the Salt execution.
     """
     return build_this_salt(resource_name, "build_openwrt", "openwrt", environment, opts=opts)
 
 
 class ESPhomeBuild(pulumi.ComponentResource):
-    """
-    Builds an ESPhome firmware image and uploads firmware to ESP32 for update
+    """A Pulumi component for building and uploading ESPHome firmware.
 
-    Runs `esphome compile` to build firmware, `esphome upload` to upload firmware, cleans up temporary build files
+    This component automates the process of building an ESPHome firmware image,
+    uploading it to a device, and cleaning up the build artifacts.
     """
 
     def __init__(self, resourcename, config_yaml: str, environment, opts=None):
-        """
-        :param str resourcename: The logical name of the resource (e.g., 'intercom').
-                                This name is used to determine paths and filenames
-        :param str config_yaml: The full YAML configuration for the ESPhome device as a string
-        :param dict environment: Environment variables to pass to the build command,
-                                 used for substitutions in the ESPhome config (e.g., `!env_var`)
-        :param pulumi.ResourceOptions opts: Optional Pulumi resource options
+        """Initializes an ESPhomeBuild component.
+
+        Args:
+            resourcename (str):
+                The name of the resource, used for file and directory names.
+            config_yaml (str):
+                The ESPHome configuration in YAML format.
+            environment (dict):
+                A dictionary of environment variables to pass to the build command.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
         """
         super().__init__("pkg:build:ESPhomeBuild", resourcename, None, opts)
         child_opts = pulumi.ResourceOptions(parent=self)
@@ -162,11 +227,27 @@ class ESPhomeBuild(pulumi.ComponentResource):
 
 
 def build_esphome(resource_name, config_yaml: str, environment={}, opts=None):
-    """
-    Builds andencrypts a firmware image for ESP32/ESP8266 devices using ESPhome
+    """Builds and uploads an ESPHome firmware image.
 
-    input environment:
-    - Any key/value pairs to be substituted into the ESPhome YAML
-      (e.g., {'WIFI_SSID': 'my-network', 'WIFI_PASS': 'my-secret'})
+    This function creates an `ESPhomeBuild` component to manage the build
+    and upload process for an ESPHome device.
+
+    Input environment:
+        Any key/value pairs to be substituted into the ESPhome YAML
+        (e.g., {'WIFI_SSID': 'my-network', 'WIFI_PASS': 'my-secret'})
+
+    Args:
+        resource_name (str):
+            The name of the Pulumi resource.
+        config_yaml (str):
+            The ESPHome configuration in YAML format.
+        environment (dict, optional):
+            A dictionary of environment variables to pass to the build command. Defaults to {}.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        ESPhomeBuild:
+            An `ESPhomeBuild` component.
     """
     return ESPhomeBuild(resource_name, config_yaml, environment=environment, opts=opts)

@@ -1,37 +1,49 @@
 # Pulumi Resources
 
-Pulumi components and functions available in this project:
+This document outlines the Pulumi components, dynamic resources, and functions available in this project.
 
 ## `os` - CoreOS Config, Deployment, Operation, Update
 
-This module provides components for managing CoreOS systems.
+This module provides resources for managing CoreOS systems.
 
 ### Components
 
--   `ButaneTranspiler`: Translates Jinja-templated Butane files to Ignition and SaltStack Salt format
--   `WaitForHostReady`: Waits for a host to be ready
--   `SystemConfigUpdate`: Updates the system configuration of a host
--   `FcosImageDownloader`: Downloads a Fedora CoreOS image
--   `LibvirtIgniteFcos`: Creates a libvirt VM from an Ignition config
--   `TangFingerprint`: Gets the fingerprint of a Tang server
--   `RemoteDownloadIgnitionConfig`: Creates an Ignition config that downloads the final Ignition config from a URL
+-   `ButaneTranspiler`
+    Transpiles Jinja2-templated Butane files into Ignition JSON and a SaltStack state
+-   `SystemConfigUpdate`
+    Updates the configuration of a remote system using a transpiled SaltStack state
+-   `FcosImageDownloader`
+    Downloads and decompresses a Fedora CoreOS image
+-   `LibvirtIgniteFcos`
+    Creates a Fedora CoreOS virtual machine with Libvirt
+-   `TangFingerprint`
+    Retrieves a Tang server's fingerprint
+-   `RemoteDownloadIgnitionConfig`
+    Creates a minimal Ignition configuration that downloads the full configuration from a remote URL
+
+### Dynamic Resources
+
+-   `WaitForHostReady`
+    Waits for a remote host to be ready by checking for the existence of a specific file over SSH
 
 ### Functions
 
--   `get_locale`: Gets the locale configuration
--   `butane_clevis_to_json_clevis`: Converts a Butane clevis config to a JSON clevis config
+-   `get_locale`
+    Retrieves and merges locale settings from default and Pulumi configurations
+-   `butane_clevis_to_json_clevis`
+    Parses a Butane config and extracts Clevis SSS (Shamir's Secret Sharing) configurations for LUKS-encrypted devices
 
 ### Example
 
 ```python
 from infra.os import ButaneTranspiler, LibvirtIgniteFcos
 
-# translate butane into ignition and saltstack
+# Translate Butane into Ignition and SaltStack state
 host_config = ButaneTranspiler(
     shortname, hostname, tls, butane_yaml, files_basedir, host_environment
 )
 
-# create libvirt machine simulation
+# Create a Libvirt virtual machine
 host_machine = LibvirtIgniteFcos(
     shortname,
     public_config.result,
@@ -42,26 +54,39 @@ host_machine = LibvirtIgniteFcos(
 
 ## `authority` - TLS/X509 CA & Certs, DNSSEC, OpenSSH
 
-This module provides components for managing TLS/X509 CAs and certificates, DNSSEC keys, and OpenSSH keys.
+This module provides resources for managing TLS/X509 CAs, certificates, DNSSEC keys, and OpenSSH keys.
 
 ### Components
 
--   `CACertFactoryVault`: Creates a Certificate Authority using HashiCorp Vault
--   `CACertFactoryPulumi`: Creates a Certificate Authority using the Pulumi TLS provider
--   `CASignedCert`: Creates a certificate signed by a CA
--   `SelfSignedCert`: Creates a self-signed certificate
--   `PKCS12Bundle`: Creates a PKCS12 bundle from a key and certificate chain
--   `NSFactory`: Creates DNSSEC keys and trust anchors
--   `TSIGKey`: Creates a TSIG key
--   `SSHFactory`: Creates SSH keys and authorized_keys files
+-   `CACertFactoryVault`
+    Creates a Certificate Authority using HashiCorp Vault
+-   `CACertFactoryPulumi`
+    Creates a Certificate Authority using the Pulumi TLS provider
+-   `CASignedCert`
+    Creates a certificate signed by a Certificate Authority (CA)
+-   `SelfSignedCert`
+    Creates a self-signed certificate
+-   `PKCS12Bundle`
+    Creates a PKCS12 bundle from a certificate and private key
+-   `NSFactory`
+    Manages DNSSEC keys and anchors
+-   `TSIGKey`
+    Generates a TSIG (Transaction Signature) key
+-   `SSHFactory`
+    Manages SSH keys for provisioning
 
 ### Functions
 
--   `create_host_cert`: Creates a host certificate
--   `create_client_cert`: Creates a client certificate
--   `create_selfsigned_cert`: Creates a self-signed certificate
--   `create_sub_ca`: Creates a sub-CA
--   `pem_to_pkcs12_base64`: Converts a PEM certificate and key to a base64-encoded PKCS12 bundle
+-   `create_host_cert`
+    Creates a host certificate with both client and server authentication enabled
+-   `create_client_cert`
+    Creates a client certificate with only client authentication enabled
+-   `create_selfsigned_cert`
+    Creates a self-signed certificate
+-   `create_sub_ca`
+    Creates a subordinate Certificate Authority (CA)
+-   `pem_to_pkcs12_base64`
+    Converts a PEM-formatted certificate and key into a base64-encoded PKCS#12 file
 
 ### Configuration
 
@@ -81,10 +106,9 @@ The `authority.py` module is configured through the `Pulumi.<stack>.yaml` file. 
 ```python
 from infra.authority import create_host_cert
 
-# create tls host certificate
+# Create a TLS host certificate
 tls = create_host_cert(hostname, hostname, dns_names)
 ```
-
 
 ## `tools` - Serve HTTPS, SSH-put/get/exec, Salt-Call, Img-Transfer
 
@@ -92,41 +116,64 @@ This module provides various tools for use with Pulumi.
 
 ### Components
 
--   `ServePrepare`: Prepares a web resource for serving
--   `ServeOnce`: Serves a web resource once
--   `LocalSaltCall`: Executes a SaltStack salt-call on the local machine
--   `RemoteSaltCall`: Executes a SaltStack salt-call on a remote machine
--   `TimedResource`: A resource that is re-created after a certain amount of time
+-   `ServePrepare`
+    Prepares to serve a one-time web resource by generating a dynamic configuration
+-   `ServeOnce`
+    Serves a one-time, secure web resource and shuts down after the first request
+-   `LocalSaltCall`
+    Executes a local SaltStack call
+-   `RemoteSaltCall`
+    Executes a SaltStack call on a remote host
+
+### Dynamic Resources
+
+-   `TimedResource`
+    Regenerates its value after a specified timeout has passed
 
 ### Functions
 
--   `serve_simple`: Serves a simple web resource
--   `ssh_put`: Puts a file on a remote machine
--   `ssh_deploy`: Deploys a file to a remote machine
--   `ssh_execute`: Executes a command on a remote machine
--   `ssh_get`: Gets a file from a remote machine
--   `write_removable`: Writes an image to a removable storage device
--   `encrypted_local_export`: Exports a secret to a local file
--   `public_local_export`: Exports a public value to a local file
--   `log_warn`: Logs a warning message
--   `salt_config`: Generates a SaltStack salt config
--   `get_ip_from_ifname`: Gets the IP address of a network interface
--   `get_default_host_ip`: Gets the default host IP address
--   `get_default_gateway_ip`: Gets the default gateway IP address
--   `sha256sum_file`: Calculates the sha256sum of a file
--   `yaml_loads`: Loads a YAML string
+-   `serve_simple`
+    Serves a one-time web resource with a simple configuration
+-   `ssh_put`
+    Copies files from the local machine to a remote host over SSH
+-   `ssh_deploy`
+    Deploys string data as files to a remote host over SSH
+-   `ssh_execute`
+    Executes a command on a remote host over SSH
+-   `ssh_get`
+    Copies files from a remote host to the local machine over SSH
+-   `write_removable`
+    Writes an image to a removable storage device
+-   `encrypted_local_export`
+    Exports and encrypts data to a local file using `age`
+-   `public_local_export`
+    Exports data to a local file without encryption
+-   `log_warn`
+    Logs a multi-line string to the Pulumi console with line numbers
+-   `salt_config`
+    Generates a SaltStack minion configuration
+-   `get_ip_from_ifname`
+    Retrieves the first IPv4 address from a network interface
+-   `get_default_host_ip`
+    Retrieves the IP address of the default network interface
+-   `get_default_gateway_ip`
+    Retrieves the IP address of the default gateway
+-   `sha256sum_file`
+    Calculates the SHA256 checksum of a file
+-   `yaml_loads`
+    Deserializes a YAML string into a Pulumi output
 
 ### Example
 
 ```python
 from infra.tools import ServePrepare, ServeOnce
 
-# configure the later used remote url for remote controlled setup with encrypted config
+# Prepare the server configuration
 serve_config = ServePrepare(
     shortname, serve_interface="virbr0" if stack_name.endswith("sim") else ""
 )
 
-# serve secret part of ignition config via ServeOnce
+# Serve the Ignition config
 serve_data = ServeOnce(
     shortname,
     config=serve_config.config,
@@ -135,26 +182,31 @@ serve_data = ServeOnce(
 )
 ```
 
-## `build.py` - Embedded- & IoT- Images
+## `build` - Embedded- & IoT- Images
 
-This module provides components for building OpenWRT Linux, Raspberry PI Extras, ESPHOME ESP32 Sensor/Actor Devices Images.
+This module provides resources for building OpenWRT, Raspberry Pi, and ESPHome images.
 
 ### Components
 
--   `ESPhomeBuild`: Builds an ESPhome firmware image
+-   `ESPhomeBuild`
+    Builds and uploads ESPHome firmware
 
 ### Functions
 
--   `build_this_salt`: Builds an image or OS using SaltStack
--   `build_raspberry_extras`: Builds Raspberry Pi extra files
--   `build_openwrt`: Builds an OpenWRT image
--   `build_esphome`: Builds an ESPhome firmware image
+-   `build_this_salt`
+    Executes a local SaltStack state to build an image or OS
+-   `build_raspberry_extras`
+    Builds extra files for Raspberry Pi, such as bootloader firmware
+-   `build_openwrt`
+    Builds a customized OpenWrt firmware image
+-   `build_esphome`
+    Builds and uploads an ESPHome firmware image
 
 ### Example
 
 ```python
 from infra.build import build_raspberry_extras
 
-# download bios and other extras for Raspberry PI for customization
+# Download extra files for Raspberry Pi
 extras = build_raspberry_extras()
 ```

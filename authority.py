@@ -96,13 +96,21 @@ def pem_to_pkcs12_base64(
     pem_cert: str, pem_key: str, password: str, friendlyname: str = ""
 ) -> str:
     """Converts a TLS client certificate and its associated private key in PEM format
-    into a password-protected PKCS#12 file, encoded as a base64 string
+    into a password-protected PKCS#12 file, encoded as a base64 string.
 
-    :param pem_cert: The TLS client certificate in PEM format as a string
-    :param pem_key: The private key in PEM format as a string
-    :param password: The password to protect the PKCS#12 archive
+    Args:
+        pem_cert (str):
+            The TLS client certificate in PEM format as a string.
+        pem_key (str):
+            The private key in PEM format as a string.
+        password (str):
+            The password to protect the PKCS#12 archive.
+        friendlyname (str, optional):
+            A friendly name for the certificate bundle. Defaults to "".
 
-    :return: Base64 encoded string of the PKCS#12 archive, formatted with line breaks
+    Returns:
+        str:
+            Base64 encoded string of the PKCS#12 archive, formatted with line breaks.
     """
     # Load the certificate from PEM
     cert = x509.load_pem_x509_certificate(pem_cert.encode("utf-8"))
@@ -124,7 +132,7 @@ def pem_to_pkcs12_base64(
 
 
 class PKCS12Bundle(pulumi.ComponentResource):
-    """creates a PKCS12 Bundle Component
+    """Creates a PKCS12 Bundle Component.
 
     Warning:
         Encryption is nondeterministic, meaning data will change on another conversion.
@@ -134,10 +142,23 @@ class PKCS12Bundle(pulumi.ComponentResource):
           clcert.pkcs12_bundle.result, filter="base64 -d",
           triggers=[clcert.key.private_key_pem, clcert.cert.cert_pem, clcert.pkcs12_password.result],
           opts=pulumi.ResourceOptions(depends_on=[librewolf_client_cert]))
-
     """
 
     def __init__(self, name, key_pem, cert_chain_pem, password, opts=None):
+        """Initializes a PKCS12Bundle component.
+
+        Args:
+            name (str):
+                The name of the resource.
+            key_pem (pulumi.Input[str]):
+                The private key in PEM format.
+            cert_chain_pem (pulumi.Input[str]):
+                The certificate chain in PEM format.
+            password (pulumi.Input[str]):
+                The password to protect the bundle.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:authority:PKCS12Bundle", name, None, opts)
 
         self.result = pulumi.Output.all(
@@ -156,7 +177,23 @@ class PKCS12Bundle(pulumi.ComponentResource):
 
 
 class SSHFactory(pulumi.ComponentResource):
+    """A Pulumi component that manages SSH keys for provisioning.
+
+    This component generates a new ED25519 SSH key pair for provisioning and
+    combines its public key with a list of authorized keys from a file.
+    """
+
     def __init__(self, name, ssh_provision_name, opts=None):
+        """Initializes an SSHFactory component.
+
+        Args:
+            name (str):
+                The name of the resource.
+            ssh_provision_name (str):
+                The name to associate with the provisioning key.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:authority:SSHFactory", name, None, opts)
 
         ssh_provision_key = tls.PrivateKey(
@@ -182,7 +219,22 @@ class SSHFactory(pulumi.ComponentResource):
 
 
 class TSIGKey(pulumi.ComponentResource):
+    """A Pulumi component that generates a TSIG key.
+
+    This component uses the `keymgr` command-line tool to generate a new
+    TSIG (Transaction Signature) key. The key's secret is extracted from the
+    tool's YAML output and exposed as a secret attribute.
+    """
+
     def __init__(self, name, opts=None):
+        """Initializes a TSIGKey component.
+
+        Args:
+            name (str):
+                The name of the resource, used as the key name.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         def extract_secret(data):
             try:
                 return data["key"][0]["secret"]
@@ -206,8 +258,26 @@ class TSIGKey(pulumi.ComponentResource):
 
 
 class NSFactory(pulumi.ComponentResource):
+    """A Pulumi component for managing DNSSEC keys and anchors.
+
+    This component generates a Key Signing Key (KSK) and its corresponding
+    anchor. It also creates several TSIG keys for zone transfers, updates,
+    and notifications.
+    """
+
     def __init__(self, name, names_list=None, extra_ksk_bundle=None, opts=None):
-        "names_list: list of strings taken as domains for anchorcert instead of name"
+        """Initializes an NSFactory component.
+
+        Args:
+            name (str):
+                The name of the resource, used as the zone name.
+            names_list (list[str], optional):
+                A list of domain names to include in the KSK anchor. Defaults to None.
+            extra_ksk_bundle (pulumi.Input[str], optional):
+                An extra KSK bundle to include with the generated anchor. Defaults to None.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:authority:NSFactory", name, None, opts)
         this_opts = ResourceOptions.merge(ResourceOptions(parent=self), opts)
         dns_root = command.local.Command(
@@ -253,7 +323,23 @@ class NSFactory(pulumi.ComponentResource):
 
 
 class CACertFactoryVault(pulumi.ComponentResource):
+    """A Pulumi component for creating a Certificate Authority using HashiCorp Vault.
+
+    This component uses a local script to interact with Vault to generate a root
+    CA, a provisioning CA, and an alternate provisioning CA.
+    """
+
     def __init__(self, name, ca_config, opts=None):
+        """Initializes a CACertFactoryVault component.
+
+        Args:
+            name (str):
+                The name of the resource.
+            ca_config (dict):
+                A dictionary of configuration options for the CA.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:authority:CACertFactoryVault", name, None, opts)
 
         # delete permitted_domains for vault config, as it will become a critical CA Extension,
@@ -309,7 +395,23 @@ class CACertFactoryVault(pulumi.ComponentResource):
 
 
 class CACertFactoryPulumi(pulumi.ComponentResource):
+    """A Pulumi component for creating a Certificate Authority using the Pulumi TLS provider.
+
+    This component generates a root CA, a provisioning CA, and an alternate
+    provisioning CA using the `pulumi_tls` provider.
+    """
+
     def __init__(self, name, ca_config, opts=None):
+        """Initializes a CACertFactoryPulumi component.
+
+        Args:
+            name (str):
+                The name of the resource.
+            ca_config (dict):
+                A dictionary of configuration options for the CA.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:authority:CACertFactoryPulumi", name, None, opts)
 
         if ca_config.get("ca_max_path_length") is not None:
@@ -443,19 +545,37 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
 
 
 class CASignedCert(pulumi.ComponentResource):
-    """Pulumi Component Resource representing a certificate signed by a Certificate Authority (CA)
-    Returns:
-    - key: tls.PrivateKey of the certificate
-    - request: tls.CertRequest certificate request that was used to generate the signed certificate
-    - cert: tls.LocallySignedCert resource representing the signed certificate itself
-    - chain: Pulumi Output object that concatenates the signed certificate with the certificate chain
+    """A Pulumi component that creates a certificate signed by a Certificate Authority (CA).
 
-    if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
-    - pkcs12_bundle: Pulumi Output object of base64 encoded transport password secured pkcs12 client certificate file data
-    - pkcs12_password: Pulumi Output object of random password generator
+    Returns:
+        key:
+            tls.PrivateKey of the certificate.
+        request:
+            tls.CertRequest certificate request that was used to generate the signed certificate.
+        cert:
+            tls.LocallySignedCert resource representing the signed certificate itself.
+        chain:
+            Pulumi Output object that concatenates the signed certificate with the certificate chain.
+
+    If "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
+        pkcs12_bundle:
+            Pulumi Output object of base64 encoded transport password secured pkcs12 client
+            certificate file data.
+        pkcs12_password:
+            Pulumi Output object of random password generator.
     """
 
     def __init__(self, name, cert_config, opts=None):
+        """Initializes a CASignedCert component.
+
+        Args:
+            name (str):
+                The name of the resource.
+            cert_config (dict):
+                A dictionary of configuration options for the certificate.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         def undef_or_none_def(struct, entry, default):
             return struct.get(entry) if struct.get(entry) is not None else default
 
@@ -555,7 +675,23 @@ class CASignedCert(pulumi.ComponentResource):
 
 
 class SelfSignedCert(pulumi.ComponentResource):
+    """A Pulumi component for creating a self-signed certificate.
+
+    This component generates a new private key and a self-signed certificate.
+    It also calculates the hash of the certificate.
+    """
+
     def __init__(self, name, cert_config, opts=None):
+        """Initializes a SelfSignedCert component.
+
+        Args:
+            name (str):
+                The name of the resource.
+            cert_config (dict):
+                A dictionary of configuration options for the certificate.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
         super().__init__("pkg:authority:SelfSignedCert", "{}_sscert".format(name), None, opts)
 
         common_name = cert_config["common_name"]
@@ -618,6 +754,41 @@ def create_sub_ca(
     custom_provision_ca=None,
     opts=None,
 ):
+    """Creates a subordinate Certificate Authority (CA).
+
+    This function creates a new CA that is signed by another CA, making it a
+    subordinate CA.
+
+    Args:
+        resource_name (str):
+            The name of the Pulumi resource.
+        common_name (str):
+            The common name for the subordinate CA's certificate.
+        dns_names (list[str]):
+            A list of DNS names for the subordinate CA.
+        custom_ca_config (dict, optional):
+            A custom CA configuration to use. Defaults to the global `ca_config`.
+        custom_ca_factory (object, optional):
+            A custom CA factory to use. Defaults to the global `ca_factory`.
+        organizational_unit (str, optional):
+            The organizational unit for the certificate. Defaults to None.
+        validity_period_hours (int, optional):
+            The validity period for the certificate in hours. Defaults to the parent CA's
+            validity minus 24 hours.
+        allowed_uses (list[str], optional):
+            The allowed uses for the certificate. Defaults to ["cert_signing",
+            "crl_signing", "digital_signature"].
+        use_provision_ca (bool, optional):
+            Whether to use the provisioning CA. Defaults to None.
+        custom_provision_ca (object, optional):
+            A custom provisioning CA to use. Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
+    Returns:
+        CASignedCert:
+            A `CASignedCert` object representing the subordinate CA.
+    """
     if not custom_ca_config:
         custom_ca_config = ca_config
     if not custom_ca_factory:
@@ -655,20 +826,36 @@ def create_host_cert(
     custom_provision_ca=None,
     opts=None,
 ):
-    """Creates a host certificate for the given common name and DNS names.
+    """Creates a host certificate.
+
+    This function creates a new certificate suitable for use by a host, with
+    both client and server authentication enabled.
 
     Args:
-    - resource_name (str): Pulumi resource name
-    - common_name (str): Certificate common name
-    - dns_names (list of str): DNS names for the certificate
-    - ip_addresses (list of str): IP addresses for the certificate
-    - custom_ca_config (dict): Custom CA configuration parameters
-    - custom_ca_factory (dict): Custom CA factory parameters
-    - use_provision_ca (bool): Whether to use the provision CA
-    - custom_provision_ca (dict): Custom provision CA parameters
-    - opts (pulumi.ResourceOptions): Pulumi resource options
+        resource_name (str):
+            The name of the Pulumi resource.
+        common_name (str):
+            The common name for the certificate.
+        dns_names (list[str]):
+            A list of DNS names for the certificate.
+        ip_addresses (list[str], optional):
+            A list of IP addresses for the certificate. Defaults to [].
+        organizational_unit (str, optional):
+            The organizational unit for the certificate. Defaults to "host".
+        custom_ca_config (dict, optional):
+            A custom CA configuration to use. Defaults to the global `ca_config`.
+        custom_ca_factory (object, optional):
+            A custom CA factory to use. Defaults to the global `ca_factory`.
+        use_provision_ca (bool, optional):
+            Whether to use the provisioning CA. Defaults to None.
+        custom_provision_ca (object, optional):
+            A custom provisioning CA to use. Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
     Returns:
-    - CASignedCert: A `CASignedCert` object representing the created host certificate
+        CASignedCert:
+            A `CASignedCert` object representing the host certificate.
     """
     host_config = {
         "ca_config": ca_config if not custom_ca_config else custom_ca_config,
@@ -696,18 +883,34 @@ def create_client_cert(
     custom_provision_ca=None,
     opts=None,
 ):
-    """Creates a client certificate for the given common name and DNS names
+    """Creates a client certificate.
+
+    This function creates a new certificate suitable for use by a client, with
+    only client authentication enabled.
 
     Args:
-    - resource_name (str): pulumi resource name
-    - common_name (str): certificate common name
-    - dns_names (list of str): DNS names for the certificate
-    - custom_ca_config (dict): custom CA configuration parameters
-    - custom_ca_factory (dict): custom CA factory parameters
-    - use_provision_ca (bool): whether to use the provision CA
-    - custom_provision_ca (dict): custom provision CA parameters
+        resource_name (str):
+            The name of the Pulumi resource.
+        common_name (str):
+            The common name for the certificate.
+        dns_names (list[str], optional):
+            A list of DNS names for the certificate. Defaults to [].
+        organizational_unit (str, optional):
+            The organizational unit for the certificate. Defaults to "client".
+        custom_ca_config (dict, optional):
+            A custom CA configuration to use. Defaults to the global `ca_config`.
+        custom_ca_factory (object, optional):
+            A custom CA factory to use. Defaults to the global `ca_factory`.
+        use_provision_ca (bool, optional):
+            Whether to use the provisioning CA. Defaults to None.
+        custom_provision_ca (object, optional):
+            A custom provisioning CA to use. Defaults to None.
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
     Returns:
-    - a `CASignedCert` object representing the created client certificate
+        CASignedCert:
+            A `CASignedCert` object representing the client certificate.
     """
     client_config = {
         "ca_config": ca_config if not custom_ca_config else custom_ca_config,
@@ -732,19 +935,27 @@ def create_selfsigned_cert(
     allowed_uses=["client_auth", "server_auth"],
     opts=None,
 ):
-    """Creates a self-signed certificate for the given common name and DNS names
+    """Creates a self-signed certificate.
 
     Args:
-    - resource_name (str): Pulumi resource name
-    - common_name (str): Certificate common name
-    - dns_names (list of str): DNS names for the certificate
-    - ip_addresses (list of str): IP addresses for the certificate
-    - org_name (str): Organization name for the certificate. Defaults to common_name
-    - allowed_uses (list of str): Allowed uses for the certificate.
-        Defaults to ['client_auth', 'server_auth']
-    - opts (pulumi.ResourceOptions): Pulumi resource options. Defaults to None.
+        resource_name (str):
+            The name of the Pulumi resource.
+        common_name (str):
+            The common name for the certificate.
+        dns_names (list[str], optional):
+            A list of DNS names for the certificate. Defaults to [].
+        ip_addresses (list[str], optional):
+            A list of IP addresses for the certificate. Defaults to [].
+        org_name (str, optional):
+            The organization name for the certificate. Defaults to the common name.
+        allowed_uses (list[str], optional):
+            The allowed uses for the certificate. Defaults to ["client_auth", "server_auth"].
+        opts (pulumi.ResourceOptions, optional):
+            The options for the resource. Defaults to None.
+
     Returns:
-    - SelfSignedCert object
+        SelfSignedCert:
+            A `SelfSignedCert` object representing the self-signed certificate.
     """
     self_config = {
         "common_name": common_name,

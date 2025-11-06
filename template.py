@@ -43,12 +43,25 @@ from typing import Optional, Union, List
 
 
 def join_paths(basedir, *filepaths):
-    """Combine filepaths with an absolute basedir, ensuring the resulting absolute path is within basedir
+    """Joins file paths to a base directory, ensuring the result is within the base.
 
-    - basedir (str): base directory starting with "/" to combine the filepaths with, defaults to "/" if empty
-    - *filepaths (str): Variable number of file paths to be combined
-    Returns: str: The combined path
-    Raises: ValueError: If the resulting absolute path is outside the base directory
+    This function combines one or more file paths with a base directory and
+    resolves the absolute path. It raises a `ValueError` if the resulting path
+    is outside the base directory, preventing directory traversal attacks.
+
+    Args:
+        basedir (str):
+            The absolute base directory.
+        *filepaths (str):
+            The file paths to join to the base directory.
+
+    Returns:
+        str:
+            The resolved, absolute path.
+
+    Raises:
+        ValueError:
+            If the resolved path is outside the base directory.
     """
     if not basedir:
         basedir = "/"
@@ -63,6 +76,19 @@ def join_paths(basedir, *filepaths):
 
 
 def is_text(filepath):
+    """Detects if a file is likely a text file.
+
+    This function reads the beginning of a file and uses the `chardet` library
+    to determine if it is a text file.
+
+    Args:
+        filepath (str):
+            The path to the file.
+
+    Returns:
+        bool:
+            True if the file is likely a text file, False otherwise.
+    """
     with open(filepath, "rb") as file:
         data = file.read(8192)
     result = chardet.detect(data)
@@ -70,10 +96,37 @@ def is_text(filepath):
 
 
 def load_text(basedir, *filepaths):
+    """Reads the content of a text file.
+
+    Args:
+        basedir (str):
+            The base directory.
+        *filepaths (str):
+            The path to the file, relative to the base directory.
+
+    Returns:
+        str:
+            The content of the file.
+    """
     return open(join_paths(basedir, *filepaths), "r").read()
 
 
 def load_contents(filepath):
+    """Loads the contents of a file, either inline or as a data URL.
+
+    This function checks if a file is a text file. If it is, the content is
+    returned as a string. If it is a binary file, the content is returned as
+    a base64-encoded data URL.
+
+    Args:
+        filepath (str):
+            The path to the file.
+
+    Returns:
+        dict:
+            A dictionary with either an "inline" key for text content or a
+            "source" key for a data URL.
+    """
     if is_text(filepath):
         contents = {"inline": open(filepath, "r").read()}
     else:
@@ -85,8 +138,20 @@ def load_contents(filepath):
 
 
 def merge_dict_struct(struct1, struct2):
-    """recursive merge of two dict like structs into one
-    struct2 takes precedence over struct1 if entry not None
+    """Recursively merges two data structures.
+
+    This function merges two data structures, with values from the second
+    structure taking precedence. It handles nested dictionaries and lists.
+
+    Args:
+        struct1 (any):
+            The base data structure.
+        struct2 (any):
+            The data structure to merge into the base.
+
+    Returns:
+        any:
+            The merged data structure.
     """
 
     def is_dict_like(v):
@@ -120,9 +185,15 @@ def merge_dict_struct(struct1, struct2):
 
 
 class ToolsExtension(jinja2.ext.Extension):
-    "jinja Extension with custom filter"
+    """A Jinja2 extension that provides custom filters and global functions."""
 
     def __init__(self, environment):
+        """Initializes the ToolsExtension.
+
+        Args:
+            environment (jinja2.Environment):
+                The Jinja2 environment.
+        """
         super(ToolsExtension, self).__init__(environment)
         self.environment = environment
         self.environment.filters["regex_escape"] = self.regex_escape
@@ -137,15 +208,36 @@ class ToolsExtension(jinja2.ext.Extension):
         self.environment.globals["utc_now"] = self.utc_now
 
     def regex_escape(self, value: str) -> str:
-        """escapes special characters in a string for use in a regular expression"""
+        """Escapes special characters in a string for use in a regular expression.
+
+        Args:
+            value (str):
+                The string to escape.
+
+        Returns:
+            str:
+                The escaped string.
+        """
         return re.escape(value)
 
     def regex_search(
         self, value: str, pattern: str, ignorecase=False, multiline=False
     ) -> tuple | None:
-        """searches the string for a match to the regular expression
+        """Searches a string for a match to a regular expression.
 
-        Returns: a tuple containing the groups captured in the match, or None
+        Args:
+            value (str):
+                The string to search.
+            pattern (str):
+                The regular expression pattern.
+            ignorecase (bool, optional):
+                Whether to perform a case-insensitive search. Defaults to False.
+            multiline (bool, optional):
+                Whether to enable multi-line mode. Defaults to False.
+
+        Returns:
+            tuple | None:
+                A tuple of the captured groups, or None if no match is found.
         """
         flags = 0
         if ignorecase:
@@ -160,9 +252,21 @@ class ToolsExtension(jinja2.ext.Extension):
     def regex_match(
         self, value: str, pattern: str, ignorecase=False, multiline=False
     ) -> tuple | None:
-        """tries to apply the regular expression at the start of the string
+        """Matches a regular expression at the beginning of a string.
 
-        Returns: a tuple containing the groups captured in the match, or None
+        Args:
+            value (str):
+                The string to match.
+            pattern (str):
+                The regular expression pattern.
+            ignorecase (bool, optional):
+                Whether to perform a case-insensitive match. Defaults to False.
+            multiline (bool, optional):
+                Whether to enable multi-line mode. Defaults to False.
+
+        Returns:
+            tuple | None:
+                A tuple of the captured groups, or None if no match is found.
         """
         flags = 0
         if ignorecase:
@@ -177,7 +281,24 @@ class ToolsExtension(jinja2.ext.Extension):
     def regex_replace(
         self, value: str, pattern: str, replacement: str, ignorecase=False, multiline=False
     ) -> str:
-        """replaces occurrences of the regular expression with another string"""
+        """Replaces occurrences of a regular expression with a replacement string.
+
+        Args:
+            value (str):
+                The string to search and replace.
+            pattern (str):
+                The regular expression pattern.
+            replacement (str):
+                The string to replace matches with.
+            ignorecase (bool, optional):
+                Whether to perform a case-insensitive search. Defaults to False.
+            multiline (bool, optional):
+                Whether to enable multi-line mode. Defaults to False.
+
+        Returns:
+            str:
+                The modified string.
+        """
         flags = 0
         if ignorecase:
             flags |= re.I
@@ -187,26 +308,36 @@ class ToolsExtension(jinja2.ext.Extension):
         return compiled_pattern.sub(replacement, value)
 
     def toyaml(self, value: object, inline=False) -> str:
-        """
-        Converts a python object to a YAML string
+        """Converts a Python object to a YAML string.
 
         Args:
-            value (object): The python object to be serialized
-            inline (boolean): indicating whether to use inline style for the YAML output
+            value (object):
+                The Python object to serialize.
+            inline (bool, optional):
+                Whether to use an inline style for the YAML output. Defaults to False.
+
+        Returns:
+            str:
+                The YAML representation of the object.
         """
         return yaml.safe_dump(value, default_flow_style=inline)
 
     def cidr2ip(self, value: str, index: int = 0) -> Optional[str]:
-        """
-        Converts a CIDR notation to an IP address
+        """Converts a CIDR notation to an IP address.
 
         Args:
-            value (str): The CIDR notation (e.g., "192.168.1.0/24")
-            index (int, optional): The 0-based index of the usable IP address to return
+            value (str):
+                The CIDR notation (e.g., "192.168.1.0/24").
+            index (int, optional):
+                The 0-based index of the usable IP address to return. Defaults to 0.
+
         Returns:
-            str: The IP address at the specified index as a string
+            str:
+                The IP address at the specified index as a string.
+
         Raises:
-            ValueError: If the CIDR is invalid, if index < 0, if index is out of range
+            ValueError:
+                If the CIDR is invalid, if index < 0, or if the index is out of range.
         """
         if index < 0:
             raise ValueError("index must be non-negative")
@@ -228,15 +359,20 @@ class ToolsExtension(jinja2.ext.Extension):
             raise ValueError(f"Index out of range: {index} of {len(hosts)}")
 
     def cidr2reverse_ptr(self, value: str) -> Optional[str]:
-        """
-        Converts an IPv4 or IPv6 CIDR string into its corresponding reverse DNS zone name.
+        """Converts a CIDR string to its reverse DNS zone name.
 
-        Args: cidr_string: The network address in CIDR notation,
-                e.g., "10.87.240.1/24". Host bits in the address are ignored
+        Args:
+            value (str):
+                The network address in CIDR notation (e.g., "10.87.240.1/24"). Host bits
+                in the address are ignored.
+
         Returns:
-            str: The reverse DNS zone name as a string (e.g., "240.87.10.in-addr.arpa.")
+            str:
+                The reverse DNS zone name (e.g., "240.87.10.in-addr.arpa.").
+
         Raises:
-            ValueError: If the CIDR is invalid
+            ValueError:
+                If the CIDR is invalid.
         """
         try:
             # strict=False allows for host bits to be set in the IP part (e.g., .1 in a /24).
@@ -247,9 +383,16 @@ class ToolsExtension(jinja2.ext.Extension):
             raise ValueError(f"Invalid CIDR: {value} - {e}") from e
 
     def created_at(self, value: str) -> datetime.datetime | None:
-        """
-        Return file modification datetime or None.
-        Expects a relative path name that the loader can find.
+        """Returns the modification time of a template file.
+
+        Args:
+            value (str):
+                The relative path to the template file.
+
+        Returns:
+            datetime.datetime | None:
+                The modification time of the file as a UTC datetime object, or None
+                if the file cannot be found.
         """
         try:
             source, file_path, uptodate = self.environment.loader.get_source(
@@ -267,16 +410,20 @@ class ToolsExtension(jinja2.ext.Extension):
             return None
 
     def local_now(self) -> Optional[datetime.datetime]:
-        """
-        Returns a timezone-aware datetime object for the current
-        time in the system's local timezone.
+        """Returns the current time in the local timezone.
+
+        Returns:
+            datetime.datetime | None:
+                A timezone-aware datetime object representing the current time.
         """
         return datetime.datetime.now(datetime.timezone.utc).astimezone()
 
     def utc_now(self) -> Optional[datetime.datetime]:
-        """
-        Returns a timezone-aware datetime object for the current
-        time in the UTC (universal time coordinate) timezone.
+        """Returns the current time in the UTC timezone.
+
+        Returns:
+            datetime.datetime | None:
+                A timezone-aware datetime object representing the current time in UTC.
         """
         return datetime.datetime.now(datetime.timezone.utc)
 
@@ -284,15 +431,23 @@ class ToolsExtension(jinja2.ext.Extension):
 def jinja_run(
     template_str: str, searchpath: Union[str, List[str]], environment: dict = {}
 ) -> str:
-    """
-    Renders a Jinja2 template string with the given environment and search path.
+    """Renders a Jinja2 template string.
+
+    This function takes a Jinja2 template as a string, along with a search path
+    for includes and an environment dictionary, and returns the rendered
+    template.
 
     Args:
-      template_str: The Jinja2 template string
-      searchpath:   A string or list of strings of the file system paths to search for includes
-      environment:  A dictionary representing the environment variables to pass to the template
+        template_str (str):
+            The Jinja2 template string.
+        searchpath (Union[str, List[str]]):
+            A path or list of paths to search for included templates.
+        environment (dict, optional):
+            A dictionary of variables to make available in the template. Defaults to {}.
+
     Returns:
-      The rendered template as a string
+        str:
+            The rendered template.
     """
     try:
         env = jinja2.Environment(
@@ -319,10 +474,24 @@ def jinja_run(
 
 
 def jinja_run_file(template_filename, searchpath, environment={}):
-    """renders a template file available from searchpath with environment
+    """Renders a Jinja2 template file.
+
+    This function loads a Jinja2 template from a file and renders it with the
+    provided environment.
 
     - searchpath can be a list of strings, template_filename can be from any searchpath
 
+    Args:
+        template_filename (str):
+            The name of the template file.
+        searchpath (Union[str, List[str]]):
+            A path or list of paths to search for the template file.
+        environment (dict, optional):
+            A dictionary of variables to make available in the template. Defaults to {}.
+
+    Returns:
+        str:
+            The rendered template.
     """
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(searchpath), extensions=[ToolsExtension]
@@ -339,16 +508,29 @@ def load_butane_dir(
     exclude: list[str] = None,
     include: list[str] = None,
 ):
-    """
-    Reads basedir/**/*.bu files recursively, applies jinja, parses yaml,
-    inlines files, merges them, and returns a dict.
+    """Loads and processes Butane files from a directory.
 
-    args:
-    - if 'include' is used, no other than this list of files will be included.
-        the paths relative to 'subdir',
-        e.g., subdir="config", include=["main.bu"] -> "config/main.bu"
-    - 'exclude' supports fnmatch matches, eg "build/*"
-        relative to 'subdir', e.g., "build/**/*.bu"
+    This function recursively finds all `.bu` files in a directory, renders
+    them as Jinja2 templates, parses the resulting YAML, inlines any local
+    file references, and merges the resulting dictionaries into a single
+    dictionary.
+
+    Args:
+        basedir (str | Path):
+            The base directory to search for Butane files.
+        environment (str):
+            The environment to use for template rendering.
+        subdir (str | Path, optional):
+            A subdirectory within the base directory to search. Defaults to "".
+        exclude (list[str], optional):
+            A list of file patterns to exclude. Supports fnmatch syntax. Defaults to None.
+        include (list[str], optional):
+            A list of specific files to include. If provided, only these files will be
+            processed. Defaults to None.
+
+    Returns:
+        dict:
+            A dictionary containing the merged Butane configuration.
     """
 
     if exclude is None:
@@ -395,7 +577,24 @@ def load_butane_dir(
 
 
 def merge_butane_dicts(struct1, struct2):
-    "butane overwrite aware storage:directories,files,links systemd:units:dropins dict merge"
+    """Merges two Butane dictionaries with special handling for certain keys.
+
+    This function merges two Butane configuration dictionaries. It has special
+    logic to handle `storage` (files, links, directories) and `systemd`
+    (units, drop-ins) sections to ensure that items are merged correctly,
+    giving precedence to the second structure and de-duplicating based on
+    path or name.
+
+    Args:
+        struct1 (dict):
+            The base Butane dictionary.
+        struct2 (dict):
+            The Butane dictionary to merge into the base.
+
+    Returns:
+        dict:
+            The merged Butane dictionary.
+    """
     merged = merge_dict_struct(struct1, struct2)
 
     for section in ["files", "links", "directories"]:
@@ -446,13 +645,27 @@ def merge_butane_dicts(struct1, struct2):
 
 
 def inline_local_files(yaml_dict, basedir):
-    """inline all local references
+    """Inlines local file references in a Butane dictionary.
+
+    This function processes a Butane dictionary and replaces any local file
+    references with the actual file content. It handles text files by inlining
+    their content and binary files by base64-encoding them into data URLs.
 
     - for files and trees use source base64 encode if file type = binary, else use inline
     - storage:trees:[]:local -> files:[]:contents:inline/source
     - storage:files:[]:contents:local -> []:contents:inline/source
     - systemd:units:[]:contents_local -> []:contents
     - systemd:units:[]:dropins:[]:contents_local -> []:contents
+
+    Args:
+        yaml_dict (dict):
+            The Butane dictionary.
+        basedir (str):
+            The base directory for resolving local file paths.
+
+    Returns:
+        dict:
+            The Butane dictionary with local files inlined.
     """
 
     ydict = copy.deepcopy(yaml_dict)
@@ -515,13 +728,32 @@ def inline_local_files(yaml_dict, basedir):
 
 
 def expand_templates(yaml_dict, basedir, environment):
-    """template translation of contents from butane local references where template =! None
+    """Processes templates within a Butane dictionary.
+
+    This function expands templated content within a Butane dictionary. It
+    supports Jinja2 templates and can compile SELinux TE files into modules.
 
     - storage:files[].contents.template
     - systemd:units[].template
     - systemd:units[].dropins[].template
     - template= "jinja": template the source through jinja
     - template= "selinux": compile selinux text configuration to binary (only storage.files)
+
+    Args:
+        yaml_dict (dict):
+            The Butane dictionary.
+        basedir (str):
+            The base directory for resolving template paths.
+        environment (dict):
+            The environment to use for Jinja2 rendering.
+
+    Returns:
+        dict:
+            The Butane dictionary with templates expanded.
+
+    Raises:
+        ValueError:
+            If an unsupported template type is specified.
     """
 
     ydict = copy.deepcopy(yaml_dict)
@@ -587,22 +819,23 @@ def butane_to_salt(
     update_group=0,
     extra_pattern_list=[],
 ):
-    """translates a restricted butane dict into a saltstack dict
+    """Translates a Butane dictionary to a SaltStack state dictionary.
 
-    - translation of
+    This function converts a Butane configuration dictionary into a format
+    that can be used by SaltStack. It handles storage (directories, files,
+    links) and systemd units. It can also generate status files that track
+    service changes.
+
+    - translation of:
         - storage:[directories,files,links]
         - sytemd:units[:dropins]
-
-    - replace filename with /host_etc prefix
-        - if in /etc/hostname, /etc/hosts, /etc/resolv.conf
-
-    - if update_status=True
-
+    - replace filename with /host_etc prefix if in /etc/hostname, /etc/hosts,
+      or /etc/resolv.conf
+    - if update_status=True:
         - write list of (enabled|disabled|masked) service names to
             - service_enabled.list
             - service_disabled.list
             - service_masked.list
-
         - write list of services with any file changed related to the service
             - to service_changed.list, if saltstack detects changes in
                 - unit in /etc/systemd/system/name.*
@@ -611,6 +844,24 @@ def butane_to_salt(
                 - file in /etc/containers/systemd/name*
                 - file in /etc/[containers,compose]/build/name/*
                 - the user supplied pattern list in extra_pattern_list
+
+    Args:
+        yaml_dict (dict):
+            The Butane dictionary to translate.
+        update_status (bool, optional):
+            Whether to generate service status files. Defaults to False.
+        update_dir (str, optional):
+            The directory to write status files to. Defaults to "/run/update-system-config".
+        update_user (int, optional):
+            The user ID for status files. Defaults to 0.
+        update_group (int, optional):
+            The group ID for status files. Defaults to 0.
+        extra_pattern_list (list[str], optional):
+            A list of extra file patterns to track for service changes. Defaults to [].
+
+    Returns:
+        dict:
+            A SaltStack state dictionary.
     """
 
     src = yaml_dict
@@ -791,8 +1042,24 @@ def butane_to_salt(
 
 
 def compile_selinux_module(content):
-    """compile_selinux_module Fixme: think how to change from text stdin to binary stdout"""
+    """Compiles an SELinux Type Enforcement (TE) file into a binary module.
 
+    This function takes an SELinux TE file as a string, compiles it using
+    `checkmodule`, and packages it into a binary module using
+    `semodule_package`.
+
+    Args:
+        content (str):
+            The content of the SELinux TE file.
+
+    Returns:
+        bytes:
+            The compiled SELinux module as a binary string.
+
+    Raises:
+        Exception:
+            If `checkmodule` or `semodule_package` fails.
+    """
     timeout_seconds = 10
     chk_process = subprocess.Popen(
         ["checkmodule", "-M", "-m", "-o", "/dev/stdout", "/dev/stdin"],
