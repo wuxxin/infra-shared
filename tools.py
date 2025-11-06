@@ -241,7 +241,9 @@ class SSHPut(pulumi.ComponentResource):
             for remote_path, local_path in files_dict.items():
                 remote_path_output = pulumi.Output.from_input(remote_path)
                 sub_resource_name = remote_path_output.apply(
-                    lambda p: "{}_put_{}".format(resource_name.split("-")[0], p.replace("/", "_"))
+                    lambda p: "{}_put_{}".format(
+                        resource_name.split("-")[0], p.replace("/", "_")
+                    )
                 )
                 full_remote_path = pulumi.Output.all(
                     props["remote_prefix"], remote_path_output
@@ -256,7 +258,9 @@ class SSHPut(pulumi.ComponentResource):
                     full_local_path_output = local_path_output
 
                 file_triggers = [
-                    full_remote_path.apply(lambda p: hashlib.sha256(p.encode("utf-8")).hexdigest()),
+                    full_remote_path.apply(
+                        lambda p: hashlib.sha256(p.encode("utf-8")).hexdigest()
+                    ),
                     full_local_path_output.apply(sha256sum_file),
                 ]
                 all_triggers.extend(file_triggers)
@@ -390,7 +394,9 @@ class SSHGet(pulumi.ComponentResource):
             for remote_path, local_path in files_dict.items():
                 remote_path_output = pulumi.Output.from_input(remote_path)
                 sub_resource_name = remote_path_output.apply(
-                    lambda p: "{}_get_{}".format(resource_name.split("-")[0], p.replace("/", "_"))
+                    lambda p: "{}_get_{}".format(
+                        resource_name.split("-")[0], p.replace("/", "_")
+                    )
                 )
                 full_remote_path = pulumi.Output.all(
                     props["remote_prefix"], remote_path_output
@@ -405,7 +411,9 @@ class SSHGet(pulumi.ComponentResource):
                     full_local_path_output = local_path_output
 
                 file_triggers = [
-                    full_remote_path.apply(lambda p: hashlib.sha256(p.encode("utf-8")).hexdigest()),
+                    full_remote_path.apply(
+                        lambda p: hashlib.sha256(p.encode("utf-8")).hexdigest()
+                    ),
                 ]
                 all_triggers.extend(file_triggers)
 
@@ -414,7 +422,9 @@ class SSHGet(pulumi.ComponentResource):
                     tmpfile = sub_resource_name.apply(
                         lambda r: os.path.abspath(os.path.join(props["tmpdir"], r))
                     )
-                    create_cmd = tmpfile.apply(lambda p: f"mkdir -p $(dirname {p}) && touch {p}")
+                    create_cmd = tmpfile.apply(
+                        lambda p: f"mkdir -p $(dirname {p}) && touch {p}"
+                    )
                     delete_cmd = (
                         tmpfile.apply(lambda p: f"rm {p} || true") if props["delete"] else ""
                     )
@@ -473,7 +483,9 @@ class SSHDeployer(pulumi.ComponentResource):
             for remote_path, data in files_dict.items():
                 remote_path_output = pulumi.Output.from_input(remote_path)
                 sub_resource_name = remote_path_output.apply(
-                    lambda p: "{}_deploy_{}".format(resource_name.split("-")[0], p.replace("/", "_"))
+                    lambda p: "{}_deploy_{}".format(
+                        resource_name.split("-")[0], p.replace("/", "_")
+                    )
                 )
                 data_output = pulumi.Output.from_input(data)
                 full_remote_path = pulumi.Output.all(
@@ -492,7 +504,9 @@ class SSHDeployer(pulumi.ComponentResource):
 
                 file_triggers = [
                     cat_cmd.apply(lambda c: hashlib.sha256(c.encode("utf-8")).hexdigest()),
-                    data_output.apply(lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()),
+                    data_output.apply(
+                        lambda x: hashlib.sha256(str(x).encode("utf-8")).hexdigest()
+                    ),
                 ]
                 all_triggers.extend(file_triggers)
 
@@ -1486,7 +1500,7 @@ class TimedResource(pulumi.dynamic.Resource):
         """
         super().__init__(
             TimedResourceProvider(),
-            name,
+            f"{name}_timed_resource",
             {"value": None, "last_updated": None, **vars(args)},
             opts,
         )
@@ -1828,24 +1842,43 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
         file_to_exist = props["file_to_exist"]
         timeout = props["timeout"]
 
+        try:
+            pkey = paramiko.Ed25519Key.from_private_key(io.StringIO(private_key_pem))
+        except Exception as ed_e:
+            print(
+                f"Failed to parse as Ed25519Key ({type(ed_e).__name__}: {ed_e}), trying RSAKey..."
+            )
+            try:
+                pkey = paramiko.RSAKey.from_private_key(io.StringIO(private_key_pem))
+            except Exception as rsa_e:
+                print(
+                    f"Failed to parse as RSAKey ({type(rsa_e).__name__}: {rsa_e}). Both types failed."
+                )
+                raise Exception(
+                    f"Failed to parse private key. Tried Ed25519 (failed: {ed_e}) and RSA (failed: {rsa_e})"
+                )
+
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                pkey = paramiko.RSAKey.from_private_key(io.StringIO(private_key_pem))
                 ssh.connect(host, port=port, username=user, pkey=pkey, timeout=10)
+                print(f"Connected {user}@{host}:{port}")
 
-                stdin, stdout, stderr = ssh.exec_command(f"/usr/bin/readlink -f {file_to_exist}")
+                stdin, stdout, stderr = ssh.exec_command(
+                    f"/usr/bin/readlink -f {file_to_exist}"
+                )
                 exit_status = stdout.channel.recv_exit_status()
-
                 ssh.close()
 
                 if exit_status == 0:
                     return pulumi.dynamic.CreateResult(id_=str(uuid.uuid4()), outs={})
                 else:
+                    print(f"Warning: Did not find file: {file_to_exist}")
                     time.sleep(5)
             except Exception as e:
+                print(f"Waiting for host... Connection failed (will retry): {e}")
                 time.sleep(5)
 
         raise Exception(f"Timeout waiting for host {host} to be ready.")
@@ -1854,7 +1887,9 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
 class WaitForHostReady(pulumi.dynamic.Resource):
     """A Pulumi dynamic resource that waits for a remote host to be ready."""
 
-    def __init__(self, name, host, user, file_to_exist, private_key, port=22, timeout=150, opts=None):
+    def __init__(
+        self, name, host, user, file_to_exist, private_key, port=22, timeout=300, opts=None
+    ):
         """Initializes a WaitForHostReady resource.
 
         Args:
@@ -1871,13 +1906,13 @@ class WaitForHostReady(pulumi.dynamic.Resource):
             port (int, optional):
                 The SSH port. Defaults to 22.
             timeout (int, optional):
-                The timeout in seconds. Defaults to 150.
+                The timeout in seconds. Defaults to 300.
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
         super().__init__(
             WaitForHostReadyProvider(),
-            name,
+            f"{name}_wait_for_host_ready",
             {
                 "host": host,
                 "port": port,
