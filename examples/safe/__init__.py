@@ -186,14 +186,19 @@ pulumi.export("{}_butane".format(shortname), host_config)
 
 # configure the later used remote url for remote controlled setup with encrypted config
 serve_config = ServePrepare(
-    shortname, serve_interface="virbr0" if stack_name.endswith("sim") else ""
+    shortname,
+    serve_interface="virbr0" if stack_name.endswith("sim") else "",
+    request_header={
+        "Verification-Hash": host_config.ignition_config_hash,
+    },
 )
 
 # create public ignition config pointing to https retrieval of host_config served by ServeOnce
 public_config = RemoteDownloadIgnitionConfig(
     "{}_public_ignition".format(shortname),
     hostname,
-    serve_config.config.apply(lambda x: x["remote_url"]),
+    remote_url=serve_config.config.apply(lambda x: x["remote_url"]),
+    remote_hash=host_config.ignition_config_hash,
     opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
 )
 

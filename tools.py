@@ -1533,6 +1533,7 @@ class ServePrepare(pulumi.ComponentResource):
         serve_interface: str = "",
         serve_ip: str = "",
         mtls_clientid: str = "",
+        request_header: dict = {},
         opts: pulumi.Input[object] = None,
     ) -> None:
         """Initializes a ServePrepare component.
@@ -1612,8 +1613,9 @@ class ServePrepare(pulumi.ComponentResource):
 
         def build_merged_config(args):
             # merge pulumi outputs with static_config
-            serve_ip, serve_port, request_path, cert, key, ca_cert = args
+            serve_ip, serve_port, request_path, cert, key, ca_cert, rh = args
             merged_config = self.static_config.copy()
+            merged_config["request_header"] = rh
             merged_config.update(
                 {
                     "serve_port": serve_port,
@@ -1634,6 +1636,7 @@ class ServePrepare(pulumi.ComponentResource):
             provision_host_tls.chain,
             provision_host_tls.key.private_key_pem,
             ca_factory.root_cert_pem,
+            pulumi.Output.from_input(request_header),
         ).apply(build_merged_config)
 
         if self.merged_config["port_forward"]["enabled"] and False:
