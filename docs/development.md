@@ -10,8 +10,8 @@ It is licenced under the [Apache 2.0 License](https://github.com/wuxxin/infra-sh
 
 ### Development Documents
 
-- `docs/development.md`: (This file) The project file layout, architectural overview, developer and agent guidelines for working with project
-- `docs/marimo-development.md`: if present, Developer Guidelines for working with marimo notebooks of this project
+- `docs/development.md`: (This file) The project file layout, architectural overview, developer and agent guidelines
+- `docs/marimo-development.md`: if present, Developer Guidelines for working with marimo notebooks
 - `docs/tasks.md`: A living document tracking tasks of types already completed, newly discovered, to be done, and tracking memories about discovered relations
 
 ### User Documentation
