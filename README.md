@@ -5,7 +5,7 @@
 a **Pulumi** (Terraform-ish) and **Fedora Coreos** based **Gitops** Project in **Python**.
 
 
-> - See [safe](examples/safe) for usage in an example project
+> - See [safe](examples/safe/README.md) for usage in an example project
 
 
 ## Quick start
@@ -24,7 +24,7 @@ make sim-up
 
 You have just created two TLS Certificates and an SSH Keypair in a very fancy way!
 
-See the [examples](examples/) for code of what else can be done with it
+See the [examples](examples/README.md) for code of what else can be done with it
 
 ## Features
 

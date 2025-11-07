@@ -142,4 +142,6 @@ docs = [
     "mkdocs-include-markdown-plugin",
     # mkdocs-gen-files sourcecode creation plugin
     "mkdocs-gen-files",
+    # for mkdocs-gensrc.py parsing of docstrings
+    "docstring-parser",
 ]

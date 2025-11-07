@@ -1,6 +1,8 @@
 # Safe - Fedora-CoreOS on Raspberry Pi Appliance
 
-## Showcase: a self-updating rolling release encrypted storage appliance
+## Showcase
+
+a self-updating rolling release encrypted storage appliance
 
 with container, compose and nspawn example in ~ 600 lines, ~ 1500 words code.
 

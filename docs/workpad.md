@@ -5,20 +5,40 @@ Read the following required changes, considering which parts should be combined 
 
 Required changes:
 
+
 ---
 
-Feature: Extend Documentation from sourcecode information.
-read at `mkdocs.yml`, `Makefile`, `docs/pulumi.md`.
-in pulumi the pulumi resources are documented. i want a link from there or under the current content, a generated documentation
-from `tools.py`, `authority.py` `os/__init__.py` `build.py` and `template.py` (which is mostly python).
+Feature: Fix mkdocs_gensrc.py, Extend Documentation from sourcecode information.
 
-if possible split into pulumi specific and python parts.
-find ways to generate this documentaiton from the source.
-also: mkdocs_gensrc.py does not run under github runner.
+- read at `mkdocs.yml`, `Makefile`.
+
+- fix `mkdocs_gensrc.py`, as it does not run under github runner.
 even on debug output, i only see "DEBUG   -  Running `files` event from plugin 'gen-files'" , but locally (where it is run with the same "make docs-online-build") it works and includes the example/safe files.
-use "make buildenv" to create a buildenv, if other commands error.
+
+- make mkdocs_gensrc.py realize if it is called from within mkdocs_gensrc, or just as script from outside.
+on outside, just displays what pages would be created. be careful with testing mkdocs_gensrc.py, because a simple run of it might create the files in the source dir, and mess up further testing. if unsure test this with `git status` to see additional files.
+
+- make a test case in tests/ (read `tests/conftest.py` in case you need fixtures) to run mkdocs_gensrc.py to just display the would be created markdown files, and test for `src/examples/safe/__init__.py.md` and `src/authority.py.md`
+
+- make another test to run `make docs-online-build` and check for output in expected directory, and there for the inclusion of the two files from the test above, but in the final page output.
+
+`docs/pulumi.md`.
+in pulumi the pulumi resources are documented.
+
+From there i want a link to the extracted component (module, class and function docstrings) information build from
+from `tools.py`, `authority.py` `os/__init__.py` `build.py` and `template.py` (which is mostly nonpulumi python).
+make mkdocs_gensrc.py also include these python files as rendered markdown in src/... and link to them.
+
+use `make buildenv` to create a buildenv, if other commands error.
+use `make docs-online-build` to recreate the documentation page.
+
 
 ---
+
+Read `docs/development.md`.
+Read the following required changes, considering which parts should be combined and which should be separate tasks and in what order they should be performed.
+
+Required changes:
 
 Feature: make the sha256 hash of the compiled butane ignition file that will be transferred to the remote available in the remote download ignition file as header as security token for requesting the real ignition file and as verification hash of the expected file content.
 
@@ -58,7 +78,7 @@ read tests/conftest.py for fixtures knowledge, read tests/test_tools.py as examp
 
 and test for Verification Hash in ignition config and header
 
-- use one time `make buildenv` to build env, then `. .venv/bin/activate && pytest tests/test_butane_verification.py` to execute this test, `make pytest` for executing all tests.
+- use `make pytest args="tests/test_butane_verification.py"` to execute this test, `make pytest` for executing all tests.
 
 
 ---
@@ -70,3 +90,5 @@ and test for Verification Hash in ignition config and header
                 + ["{}\n".format(key)]
             )
         )
+
+

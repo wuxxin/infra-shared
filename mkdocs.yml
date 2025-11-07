@@ -46,6 +46,12 @@ nav:
       - healthchecks.md
   - pulumi.md
   - Examples:
-      - src/examples/safe/README.md
+      - Fedora-CoreOS on Raspberry Pi: examples/safe/README.md
+      - Postgresql Example Module: examples/modules/postgresql/README.md
+      - Create a MitM CA Chain: examples/fake_ca/__init__.py.md
+      - Templates for new projects:
+          - scripts/create_skeleton.sh.md
+          - examples/skeleton/Makefile.md
+          - examples/skeleton/pyproject.toml.md
   - scripts.md
   - development.md
