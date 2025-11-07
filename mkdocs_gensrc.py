@@ -42,7 +42,7 @@ LANGUAGE_MAP = {
 
 # A list of glob patterns to search for from the project root
 SOURCE_LIST = [
-    "examples/**",
+    "examples/**/*",
     "tools.py",
     "scripts/*",
     "authority.py",
