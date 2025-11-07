@@ -5,8 +5,8 @@ Read the following required changes, considering which parts should be combined 
 
 Required changes:
 
-
 ---
+
 Feature: Extend Documentation from sourcecode information.
 read at `mkdocs.yml`, `Makefile`, `docs/pulumi.md`.
 in pulumi the pulumi resources are documented. i want a link from there or under the current content, a generated documentation
@@ -16,16 +16,7 @@ if possible split into pulumi specific and python parts.
 find ways to generate this documentaiton from the source.
 also: mkdocs_gensrc.py does not run under github runner.
 even on debug output, i only see "DEBUG   -  Running `files` event from plugin 'gen-files'" , but locally (where it is run with the same "make docs-online-build") it works and includes the example/safe files.
-
----
-
-fix tests/test_waitforhostready.py , make it more robust, make it a fixture to: start the openssh server with a delay of adjustable, default 5 seconds, (so just sleep, then start in thread, to keep it simple), with or without files as before, but paramiko serves respone without delay. still have the function to inject a file later with a thread that does sleep x, then file.add. add another test case.
-start with building a test_paramiko_serve.py that does that dunctionality (the server part) as expected, then test the server part from the command line with ssh. once this works, refactor it into a fixture.
-
-
----
-
-
+use "make buildenv" to create a buildenv, if other commands error.
 
 ---
 

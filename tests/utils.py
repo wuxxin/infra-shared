@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 def assert_file_exists(base_dir: Path, file_path: str):
     """
     Asserts that a file exists at a given path relative to a base directory.
@@ -10,6 +11,7 @@ def assert_file_exists(base_dir: Path, file_path: str):
     """
     full_path = base_dir / file_path
     assert full_path.is_file(), f"Expected file does not exist: {full_path}"
+
 
 def add_pulumi_program(pulumi_project_dir: Path, program_code: str):
     """

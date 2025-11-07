@@ -1,8 +1,7 @@
-import pytest
-from pulumi.automation import Stack
-import pulumi
-from .utils import add_pulumi_program, assert_file_exists
 import os
+
+from pulumi.automation import Stack
+from .utils import add_pulumi_program, assert_file_exists
 
 
 def test_ssh_functions_with_pulumi_outputs(

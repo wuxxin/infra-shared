@@ -1862,6 +1862,7 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
                     f"Failed to parse private key. Tried Ed25519 (failed: {ed_e}) and RSA (failed: {rsa_e})"
                 )
 
+        last_exception_message = ""
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
@@ -1882,12 +1883,24 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
                     print(f"Warning: Did not find file: {file_to_exist}")
                     time.sleep(retry_delay)
             except Exception as e:
-                print(f"Waiting for host to be ready ({time.time() - start_time}): {e}")
+                last_exception_message = str(e)
+                if isinstance(e, (EOFError, paramiko.SSHException)):
+                    print(f"Waiting for host to be ready ({time.time() - start_time:.2f}s)")
+                else:
+                    print(
+                        f"Waiting for host to be ready ({time.time() - start_time:.2f}s): {e}"
+                    )
                 time.sleep(retry_delay)
 
-        raise Exception(
-            f"Timeout waiting for host {host} to be ready and file {file_to_exist} to exist."
-        )
+        # If the loop times out, raise an exception with the last meaningful error
+        if last_exception_message:
+            raise Exception(
+                f"Timeout waiting for host {host} to be ready and file {file_to_exist} to exist. Last error: {last_exception_message}"
+            )
+        else:
+            raise Exception(
+                f"Timeout waiting for host {host} to be ready and file {file_to_exist} to exist."
+            )
 
 
 class WaitForHostReady(pulumi.dynamic.Resource):
