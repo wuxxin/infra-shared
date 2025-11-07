@@ -36,7 +36,7 @@ LANGUAGE_MAP = {
 # A list of glob patterns to search for from the project root
 SOURCE_LIST = [
     "examples/*",
-    # e.g., "src/**/*.py", "config.toml"
+    # e.g., "src/*/*.py", "config.toml"
 ]
 
 OUTPUT_DOCS_DIR = "src"
