@@ -93,7 +93,7 @@ docs: buildenv ## Build docs for local usage
 docs-online-build: buildenv ## Build docs for http serve
 	@echo "+++ $@"
 	mkdir -p build/docs-online
-	. .venv/bin/activate && mkdocs build -d build/docs-online -f mkdocs.yml -v
+	. .venv/bin/activate && mkdocs build -d build/docs-online -f mkdocs.yml
 	@echo "Finished. serve with"
 	@echo ". .venv/bin/activate && python -m http.server --directory build/docs-online"
 
@@ -113,11 +113,11 @@ clean: pytest-clean docs-clean buildenv-clean  ## Remove all artifacts
 	rm -rf build
 
 .PHONY: test-all
-test-all: clean provision-local buildenv docs-online-build pytest ## Run all tests using local build deps
+test-all: docs-online-build pytest ## Run all tests using local build deps
 	@echo "+++ $@"
 
 .PHONY: test-all-container
-test-all-container: clean provision-container ## Run all tests using container build deps
+test-all-container: provision-container ## Run all tests using container build deps
 	@echo "+++ $@"
 	./scripts/provision_shell.sh make test-all-local
 
