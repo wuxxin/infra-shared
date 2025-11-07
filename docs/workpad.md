@@ -5,6 +5,9 @@ Read the following required changes, considering which parts should be combined 
 
 Required changes:
 
+---
+
+update docs/pulumi.md : waitforhostready has changed to tools, and other args.
 
 ---
 

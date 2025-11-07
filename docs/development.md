@@ -1,5 +1,11 @@
 # Development
 
+## Source Code
+
+The Source Code and the Issue Tracker is at [github.com/wuxxin/infra-shared](https://github.com/wuxxin/infra-shared).
+
+It is licenced under the [Apache 2.0 License](https://github.com/wuxxin/infra-shared/blob/main/LICENSE).
+
 ## Files and Directories Layout
 
 ### Development Documents
