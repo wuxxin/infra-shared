@@ -23,6 +23,8 @@ import os
 import re
 import sys
 import json
+import hashlib
+import yaml
 
 import pulumi
 import pulumi_command as command
@@ -496,6 +498,11 @@ clevis_luks_updater:
         )
         # ignition json str as result
         self.ignition_config = self.ignition_translation.stdout
+
+        # create sha256 hash of ignition_config
+        self.ignition_config_hash = self.ignition_config.apply(
+            lambda x: "sha256-{}".format(hashlib.sha256(x.encode("utf-8")).hexdigest())
+        )
         self.result = self.ignition_config
 
         self.register_outputs({})
@@ -713,7 +720,7 @@ class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
     full Ignition configuration from a remote URL.
     """
 
-    def __init__(self, resource_name, hostname, remoteurl, opts=None):
+    def __init__(self, resource_name, hostname, remote_url, remote_hash="", opts=None):
         """Initializes a RemoteDownloadIgnitionConfig component.
 
         Args:
@@ -721,8 +728,10 @@ class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
                 The name of the resource.
             hostname (str):
                 The hostname for the target system.
-            remoteurl (pulumi.Input[str]):
+            remote_url (pulumi.Input[str]):
                 The URL to download the full Ignition configuration from.
+            remote_hash (pulumi.Input[str]):
+                The sha256 hash of the remote resource to download.
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
@@ -740,38 +749,39 @@ class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
             opts,
         )
 
-        butane_remote_config = pulumi.Output.concat(
-            """
-variant: fcos
-version: 1.6.0
-ignition:
-  config:
-    replace:
-      source: """,
-            remoteurl,
-            """
-  security:
-    tls:
-      certificate_authorities:
-        - inline: |
-""",
-            ca_factory.root_bundle_pem.apply(
-                lambda x: "\n".join(["            " + line for line in x.splitlines()])
-            ),
-            """
-""",
-        )
+        def create_ignition_config(args):
+            url, hash_val, pem = args
 
-        self.ignition_remote_config = command.local.Command(
-            "{}_ignition_remote_config".format(hostname),
-            create="butane -d . -r -p",
-            stdin=butane_remote_config,
-            logging=LocalLogging.NONE,
-            opts=this_opts,
-        )
+            ignition_config = {
+                "ignition": {
+                    "version": "3.4.0",
+                    "config": {
+                        "replace": {
+                            "source": url,
+                            "verification": {},
+                            "httpHeaders": [],
+                        }
+                    },
+                    "security": {
+                        "tls": {"certificateAuthorities": [{"source": f"data:text/plain;charset=utf-8,{pem}"}]}
+                    },
+                }
+            }
 
-        # ignition json str as result
-        self.ignition_config = self.ignition_remote_config.stdout
+            if hash_val:
+                replace_block = ignition_config["ignition"]["config"]["replace"]
+                replace_block["verification"] = {"hash": hash_val}
+                replace_block["httpHeaders"].append(
+                    {"name": "Verification-Hash", "inline": hash_val}
+                )
+
+            return json.dumps(ignition_config)
+
+        self.ignition_config = pulumi.Output.all(
+            remote_url,
+            pulumi.Output.from_input(remote_hash),
+            ca_factory.root_bundle_pem,
+        ).apply(create_ignition_config)
         self.result = self.ignition_config
         self.register_outputs({})
 
