@@ -67,13 +67,16 @@ uv.lock: pyproject.toml
 	# create venv
 	if test -d .venv; then rm -rf .venv; fi
 	uv venv
-	# sync with locked dependencies including extras from uv.lock
-	uv sync --all-extras
+
+.venv/installed: .venv/bin/activate
+	@echo "+++ $@"
+	. .venv/bin/activate && uv sync --all-extras
 	# register environment with local ipykernel environment
 	. .venv/bin/activate && python -m ipykernel install --user --name=$$(basename $(ROOTDIR)/)
+	touch $@
 
 .PHONY: buildenv
-buildenv: .venv/bin/activate ## Build python environment
+buildenv: .venv/installed ## Build python environment
 
 .PHONY: py-clean
 py-clean: ## Remove python related artifacts

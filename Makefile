@@ -44,10 +44,14 @@ uv.lock: pyproject.toml provision-local
 	@echo "+++ $@"
 	if test -d .venv; then rm -rf .venv; fi
 	uv venv
-	uv sync --all-extras
+
+.venv/installed: .venv/bin/activate
+	@echo "+++ $@"
+	. .venv/bin/activate && uv sync --all-extras
+	touch $@
 
 .PHONY: buildenv
-buildenv: .venv/bin/activate ## Build python environment
+buildenv: .venv/installed ## Build python environment
 
 .PHONY: py-clean
 py-clean: ## Remove python related artifacts
