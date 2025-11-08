@@ -12,6 +12,7 @@ ssh:
 - f: ssh_deploy
 - f: ssh_execute
 - f: ssh_get
+- d: WaitForHostReady
 
 storage:
 - f: write_removable
@@ -19,10 +20,10 @@ storage:
 - f: public_local_export
 
 tool:
-- f: log_warn
 - c: LocalSaltCall
 - c: RemoteSaltCall
-- r: TimedResource
+- d: TimedResource
+- f: log_warn
 - p: salt_config
 - p: get_ip_from_ifname
 - p: get_default_host_ip
@@ -1840,6 +1841,7 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
         import paramiko
         import time
 
+        name = props["name"]
         host = props["host"]
         port = int(props["port"])
         user = props["user"]
@@ -1881,18 +1883,19 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
                 ssh.close()
 
                 if exit_status == 0:
+                    print(f"{name} success, connected and found file {file_to_exist}")
                     return pulumi.dynamic.CreateResult(id_=str(uuid.uuid4()), outs={})
                 else:
                     print(f"Warning: Did not find file: {file_to_exist}")
                     time.sleep(retry_delay)
             except Exception as e:
                 last_exception_message = str(e)
-                if isinstance(e, (EOFError, paramiko.SSHException)):
-                    print(f"Waiting for host to be ready ({time.time() - start_time:.2f}s)")
+                if isinstance(e, (EOFError, paramiko.SSHException)) or (
+                    hasattr(e, "errno") and e.errno is None
+                ):
+                    print(f"{name} waiting ({time.time() - start_time:.2f}s)")
                 else:
-                    print(
-                        f"Waiting for host to be ready ({time.time() - start_time:.2f}s): {e}"
-                    )
+                    print(f"Exception while waiting ({time.time() - start_time:.2f}s): {e}")
                 time.sleep(retry_delay)
 
         # If the loop times out, raise an exception with the last meaningful error
@@ -1946,10 +1949,12 @@ class WaitForHostReady(pulumi.dynamic.Resource):
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
+        name = f"{name}_wait_for_host_ready"
         super().__init__(
             WaitForHostReadyProvider(),
-            f"{name}_wait_for_host_ready",
+            name,
             {
+                "name": name,
                 "host": host,
                 "port": port,
                 "user": user,

@@ -4,7 +4,6 @@
 ### Components
 
 - ButaneTranspiler
-- WaitForHostReady
 - SystemConfigUpdate
 - FcosImageDownloader
 - LibvirtIgniteFcos
@@ -749,40 +748,55 @@ class RemoteDownloadIgnitionConfig(pulumi.ComponentResource):
             opts,
         )
 
-        def create_ignition_config(args):
-            url, hash_val, pem = args
+        butane_hash_config = ""
+        if remote_hash:
+            butane_hash_config = pulumi.Output.concat(
+                """
+      http_headers:
+        - name: "Verification-Hash"
+          value: """,
+                remote_hash,
+                """
+      verification:
+        hash: """,
+                remote_hash,
+            )
 
-            ignition_config = {
-                "ignition": {
-                    "version": "3.4.0",
-                    "config": {
-                        "replace": {
-                            "source": url,
-                            "verification": {},
-                            "httpHeaders": [],
-                        }
-                    },
-                    "security": {
-                        "tls": {"certificateAuthorities": [{"source": f"data:text/plain;charset=utf-8,{pem}"}]}
-                    },
-                }
-            }
-
-            if hash_val:
-                replace_block = ignition_config["ignition"]["config"]["replace"]
-                replace_block["verification"] = {"hash": hash_val}
-                replace_block["httpHeaders"].append(
-                    {"name": "Verification-Hash", "inline": hash_val}
-                )
-
-            return json.dumps(ignition_config)
-
-        self.ignition_config = pulumi.Output.all(
+        butane_remote_config = pulumi.Output.concat(
+            """
+variant: fcos
+version: 1.6.0
+ignition:
+  config:
+    replace:
+      source: """,
             remote_url,
-            pulumi.Output.from_input(remote_hash),
-            ca_factory.root_bundle_pem,
-        ).apply(create_ignition_config)
-        self.result = self.ignition_config
+            """
+""",
+            butane_hash_config,
+            """
+  security:
+    tls:
+      certificate_authorities:
+        - inline: |
+""",
+            ca_factory.root_bundle_pem.apply(
+                lambda x: "\n".join(["            " + line for line in x.splitlines()])
+            ),
+            """
+
+""",
+        )
+
+        self.ignition_config = command.local.Command(
+            "{}_ignition_remote_config".format(hostname),
+            create="butane -d . -r -p",
+            stdin=butane_remote_config,
+            logging=LocalLogging.NONE,
+            opts=this_opts,
+        )
+
+        self.result = self.ignition_config.stdout
         self.register_outputs({})
 
 

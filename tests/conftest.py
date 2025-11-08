@@ -93,7 +93,7 @@ def pulumi_up_args():
         "on_output": print,
         "on_error": print,
         "suppress_progress": True,
-        "suppress_outputs": False,
+        "suppress_outputs": True,
         "log_to_std_err": True,
         "log_flow": True,
         "color": False,
