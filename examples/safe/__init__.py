@@ -48,9 +48,9 @@ from infra.os import (
 from infra.tools import (
     ServePrepare,
     ServeOnce,
+    WaitForHostReady,
     write_removable,
     public_local_export,
-    WaitForHostReady,
 )
 from infra.build import build_raspberry_extras
 
