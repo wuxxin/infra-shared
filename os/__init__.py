@@ -571,9 +571,8 @@ class SystemConfigUpdate(pulumi.ComponentResource):
 
         cmdline_inputs = pulumi.Output.all(source=source, target=target, sudo=sudo)
         cmdline = cmdline_inputs.apply(
-            lambda args: f"""if test -f {args["source"]}; then {args["sudo"]} cp {args["source"]} {args["target"]}; fi && \
-                            {args["sudo"]} systemctl daemon-reload && \
-                            {args["sudo"]} systemctl restart --wait update-system-config"""
+            lambda args: f"""{args["sudo"]} cp {args["source"]} {args["target"]} && \
+{args["sudo"]} systemctl daemon-reload && {args["sudo"]} systemctl restart --wait update-system-config"""
         )
 
         # transport update service file content and main.sls (translated butane) to root_dir and sls_dir
@@ -604,7 +603,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             user,
             cmdline=cmdline,
             simulate=self.simulate,
-            triggers=self.config_deployed.triggers,
+            triggers=[self.config_deployed.deployment_hash],
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
         )
 

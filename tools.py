@@ -307,7 +307,14 @@ class SSHPut(pulumi.ComponentResource):
             return all_triggers
 
         files_output = pulumi.Output.from_input(props["files"])
-        self.triggers = files_output.apply(create_resources_and_get_triggers)
+        all_triggers_output = files_output.apply(create_resources_and_get_triggers)
+        self.deployment_hash = all_triggers_output.apply(
+            lambda list_of_outputs: pulumi.Output.all(*list_of_outputs).apply(
+                lambda resolved_triggers: hashlib.sha256(
+                    ",".join(sorted(resolved_triggers)).encode("utf-8")
+                ).hexdigest()
+            )
+        )
         self.register_outputs({})
 
 
@@ -459,7 +466,14 @@ class SSHGet(pulumi.ComponentResource):
             return all_triggers
 
         files_output = pulumi.Output.from_input(props["files"])
-        self.triggers = files_output.apply(create_resources_and_get_triggers)
+        all_triggers_output = files_output.apply(create_resources_and_get_triggers)
+        self.deployment_hash = all_triggers_output.apply(
+            lambda list_of_outputs: pulumi.Output.all(*list_of_outputs).apply(
+                lambda resolved_triggers: hashlib.sha256(
+                    ",".join(sorted(resolved_triggers)).encode("utf-8")
+                ).hexdigest()
+            )
+        )
         self.register_outputs({})
 
 
@@ -552,7 +566,14 @@ class SSHDeployer(pulumi.ComponentResource):
             return all_triggers
 
         files_output = pulumi.Output.from_input(props["files"])
-        self.triggers = files_output.apply(create_resources_and_get_triggers)
+        all_triggers_output = files_output.apply(create_resources_and_get_triggers)
+        self.deployment_hash = all_triggers_output.apply(
+            lambda list_of_outputs: pulumi.Output.all(*list_of_outputs).apply(
+                lambda resolved_triggers: hashlib.sha256(
+                    ",".join(sorted(resolved_triggers)).encode("utf-8")
+                ).hexdigest()
+            )
+        )
         self.register_outputs({})
 
 
@@ -596,16 +617,15 @@ def ssh_put(
             The options for the resource. Defaults to None.
 
     Returns:
-        SSHPut:
-            An `SSHPut` component with a `triggers` attribute. The `triggers` attribute is a list
-            of key and data hashes for every file, which can be used for triggering another
-            function if any file changed.
+        SSHPut: An `SSHPut` component with a `deployment_hash` attribute.
+            The `deployment_hash` attribute is a has string of all filenames and file hashes.
+            It can be used for triggering another function if any file changed.
 
     Example:
     ```python
     config_copied = ssh_put(resource_name, host, user, files=files_dict)
     config_activated = ssh_execute(resource_name, host, user, cmdline=cmdline,
-        triggers=config_copied.triggers,
+        triggers=[config_copied.deployment_hash],
         opts=pulumi.ResourceOptions(depends_on=[config_copied]))
     ```
     """
@@ -669,10 +689,9 @@ def ssh_get(
             The options for the resource. Defaults to None.
 
     Returns:
-        SSHGet:
-            An `SSHGet` component with a `triggers` attribute. The `triggers` attribute is a list
-            of key and data hashes for every file, which can be used for triggering another
-            function if any file changed.
+        SSHGet: An `SSHGet` component with a `deployment_hash` attribute.
+            The `deployment_hash` attribute is a has string of all filenames and file hashes.
+            It can be used for triggering another function if any file changed.
     """
 
     from .authority import ssh_factory
@@ -735,16 +754,15 @@ def ssh_deploy(
             The options for the resource. Defaults to None.
 
     Returns:
-        SSHDeployer:
-            An `SSHDeployer` component with a `triggers` attribute. The `triggers` attribute is a list
-            of key and data hashes for every file, which can be used for triggering another
-            function if any file changed.
+        SSHDeployer: An `SSHDeployer` component with a `deployment_hash` attribute.
+            The `deployment_hash` attribute is a has string of all filenames and file hashes.
+            It can be used for triggering another function if any file changed.
 
     Example:
     ```python
     config_deployed = ssh_deploy(resource_name, host, user, files=config_dict)
     config_activated = ssh_execute(resource_name, host, user, cmdline=cmdline,
-        triggers=config_deployed.triggers,
+        triggers=[config_deployed.deployment_hash],
         opts=pulumi.ResourceOptions(depends_on=[config_deployed]))
     ```
     """
@@ -840,7 +858,7 @@ def ssh_execute(
                 host=host,
                 port=port,
                 user=user,
-                private_key=ssh_factory.provision_key.private_key_openssh.apply(lambda x: x),
+                private_key=ssh_factory.provision_key.private_key_openssh,
             ),
             create=cmdline,
             triggers=triggers,
