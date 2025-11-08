@@ -164,20 +164,28 @@ class SSHServerHandler(paramiko.ServerInterface):
 
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode("utf-8")
+        isready_file = command_str.split(" ")[-1]
         logging.info(f"SSHServer: Received exec request: {command_str}")
-        file_to_exist = command_str.split(" ")[-1]
 
         with self.server.files_lock:
-            file_found = file_to_exist in self.server.files
+            file_found = isready_file in self.server.files
 
-        if file_found:
-            logging.info(f"SSHServer: File '{file_to_exist}' found. Returning exit status 0.")
-            channel.send_exit_status(0)
+        if command_str.startswith("readlink -f"):
+            if file_found:
+                logging.info(
+                    f"SSHServer: File '{isready_file}' found. Returning exit status 0."
+                )
+                channel.send_exit_status(0)
+            else:
+                logging.info(
+                    f"SSHServer: File '{isready_file}' not found. Returning exit status 1."
+                )
+                channel.send_exit_status(1)
         else:
             logging.info(
-                f"SSHServer: File '{file_to_exist}' not found. Returning exit status 1."
+                f"SSHServer: Unknown exec request ({command_str}). Returning exit status 5."
             )
-            channel.send_exit_status(1)
+            channel.send_exit_status(5)
 
         self.event.set()
         return True

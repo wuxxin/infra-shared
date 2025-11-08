@@ -1846,7 +1846,7 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
         port = int(props["port"])
         user = props["user"]
         private_key_pem = props["private_key"]
-        file_to_exist = props["file_to_exist"]
+        isready_cmd = props["isready_cmd"]
         timeout = props["timeout"]
         connect_timeout = props["connect_timeout"]
         retry_delay = props["retry_delay"]
@@ -1876,17 +1876,19 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
                 ssh.connect(host, port=port, username=user, pkey=pkey, timeout=connect_timeout)
                 print(f"Connected {user}@{host}:{port}")
 
-                stdin, stdout, stderr = ssh.exec_command(
-                    f"/usr/bin/readlink -f {file_to_exist}"
-                )
+                stdin, stdout, stderr = ssh.exec_command(isready_cmd)
                 exit_status = stdout.channel.recv_exit_status()
                 ssh.close()
 
                 if exit_status == 0:
-                    print(f"{name} success, connected and found file {file_to_exist}")
+                    print(
+                        f"{name} host is ready. isready_cmd '{isready_cmd}' returned success"
+                    )
                     return pulumi.dynamic.CreateResult(id_=str(uuid.uuid4()), outs={})
                 else:
-                    print(f"Warning: Did not find file: {file_to_exist}")
+                    print(
+                        f"Warning: isready_cmd '{isready_cmd}' failed with error: {exit_status}"
+                    )
                     time.sleep(retry_delay)
             except Exception as e:
                 last_exception_message = str(e)
@@ -1901,11 +1903,11 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
         # If the loop times out, raise an exception with the last meaningful error
         if last_exception_message:
             raise Exception(
-                f"Timeout waiting for host {host} to be ready and file {file_to_exist} to exist. Last error: {last_exception_message}"
+                f"Timeout waiting for host {host} to be connectable and/or isready_cmd failed. Last error: {last_exception_message}"
             )
         else:
             raise Exception(
-                f"Timeout waiting for host {host} to be ready and file {file_to_exist} to exist."
+                f"Timeout waiting for host {host} to be connectable and/or isready_cmd failed."
             )
 
 
@@ -1917,7 +1919,7 @@ class WaitForHostReady(pulumi.dynamic.Resource):
         name,
         host,
         user,
-        file_to_exist,
+        isready_cmd,
         private_key,
         port=22,
         timeout=300,
@@ -1934,8 +1936,8 @@ class WaitForHostReady(pulumi.dynamic.Resource):
                 The hostname or IP address of the remote host.
             user (pulumi.Input[str]):
                 The username to connect with.
-            file_to_exist (pulumi.Input[str]):
-                The path to a file that should exist on the remote host.
+            isready_cmd (pulumi.Input[str]):
+                The command executed on the target host, that if host is ready will exit 0, and 1 if otherwise.
             private_key (pulumi.Input[str]):
                 The private key for SSH authentication.
             port (int, optional):
@@ -1959,7 +1961,7 @@ class WaitForHostReady(pulumi.dynamic.Resource):
                 "port": port,
                 "user": user,
                 "private_key": private_key,
-                "file_to_exist": file_to_exist,
+                "isready_cmd": isready_cmd,
                 "timeout": timeout,
                 "connect_timeout": connect_timeout,
                 "retry_delay": retry_delay,
