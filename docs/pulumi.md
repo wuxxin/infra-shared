@@ -21,11 +21,6 @@ This module provides resources for managing CoreOS systems.
 -   `RemoteDownloadIgnitionConfig`
     Creates a minimal Ignition configuration that downloads the full configuration from a remote URL
 
-### Dynamic Resources
-
--   `WaitForHostReady`
-    Waits for a remote host to be ready by checking for the existence of a specific file over SSH
-
 ### Functions
 
 -   `get_locale`
@@ -127,6 +122,8 @@ This module provides various tools for use with Pulumi.
 
 ### Dynamic Resources
 
+-   `WaitForHostReady`
+    Waits for a remote host to be ready by checking for the existence of a specific file over SSH
 -   `TimedResource`
     Regenerates its value after a specified timeout has passed
 
