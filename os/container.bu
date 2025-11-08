@@ -16,7 +16,6 @@ storage:
 systemd:
   units:
     - name: container-build@.path
-      enabled: true
       contents_local: os/container-build@.path
 
     - name: container-build@.service

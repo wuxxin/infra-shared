@@ -12,7 +12,6 @@ storage:
 systemd:
   units:
     - name: compose-build@.path
-      enabled: true
       contents_local: os/compose-build@.path
 
     - name: compose-build@.service
