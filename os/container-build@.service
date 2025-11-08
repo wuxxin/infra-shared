@@ -1,8 +1,8 @@
 [Unit]
 Description=Build Container for %I
-After=network-online.target unbound-is-ready.service
+After=network-online.target dns-is-ready.service
 Wants=network-online.target container-build@%i.path
-Requires=unbound-is-ready.service
+Requires=dns-is-ready.service
 
 ConditionPathExists=/etc/containers/build/%i/Containerfile
 StartLimitIntervalSec=0

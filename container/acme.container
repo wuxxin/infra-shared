@@ -1,10 +1,11 @@
 [Unit]
 Description=Step-CA ACME Provision Server
-Wants=network-online.target container-build@%N.service container-secrets.service
+Wants=network-online.target dns-is-ready.service container-build@%N.service container-secrets.service
 After=network-online.target container-build@%N.service container-secrets.service
 # wait until internal bridge is online
 After=sys-subsystem-net-devices-internal.device
 Wants=sys-subsystem-net-devices-internal.device
+Requires=dns-is-ready.service
 
 {% if not LOCAL_ACME_SERVER["ENABLED"] %}
 # XXX acme server is disabled, but we are a quadlet, so we try to stop it with a nonexisting path
@@ -32,7 +33,7 @@ Secret=acme_sub_ca.crt,mode=0644
 Secret=acme_sub_ca.key,mode=0644
 # Secret=acme_sub_ca.secret,mode=0644
 
-Exec=step-ca /home/step/ca.json 
+Exec=step-ca /home/step/ca.json
 # --password-file ${CREDENTIALS_DIRECTORY}/acme_sub_ca.secret
 
 # static configuration

@@ -1940,7 +1940,7 @@ class WaitForHostReady(pulumi.dynamic.Resource):
         isready_cmd,
         private_key,
         port=22,
-        timeout=300,
+        timeout=450,
         connect_timeout=15,
         retry_delay=5,
         opts=None,

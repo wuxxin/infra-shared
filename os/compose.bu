@@ -11,8 +11,8 @@ storage:
 
 systemd:
   units:
-    - name: compose-build@.path
-      contents_local: os/compose-build@.path
+    # - name: compose-build@.path
+    #   contents_local: os/compose-build@.path
 
     - name: compose-build@.service
       contents_local: os/compose-build@.service

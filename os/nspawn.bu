@@ -87,12 +87,12 @@ systemd:
             ExecStart=
             ExecStart=systemd-nspawn --keep-unit --boot -j -U --network-bridge=nspawn --settings=override --machine=%i
 
-        - name: unbound-is-ready.conf
+        - name: dns-is-ready.conf
           contents: |
             [Unit]
             # wait for unbound to be started, because name resolution of nspawn machine depends on it
-            After=unbound-is-ready.service
-            Requires=unbound-is-ready.service
+            After=dns-is-ready.service
+            Requires=dns-is-ready.service
 
         - name: loadcreds.conf
           contents: |

@@ -15,8 +15,8 @@ storage:
 
 systemd:
   units:
-    - name: container-build@.path
-      contents_local: os/container-build@.path
+    # - name: container-build@.path
+    #   contents_local: os/container-build@.path
 
     - name: container-build@.service
       contents_local: os/container-build@.service
