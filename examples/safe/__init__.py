@@ -272,7 +272,7 @@ else:
         user=host_config.this_env.apply(lambda env: env["UPDATE_USER"]),
         private_key=ssh_factory.provision_key.private_key_openssh,
         # isready checks for running unbound, which means after rpm-ostree has run and the machine rebooted and started
-        isready_cmd="systemctl is-active unbound",
+        isready_cmd="/usr/sbin/systemctl is-active unbound",
         opts=opts,
     )
 

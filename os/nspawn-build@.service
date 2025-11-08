@@ -1,7 +1,9 @@
 [Unit]
 Description=Build Nspawn Image %I
-After=network-online.target unbound.service
-Wants=network-online.target unbound.service
+After=network-online.target unbound-is-ready.service
+Wants=network-online.target
+Requires=unbound-is-ready.service
+
 ConditionPathExists=/etc/systemd/nspawn/%i.nspawn
 ConditionPathExists=/etc/nspawn/environment/%i.env
 ConditionPathExists=/etc/nspawn/build/%i/nspawn.provision.sh

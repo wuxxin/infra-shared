@@ -44,3 +44,28 @@ systemd:
             [Service]
             ExecStartPre=install -o 978 -g 978 -m "0700" -d /var/lib/unbound
 
+    - name: unbound-is-ready.service
+      contents: |
+        [Unit]
+        Description=Flag to indicate that Unbound has started successfully once
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/bin/true
+
+    - name: unbound-is-ready.path
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Watch for Unbound control file to signal readiness
+
+        [Path]
+        PathExists=/run/unbound/control
+
+        # The unit to start when the path exists.
+        Unit=unbound-is-ready.service
+
+        [Install]
+        WantedBy=multi-user.target
+

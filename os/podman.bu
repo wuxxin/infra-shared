@@ -101,8 +101,9 @@ systemd:
       contents: |
         [Unit]
         Description=Podman API Service
-        After=network-online.target rpm-ostree-install.service unbound.service
-        Wants=network-online.target rpm-ostree-install.service unbound.service
+        After=network-online.target rpm-ostree-install.service unbound-is-ready.service
+        Wants=network-online.target rpm-ostree-install.service
+        Requires=unbound-is-ready.service
 
         Documentation=man:podman-system-service(1)
         StartLimitIntervalSec=0
