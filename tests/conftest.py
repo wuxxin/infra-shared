@@ -166,6 +166,7 @@ class SSHServerHandler(paramiko.ServerInterface):
         command_str = command.decode("utf-8")
         isready_file = command_str.split(" ")[-1]
         logging.info(f"SSHServer: Received exec request: {command_str}")
+        check_ok = False
 
         with self.server.files_lock:
             file_found = isready_file in self.server.files
@@ -176,8 +177,11 @@ class SSHServerHandler(paramiko.ServerInterface):
                 logging.info(
                     f"SSHServer: File '{isready_file}' found. Returning exit status 0."
                 )
-                channel.send(f"{isready_file}\n")
+                channel.sendall(f"{isready_file}\n")
                 channel.send_exit_status(0)
+                # XXX this will actually execute readlink -e filename, but the exit code is overwritten,
+                #   and aslong the read readlinke dont find a file filename the output will stay as it should
+                check_ok = True
             else:
                 logging.info(
                     f"SSHServer: File '{isready_file}' not found. Returning exit status 1."
@@ -190,7 +194,7 @@ class SSHServerHandler(paramiko.ServerInterface):
             channel.send_exit_status(5)
 
         self.event.set()
-        return True
+        return check_ok
 
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -274,6 +278,7 @@ class ParamikoSSHServer:
 
     def stop(self):
         if self.server:
+            time.sleep(1)
             logging.info("SSH server shutting down...")
             self.server.shutdown()
             self.server.server_close()
