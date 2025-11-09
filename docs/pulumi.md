@@ -53,10 +53,8 @@ This module provides resources for managing TLS/X509 CAs, certificates, DNSSEC k
 
 ### Components
 
--   `CACertFactoryVault`
-    Creates a Certificate Authority using HashiCorp Vault
--   `CACertFactoryPulumi`
-    Creates a Certificate Authority using the Pulumi TLS provider
+-   `CACertFactory`
+    Creates a Certificate Authority using either HashiCorp Vault or the Pulumi TLS provider
 -   `CASignedCert`
     Creates a certificate signed by a Certificate Authority (CA)
 -   `SelfSignedCert`
