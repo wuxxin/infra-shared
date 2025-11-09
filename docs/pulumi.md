@@ -133,7 +133,7 @@ This module provides various tools for use with Pulumi.
     Copies files from the local machine to a remote host over SSH
 -   `ssh_deploy`
     Deploys string data as files to a remote host over SSH
--   `SSHExecute`
+-   `ssh_execute`
     Executes a command on a remote host over SSH
 -   `ssh_get`
     Copies files from a remote host to the local machine over SSH

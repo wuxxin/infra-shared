@@ -59,8 +59,3 @@ tools.ssh_execute(
 
     up_result = pulumi_stack.up(**pulumi_up_args)
     assert up_result.summary.result == "succeeded"
-
-    # The robust_ssh_server fixture doesn't actually execute commands, so we can't check for the output file.
-    # Instead, we just check that the Pulumi program ran successfully.
-    # To properly test this, we would need a more advanced mock SSH server.
-    # For now, we are just testing that the component doesn't crash.
