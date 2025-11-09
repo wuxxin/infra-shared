@@ -13,9 +13,10 @@ Type=oneshot
 
 # create config for saltstack container, use same fedora version as current coreos base
 # $(cat /etc/system-release-cpe | sed -r "s/.+:([^:]+)$/\1/g")
-ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/%N && printf \
-"FROM quay.io/fedora/fedora:42\
-\nRUN dnf -y install salt salt-minion lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
+# XXX add all python dependencies for salt because fedora packages dont have them anymore
+ExecStart=/usr/bin/bash -c 'mkdir -p /etc/containers/build/%N && printf "\
+\nFROM quay.io/fedora/fedora:43\
+\nRUN dnf -y install salt salt-minion python3-jinja2 python3-jmespath python3-msgpack python3-yaml python3-markupsafe python3-networkx python3-requests python3-certifi python3-distro python3-psutil python3-packaging python3-looseversion python3-tornado python3-aiohttp python3-urllib3 python3-croniter python3-setproctitle python3-pyOpenSSL python3-dateutil python3-gnupg python3-cherrypy python3-importlib-metadata python3-cryptography python3-pycryptodomex python3-pyzmq python3-systemd python3-passlib python3-bcrypt lsb-release && rm -rf /var/cache/* && dnf clean all && rm -rf /var/tmp/*\
 \nCMD lsb_release -a\
 \n" > /etc/containers/build/%N/Containerfile'
 
