@@ -1,7 +1,9 @@
 [Unit]
 Description=Postgresql Server
-Wants=network-online.target container-build@%N.service container-secrets.service dns-is-ready.service
+Wants=network-online.target container-build@%N.service container-secrets.service
 After=network-online.target container-build@%N.service container-secrets.service
+# wait until unbound is active
+After=dns-is-ready.service
 Requires=dns-is-ready.service
 
 [Service]

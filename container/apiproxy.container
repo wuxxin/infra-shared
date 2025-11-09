@@ -3,8 +3,10 @@ Description=Container API Proxy (unix socket to tcp port) based on Haproxy \
     upstream socket: a running docker compatible API Server under API_SOCKET \
     downstream tcp: self.internal:API_PORT
 
-After=container-build@%N.service container-secrets.service podman.service dns-is-ready.service
+After=container-build@%N.service container-secrets.service podman.service
 Wants=container-build@%N.service container-secrets.service podman.service
+# wait until unbound is active
+After=dns-is-ready.service
 Requires=dns-is-ready.service
 ConditionPathExists=/etc/containers/systemd/%N.cfg
 

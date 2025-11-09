@@ -1,7 +1,9 @@
 [Unit]
 Description=Step-CA ACME Provision Server
-After=network-online.target container-build@%N.service container-secrets.service dns-is-ready.service
+After=network-online.target container-build@%N.service container-secrets.service
 Wants=network-online.target container-build@%N.service container-secrets.service
+# wait until unbound is active
+After=dns-is-ready.service
 Requires=dns-is-ready.service
 # wait until internal bridge is online
 After=sys-subsystem-net-devices-internal.device

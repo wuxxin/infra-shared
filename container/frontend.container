@@ -1,7 +1,9 @@
 [Unit]
 Description=Traefik Edge Router that uses container labels and yaml files for service discovery
-After=container-build@%N.service container-secrets.service apiproxy.service dns-is-ready.service
+After=container-build@%N.service container-secrets.service apiproxy.service
 Wants=container-build@%N.service container-secrets.service apiproxy.service
+# wait until unbound is active
+After=dns-is-ready.service
 Requires=dns-is-ready.service
 {% if not FRONTEND["ENABLED"] %}
 # frontend is disabled, but we are a quadlet, so we try to stop it with a nonexisting path
