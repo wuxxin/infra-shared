@@ -55,7 +55,6 @@ import json
 import copy
 import base64
 import re
-import subprocess
 
 import pulumi
 import pulumi_tls as tls
@@ -85,69 +84,6 @@ default_hours_ca = 24 * 365 * 8
 default_hours_public_cert = 24 * 397
 default_hours_private_cert = 24 * 824
 default_early_renewal_hours = 48
-
-
-def pem_to_pkcs12_base64(
-    pem_cert: str, pem_key: str, password: str, friendlyname: str = ""
-) -> str:
-    """Converts a TLS client certificate chain and its associated private key in PEM format
-    into a password-protected PKCS#12 file, encoded as a base64 string.
-    This implementation uses the openssl command-line tool with process substitution
-    to avoid writing sensitive key material to disk.
-
-    Args:
-        pem_cert (str):
-            The TLS client certificate chain in PEM format as a string.
-            The client cert must be the first in the string.
-        pem_key (str):
-            The private key in PEM format as a string.
-        password (str):
-            The password to protect the PKCS#12 archive.
-        friendlyname (str, optional):
-            A friendly name for the certificate bundle. Defaults to "".
-
-    Returns:
-        str:
-            Base64 encoded string of the PKCS#12 archive, formatted with line breaks.
-    """
-    input_data = {
-        "key": pem_key,
-        "cert": pem_cert,
-        "password": password,
-        "friendlyname": friendlyname,
-    }
-    input_json = json.dumps(input_data)
-
-    bash_script = """
-set -eo pipefail
-JSON_INPUT=$(cat -)
-KEY_PEM=$(echo "$JSON_INPUT" | jq -r .key)
-CERT_PEM=$(echo "$JSON_INPUT" | jq -r .cert)
-PASSWORD=$(echo "$JSON_INPUT" | jq -r .password)
-FRIENDLY_NAME=$(echo "$JSON_INPUT" | jq -r .friendlyname)
-openssl pkcs12 -export \\
-  -inkey <(echo "$KEY_PEM") \\
-  -in <(echo "$CERT_PEM") \\
-  -passout "pass:$PASSWORD" \\
-  -name "$FRIENDLY_NAME" \\
-  -certpbe AES-256-CBC \\
-  -keypbe AES-256-CBC \\
-  -macalg SHA256
-"""
-
-    result = subprocess.run(
-        ["bash", "-c", bash_script],
-        input=input_json.encode("utf-8"),
-        capture_output=True,
-        check=True,
-    )
-    p12_data = result.stdout
-
-    # Base64 encode the binary PKCS#12 data
-    base64_data = base64.encodebytes(p12_data).decode("utf-8")
-    # Format the base64 data (e.g., multiline string)
-    formatted_base64_data = "".join([f"{line}\n" for line in base64_data.splitlines()])
-    return formatted_base64_data
 
 
 class PKCS12Bundle(pulumi.ComponentResource):
@@ -180,18 +116,42 @@ class PKCS12Bundle(pulumi.ComponentResource):
         """
         super().__init__("pkg:authority:PKCS12Bundle", name, None, opts)
 
-        self.result = pulumi.Output.all(
-            key_pem=key_pem,
-            cert_chain_pem=cert_chain_pem,
+        bash_script = """
+set -eo pipefail
+JSON_INPUT=$(cat -)
+KEY_PEM=$(echo "$JSON_INPUT" | jq -r .key)
+CERT_PEM=$(echo "$JSON_INPUT" | jq -r .cert)
+PASSWORD=$(echo "$JSON_INPUT" | jq -r .password)
+FRIENDLY_NAME=$(echo "$JSON_INPUT" | jq -r .friendlyname)
+openssl pkcs12 -export \\
+  -inkey <(echo "$KEY_PEM") \\
+  -in <(echo "$CERT_PEM") \\
+  -passout "pass:$PASSWORD" \\
+  -name "$FRIENDLY_NAME" \\
+  -certpbe AES-256-CBC \\
+  -keypbe AES-256-CBC \\
+  -macalg SHA256 | base64
+"""
+
+        input_json = pulumi.Output.all(
+            key=key_pem,
+            cert=cert_chain_pem,
             password=password,
-        ).apply(
-            lambda args: pem_to_pkcs12_base64(
-                pem_cert=str(args["cert_chain_pem"]),
-                pem_key=str(args["key_pem"]),
-                password=str(args["password"]),
-                friendlyname=name,
-            )
+            friendlyname=name,
+        ).apply(json.dumps)
+
+        pkcs12_b64 = command.local.Command(
+            f"{name}_pkcs12_b64",
+            create=bash_script,
+            interpreter=["/bin/bash", "-c"],
+            stdin=input_json,
+            logging=LocalLogging.NONE,
+            opts=pulumi.ResourceOptions(
+                parent=self, additional_secret_outputs=["stdout"]
+            ),
         )
+
+        self.result = pulumi.Output.unsecret(pkcs12_b64.stdout)
         self.register_outputs({})
 
 
