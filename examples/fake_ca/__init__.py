@@ -17,7 +17,7 @@ Create:
 
 import pulumi
 from infra.authority import (
-    CACertFactoryVault,
+    CACertFactory,
     create_sub_ca,
     create_host_cert,
     default_hours_ca,
@@ -54,7 +54,7 @@ ca_config = {
 }
 
 # use vault, because of ca_max_path_length
-ca_factory = CACertFactoryVault("fake_ca_factory", ca_config)
+ca_factory = CACertFactory("fake_ca_factory", ca_config)
 pulumi.export("fake_ca_factory", ca_factory)
 
 # example mitm cert, for usage in transparent tls proxies

@@ -302,15 +302,15 @@ class NSFactory(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-class CACertFactoryVault(pulumi.ComponentResource):
-    """A Pulumi component for creating a Certificate Authority using HashiCorp Vault.
+class CACertFactory(pulumi.ComponentResource):
+    """A Pulumi component for creating a Certificate Authority.
 
-    This component uses a local script to interact with Vault to generate a root
-    CA, a provisioning CA, and an alternate provisioning CA.
+    This component can use either HashiCorp Vault or the Pulumi TLS provider
+    to generate a root CA, a provisioning CA, and an alternate provisioning CA.
     """
 
     def __init__(self, name, ca_config, opts=None):
-        """Initializes a CACertFactoryVault component.
+        """Initializes a CACertFactory component.
 
         Args:
             name (str):
@@ -320,8 +320,16 @@ class CACertFactoryVault(pulumi.ComponentResource):
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
-        super().__init__("pkg:authority:CACertFactoryVault", name, None, opts)
+        super().__init__("pkg:authority:CACertFactory", name, None, opts)
 
+        if config.get_bool("ca_create_using_vault") in (None, True):
+            self._create_with_vault(name, ca_config)
+        else:
+            self._create_with_pulumi(name, ca_config)
+
+        self.register_outputs({})
+
+    def _create_with_vault(self, name, ca_config):
         # delete permitted_domains for vault config, as it will become a critical CA Extension,
         #   and mbed-tls connect from eg. an ESP32 (ESP-IDF Framework) will fail.
         vault_config = copy.deepcopy(ca_config)
@@ -356,7 +364,7 @@ class CACertFactoryVault(pulumi.ComponentResource):
             ),
         )
 
-        self.ca_type = "vault"
+        self.ca_type = pulumi.Output.from_input("vault")
         self.root_key_pem = Output.secret(ca_secrets["ca_root_key_pem"])
         self.root_cert_pem = Output.unsecret(ca_secrets["ca_root_cert_pem"])
         self.root_hash_id = ca_root_hash.stdout
@@ -371,29 +379,8 @@ class CACertFactoryVault(pulumi.ComponentResource):
             ca_secrets["ca_alt_provision_request_pem"]
         )
         self.alt_provision_cert_pem = Output.unsecret(ca_secrets["ca_alt_provision_cert_pem"])
-        self.register_outputs({})
 
-
-class CACertFactoryPulumi(pulumi.ComponentResource):
-    """A Pulumi component for creating a Certificate Authority using the Pulumi TLS provider.
-
-    This component generates a root CA, a provisioning CA, and an alternate
-    provisioning CA using the `pulumi_tls` provider.
-    """
-
-    def __init__(self, name, ca_config, opts=None):
-        """Initializes a CACertFactoryPulumi component.
-
-        Args:
-            name (str):
-                The name of the resource.
-            ca_config (dict):
-                A dictionary of configuration options for the CA.
-            opts (pulumi.ResourceOptions, optional):
-                The options for the resource. Defaults to None.
-        """
-        super().__init__("pkg:authority:CACertFactoryPulumi", name, None, opts)
-
+    def _create_with_pulumi(self, name, ca_config):
         if ca_config.get("ca_max_path_length") is not None:
             raise ValueError("'ca_max_path_length' is unsupported. use CACertFactoryVault")
 
@@ -508,7 +495,7 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        self.ca_type = "pulumi"
+        self.ca_type = pulumi.Output.from_input("pulumi")
         self.root_key_pem = ca_root_key.private_key_pem
         self.root_cert_pem = ca_root_cert.cert_pem
         self.root_hash_id = ca_root_hash.stdout
@@ -521,7 +508,6 @@ class CACertFactoryPulumi(pulumi.ComponentResource):
         self.alt_provision_key_pem = ca_alt_provision_key.private_key_pem
         self.alt_provision_request_pem = ca_alt_provision_request.cert_request_pem
         self.alt_provision_cert_pem = ca_alt_provision_cert.cert_pem
-        self.register_outputs({})
 
 
 class CASignedCert(pulumi.ComponentResource):
@@ -992,12 +978,7 @@ pulumi.export("ca_config", ca_config)
 
 
 # ### X509 Certificate Authority
-if config.get_bool("ca_create_using_vault") in (None, True):
-    # use vault for initial CA creation and permitted_domains support
-    ca_factory = CACertFactoryVault("ca_factory", ca_config)
-else:
-    # create cert and keys using buildin pulumi tls module
-    ca_factory = CACertFactoryPulumi("ca_factory", ca_config)
+ca_factory = CACertFactory("ca_factory", ca_config)
 pulumi.export("ca_factory", ca_factory)
 
 # write out public part of ca cert for usage as file
