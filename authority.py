@@ -318,7 +318,7 @@ class CACertFactory(pulumi.ComponentResource):
         """
         super().__init__("pkg:authority:CACertFactory", name, None, opts)
 
-        if config.get_bool("ca_create_using_vault") in (None, True):
+        if ca_config.get("ca_create_using_vault") in (True, "True", "true"):
             self._create_with_vault(name, ca_config)
         else:
             self._create_with_pulumi(name, ca_config)
@@ -941,6 +941,7 @@ __prov_dns_list = config.get_object("ca_provision_dns_names") or __ca_dns_list
 __alt_prov_dns_list = config.get_object("ca_alt_provision_dns_names") or __ca_dns_list
 
 ca_config = {
+    "ca_create_using_vault": config.get("ca_create_using_vault") or "false",
     "ca_name": config.get("ca_name") or "{}-{}-Root-CA".format(project_name, stack_name),
     "ca_org": config.get("ca_org") or "{}-{}".format(project_name, stack_name),
     "ca_unit": config.get("ca_unit") or "Certificate Authority",

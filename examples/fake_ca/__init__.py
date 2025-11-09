@@ -51,9 +51,10 @@ ca_config = {
     "cert_validity_period_hours": default_hours_public_cert,
     # this is a fake ca, if we throw away infrastructure, it ok to delete it too.
     "ca_protect_rootcert": False,
+    # use vault because of ca_max_path_length
+    "ca_create_using_vault": True,
 }
 
-# use vault, because of ca_max_path_length
 ca_factory = CACertFactory("fake_ca_factory", ca_config)
 pulumi.export("fake_ca_factory", ca_factory)
 
