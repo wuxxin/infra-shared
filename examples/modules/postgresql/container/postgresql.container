@@ -1,7 +1,8 @@
 [Unit]
 Description=Postgresql Server
-Wants=network-online.target container-build@%N.service container-secrets.service
+Wants=network-online.target container-build@%N.service container-secrets.service dns-is-ready.service
 After=network-online.target container-build@%N.service container-secrets.service
+Requires=dns-is-ready.service
 
 [Service]
 # environment loaded here is available in systemd-quadlet scope

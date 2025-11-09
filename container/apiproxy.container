@@ -3,10 +3,10 @@ Description=Container API Proxy (unix socket to tcp port) based on Haproxy \
     upstream socket: a running docker compatible API Server under API_SOCKET \
     downstream tcp: self.internal:API_PORT
 
-After=container-build@%N.service dns-is-ready.service container-secrets.service podman.service
+After=container-build@%N.service container-secrets.service podman.service dns-is-ready.service
 Wants=container-build@%N.service container-secrets.service podman.service
-ConditionPathExists=/etc/containers/systemd/%N.cfg
 Requires=dns-is-ready.service
+ConditionPathExists=/etc/containers/systemd/%N.cfg
 
 [Service]
 # environment loaded here is available in systemd-quadlet scope
