@@ -15,6 +15,7 @@ ssh:
 - c: SSHPut
 - c: SSHDeployer
 - c: SSHGet
+- c: SSHExecute
 - d: WaitForHostReady
 
 storage:
@@ -788,6 +789,66 @@ def ssh_deploy(
     return deployed
 
 
+class SSHExecute(pulumi.ComponentResource):
+    """A Pulumi component for executing a command on a remote host."""
+
+    def __init__(self, resource_name, props, opts=None):
+        """Initializes an SSHExecute component.
+
+        Args:
+            resource_name (str):
+                The name of the resource.
+            props (dict):
+                A dictionary of properties for the component.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        """
+        super().__init__("pkg:tools:SSHExecute", resource_name, None, opts)
+
+        if props["simulate"]:
+            tmpdir = props["tmpdir"]
+            os.makedirs(tmpdir, exist_ok=True)
+            # XXX write out environment if not empty on simulate, so we can look what env was set
+            if props["environment"] != {}:
+                cmdline = (
+                    "\n".join(
+                        [
+                            "{k}={v}".format(k=k, v=v)
+                            for k, v in props["environment"].items()
+                        ]
+                    )
+                    + "\n"
+                    + props["cmdline"]
+                )
+            else:
+                cmdline = props["cmdline"]
+            self.executed = command.local.Command(
+                resource_name,
+                create="cat - > {}".format(os.path.join(tmpdir, resource_name)),
+                delete="rm {} || true".format(os.path.join(tmpdir, resource_name)),
+                stdin=cmdline,
+                triggers=props["triggers"],
+                opts=pulumi.ResourceOptions(parent=self),
+            )
+        else:
+            self.executed = command.remote.Command(
+                resource_name,
+                connection=command.remote.ConnectionArgs(
+                    host=props["host"],
+                    port=props["port"],
+                    user=props["user"],
+                    private_key=props["sshkey"].private_key_openssh,
+                ),
+                create=props["cmdline"],
+                triggers=props["triggers"],
+                environment=props["environment"],
+                logging=RemoteLogging.NONE,
+                opts=pulumi.ResourceOptions(parent=self),
+            )
+        self.result = self.executed
+        self.register_outputs({})
+
+
 def ssh_execute(
     prefix,
     host,
@@ -826,7 +887,7 @@ def ssh_execute(
             The options for the resource. Defaults to None.
 
     Returns:
-        command.local.Command | command.remote.Command:
+        SSHExecute:
             The command resource.
     """
 
@@ -834,42 +895,19 @@ def ssh_execute(
 
     resource_name = "{}_ssh_execute".format(prefix)
     stack_name = pulumi.get_stack()
-    simulate = stack_name.endswith("sim") if simulate is None else simulate
-
-    if simulate:
-        tmpdir = os.path.join(project_dir, "build", "tmp", stack_name)
-        os.makedirs(tmpdir, exist_ok=True)
-        # XXX write out environment if not empty on simulate, so we can look what env was set
-        if environment != {}:
-            cmdline = (
-                "\n".join(["{k}={v}".format(k=k, v=v) for k, v in environment.items()])
-                + "\n"
-                + cmdline
-            )
-        ssh_executed = command.local.Command(
-            resource_name,
-            create="cat - > {}".format(os.path.join(tmpdir, resource_name)),
-            delete="rm {} || true".format(os.path.join(tmpdir, resource_name)),
-            stdin=cmdline,
-            triggers=triggers,
-            opts=opts,
-        )
-    else:
-        ssh_executed = command.remote.Command(
-            resource_name,
-            connection=command.remote.ConnectionArgs(
-                host=host,
-                port=port,
-                user=user,
-                private_key=ssh_factory.provision_key.private_key_openssh,
-            ),
-            create=cmdline,
-            triggers=triggers,
-            environment=environment,
-            logging=RemoteLogging.NONE,
-            opts=opts,
-        )
-    return ssh_executed
+    props = {
+        "host": host,
+        "port": port,
+        "user": user,
+        "cmdline": cmdline,
+        "sshkey": ssh_factory.provision_key,
+        "environment": environment,
+        "simulate": stack_name.endswith("sim") if simulate is None else simulate,
+        "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
+        "triggers": triggers,
+    }
+    executed = SSHExecute(resource_name, props, opts=opts)
+    return executed
 
 
 class DataExport(pulumi.ComponentResource):
