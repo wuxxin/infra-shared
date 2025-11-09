@@ -55,6 +55,9 @@ import json
 import copy
 import base64
 import re
+import shutil
+import subprocess
+import tempfile
 
 import pulumi
 import pulumi_tls as tls
@@ -63,12 +66,6 @@ import pulumi_command as command
 from pulumi_command.local import Logging as LocalLogging
 from pulumi import Output, Alias, ResourceOptions
 
-from cryptography import x509
-from cryptography.hazmat.primitives.serialization import (
-    BestAvailableEncryption,
-    load_pem_private_key,
-    pkcs12,
-)
 
 from .tools import (
     yaml_loads,
@@ -97,6 +94,8 @@ def pem_to_pkcs12_base64(
 ) -> str:
     """Converts a TLS client certificate chain and its associated private key in PEM format
     into a password-protected PKCS#12 file, encoded as a base64 string.
+    This implementation uses the openssl command-line tool to ensure compatibility
+    with modern crypto providers and handles temporary files securely.
 
     Args:
         pem_cert (str):
@@ -113,28 +112,57 @@ def pem_to_pkcs12_base64(
         str:
             Base64 encoded string of the PKCS#12 archive, formatted with line breaks.
     """
+    # Determine the most secure RAM-backed storage location available
+    uid = os.getuid()
+    user_tmp_dir = f"/run/user/{uid}"
+    if os.path.exists(user_tmp_dir):
+        tmp_dir_base = user_tmp_dir
+    elif os.path.exists("/dev/shm"):
+        tmp_dir_base = "/dev/shm"
+    else:
+        tmp_dir_base = None
 
-    # Split the certificate chain string into individual PEM certificate strings
-    certs_pem = re.findall(
-        r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", pem_cert, re.DOTALL
-    )
-    if not certs_pem:
-        raise ValueError("No certificates found in the PEM string.")
-    if len(certs_pem) < 2:
-        raise ValueError("Missing CAS")
+    # Create a secure temporary directory
+    secure_tmp_dir = tempfile.mkdtemp(dir=tmp_dir_base)
+    os.chmod(secure_tmp_dir, 0o700)
 
-    key = load_pem_private_key(pem_key.encode("utf-8"), password=None)
-    cert = x509.load_pem_x509_certificate(certs_pem[0].encode("utf-8"))
-    cas = [x509.load_pem_x509_certificate(c.encode("utf-8")) for c in certs_pem[1:]]
-    # print(f"key: {key} ,cert: {cert}, cas: {cas}")
+    try:
+        key_filepath = os.path.join(secure_tmp_dir, "key.pem")
+        cert_filepath = os.path.join(secure_tmp_dir, "cert.pem")
 
-    p12_data = pkcs12.serialize_key_and_certificates(
-        friendlyname.encode("utf-8"),
-        key=key,
-        cert=cert,
-        cas=cas,
-        encryption_algorithm=BestAvailableEncryption(password.encode("utf-8")),
-    )
+        with open(key_filepath, "w", encoding="utf-8") as key_file:
+            key_file.write(pem_key)
+
+        with open(cert_filepath, "w", encoding="utf-8") as cert_file:
+            cert_file.write(pem_cert)
+
+        # Use modern algorithms compatible with OpenSSL 3.x default providers
+        openssl_command = [
+            "openssl",
+            "pkcs12",
+            "-export",
+            "-inkey",
+            key_filepath,
+            "-in",
+            cert_filepath,
+            "-passout",
+            f"pass:{password}",
+            "-name",
+            friendlyname,
+            "-certpbe",
+            "AES-256-CBC",  # Certificate Privacy-Based Encryption
+            "-keypbe",
+            "AES-256-CBC",  # Key Privacy-Based Encryption
+            "-macalg",
+            "SHA256",  # MAC algorithm
+        ]
+
+        result = subprocess.run(openssl_command, capture_output=True, check=True)
+        p12_data = result.stdout
+
+    finally:
+        # Recursively remove the secure temporary directory and its contents
+        shutil.rmtree(secure_tmp_dir)
 
     # Base64 encode the binary PKCS#12 data
     base64_data = base64.encodebytes(p12_data).decode("utf-8")
