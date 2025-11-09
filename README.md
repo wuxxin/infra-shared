@@ -187,7 +187,7 @@ make sim-show args="ca_factory" | jq ".provision_cert_pem" -r | \
 
 ```sh
 make sim-show args="--show-secrets librewolf_client_cert_user_host" | \
-    jq -r .pkcs12_password.result
+    jq -r .client_password.result
 ```
 
 **show resource output as json:**

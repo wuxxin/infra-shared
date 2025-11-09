@@ -19,20 +19,20 @@ librewolf_client_cert = create_client_cert(
     opts=pulumi.ResourceOptions(),
 )
 
-pulumi.export("pkcs12_bundle_b64", librewolf_client_cert.pkcs12_bundle.result)
-pulumi.export("pkcs12_password", librewolf_client_cert.pkcs12_password.result)
+pulumi.export("client_pkcs12_b64", librewolf_client_cert.client_pkcs12.result)
+pulumi.export("client_password", librewolf_client_cert.client_password.result)
 """
     add_pulumi_program(pulumi_project_dir, program)
 
     up_result = pulumi_stack.up(**pulumi_up_args)
     assert up_result.summary.result == "succeeded"
 
-    pkcs12_password = up_result.outputs["pkcs12_password"].value
-    pkcs12_bundle_b64 = up_result.outputs["pkcs12_bundle_b64"].value
-    pkcs12_data = base64.b64decode(pkcs12_bundle_b64.encode("utf-8"))
+    client_password = up_result.outputs["client_password"].value
+    client_pkcs12_b64 = up_result.outputs["client_pkcs12_b64"].value
+    pkcs12_data = base64.b64decode(client_pkcs12_b64.encode("utf-8"))
 
     # Get all certs from the bundle in PEM format
-    cmd_pkcs12 = ["openssl", "pkcs12", "-nokeys", "-passin", f"pass:{pkcs12_password}"]
+    cmd_pkcs12 = ["openssl", "pkcs12", "-nokeys", "-passin", f"pass:{client_password}"]
     pkcs12_proc = subprocess.run(
         cmd_pkcs12, input=pkcs12_data, capture_output=True, check=True
     )

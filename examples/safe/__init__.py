@@ -85,6 +85,25 @@ pg_postgres_client_cert = create_client_cert(
     dns_names=["postgres@{}".format(name) for name in dns_names],
 )
 
+# write out transport encrypted key and chain in pem format of postgres master
+pg_client_key_export = public_local_export(
+    "postgres@{}_POSTGRESQL_CLIENTCERT".format(shortname),
+    "postgres@{}.key.pem".format(hostname),
+    pg_postgres_client_cert.client_key_encrypted,
+    triggers=[
+        pg_postgres_client_cert.client_key_encrypted,
+        pg_postgres_client_cert.client_password.result,
+    ],
+    opts=pulumi.ResourceOptions(depends_on=[pg_postgres_client_cert]),
+)
+pg_client_chain_export = public_local_export(
+    "postgres@{}_POSTGRESQL_CLIENTCERT".format(shortname),
+    "postgres@{}.cert.pem".format(hostname),
+    pg_postgres_client_cert.chain,
+    triggers=[pg_postgres_client_cert.chain],
+    opts=pulumi.ResourceOptions(depends_on=[pg_postgres_client_cert]),
+)
+
 
 # jinja environment for butane config
 host_environment = {

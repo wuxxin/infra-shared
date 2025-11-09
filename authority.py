@@ -61,6 +61,12 @@ import pulumi_command as command
 from pulumi_command.local import Logging as LocalLogging
 from pulumi import Output, Alias, ResourceOptions
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    PrivateFormat,
+    BestAvailableEncryption,
+)
 
 from .tools import (
     yaml_loads,
@@ -92,8 +98,8 @@ class PKCS12Bundle(pulumi.ComponentResource):
 
     To use with public_local_export:
         public_local_export("{}_PKCS12".format(user_host), "{}.p12".format(user_host),
-          clcert.pkcs12_bundle.result, filter="base64 -d",
-          triggers=[clcert.key.private_key_pem, clcert.cert.cert_pem, clcert.pkcs12_password.result],
+          clcert.client_pkcs12.result, filter="base64 -d",
+          triggers=[clcert.key.private_key_pem, clcert.cert.cert_pem, clcert.client_password.result],
           opts=pulumi.ResourceOptions(depends_on=[librewolf_client_cert]))
     """
 
@@ -506,6 +512,21 @@ class CACertFactory(pulumi.ComponentResource):
         self.alt_provision_cert_pem = ca_alt_provision_cert.cert_pem
 
 
+def _encrypt_private_key(args):
+    """Takes a list of resolved outputs [key_pem, password] and returns the encrypted key."""
+
+    unencrypted_pem_str, password_str = args
+    private_key_object = load_pem_private_key(
+        unencrypted_pem_str.encode("utf-8"), password=None
+    )
+    encrypted_key_bytes = private_key_object.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=PrivateFormat.PKCS8,
+        encryption_algorithm=BestAvailableEncryption(password_str.encode("utf-8")),
+    )
+    return encrypted_key_bytes.decode("utf-8")
+
+
 class CASignedCert(pulumi.ComponentResource):
     """A Pulumi component that creates a certificate signed by a Certificate Authority (CA).
 
@@ -520,11 +541,15 @@ class CASignedCert(pulumi.ComponentResource):
             Pulumi Output object that concatenates the signed certificate with the certificate chain.
 
     If "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
-        pkcs12_bundle:
+        client_pkcs12:
             Pulumi Output object of base64 encoded transport password secured pkcs12 client
             certificate file data.
-        pkcs12_password:
-            Pulumi Output object of random password generator.
+        client_key_encrypted:
+            Pulumi Output object of the password encoded client key in pem format
+        client_password:
+            Pulumi Output object of a pulumi-random password for client_key and client_pkcs12
+
+
     """
 
     def __init__(self, name, cert_config, opts=None):
@@ -615,8 +640,8 @@ class CASignedCert(pulumi.ComponentResource):
 
         if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
             # Create a password encrypted PKCS#12 object if only client_auth
-            self.pkcs12_password = random.RandomPassword(
-                "{}_pkcs12_password".format(name),
+            self.client_password = random.RandomPassword(
+                "{}_client_password".format(name),
                 length=24,
                 special=False,
                 keepers={
@@ -626,13 +651,17 @@ class CASignedCert(pulumi.ComponentResource):
                 },
                 opts=pulumi.ResourceOptions(parent=self),
             )
-            self.pkcs12_bundle = PKCS12Bundle(
-                name=f"{name}_pkcs12_bundle",
+            self.client_pkcs12 = PKCS12Bundle(
+                name=f"{name}_client_pkcs12",
                 key_pem=self.key.private_key_pem,
                 cert_chain_pem=self.chain,
-                password=self.pkcs12_password.result,
+                password=self.client_password.result,
                 opts=pulumi.ResourceOptions(parent=self),
             )
+            combined_key_and_password = pulumi.Output.all(
+                self.key.private_key_pem, self.client_password.result
+            )
+            self.client_key_encrypted = combined_key_and_password.apply(_encrypt_private_key)
 
         self.register_outputs({})
 
