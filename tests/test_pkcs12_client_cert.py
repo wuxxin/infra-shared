@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 from pulumi.automation import Stack
 from .utils import add_pulumi_program
@@ -52,5 +53,6 @@ pulumi.export("pkcs12_password", librewolf_client_cert.pkcs12_password.result)
 
     stdout_str = x509_proc.stdout.decode("utf-8")
     # Check the subject and issuer of the client certificate
-    assert "CN=librewolf.user@test-host" in stdout_str
-    assert "CN=project-sim-Provision-CA" in stdout_str
+    # XXX older openssl outputs extra spaces, eg. "CN = librewolf..."
+    assert "CN=librewolf.user@test-host" in re.sub(r"\s+", "", stdout_str)
+    assert "CN=project-sim-Provision-CA" in re.sub(r"\s+", "", stdout_str)
