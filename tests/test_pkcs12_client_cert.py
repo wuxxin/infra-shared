@@ -3,7 +3,6 @@ import subprocess
 from pulumi.automation import Stack
 from .utils import add_pulumi_program
 import base64
-import tempfile
 
 def test_pkcs12_client_cert(pulumi_stack: Stack, pulumi_project_dir, pulumi_up_args):
     program = """
@@ -31,30 +30,23 @@ pulumi.export("pkcs12_password", librewolf_client_cert.pkcs12_password.result)
 
     pkcs12_data = base64.b64decode(pkcs12_bundle_b64.encode("utf-8"))
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".p12") as p12_file:
-        p12_file.write(pkcs12_data)
-        pkcs12_filepath = p12_file.name
+    # Get all certs from the bundle in PEM format
+    cmd_pkcs12 = [
+        "openssl", "pkcs12",
+        "-nokeys", "-passin", f"pass:{pkcs12_password}",
+    ]
+    pkcs12_proc = subprocess.run(cmd_pkcs12, input=pkcs12_data, capture_output=True, check=True)
 
-    try:
-        # Get all certs from the bundle in PEM format
-        cmd_pkcs12 = [
-            "openssl", "pkcs12", "-in", pkcs12_filepath,
-            "-nokeys", "-passin", f"pass:{pkcs12_password}",
-        ]
-        pkcs12_proc = subprocess.run(cmd_pkcs12, capture_output=True, text=True, check=True)
+    # Check that we have at least two certificates (client + intermediate)
+    certs = pkcs12_proc.stdout.decode("utf-8").strip().split("-----END CERTIFICATE-----")
+    certs = [c for c in certs if c.strip()]
+    assert len(certs) >= 2
 
-        # Check that we have at least two certificates (client + intermediate)
-        certs = pkcs12_proc.stdout.strip().split("-----END CERTIFICATE-----")
-        certs = [c for c in certs if c.strip()]
-        assert len(certs) >= 2
+    # Use openssl to parse the PEM output of the first cert (the client cert)
+    cmd_x509 = ["openssl", "x509", "-noout", "-subject", "-issuer"]
+    x509_proc = subprocess.run(cmd_x509, input=(certs[0] + "-----END CERTIFICATE-----").encode("utf-8"), capture_output=True, check=True)
 
-        # Use openssl to parse the PEM output of the first cert (the client cert)
-        cmd_x509 = ["openssl", "x509", "-noout", "-subject", "-issuer"]
-        x509_proc = subprocess.run(cmd_x509, input=certs[0] + "-----END CERTIFICATE-----", capture_output=True, text=True, check=True)
-
-        # Check the subject and issuer of the client certificate
-        assert "CN = librewolf.user@test-host" in x509_proc.stdout
-        assert "CN = project-sim-Provision-CA" in x509_proc.stdout
-
-    finally:
-        os.remove(pkcs12_filepath)
+    stdout_str = x509_proc.stdout.decode("utf-8")
+    # Check the subject and issuer of the client certificate
+    assert "CN = librewolf.user@test-host" in stdout_str
+    assert "CN = project-sim-Provision-CA" in stdout_str
