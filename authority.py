@@ -95,12 +95,13 @@ default_early_renewal_hours = 48
 def pem_to_pkcs12_base64(
     pem_cert: str, pem_key: str, password: str, friendlyname: str = ""
 ) -> str:
-    """Converts a TLS client certificate and its associated private key in PEM format
+    """Converts a TLS client certificate chain and its associated private key in PEM format
     into a password-protected PKCS#12 file, encoded as a base64 string.
 
     Args:
         pem_cert (str):
-            The TLS client certificate in PEM format as a string.
+            The TLS client certificate chain in PEM format as a string.
+            The client cert must be the first in the string.
         pem_key (str):
             The private key in PEM format as a string.
         password (str):
@@ -112,18 +113,29 @@ def pem_to_pkcs12_base64(
         str:
             Base64 encoded string of the PKCS#12 archive, formatted with line breaks.
     """
-    # Load the certificate from PEM
-    cert = x509.load_pem_x509_certificate(pem_cert.encode("utf-8"))
-    # Load the private key from PEM
+
+    # Split the certificate chain string into individual PEM certificate strings
+    certs_pem = re.findall(
+        r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", pem_cert, re.DOTALL
+    )
+    if not certs_pem:
+        raise ValueError("No certificates found in the PEM string.")
+    if len(certs_pem) < 2:
+        raise ValueError("Missing CAS")
+
     key = load_pem_private_key(pem_key.encode("utf-8"), password=None)
-    # Create a PKCS#12 blob
+    cert = x509.load_pem_x509_certificate(certs_pem[0].encode("utf-8"))
+    cas = [x509.load_pem_x509_certificate(c.encode("utf-8")) for c in certs_pem[1:]]
+    # print(f"key: {key} ,cert: {cert}, cas: {cas}")
+
     p12_data = pkcs12.serialize_key_and_certificates(
         friendlyname.encode("utf-8"),
-        key,
-        cert,
-        None,
-        BestAvailableEncryption(password.encode("utf-8")),
+        key=key,
+        cert=cert,
+        cas=cas,
+        encryption_algorithm=BestAvailableEncryption(password.encode("utf-8")),
     )
+
     # Base64 encode the binary PKCS#12 data
     base64_data = base64.encodebytes(p12_data).decode("utf-8")
     # Format the base64 data (e.g., multiline string)
@@ -235,6 +247,7 @@ class TSIGKey(pulumi.ComponentResource):
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
+
         def extract_secret(data):
             try:
                 return data["key"][0]["secret"]
@@ -576,6 +589,7 @@ class CASignedCert(pulumi.ComponentResource):
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
+
         def undef_or_none_def(struct, entry, default):
             return struct.get(entry) if struct.get(entry) is not None else default
 
@@ -652,15 +666,15 @@ class CASignedCert(pulumi.ComponentResource):
 
         if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
             # Create a password encrypted PKCS#12 object if only client_auth
-            password_keepers = {
-                "cert_pem": self.cert.cert_pem,
-                "key_pem": self.key.private_key_pem,
-            }
             self.pkcs12_password = random.RandomPassword(
                 "{}_pkcs12_password".format(name),
                 length=24,
                 special=False,
-                keepers=password_keepers,
+                keepers={
+                    "cert_pem": self.cert.cert_pem,
+                    "key_pem": self.key.private_key_pem,
+                    "chain_pem": self.chain,
+                },
                 opts=pulumi.ResourceOptions(parent=self),
             )
             self.pkcs12_bundle = PKCS12Bundle(
