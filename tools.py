@@ -846,7 +846,12 @@ class SSHExecute(pulumi.ComponentResource):
                 opts=pulumi.ResourceOptions(parent=self),
             )
         self.result = self.executed
-        self.register_outputs({})
+        self.stdout = self.executed.stdout
+        self.stderr = self.executed.stderr
+        self.register_outputs({
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+        })
 
 
 def ssh_execute(
