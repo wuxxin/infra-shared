@@ -5,6 +5,7 @@ Read the following required changes, considering which parts should be combined 
 
 Required changes:
 
+
 ---
 
 - os/__init__.py: systemconfigupdate:
@@ -12,10 +13,6 @@ Required changes:
 this component transfers the update service and main.sls using config.deployed=ssh_deploy and executes this with config_updated=ssh_execute.
 
 sometimes, ssh_deploy finishes, but ssh_execute fails. i would like that the component realizes that, and will try ssh_deploy and ssh_execute next time again.
-
-
-- tests/test_butane_verification.py:
-    Add to Test: Verify the replace:verification:hash and replace:http_headers is in the public_config ignition output
 
 ---
 

@@ -39,8 +39,7 @@
 - pem_to_pkcs12_base64
 
 ### Components
-- CACertFactoryVault
-- CACertFactoryPulumi
+- CACertFactory
 - CASignedCert
 - SelfSignedCert
 - PKCS12Bundle
@@ -53,7 +52,6 @@
 import os
 import json
 import copy
-import base64
 import re
 
 import pulumi
@@ -146,9 +144,7 @@ openssl pkcs12 -export \\
             interpreter=["/bin/bash", "-c"],
             stdin=input_json,
             logging=LocalLogging.NONE,
-            opts=pulumi.ResourceOptions(
-                parent=self, additional_secret_outputs=["stdout"]
-            ),
+            opts=pulumi.ResourceOptions(parent=self, additional_secret_outputs=["stdout"]),
         )
 
         self.result = pulumi.Output.unsecret(pkcs12_b64.stdout)
@@ -936,7 +932,6 @@ def create_selfsigned_cert(
 
 
 # ### X509 ca_config
-
 __ca_permitted_list = config.get_object("ca_permitted_domains") or ["internal"]
 __ca_dns_list = config.get_object("ca_dns_names") or [
     "ca.{}.internal".format(project_name),

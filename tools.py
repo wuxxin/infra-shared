@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-## Pulumi - Tools - Serve HTTPS, SSH-put/get/execute, local and Remote Salt-Call, write Removeable-Media, State Data Export, Tools
+## Pulumi - Tools - Serve HTTPS, SSH-put/get/execute, local and Remote Salt-Call, write Removable-Media, State Data Export, Tools
 
 https:
 - f: serve_simple
@@ -13,7 +13,7 @@ ssh:
 - f: ssh_get
 - f: ssh_execute
 - c: SSHPut
-- c: SSHDeployer
+- c: SSHDeploy
 - c: SSHGet
 - c: SSHExecute
 - d: WaitForHostReady
@@ -481,11 +481,11 @@ class SSHGet(pulumi.ComponentResource):
         self.register_outputs({})
 
 
-class SSHDeployer(pulumi.ComponentResource):
+class SSHDeploy(pulumi.ComponentResource):
     """A Pulumi component for deploying string data as files to a remote host."""
 
     def __init__(self, resource_name, props, opts=None):
-        """Initializes an SSHDeployer component.
+        """Initializes an SSHDeploy component.
 
         Args:
             resource_name (str):
@@ -495,7 +495,7 @@ class SSHDeployer(pulumi.ComponentResource):
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
         """
-        super().__init__("pkg:tools:SSHDeployer", resource_name, None, opts)
+        super().__init__("pkg:tools:SSHDeploy", resource_name, None, opts)
 
         def create_resources_and_get_triggers(files_dict, props=props):
             all_triggers = []
@@ -731,7 +731,7 @@ def ssh_deploy(
 ):
     """Deploys string data as files to a remote host over SSH.
 
-    This function creates an `SSHDeployer` component to manage the file
+    This function creates an `SSHDeploy` component to manage the file
     deployment.
 
     Args:
@@ -758,7 +758,7 @@ def ssh_deploy(
             The options for the resource. Defaults to None.
 
     Returns:
-        SSHDeployer: An `SSHDeployer` component with a `deployment_hash` attribute.
+        SSHDeploy: An `SSHDeploy` component with a `deployment_hash` attribute.
             The `deployment_hash` attribute is a has string of all filenames and file hashes.
             It can be used for triggering another function if any file changed.
 
@@ -785,7 +785,7 @@ def ssh_deploy(
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
         "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
     }
-    deployed = SSHDeployer(prefix, props, opts=opts)
+    deployed = SSHDeploy(prefix, props, opts=opts)
     return deployed
 
 
@@ -812,10 +812,7 @@ class SSHExecute(pulumi.ComponentResource):
             if props["environment"] != {}:
                 cmdline = (
                     "\n".join(
-                        [
-                            "{k}={v}".format(k=k, v=v)
-                            for k, v in props["environment"].items()
-                        ]
+                        ["{k}={v}".format(k=k, v=v) for k, v in props["environment"].items()]
                     )
                     + "\n"
                     + props["cmdline"]
@@ -846,12 +843,7 @@ class SSHExecute(pulumi.ComponentResource):
                 opts=pulumi.ResourceOptions(parent=self),
             )
         self.result = self.executed
-        self.stdout = self.executed.stdout
-        self.stderr = self.executed.stderr
-        self.register_outputs({
-            "stdout": self.stdout,
-            "stderr": self.stderr,
-        })
+        self.register_outputs({})
 
 
 def ssh_execute(
