@@ -45,7 +45,7 @@ import pulumi
 from infra import tools
 from infra.authority import ssh_factory
 
-tools.ssh_execute(
+result = tools.ssh_execute(
     "test_execute_live",
     "{robust_ssh_server.host}",
     "testuser",
@@ -54,8 +54,10 @@ tools.ssh_execute(
     port={robust_ssh_server.port},
     opts=pulumi.ResourceOptions(additional_secret_outputs=["stdout", "stderr"]),
 )
+pulumi.export("stdout", result.stdout)
 """
     add_pulumi_program(pulumi_project_dir, program)
 
     up_result = pulumi_stack.up(**pulumi_up_args)
     assert up_result.summary.result == "succeeded"
+    assert up_result.outputs["stdout"].value == f"{output_file}"

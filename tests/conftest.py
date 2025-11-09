@@ -176,7 +176,7 @@ class SSHServerHandler(paramiko.ServerInterface):
                 logging.info(
                     f"SSHServer: File '{isready_file}' found. Returning exit status 0."
                 )
-                channel.send(f"/tmp/{isready_file}")
+                channel.send(f"{isready_file}\n")
                 channel.send_exit_status(0)
             else:
                 logging.info(
