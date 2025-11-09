@@ -10,8 +10,11 @@ https:
 ssh:
 - f: ssh_put
 - f: ssh_deploy
-- f: ssh_execute
 - f: ssh_get
+- f: ssh_execute
+- c: SSHPut
+- c: SSHDeployer
+- c: SSHGet
 - d: WaitForHostReady
 
 storage:

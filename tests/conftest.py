@@ -170,11 +170,13 @@ class SSHServerHandler(paramiko.ServerInterface):
         with self.server.files_lock:
             file_found = isready_file in self.server.files
 
-        if command_str.startswith("readlink -f"):
+        if command_str.startswith("readlink -e"):
+            # mimic readlink -e, output full virtual path if found, nothing if not.
             if file_found:
                 logging.info(
                     f"SSHServer: File '{isready_file}' found. Returning exit status 0."
                 )
+                channel.send(f"/tmp/{isready_file}")
                 channel.send_exit_status(0)
             else:
                 logging.info(

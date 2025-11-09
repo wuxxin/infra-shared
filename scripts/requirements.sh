@@ -41,7 +41,7 @@ sys: lsb-release
 # uv - extremely fast Python package installer and resolver written in Rust
 sys-arch: uv
 pip-deb: uv
-# openssl used for random, and hashid of cert
+# openssl used for random, hashid of cert, and pkcs12 generation
 sys: openssl
 # gnupg used for gpg signed hash sums of os images
 sys: gnupg
