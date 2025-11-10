@@ -61,6 +61,8 @@ This module provides resources for managing TLS/X509 CAs, certificates, DNSSEC k
     Creates a self-signed certificate
 -   `PKCS12Bundle`
     Creates a PKCS12 bundle from a certificate and private key
+-   `EncryptedPrivateKey`
+    Creates an encrypted private key in PEM format
 -   `NSFactory`
     Manages DNSSEC keys and anchors
 -   `TSIGKey`
@@ -78,8 +80,6 @@ This module provides resources for managing TLS/X509 CAs, certificates, DNSSEC k
     Creates a self-signed certificate
 -   `create_sub_ca`
     Creates a subordinate Certificate Authority (CA)
--   `pem_to_pkcs12_base64`
-    Converts a PEM-formatted certificate and key into a base64-encoded PKCS#12 file
 
 ### Configuration
 

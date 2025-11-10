@@ -8,7 +8,7 @@
 |---|---|---|
 | `.internal` | 10.87.240.1/24 | bridge with dns support |
 | `.nspawn` | 10.87.241.1/24 | bridge with dns support, dns for `.nspawn` container |
-| `.podman[1-99]` | 10.88.0.1/16 | bridge with dns support, dns for `.podman` container |
+| `.podman[1-99]` | 10.88.0.1-99/16 | bridge with dns support, dns for `.podman` container |
 
 ## DNS-Resolver
 

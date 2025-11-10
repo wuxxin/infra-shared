@@ -31,6 +31,7 @@ import re
 import stat
 import subprocess
 import ipaddress
+import logging
 
 import chardet
 import jinja2
@@ -609,6 +610,9 @@ def load_butane_dir(
             [search_subdir / f_path for f_path in kept_files_relative_to_subdir]
         )
 
+    logging.debug(
+        f"butane include {base_path}:\n{'\n'.join([str(fname_path) for fname_path in files_to_process_relative])}"
+    )
     for fname_path in files_to_process_relative:
         fname = str(fname_path)
         source_dict = yaml.safe_load(jinja_run_file(fname, basedir, environment))

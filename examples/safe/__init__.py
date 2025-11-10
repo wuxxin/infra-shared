@@ -86,22 +86,6 @@ pg_postgres_client_cert = create_client_cert(
 )
 pulumi.export(f"{hostname}_postgres_client_cert", pg_postgres_client_cert)
 
-# write out transport encrypted key and chain in pem format of postgres master
-pg_client_key_export = public_local_export(
-    "postgres@{}_POSTGRESQL_CLIENTCERT".format(shortname),
-    "postgres@{}.key.pem".format(hostname),
-    pg_postgres_client_cert.client_key_encrypted.result,
-    triggers=[pg_postgres_client_cert.client_key_encrypted],
-    opts=pulumi.ResourceOptions(depends_on=[pg_postgres_client_cert]),
-)
-pg_client_chain_export = public_local_export(
-    "postgres@{}_POSTGRESQL_CLIENTCERT".format(shortname),
-    "postgres@{}.cert.pem".format(hostname),
-    pg_postgres_client_cert.chain,
-    triggers=[pg_postgres_client_cert.chain],
-    opts=pulumi.ResourceOptions(depends_on=[pg_postgres_client_cert]),
-)
-
 
 # jinja environment for butane config
 host_environment = {
@@ -304,19 +288,23 @@ else:
     pulumi.export("{}_host_update".format(shortname), host_update)
 
     # make host postgresql.Provider pg_server available
+    # print(f"exported_ca_cert.filename: {exported_ca_cert.filename}", file=sys.stderr)
+
     pg_server = postgresql.Provider(
         "{}_POSTGRESQL_HOST".format(shortname),
-        host=target,
+        host=hostname,
         username="postgres",
         password=pg_postgres_password.result,
+        # XXX currently either mtls or password can be configured and used, therefore password is activated.
+        # XXX parsing the sslrootcert in this provider from file currently doesnt work if client cert is activated (for whatever reason)
         # clientcert=postgresql.ProviderClientcertArgs(
-        #     key=pg_postgres_client_cert.key.private_key_pem,
         #     cert=pg_postgres_client_cert.chain,
+        #     key=pg_postgres_client_cert.key.private_key_pem,
         #     sslinline=True,
         # ),
         superuser=True,
         sslrootcert=exported_ca_cert.filename,
-        sslmode="require",
+        sslmode="verify-ca",
         opts=pulumi.ResourceOptions(depends_on=[host_update]),
     )
     pulumi.export("{}_pg_server".format(shortname), pg_server)

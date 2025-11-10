@@ -913,6 +913,9 @@ class DataExport(pulumi.ComponentResource):
     This component writes data to a local file, with optional encryption using
     `age`. It is used by the `public_local_export` and `encrypted_local_export`
     functions.
+
+    returns:
+        self.filename
     """
 
     def __init__(
