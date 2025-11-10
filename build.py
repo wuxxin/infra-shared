@@ -25,37 +25,7 @@ import pulumi_command as command
 import yaml
 
 
-this_dir = os.path.dirname(os.path.abspath(__file__))
-
-
-def get_nested_value(
-    data: Dict, keys: List[str], default: Optional[bool] = None
-) -> Optional[bool]:
-    """Safely retrieves a nested boolean value from a dictionary.
-
-    This function navigates through a nested dictionary using a list of keys
-    and returns the value at the specified path. It handles cases where keys
-    are missing or the path contains non-dictionary values.
-
-    Args:
-        data (Dict):
-            The dictionary to search.
-        keys (List[str]):
-            A list of keys representing the path to the value.
-        default (Optional[bool], optional):
-            The default value to return if the key is not found or the value is not
-            a boolean. Defaults to None.
-
-    Returns:
-        Optional[bool]:
-            The retrieved boolean value, or the default value.
-    """
-    try:
-        value = reduce(lambda d, k: d[k], keys, data)
-        return value if isinstance(value, bool) else default
-    except (KeyError, TypeError, AttributeError):
-        # Handle missing keys or non-dict values
-        return default
+this_dir = os.path.dirname(os.path.normpath(__file__))
 
 
 def build_this_salt(resource_name, sls_name, config_name, environment={}, opts=None):
@@ -82,6 +52,30 @@ def build_this_salt(resource_name, sls_name, config_name, environment={}, opts=N
         LocalSaltCall:
             A `LocalSaltCall` resource representing the Salt execution.
     """
+
+    def get_nested_value(
+        data: Dict, keys: List[str], default: Optional[bool] = None
+    ) -> Optional[bool]:
+        """Safely retrieves a nested boolean value from a dictionary.
+
+        This function navigates through a nested dictionary using a list of keys
+        and returns the value at the specified path. It handles cases where keys
+        are missing or the path contains non-dictionary values.
+
+        Args:
+          data (Dict): The dictionary to search.
+          keys (List[str]): A list of keys representing the path to the value.
+          default (Optional[bool]): The default value to return if the key is not
+            found or the value is not a boolean. Defaults to None.
+        Returns:
+          Optional[bool]: The retrieved boolean value, or the default value.
+        """
+        try:
+            value = reduce(lambda d, k: d[k], keys, data)
+            return value if isinstance(value, bool) else default
+        except (KeyError, TypeError, AttributeError):
+            # Handle missing keys or non-dict values
+            return default
 
     from .tools import LocalSaltCall
 
