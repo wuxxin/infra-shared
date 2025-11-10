@@ -28,9 +28,7 @@ def get_drives():
     """Prints a list of storage devices (and if they are removable)"""
 
     udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
-    udisks_obj_manager = dbus.Interface(
-        udisks_obj, "org.freedesktop.DBus.ObjectManager"
-    )
+    udisks_obj_manager = dbus.Interface(udisks_obj, "org.freedesktop.DBus.ObjectManager")
     managed_objects = udisks_obj_manager.GetManagedObjects()
     drives = []
 
@@ -41,9 +39,7 @@ def get_drives():
                 "path": os.path.basename(path),
                 "serial": device_info["Serial"],
                 "size": device_info["Size"],
-                "removable": "Removable"
-                if device_info["MediaRemovable"]
-                else "Fixed",
+                "removable": "Removable" if device_info["MediaRemovable"] else "Fixed",
                 "present": device_info["TimeMediaDetected"],
             }
             partitions = []
@@ -67,9 +63,7 @@ def get_removable_block_device(serial_number, disk_size):
     """Returns the whole disk block device path of an external attached device with specified serial and size(can be 0)"""
 
     udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
-    udisks_obj_manager = dbus.Interface(
-        udisks_obj, "org.freedesktop.DBus.ObjectManager"
-    )
+    udisks_obj_manager = dbus.Interface(udisks_obj, "org.freedesktop.DBus.ObjectManager")
     managed_objects = udisks_obj_manager.GetManagedObjects()
     drive_path = None
     drive_size = None
@@ -109,9 +103,7 @@ def get_removable_block_device(serial_number, disk_size):
         if block_size is not None and block_size == drive_size and block_offset == 0:
             return path, block_info
 
-    raise KeyError(
-        f"Could not find the whole disk block device for serial {serial_number}"
-    )
+    raise KeyError(f"Could not find the whole disk block device for serial {serial_number}")
 
 
 def write_to_device(block_device_path, image_file, verbose=True):
@@ -119,9 +111,7 @@ def write_to_device(block_device_path, image_file, verbose=True):
 
     # Get the Block device object
     block_device_obj = bus.get_object("org.freedesktop.UDisks2", block_device_path)
-    block_device_iface = dbus.Interface(
-        block_device_obj, "org.freedesktop.UDisks2.Block"
-    )
+    block_device_iface = dbus.Interface(block_device_obj, "org.freedesktop.UDisks2.Block")
     # open target block device exclusive for writing
     target_device_dbus_fd = block_device_iface.OpenDevice(
         "w", dbus.Dictionary({"flags": os.O_EXCL | os.O_SYNC | os.O_CLOEXEC})
@@ -154,9 +144,7 @@ def write_to_device(block_device_path, image_file, verbose=True):
 def patch_partitions(block_device_path, block_info, patches, verbose=True):
     """Write files on specific partitions after writing the image"""
     udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
-    udisks_obj_manager = dbus.Interface(
-        udisks_obj, "org.freedesktop.DBus.ObjectManager"
-    )
+    udisks_obj_manager = dbus.Interface(udisks_obj, "org.freedesktop.DBus.ObjectManager")
     managed_objects = udisks_obj_manager.GetManagedObjects()
 
     drive_path = block_info.get("Drive")
@@ -192,10 +180,7 @@ def patch_partitions(block_device_path, block_info, patches, verbose=True):
             continue
 
         filesystem_iface = None
-        if (
-            "org.freedesktop.UDisks2.Filesystem"
-            in managed_objects[partition_object_path]
-        ):
+        if "org.freedesktop.UDisks2.Filesystem" in managed_objects[partition_object_path]:
             filesystem_iface_obj = bus.get_object(
                 "org.freedesktop.UDisks2", partition_object_path
             )
@@ -218,7 +203,7 @@ def patch_partitions(block_device_path, block_info, patches, verbose=True):
                 print(f"Partition '{partition_identifier}' mounted at {mount_path}")
 
             # Copy the file
-            source_abs_path = os.path.abspath(source_path)
+            source_abs_path = os.path.normpath(source_path)
             dest_abs_path = os.path.join(mount_path, dest_on_partition)
             os.makedirs(os.path.dirname(dest_abs_path), exist_ok=True)
             shutil.copy2(source_abs_path, dest_abs_path)
@@ -299,9 +284,7 @@ or filesystem label, eg. 'u-boot.bin EFI-SYSTEM/boot/efi/u-boot.bin'. """,
                 max_label = max(len(str(p["label"])) for p in drive["partitions"])
                 max_size = max(len(str(p["size"])) for p in drive["partitions"])
 
-                for partition in sorted(
-                    drive["partitions"], key=lambda item: item["path"]
-                ):
+                for partition in sorted(drive["partitions"], key=lambda item: item["path"]):
                     print(
                         f"  Device: {partition['path']:<{max_path}}  "
                         + f" Size: {partition['size']:<{max_size}}"
@@ -319,9 +302,7 @@ or filesystem label, eg. 'u-boot.bin EFI-SYSTEM/boot/efi/u-boot.bin'. """,
             write_to_device(block_device_path, args.source_image, args.verbose)
 
             if args.patch:
-                patch_partitions(
-                    block_device_path, block_info, args.patch, args.verbose
-                )
+                patch_partitions(block_device_path, block_info, args.patch, args.verbose)
 
         except (KeyError, IndexError) as e:
             print(f"Error: {e}", file=sys.stderr)

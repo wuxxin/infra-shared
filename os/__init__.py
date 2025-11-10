@@ -44,8 +44,9 @@ from ..template import (
     merge_butane_dicts,
 )
 
-this_dir = os.path.dirname(os.path.abspath(__file__))
-subproject_dir = os.path.abspath(os.path.join(this_dir, ".."))
+this_dir = os.path.dirname(os.path.normpath(__file__))
+subproject_dir = os.path.normpath(os.path.join(this_dir, ".."))
+project_dir = os.getcwd()
 
 
 def butane_clevis_to_json_clevis(butane_config):
@@ -403,7 +404,12 @@ storage:
 
         # jinja template *.bu yaml files from basedir
         target_dict = pulumi.Output.all(env=this_env).apply(
-            lambda args: load_butane_dir(basedir, args["env"], exclude=basedir_exclude)
+            lambda args: load_butane_dir(
+                basedir,
+                args["env"],
+                exclude=basedir_exclude,
+                search_root=project_dir,
+            )
         )
 
         # merged_dict= base_dict -> security_dict > target_dict -> system_dict

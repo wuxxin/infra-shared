@@ -507,6 +507,7 @@ def load_butane_dir(
     subdir: str | Path = "",
     exclude: list[str] = None,
     include: list[str] = None,
+    search_root: str | Path | None = None,
 ):
     """Loads and processes Butane files from a directory.
 
@@ -527,6 +528,9 @@ def load_butane_dir(
         include (list[str], optional):
             A list of specific files to include. If provided, only these files will be
             processed. Defaults to None.
+        search_root (str | Path | None):
+            The root directory that needs to be part of the final filename to be included.
+            Defaults to None, if set, will check each included file for path starting with search_root
 
     Returns:
         dict:
@@ -538,19 +542,58 @@ def load_butane_dir(
     if include is None:
         include = []
     merged_dict = {}
-    base_path = Path(basedir).resolve()
+
+    base_path = Path(basedir)
     files_to_process_relative: list[Path] = []
     search_subdir = Path(subdir)
+    real_base_path = base_path.resolve()
+    if not search_root:
+        search_root = base_path
+    else:
+        search_root = Path(search_root)
 
     if include:
         files_to_process_relative = sorted([search_subdir / fname for fname in include])
     else:
-        search_pattern = str(search_subdir / "**" / "*.bu")
-        absolute_paths = sorted(base_path.glob(search_pattern))
-        all_files_relative = [p.relative_to(base_path) for p in absolute_paths]
-        # Get paths relative to the subdir (e.g., "main.bu", "deep/other.bu")
-        # These are the strings our patterns will match against.
-        files_relative_to_subdir = [p.relative_to(search_subdir) for p in all_files_relative]
+        all_files_rel_to_base = []
+        walk_root = base_path / search_subdir
+        seen_real_paths = set()
+
+        for root, dirs, files in os.walk(walk_root, followlinks=True):
+            for file in files:
+                if file.endswith(".bu"):
+                    abs_file_path_found = Path(root) / file
+                    try:
+                        real_file = abs_file_path_found.resolve()
+                        if real_file in seen_real_paths:
+                            continue
+                        if not real_file.is_relative_to(search_root):
+                            print(
+                                f"Warning: Skipping file {abs_file_path_found}. Resolved path {real_file} is outside base directory {base_path}"
+                            )
+                            continue
+
+                        seen_real_paths.add(real_file)
+                        rel_to_base = abs_file_path_found.relative_to(base_path)
+                        all_files_rel_to_base.append(rel_to_base)
+
+                    except (OSError, ValueError) as e:
+                        print(
+                            f"Warning: Skipping file {abs_file_path_found}. Could not resolve: {e}"
+                        )
+                        continue
+
+        all_files_relative = sorted(all_files_rel_to_base)
+        files_relative_to_subdir = []
+        for p in all_files_relative:
+            try:
+                files_relative_to_subdir.append(p.relative_to(search_subdir))
+            except ValueError as e:
+                print(
+                    f"Warning: p.relative_to(search_subdir) not found. p={p} search_subdir={search_subdir} exception={e}"
+                )
+                pass
+
         kept_files_relative_to_subdir = []
         if exclude:
             for f_path in files_relative_to_subdir:

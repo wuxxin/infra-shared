@@ -54,7 +54,7 @@ from infra.tools import (
 )
 from infra.build import build_raspberry_extras
 
-this_dir = os.path.dirname(os.path.abspath(__file__))
+this_dir = os.path.dirname(os.path.normpath(__file__))
 files_basedir = os.path.join(this_dir)
 
 # configure hostnames

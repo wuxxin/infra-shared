@@ -79,8 +79,8 @@ from .tools import (
 config = pulumi.Config("")
 stack_name = pulumi.get_stack()
 project_name = pulumi.get_project()
-this_dir = os.path.dirname(os.path.abspath(__file__))
-project_dir = os.path.abspath(os.path.join(this_dir, ".."))
+this_dir = os.path.dirname(os.path.normpath(__file__))
+project_dir = os.getcwd()
 
 # https://superuser.com/questions/1492207/
 # XXX use validity period specified by apple (custom CA issued: <825, Public CA: <398)

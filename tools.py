@@ -59,8 +59,8 @@ from pulumi import ResourceOptions
 
 from .template import join_paths
 
-this_dir = os.path.dirname(os.path.abspath(__file__))
-project_dir = os.path.abspath(os.path.join(this_dir, ".."))
+this_dir = os.path.dirname(os.path.normpath(__file__))
+project_dir = os.getcwd()
 
 
 def log_warn(x):
@@ -273,7 +273,7 @@ class SSHPut(pulumi.ComponentResource):
                 if props["simulate"]:
                     os.makedirs(props["tmpdir"], exist_ok=True)
                     tmpfile = sub_resource_name.apply(
-                        lambda r: os.path.abspath(os.path.join(props["tmpdir"], r))
+                        lambda r: os.path.normpath(os.path.join(props["tmpdir"], r))
                     )
                     copy_cmd = pulumi.Output.all(full_local_path_output, tmpfile).apply(
                         lambda args: "cp {} {}".format(args[0], args[1])
@@ -432,7 +432,7 @@ class SSHGet(pulumi.ComponentResource):
                 if props["simulate"]:
                     os.makedirs(props["tmpdir"], exist_ok=True)
                     tmpfile = sub_resource_name.apply(
-                        lambda r: os.path.abspath(os.path.join(props["tmpdir"], r))
+                        lambda r: os.path.normpath(os.path.join(props["tmpdir"], r))
                     )
                     create_cmd = tmpfile.apply(
                         lambda p: f"mkdir -p $(dirname {p}) && touch {p}"
@@ -532,7 +532,7 @@ class SSHDeploy(pulumi.ComponentResource):
                 if props["simulate"]:
                     os.makedirs(props["tmpdir"], exist_ok=True)
                     tmpfile = sub_resource_name.apply(
-                        lambda r: os.path.abspath(os.path.join(props["tmpdir"], r))
+                        lambda r: os.path.normpath(os.path.join(props["tmpdir"], r))
                     )
 
                     _ = pulumi.Output.all(sub_resource_name, tmpfile, data_output).apply(

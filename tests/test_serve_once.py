@@ -31,8 +31,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
 # Add the directory containing serve_once.py to the Python path
-script_dir = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../scripts")
+script_dir = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.normpath(__file__)), "../scripts")
 )
 sys.path.insert(0, script_dir)
 import serve_once  # noqa: E402
@@ -1033,7 +1033,6 @@ class TestServeOnce(unittest.TestCase):
         # The request body should be printed exactly to stdout
         self.assertIn(request_data, stdout_output.strip())  # Strip potential extra newlines
 
-
     def test_request_header_correct(self):
         """Tests a correct request header."""
         config = self.base_config.copy()
@@ -1087,9 +1086,7 @@ class TestServeOnce(unittest.TestCase):
 
         self.assertIsNotNone(response, "Request failed")
         self.assertEqual(response.status, 400)
-        self.assertIsNone(
-            self.process.poll(), "Server exited unexpectedly on missing header"
-        )
+        self.assertIsNone(self.process.poll(), "Server exited unexpectedly on missing header")
         self.process.terminate()
         self.assert_server_exit_code(-15, timeout=1)
 
