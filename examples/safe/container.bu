@@ -17,3 +17,15 @@ storage:
         inline: |
           HOSTNAME=tang.{{ HOSTNAME }}
 
+    # allow public to connect to the postgresql server
+    - path: /etc/firewalld/policies/ingress-postgresql.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy target="ACCEPT">
+            <short>Allow Incoming postgresql Traffic</short>
+            <description>Allow incoming traffic to host on default postgresql port 5432 from the public zone.</description>
+            <ingress-zone name="public"/>
+            <service name="postgresql"/>
+          </policy>

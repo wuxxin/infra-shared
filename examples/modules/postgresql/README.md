@@ -7,6 +7,26 @@
 - symlink as `postgresql`to your target basedir
 - check if HOSTNAME and LOCALE["LANG"] of config are suited or override them in environment
 
+#### Public facing Server
+
+Butane snippet:
+
+```yaml
+storage:
+  files:
+    - path: /etc/firewalld/policies/ingress-postgresql.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy target="ACCEPT">
+            <short>Allow Incoming postgresql Traffic</short>
+            <description>Allow incoming traffic to the host on the postgresql port (5432) from the public zone.</description>
+            <ingress-zone name="public"/>
+            <service name="postgresql"/>
+          </policy>
+```
+
 #### Environment: POSTGRES_PASSWORD
 
 ```python
