@@ -84,16 +84,14 @@ pg_postgres_client_cert = create_client_cert(
     "postgres@{}".format(hostname),
     dns_names=["postgres@{}".format(name) for name in dns_names],
 )
+pulumi.export(f"{hostname}_postgres_client_cert", pg_postgres_client_cert)
 
 # write out transport encrypted key and chain in pem format of postgres master
 pg_client_key_export = public_local_export(
     "postgres@{}_POSTGRESQL_CLIENTCERT".format(shortname),
     "postgres@{}.key.pem".format(hostname),
-    pg_postgres_client_cert.client_key_encrypted,
-    triggers=[
-        pg_postgres_client_cert.client_key_encrypted,
-        pg_postgres_client_cert.client_password.result,
-    ],
+    pg_postgres_client_cert.client_key_encrypted.result,
+    triggers=[pg_postgres_client_cert.client_key_encrypted],
     opts=pulumi.ResourceOptions(depends_on=[pg_postgres_client_cert]),
 )
 pg_client_chain_export = public_local_export(

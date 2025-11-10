@@ -16,7 +16,7 @@
 ### useful resources
 - config, stack_name, project_name, this_dir, project_dir
 - ca_config
-    - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_max_path_length
+    - ca_name, ca_org, ca_unit, ca_locality, ca_country, ca_max_path_length, ca_create_using_vault
     - ca_validity_period_hours, cert_validity_period_hours
     - ca_permitted_domains, ca_permitted_domains_list, ca_dns_names, ca_dns_names_list
     - ca_provision_name, ca_provision_unit, ca_provision_dns_names, ca_provision_dns_names_list
@@ -36,16 +36,17 @@
 - create_client_cert
 - create_selfsigned_cert
 - create_sub_ca
-- pem_to_pkcs12_base64
 
 ### Components
 - CACertFactory
+- NSFactory
+- SSHFactory
+
 - CASignedCert
 - SelfSignedCert
 - PKCS12Bundle
-- NSFactory
+- EncryptedPrivateKey
 - TSIGKey
-- SSHFactory
 
 """
 
@@ -117,6 +118,9 @@ class PKCS12Bundle(pulumi.ComponentResource):
                 The password to protect the bundle.
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
+        Returns:
+            .result: base64 encoded string of pkcs12 file
+
         """
         super().__init__("pkg:authority:PKCS12Bundle", name, None, opts)
 
@@ -155,6 +159,55 @@ openssl pkcs12 -export \\
 
         self.result = pulumi.Output.unsecret(pkcs12_b64.stdout)
         self.register_outputs({})
+
+
+class EncryptedPrivateKey(pulumi.ComponentResource):
+    """Creates an encrypted private key in PEM format.
+
+    Warning:
+        Encryption is nondeterministic, meaning data will change on another conversion.
+
+    To use with public_local_export:
+        public_local_export("{}_CLIENT_KEY".format(user_host),
+          "{}_client_pem.key".format(user_host),
+          clcert.client_key_encrypted.result, filter="base64 -d",
+          triggers=[clcert.client_key_encrypted],
+          opts=pulumi.ResourceOptions(depends_on=[librewolf_client_cert]))
+    """
+
+    def __init__(self, name, key_pem, password, opts=None):
+        """Initializes a EncryptedPrivateKey component.
+
+        Args:
+            name (str):
+                The name of the resource.
+            key_pem (pulumi.Input[str]):
+                The private key in PEM format.
+            password (pulumi.Input[str]):
+                The password to protect the bundle.
+            opts (pulumi.ResourceOptions, optional):
+                The options for the resource. Defaults to None.
+        Returns:
+            .result: base64 encoded string of pkcs12 file
+
+        """
+        super().__init__("pkg:authority:EncryptedPrivateKey", name, None, opts)
+
+        encrypted_key = pulumi.Output.all(key_pem, password).apply(self._encrypt_private_key)
+        self.result = encrypted_key
+        self.register_outputs({})
+
+    def _encrypt_private_key(self, args):
+        unencrypted_pem_str, password_str = args
+        private_key_object = load_pem_private_key(
+            unencrypted_pem_str.encode("utf-8"), password=None
+        )
+        encrypted_key_bytes = private_key_object.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=PrivateFormat.PKCS8,
+            encryption_algorithm=BestAvailableEncryption(password_str.encode("utf-8")),
+        )
+        return encrypted_key_bytes.decode("utf-8")
 
 
 class SSHFactory(pulumi.ComponentResource):
@@ -512,21 +565,6 @@ class CACertFactory(pulumi.ComponentResource):
         self.alt_provision_cert_pem = ca_alt_provision_cert.cert_pem
 
 
-def _encrypt_private_key(args):
-    """Takes a list of resolved outputs [key_pem, password] and returns the encrypted key."""
-
-    unencrypted_pem_str, password_str = args
-    private_key_object = load_pem_private_key(
-        unencrypted_pem_str.encode("utf-8"), password=None
-    )
-    encrypted_key_bytes = private_key_object.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=PrivateFormat.PKCS8,
-        encryption_algorithm=BestAvailableEncryption(password_str.encode("utf-8")),
-    )
-    return encrypted_key_bytes.decode("utf-8")
-
-
 class CASignedCert(pulumi.ComponentResource):
     """A Pulumi component that creates a certificate signed by a Certificate Authority (CA).
 
@@ -639,7 +677,7 @@ class CASignedCert(pulumi.ComponentResource):
         self.chain = Output.concat(resource_cert.cert_pem, "\n", resource_chain)
 
         if "client_auth" in allowed_uses and "server_auth" not in allowed_uses:
-            # Create a password encrypted PKCS#12 object if only client_auth
+            # Create a password and encrypted PKCS12 and X509-KEY-PEM objects
             self.client_password = random.RandomPassword(
                 "{}_client_password".format(name),
                 length=24,
@@ -658,10 +696,12 @@ class CASignedCert(pulumi.ComponentResource):
                 password=self.client_password.result,
                 opts=pulumi.ResourceOptions(parent=self),
             )
-            combined_key_and_password = pulumi.Output.all(
-                self.key.private_key_pem, self.client_password.result
+            self.client_key_encrypted = EncryptedPrivateKey(
+                f"{name}_client_key_encrypted",
+                key_pem=self.key.private_key_pem,
+                password=self.client_password.result,
+                opts=pulumi.ResourceOptions(parent=self),
             )
-            self.client_key_encrypted = combined_key_and_password.apply(_encrypt_private_key)
 
         self.register_outputs({})
 
