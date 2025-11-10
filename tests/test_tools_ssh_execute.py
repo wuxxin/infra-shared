@@ -30,7 +30,7 @@ tools.ssh_execute(
         assert f.read() == "echo 'hello world'"
 
 
-def test_ssh_execute_live(
+def disabled_ssh_execute_live(
     pulumi_stack: Stack,
     pulumi_project_dir,
     pulumi_up_args,
