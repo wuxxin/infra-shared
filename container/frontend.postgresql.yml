@@ -1,0 +1,40 @@
+tcp:
+  routers:
+    pgmtls:
+      entryPoints:
+        - pgmtls
+      rule: "HostSNI(`*`)"
+      service: pgmtls
+      middlewares:
+        - pgmtls-ratelimit
+      tls:
+        passthrough: true
+    pgpwd:
+      entryPoints:
+        - pgpwd
+      rule: "HostSNI(`*`)"
+      service: pgpwd
+      middlewares:
+        - pgpwd-ratelimit
+      tls:
+        passthrough: true
+
+  services:
+    pgmtls:
+      loadBalancer:
+        servers:
+          - address: "{{ PODMAN_PGMTLS_CIDR|cidr2ip(2) }}:5432"
+    pgpwd:
+      loadBalancer:
+        servers:
+          - address: "{{ PODMAN_PGPWD_CIDR|cidr2ip(2) }}:5432"
+
+  middlewares:
+    pgmtls-ratelimit:
+      rateLimit:
+        average: 10
+        burst: 20
+    pgpwd-ratelimit:
+      rateLimit:
+        average: 5
+        burst: 10

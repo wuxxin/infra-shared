@@ -21,6 +21,8 @@ storage:
           # map username postgres@hostname to postgres if postgres@hostname matches hostname
           POSTGRES_EXTRA_IDENT=tlsmap /^(.*)@{{ HOSTNAME }} \1
           LANG={{ LOCALE["LANG"] }}
+          PODMAN_PGMTLS_CIDR={{ PODMAN_PGMTLS_CIDR }}
+          PODMAN_PGPWD_CIDR={{ PODMAN_PGPWD_CIDR }}
 
 systemd:
   units:

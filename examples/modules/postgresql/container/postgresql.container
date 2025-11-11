@@ -39,7 +39,10 @@ Volume=postgresql-migrate:/migrate
 # listen address and tls configuration
 Volume=/etc/containers/systemd/postgresql.conf:/etc/postgresql/postgresql.conf:ro
 
-PublishPort=5432:5432
+Network=pgmtls,ip={{ PODMAN_PGMTLS_CIDR|cidr2ip(2) }}
+Network=pgpwd,ip={{ PODMAN_PGPWD_CIDR|cidr2ip(2) }}
+
+PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:5432:5432
 
 [Install]
 WantedBy=multi-user.target

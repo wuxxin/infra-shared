@@ -68,6 +68,8 @@ storage:
             <description>Zone for Podman containers and networks.</description>
             <source address="{{ PODMAN_CIDR }}"/>
             <source address="{{ PODMAN_POOL_CIDR }}"/>
+            <source address="{{ PODMAN_PGMTLS_CIDR }}"/>
+            <source address="{{ PODMAN_PGPWD_CIDR }}"/>
           </zone>
 
     - path: /etc/firewalld/zones/nspawn.xml
@@ -95,6 +97,19 @@ storage:
             <service name="http"/>
             <service name="https"/>
             <port protocol="tcp" port="9443"/>
+          </policy>
+
+    - path: /etc/firewalld/policies/ingress-postgresql.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy target="ACCEPT">
+            <short>Allow Incoming postgresql Traffic</short>
+            <description>Allow incoming traffic to the host on the postgresql ports from the public zone.</description>
+            <ingress-zone name="public"/>
+            <port protocol="tcp" port="5432"/>
+            <port protocol="tcp" port="5431"/>
           </policy>
 
     - path: /etc/firewalld/policies/egress-public.xml
