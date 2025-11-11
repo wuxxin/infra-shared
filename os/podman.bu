@@ -76,7 +76,7 @@ storage:
         inline: |
           {
             "name": "pgmtls",
-            "id": "0dfa724b335c3b53fca85ef3287eb1081e3a105c328105574c865f2a13f67856",
+            "id": "1e2eb4a9e75c11174f898f7964beeb5f44f96812f765bb90d2f42b9abca05c4f",
             "driver": "bridge",
             "network_interface": "pgmtls",
             "created": "{% set c= 'os/podman.bu'|created_at %}{{ c.isoformat().replace('+00:00', 'Z') }}",
@@ -102,7 +102,7 @@ storage:
         inline: |
           {
             "name": "pgpwd",
-            "id": "7870d8a9e70f61a153833f0193a0555c829e06180551065c510b646a51d45131",
+            "id": "173bf27909d07f4405d9e611e0c86b93baf0ff61b9207aef9dda1d7ece6dc24f",
             "driver": "bridge",
             "network_interface": "pgpwd",
             "created": "{% set c= 'os/podman.bu'|created_at %}{{ c.isoformat().replace('+00:00', 'Z') }}",

@@ -68,6 +68,7 @@ PublishPort=80:80
 PublishPort={{ portdef }}
   {% endfor %}
 {% endif %}
+# Network parameter documentation: https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html#network-network-options
 Network=pgmtls
 Network=pgpwd
 
