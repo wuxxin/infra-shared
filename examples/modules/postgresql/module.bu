@@ -1,6 +1,19 @@
 # butane config
 
 storage:
+  files:
+    - path: /etc/firewalld/policies/ingress-postgresql.xml
+      mode: 0644
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <policy target="ACCEPT">
+            <short>Allow Incoming postgresql Traffic</short>
+            <description>Allow incoming traffic to the host on the postgresql ports from the public zone.</description>
+            <ingress-zone name="public"/>
+            <port protocol="tcp" port="5432"/>
+            <port protocol="tcp" port="5431"/>
+          </policy>
   trees:
     # all Containerfile files
     - path: /etc/containers/build
@@ -11,6 +24,11 @@ storage:
       local: postgresql/container
 
   files:
+    - path: /etc/containers/systemd/frontend.postgresql.yml
+      contents:
+        local: postgresql/container/frontend.postgresql.yml
+        template: jinja
+
     - path: /etc/containers/environment/postgresql.env
       mode: 0600
       contents:
