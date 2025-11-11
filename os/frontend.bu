@@ -8,7 +8,7 @@ storage:
 
   files:
     # copy apiproxy and frontend configuration
-    # {% for f in ["apiproxy.container", "apiproxy.cfg", "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml"] %}
+    # {% for f in ["apiproxy.container", "apiproxy.cfg", "frontend.container", "frontend.volume", "frontend.static.yml", "frontend.dynamic.yml", "frontend.postgresql.yml"] %}
     - path: /etc/containers/systemd/{{ f }}
       contents:
         local: container/{{ f }}

@@ -8,10 +8,11 @@ pg_setup_auth() {
 	pg_hba="# TYPE  DATABASE        USER            ADDRESS                 METHOD
 local   all             all                                     trust
 local   replication     all                                     trust
-# reject nossl, ssl connect with scram-sha-256 or clientcert:verify-full using map:tlsmap
+# reject nossl, ssl connect with scram-sha-256 from all or pgpwd nets, or clientcert:verify-full using map:tlsmap from pgmtls net
 hostnossl all all 0.0.0.0/0 reject
+hostssl all all ${PODMAN_PGMTLS_CIDR} cert clientcert=verify-full map=tlsmap
+hostssl all all ${PODMAN_PGPWD_CIDR} scram-sha-256
 hostssl all all 0.0.0.0/0 scram-sha-256
-hostssl all all 0.0.0.0/0 cert clientcert=verify-full map=tlsmap
 "
 	if test -e "$PGDATA/pg_hba.conf"; then pg_hba_current="$(cat $PGDATA/pg_hba.conf)"; fi
 	if test "$pg_hba" != "$pg_hba_current"; then echo "$pg_hba" > "$PGDATA/pg_hba.conf"; fi

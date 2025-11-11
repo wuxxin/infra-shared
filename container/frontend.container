@@ -68,6 +68,8 @@ PublishPort=80:80
 PublishPort={{ portdef }}
   {% endfor %}
 {% endif %}
+Network=pgmtls
+Network=pgpwd
 
 [Install]
 WantedBy=multi-user.target

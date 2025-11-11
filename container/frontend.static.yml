@@ -35,6 +35,12 @@ entryPoints:
   healthcheck:
     address: ":8080"
 
+  pgmtls:
+    address: ":5432"
+
+  pgpwd:
+    address: ":5431"
+
 # {% if "ENTRYPOINTS" in FRONTEND %}
   # add custom entrypoints
   # {% for key, value in FRONTEND["ENTRYPOINTS"].items() %}
