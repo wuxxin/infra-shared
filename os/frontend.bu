@@ -2,7 +2,7 @@
 
 storage:
   directories:
-    # our local frontend (traefik) configuration directory
+    # our local additional frontend (traefik) configuration directory
     - path: /etc/local/frontend
       mode: 0700
 
@@ -22,4 +22,27 @@ storage:
 
     - path: /etc/containers/build/frontend
       local: Containerfile/frontend
+
+systemd:
+  units:
+    - name: outbound-is-ready.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Determine Outbound IP from default route interface and write to /run/local/outbound.env
+        After=network-online.target
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/bin/bash -c '\
+          set -e -o pipefail; \
+          IFACE=$(ip -4 route show default | awk "{print \$5}"); \
+          IP=$(ip -4 addr show dev "$IFACE"| grep inet | sed -r "s/ +inet ([^\/]+)\/.+/\1/g"); \
+          mkdir -p /run/local; \
+          echo "OUTBOUND_IP=$IP" > /run/local/outbound.env'
+
+        [Install]
+        WantedBy=multi-user.target
 
