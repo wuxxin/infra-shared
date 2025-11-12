@@ -380,8 +380,9 @@ class ToolsExtension(jinja2.ext.Extension):
         try:
             # strict=False allows for host bits to be set in the IP part (e.g., .1 in a /24).
             net = ipaddress.ip_network(value, strict=False)
-            # The 'reverse_pointer' attribute automatically generates the correct in-addr.arpa or ip6.arpa name.
-            return net.reverse_pointer
+            # XXX reverse_pointer attaches "0/" to it in case of a net, which is not documented
+            # https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address.reverse_pointer
+            return net.reverse_pointer.strip("0/")
         except ValueError as e:
             raise ValueError(f"Invalid CIDR: {value} - {e}") from e
 
