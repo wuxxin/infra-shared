@@ -33,7 +33,7 @@ entryPoints:
         options: default
 
   healthcheck:
-    address: ":8080"
+    address: "localhost:8080"
 
   # add custom entrypoints
   # {% if "ENTRYPOINTS" in FRONTEND %}{% for k, v in FRONTEND["ENTRYPOINTS"]|dictsort() %}{% set e={k: v} %}

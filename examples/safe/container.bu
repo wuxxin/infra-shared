@@ -17,3 +17,24 @@ storage:
         inline: |
           HOSTNAME=tang.{{ HOSTNAME }}
 
+    - path: /etc/local/frontend/frontend.tang.dynamic.yml
+      contents:
+        inline: |
+          # traefik frontend.tang.dynamic.yml
+          tcp:
+            routers:
+              # terminate ssl with nosni and mandatory client cert
+              tang-mtls-nosni-terminator:
+                entryPoints:
+                  - "tang-mtls-nosni"
+                rule: "HostSNI(`*`)"
+                tls:
+                  options: "mtls-nosni@file"
+                service: "tang-forward-to-http"
+            services:
+              # Forward the decrypted traffic to the internal HTTP entrypoint
+              tang-forward-to-http:
+                loadBalancer:
+                  servers:
+                    - address: "127.0.0.1:8081"
+

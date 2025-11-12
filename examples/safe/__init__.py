@@ -99,29 +99,19 @@ host_environment = {
     in (True, "true", "True"),
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRESQL_PASSWORD": pg_postgres_password.result,
-    # make postgresql public available
-    "POSTGRESQL_PUBLIC_MTLS": True,
-    "POSTGRESQL_PUBLIC_PWD": True,
     "DNS_RESOLVER": {}
     if not config.get_object("dns_resolver")
     else {key.upper(): value for key, value in config.get_object("dns_resolver").items()},
     "LOCAL_DNS_SERVER": {"ENABLED": True},
     "LOCAL_ACME_SERVER": {"ENABLED": True},
-    "PODMAN_STATIC_NETWORKS": {"pgmtls": "10.89.128.1/24", "pgpwd": "10.89.129.1/24"},
     "FRONTEND": {
         # enable debug dashboard
         "DASHBOARD": "traefik.{}".format(hostname),
-        # enable tls for tang at port 9443, postgresql on port 5432 and 5431
-        "PUBLISHPORTS": ["9443:9443", "5432:5432", "5431:5431"],
-        # also listen to pgmtls and pgpwd networks, to have postgresql distinct the authentication
-        "NETWORKS": ["pgmtls:ip=10.89.128.1", "pgpwd:ip=10.89.129.1"],
+        # enable tls for tang at port 9443
+        "PUBLISHPORTS": ["9443:9443"],
         "ENTRYPOINTS": {
-            "tang-mtls-nosni": {
-                "address": ":9443",
-                "http": {"tls": {"options": "mtls-nosni@file"}},
-            },
-            "pgmtls": {"address": ":5432"},
-            "pgpwd": {"address": ":5431"},
+            "tang-mtls-nosni": {"address": ":9443"},
+            "internal-tang-http": {"address": "localhost:8081"},
         },
         "EXTRA": 'accessLog:\n  format: "common"',
     },

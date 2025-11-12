@@ -28,17 +28,16 @@ Label=traefik.enable=true
 
 # make service available on https port, needs matching hostname
 # do mandatory mutal TLS authentification
-Label=traefik.http.routers.%N.entrypoints=https
-Label=traefik.http.routers.%N.rule=Host(`${HOSTNAME}`)
-Label=traefik.http.routers.%N.tls.options=mtls@file
-Label=traefik.http.routers.%N.middlewares=passtlsclientcert@file
-Label=traefik.http.routers.%N.service=systemd-%N
+Label=traefik.http.routers.%N-sni.entrypoints=https
+Label=traefik.http.routers.%N-sni.rule=Host(`${HOSTNAME}`)
+Label=traefik.http.routers.%N-sni.tls.options=mtls@file
+Label=traefik.http.routers.%N-sni.middlewares=passtlsclientcert@file
+Label=traefik.http.routers.%N-sni.service=systemd-%N
 
-# make service also available on tang-mtls port
+# make service also available on tang-mtls-nosni port via
 # ignore any send hostname over ip:port connection, do mandatory mtls
-Label=traefik.http.routers.%N-direct.entrypoints=tang-mtls-nosni
-Label=traefik.http.routers.%N-direct.rule=HostRegexp(`.*`)"
-Label=traefik.http.routers.%N-direct.tls.options=mtls-nosni@file
+Label=traefik.http.routers.%N-direct.entrypoints=internal-tang-http
+Label=traefik.http.routers.%N-direct.rule=PathPrefix(`/`)
 Label=traefik.http.routers.%N-direct.middlewares=passtlsclientcert@file
 Label=traefik.http.routers.%N-direct.service=systemd-%N
 
