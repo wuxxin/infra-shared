@@ -11,8 +11,22 @@ make system ipv6 capable, to finish postgres routing implementation without ipv6
 
 this happens if you enable public postgresql, where frontend and postgresql container get connected via two additional networks, to distinguish mtls and pwd
 
+# Network IPV4 CIDR and IPV6 ULA-SUBNET of Internal, Podman and Nspawn Networks
+NETWORK:
+  INTERNAL_V4_CIDR: 10.87.240.1/24
+  NSPAWN_V4_CIDR: 10.87.241.1/24
+  PODMAN_V4_CIDR: 10.88.0.1/16
+  PODMAN_POOL_V4_CIDR: 10.89.0.1/16
+  # POOL is used from 0 to 99, 100 to 254 are free to use for PODMAN_STATIC_NETWORKS
+  LIBVIRT_V4_CIDR: 192.168.122.1/24
+  INTERNAL_V6_SUBNET: "871"
+  NSPAWN_V6_SUBNET: "872"
+  PODMAN_V6_SUBNET: "880"
+  PODMAN_POOL_V6_SUBNET: "890"
+  LIBVIRT_V6_SUBNET: "871"
 
 ---
+
 
 - os/__init__.py: systemconfigupdate:
 
