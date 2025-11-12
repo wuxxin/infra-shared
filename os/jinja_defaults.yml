@@ -83,9 +83,6 @@ NSPAWN_CIDR: 10.87.241.1/24
 PODMAN_CIDR: 10.88.0.1/16
 PODMAN_POOL_CIDR: 10.89.0.1/16
 # POOL is used from 0 to 99, 100 to 254 are free to use for PODMAN_STATIC_NETWORKS
-PODMAN_STATIC_NETWORKS:
-  pgmtls: 10.89.128.1/24
-  pgpwd: 10.89.129.1/24
 LIBVIRT_CIDR: 192.168.122.1/24
 
 # firewalld configuring Internal, Podman and Nspawn network traffic
@@ -111,6 +108,11 @@ API_PROXY_LOG_HTTP: false
 PODMAN_LOAD_SECRETS: ""
 # PODMAN_API_LOGGING: str, one of trace debug info warn warning error fatal panic
 PODMAN_API_LOG_LEVEL: warning
+
+PODMAN_STATIC_NETWORKS:
+  # PODMAN_POOL is used from 0 to 99, 100 to 254 are free to use for PODMAN_STATIC_NETWORKS
+  pgmtls: 10.89.128.1/24
+  pgpwd: 10.89.129.1/24
 
 # common update parameter defaults
 #   connect as user core (uid=1000), use "update-system-config" as the update service,
