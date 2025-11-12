@@ -5,20 +5,29 @@ Wants=container-build@%N.service container-secrets.service apiproxy.service
 # wait until unbound is active
 After=dns-is-ready.service
 Requires=dns-is-ready.service
-{% if not FRONTEND["ENABLED"] %}
+# wait for the outbound ip to be ready
+After=outbound-is-ready.service
+Requires=outbound-is-ready.service
+# {% if not FRONTEND["ENABLED"] %}
 # frontend is disabled, but we are a quadlet, so we try to stop it with a nonexisting path
 ConditionPathExists=/notexisting/frontend_disable
-{% endif%}
+# {% endif %}
 
 [Service]
 # environment loaded here is available in systemd-quadlet scope
 EnvironmentFile=-/etc/containers/environment/%N-systemd.env
+# Load the outbound IP environment file created by our service
+EnvironmentFile=/run/local/outbound.env
 Restart=on-failure
 
-# copy dynamic frontend config to container after container start
-ExecStartPost=/usr/bin/bash -c \
-  'podman cp /etc/containers/systemd/frontend.dynamic.yml \
-        "systemd-frontend:/traefik/frontend.dynamic.yml"'
+# mount volume, clear dynamic configs, and copy new configs before container starts
+ExecStartPre=/usr/bin/bash -c 'set -e; \
+  mount_point=$(podman volume mount systemd-frontend); \
+  if [ -z "$mount_point" ]; then echo "Failed to mount volume systemd-frontend" >&2; exit 1; fi; \
+  trap "podman volume unmount systemd-frontend" EXIT; \
+  rm -f $mount_point/*.dynamic.yml; \
+  cp -r "/etc/local/frontend/." "$mount_point/"; \
+  cp "/etc/containers/systemd/frontend.dynamic.yml" "$mount_point/"'
 
 [Container]
 Image=localhost/%N:latest
@@ -38,16 +47,15 @@ Secret=root_ca.crt,mode=0644
 Secret=server.crt,mode=0644
 Secret=server.key,mode=0640
 
-{% if LOCAL_ACME_SERVER["ENABLED"] %}
+# {% if LOCAL_ACME_SERVER["ENABLED"] %}
 # if local_acme_server is enabled, configure RFC2136 nsupdate for DNS-01 challenge
 Secret=acme_update_internal.key,mode=0640
-
 # ACME DNS-01 challenge proof to knot.internal using RFC2136
 Environment=RFC2136_NAMESERVER=knot.internal
 Environment=RFC2136_TSIG_ALGORITHM=hmac-sha256
 Environment=RFC2136_TSIG_KEY=acme_update_internal
 Environment=RFC2136_TSIG_SECRET_FILE=/run/secrets/acme_update_internal.key
-{% endif %}
+# {% endif %}
 
 # traefik static configuration
 Volume=/etc/containers/systemd/%N.static.yml:/etc/traefik/traefik.yml:ro
@@ -61,17 +69,20 @@ Volume=frontend.volume:/traefik
 HealthCmd=wget -qSO /dev/null http://127.0.0.1:8080/ping
 
 # Publish http and https to [hostip:]hostPort:containerPort
-PublishPort=443:443
-PublishPort=80:80
-{% if "PUBLISHPORTS" in FRONTEND %}
-  {% for portdef in FRONTEND["PUBLISHPORTS"] %}
+# The ${OUTBOUND_IP} variable is loaded from /etc/local/env/outbound.env
+PublishPort=${OUTBOUND_IP}:443:443
+PublishPort=${OUTBOUND_IP}:80:80
+# {% if "PUBLISHPORTS" in FRONTEND %}{% for portdef in FRONTEND["PUBLISHPORTS"] %} {% if (portdef.split(':') | length) == 2 %}
+PublishPort=${OUTBOUND_IP}:{{ portdef }}
+# {% else %}
 PublishPort={{ portdef }}
-  {% endfor %}
-{% endif %}
-# Network parameter documentation: https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html#network-network-options
-Network=pgmtls
-Network=pgpwd
+# {% endif %}{% endfor %}{% endif %}
+
+# network interface for internal service
+Network=podman
+# {% if "NETWORKS" in FRONTEND %}{% for networkname in FRONTEND["NETWORKS"] %}
+Network={{ networkname }}
+# {% endfor %}{% endif %}
 
 [Install]
 WantedBy=multi-user.target
-

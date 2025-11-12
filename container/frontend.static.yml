@@ -35,19 +35,10 @@ entryPoints:
   healthcheck:
     address: ":8080"
 
-  pgmtls:
-    address: ":5432"
-
-  pgpwd:
-    address: ":5431"
-
-# {% if "ENTRYPOINTS" in FRONTEND %}
   # add custom entrypoints
-  # {% for key, value in FRONTEND["ENTRYPOINTS"].items() %}
-    # {% set entry={key: value} %}
-{{ entry|toyaml|indent(2,True) }}
-  # {% endfor %}
-# {% endif %}
+  # {% if "ENTRYPOINTS" in FRONTEND %}{% for k, v in FRONTEND["ENTRYPOINTS"]|dictsort() %}{% set e={k: v} %}
+{{ e|toyaml|indent(2,True) }}
+  # {% endfor %}{% endif %}
 
 providers:
   docker:
@@ -63,16 +54,13 @@ providers:
     directory: /traefik
     watch: true
 
-# {% if "PROVIDERS" in FRONTEND %}
   # add custom providers
-  # {% for key, value in FRONTEND["PROVIDERS"].items() %}
-    # {% set provider={key: value} %}
-{{ provider|toyaml|indent(2,True) }}
-  # {% endfor %}
-# {% endif %}
+  # {% if "PROVIDERS" in FRONTEND %}{% for k, v in FRONTEND["PROVIDERS"]|dictsort() %}{% set p={k: v} %}
+{{ p|toyaml|indent(2,True) }}
+  # {% endfor %}{% endif %}
 
 certificatesResolvers:
-# {%- if LOCAL_ACME_SERVER["ENABLED"] %}
+  # {%- if LOCAL_ACME_SERVER["ENABLED"] %}
   acmeinternal:
     acme:
       caServer: "https://acme.internal:9000/acme/internal/directory"
@@ -89,14 +77,11 @@ certificatesResolvers:
       storage: "/traefik/acme-internal.json"
       # Key type for requested certificates (EC256, EC384, RSA2048, RSA4096, RSA8192)
       keyType: EC256
-# {%- endif %}
-# {% if "CERTIFICATESRESOLVERS" in FRONTEND %}
+  # {%- endif %}
   # add custom resolvers
-  # {% for key, value in FRONTEND["CERTIFICATESRESOLVERS"].items() %}
-    # {% set resolver={key: value} %}
-{{ resolver|toyaml|indent(2,True) }}
-  # {% endfor %}
-# {% endif %}
+  # {% if "CERTIFICATESRESOLVERS" in FRONTEND %}{% for k, v in FRONTEND["CERTIFICATESRESOLVERS"]|dictsort() %}{% set r={k: v} %}
+{{ r|toyaml|indent(2,True) }}
+  # {% endfor %}{% endif %}
 
 
 # {% if "EXTRA" in FRONTEND %}
