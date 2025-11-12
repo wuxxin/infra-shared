@@ -19,6 +19,12 @@ tls:
     default:
       # sniStrict: dont allow clients that dont specify server_name or dont match certificates
       sniStrict: true
+      # allow postgresql as alpn protocol
+      alpnProtocols:
+        - "acme-tls/1"
+        - "http/1.1"
+        - "h2"
+        - "postgresql"
 
     mtls:
       # require mandatory client certificate and matching server_name to server certificate
