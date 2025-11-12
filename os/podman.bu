@@ -54,73 +54,36 @@ storage:
             "driver": "bridge",
             "network_interface": "podman0",
             "created": "{% set c= 'os/podman.bu'|created_at %}{{ c.isoformat().replace('+00:00', 'Z') }}",
-            "subnets": [
-              {
-                "subnet": "{{ PODMAN_CIDR }}",
-                "gateway": "{{ PODMAN_CIDR|cidr2ip }}"
-              }
-            ],
+            "subnets": [{"subnet": "{{ PODMAN_CIDR }}", "gateway": "{{ PODMAN_CIDR|cidr2ip }}"}],
             "ipv6_enabled": false,
             "internal": false,
             "dns_enabled": false,
-            "ipam_options": {
-              "driver": "host-local"
-            },
+            "ipam_options": {"driver": "host-local"},
             "firewall_driver": "firewalld",
             "dns_name": "podman"
           }
 
-    - path: /etc/containers/networks/pgmtls.json
+    # additional networks, so postgresql can decide either to mtls or do password authentication
+    # {% for name, cidr in PODMAN_STATIC_NETWORKS|dictsort %}
+    - path: /etc/containers/networks/{{ name }}.json
       mode: 0644
       contents:
         inline: |
           {
-            "name": "pgmtls",
-            "id": "1e2eb4a9e75c11174f898f7964beeb5f44f96812f765bb90d2f42b9abca05c4f",
+            "name": "{{ name }}",
+            "id": "{{ name|sha256sum }}",
             "driver": "bridge",
-            "network_interface": "pgmtls",
+            "network_interface": "{{ name }}",
             "created": "{% set c= 'os/podman.bu'|created_at %}{{ c.isoformat().replace('+00:00', 'Z') }}",
-            "subnets": [
-              {
-                "subnet": "{{ PODMAN_PGMTLS_CIDR }}",
-                "gateway": "{{ PODMAN_PGMTLS_CIDR|cidr2ip }}"
-              }
-            ],
+            "subnets": [{"subnet": "{{ cidr }}", "gateway": "{{ cidr|cidr2ip }}"}],
             "ipv6_enabled": false,
             "internal": false,
             "dns_enabled": false,
-            "ipam_options": {
-              "driver": "host-local"
-            },
+            "ipam_options": {"driver": "host-local"},
             "firewall_driver": "firewalld",
-            "dns_name": "pgmtls"
+            "dns_name": "{{ name }}"
           }
-
-    - path: /etc/containers/networks/pgpwd.json
-      mode: 0644
-      contents:
-        inline: |
-          {
-            "name": "pgpwd",
-            "id": "173bf27909d07f4405d9e611e0c86b93baf0ff61b9207aef9dda1d7ece6dc24f",
-            "driver": "bridge",
-            "network_interface": "pgpwd",
-            "created": "{% set c= 'os/podman.bu'|created_at %}{{ c.isoformat().replace('+00:00', 'Z') }}",
-            "subnets": [
-              {
-                "subnet": "{{ PODMAN_PGPWD_CIDR }}",
-                "gateway": "{{ PODMAN_PGPWD_CIDR|cidr2ip }}"
-              }
-            ],
-            "ipv6_enabled": false,
-            "internal": false,
-            "dns_enabled": false,
-            "ipam_options": {
-              "driver": "host-local"
-            },
-            "firewall_driver": "firewalld",
-            "dns_name": "pgpwd"
-          }
+    # {% endfor %}
 
     # pipe string list of requested credentials from butane env to service env
     - path: /etc/local/environment/container-secrets.env
