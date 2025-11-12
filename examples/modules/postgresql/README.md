@@ -5,38 +5,48 @@
 ### Config
 
 - symlink as `postgresql`to your target basedir
-- check if HOSTNAME and LOCALE["LANG"] of config are suited or override them in environment
 
-#### Public facing Server
+#### Environment
 
-Butane snippet:
-
-```yaml
-storage:
-  files:
-    - path: /etc/firewalld/policies/ingress-postgresql.xml
-      mode: 0644
-      contents:
-        inline: |
-          <?xml version="1.0" encoding="utf-8"?>
-          <policy target="ACCEPT">
-            <short>Allow Incoming postgresql Traffic</short>
-            <description>Allow incoming traffic to the host on the postgresql port (5432) from the public zone.</description>
-            <ingress-zone name="public"/>
-            <service name="postgresql"/>
-          </policy>
-```
-
-#### Environment: POSTGRES_PASSWORD
+- check `LOCALE["LANG"]` of config are suited or override them in environment
+- create `POSTGRESQL_PASSWORD`
 
 ```python
 import pulumi_random
 
 # update needed environment config
-pg_postgres_password = pulumi_random.RandomPassword(
-    "{}_POSTGRES_PASSWORD".format(shortname), special=False, length=24
+pg_postgresql_password = pulumi_random.RandomPassword(
+    "{}_POSTGRESQL_PASSWORD".format(shortname), special=False, length=24
 )
-host_environment.update({"POSTGRES_PASSWORD": pg_postgres_password.result})
+host_environment.update({"POSTGRESQL_PASSWORD": pg_postgresql_password.result})
+```
+
+- expose postgresql also to the public interface
+
+```python
+# enable postgresql on public port 5432 with mtls authentication
+# enable postgresql on public port 5431 with password authentication
+host_environment.update({"POSTGRESQL_PUBLIC_MTLS": True, "POSTGRESQL_PUBLIC_PWD": True})
+# enable frontend container to listen to public ports 5432 and 5431
+for port in ["5432:5432", "5431:5431"]:
+    if port not in host_environment["FRONTEND"]["PUBLISH_PORTS"]:
+        host_environment["FRONTEND"]["PUBLISH_PORTS"].append([port])
+# configure these ports in traefik as entrypoints pgmtls and pgpwd for frontend
+for name, config in [("pgmtls", {"address": ":5432"}), ("pgpwd", {"address": ":5431"})]:
+    if name not in host_environment["FRONTEND"]["ENTRYPOINTS"]:
+        host_environment["FRONTEND"]["ENTRYPOINTS"].update({name: config})
+# define static networks needed for MTLS,PWD distinction
+host_environment["PODMAN_STATIC_NETWORKS"].update(
+    {"pgmtls": "10.89.128.1/24", "pgpwd": "10.89.129.1/24"}
+)
+# connect additional networks pgmtls and pgpwd to frontend container for mtls,pwd distinction
+for network in [
+    f"pgmtls:ip={host_environment['PODMAN_STATIC_NETWORKS']['pgmtls'].strip('/24')}",
+    f"pgpwd:ip={host_environment['PODMAN_STATIC_NETWORKS']['pgpwd'].strip('/24')}",
+]:
+    if network not in host_environment["FRONTEND"]["NETWORKS"]:
+        host_environment["FRONTEND"]["NETWORKS"].append([network])
+
 ```
 
 #### Provider: create POSTGRESQL-Provider
@@ -58,7 +68,7 @@ pg_server = postgresql.Provider(
     # ),
     superuser=True,
     sslrootcert=exported_ca_cert.filename,
-    sslmode="require",
+    sslmode="verify-ca",
     opts=pulumi.ResourceOptions(depends_on=[host_update]),
 )
 pulumi.export("{}_pg_server".format(shortname), pg_server)
