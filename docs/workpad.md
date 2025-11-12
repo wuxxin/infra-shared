@@ -5,6 +5,12 @@ Read the following required changes, considering which parts should be combined 
 
 Required changes:
 
+---
+
+make system ipv6 capable, to finish postgres routing implementation without ipv6 issues on podman bridges that get a kernel default ipv6 unroutable link local address and some services (traefik) bind to it, and therefore cant connect to the ipv4 parts.
+
+this happens if you enable public postgresql, where frontend and postgresql container get connected via two additional networks, to distinguish mtls and pwd
+
 
 ---
 
