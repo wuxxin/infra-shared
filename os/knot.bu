@@ -2,18 +2,16 @@
 # ttl: 5min, refresh: 1hour, retry: 15min, expire: 7days, nxdomain: 1min
 # {% set common={"ttl": 300,  "refresh": 3600, "retry": 900, "expire": 604800, "nxdomain": 60 } %}
 
-# # XXX disabled, because messes up rpm-ostree overlay. res: assume same uid,gid and use these
-# passwd:
-#   users:
-#     - name: knot
-#       uid: 977
-#       primary_group: knot
-#       home_dir: /var/lib/knot
-#       shell: /sbin/nologin
-#   groups:
-#     - name: knot
-#       gid: 977
-
+passwd:
+  users:
+    - name: knot
+      uid: 978
+      primary_group: knot
+      home_dir: /var/lib/knot
+      shell: /sbin/nologin
+  groups:
+    - name: knot
+      gid: 978
 
 storage:
   directories:
@@ -24,16 +22,16 @@ storage:
     - path: /var/lib/knot
       mode: 0700
       user:
-        id: 977
+        id: 978
       group:
-        id: 977
+        id: 978
 
     # our knot zone files configuration directory
     - path: /etc/local/knot
       user:
-        id: 977
+        id: 978
       group:
-        id: 977
+        id: 978
 
   files:
     # our knot server config template
