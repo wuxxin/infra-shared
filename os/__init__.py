@@ -463,6 +463,7 @@ clevis_luks_updater:
 
         # additional service changed pattern list for butane_to_salt translation
         service_pattern_list = [
+            r"/etc/local/(frontend)/.*",
             r"/etc/local/(knot)/.*",
             r"/etc/unbound/(unbound).conf",
             r"/etc/(firewalld)/.*",
