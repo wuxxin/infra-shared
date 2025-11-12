@@ -33,9 +33,7 @@ FRONTEND:
   #   eg. "traefik.host.domain" to enable traefik debug dashboard
   DASHBOARD:
   # NETWORKS: optional list, defines additional networks for the frontend to connect to
-  NETWORKS:
-    - pgmtls
-    - pgpwd
+  NETWORKS: []
 
 # Dedicated DNS Server (Knot) for .internal, .podman, .nspawn and reverse ptr
 LOCAL_DNS_SERVER:
@@ -95,7 +93,7 @@ FIREWALL:
   # if disabled: firewalld will not be started
   ENABLED: true
   # LOG_DENIED: true/false, if true: firewalld writes rejects/drops into systemd journal
-  LOG_DENIED: false
+  LOG_DENIED: true
 
 # DEBUG_CONSOLE_AUTOLOGIN: true/false, if true: add autologin on serial console
 DEBUG_CONSOLE_AUTOLOGIN: false
