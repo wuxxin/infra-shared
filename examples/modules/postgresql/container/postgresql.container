@@ -39,9 +39,12 @@ Volume=postgresql-migrate:/migrate
 # listen address and tls configuration
 Volume=/etc/containers/systemd/postgresql.conf:/etc/postgresql/postgresql.conf:ro
 
-Network=pgmtls,ip={{ PODMAN_PGMTLS_CIDR|cidr2ip(2) }}
-Network=pgpwd,ip={{ PODMAN_PGPWD_CIDR|cidr2ip(2) }}
-
+# network connection for internal service
+Network=podman
+# additional networks to allow mtls and pwd authentication distinction  from frontend
+Network=pgmtls:ip={{ PODMAN_STATIC_NETWORKS['pgmtls']|cidr2ip(1) }}
+Network=pgpwd:ip={{ PODMAN_STATIC_NETWORKS['pgpwd']|cidr2ip(1) }}
+# publish to internal bridge for internal usage, public usage is over pgmtls and pgpwd
 PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:5432:5432
 
 [Install]
