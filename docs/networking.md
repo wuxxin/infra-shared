@@ -30,6 +30,22 @@ Documentation:
 
 - [Unbound Documentation](https://unbound.docs.nlnetlabs.nl/en/latest/)
 
+### Container Naming
+
+- podman container are available in DNS as `containername.podman`
+- podman compose container are available in DNS as `composename_servicename_index.podman`
+- systemd podman quadlet container will have "systemd-" prefixed to its name, eg: `systemd-frontend.podman`
+- systemd nspawn machines are available under `machinename.nspawn`
+
+Examples:
+
+```sh
+ping systemd-postgresql.podman
+ping hello-nspawn.nspawn
+ping hello-compose_backend_1.podman
+```
+
+
 ### Examples
 
 #### forward custom zones to another dns server

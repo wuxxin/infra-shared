@@ -63,7 +63,7 @@ storage:
             "dns_name": "podman"
           }
 
-    # additional networks, so postgresql can decide either to mtls or do password authentication
+    # additional networks
     # {% for name, cidr in PODMAN_STATIC_NETWORKS|dictsort %}
     - path: /etc/containers/networks/{{ name }}.json
       mode: 0644
@@ -129,6 +129,61 @@ systemd:
         KillMode=process
         ExecStartPre=/usr/bin/bash -c "if test ! -d /run/podman; then mkdir -m 0750 /run/podman; fi"
         ExecStart=/usr/bin/podman --log-level={{ PODMAN_API_LOG_LEVEL }} system service --time 0 unix:///run/podman/podman.sock
+
+        [Install]
+        WantedBy=multi-user.target
+
+
+    # update .podman DNS entries with containername on start and remove on death of container
+    - name: podman-dns-update.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Podman to Knot/Unbound DNS Bridge
+        After=apiproxy.service dns-is-ready.service
+        Requires=apiproxy.service dns-is-ready.service
+
+        [Service]
+        Restart=on-failure
+        RestartSec=5
+
+        ExecStart=/bin/bash -c 'set -eo pipefail; \
+          DNSZONE="podman"; \
+          echo "Listening to events..."; \
+          podman events --stream --format "$(echo "[[.Status]] [[.ID]]" | tr "[]" "{}")" \
+            --filter "type=container" --filter "event=start" --filter "event=die" | \
+          while read -r event container_id; do \
+            echo "Event: $event, container_id: $container_id"; \
+            if [[ -z "$event" || -z "$container_id" ]]; then continue; fi; \
+            if test "$event" = "start"; then \
+              sleep 1; \
+              CONTAINER_INFO=$(curl -s --connect-timeout 2 "{{ INTERNAL_CIDR|cidr2ip }}:2375/containers/$container_id/json"); \
+              CONTAINER_NAME=$(echo "$CONTAINER_INFO" | jq -r .Name | sed "s#^/##"); \
+              CONTAINER_IP=$(echo "$CONTAINER_INFO" | jq -r ".NetworkSettings.Networks | to_entries[0].value.IPAddress"); \
+              echo "CONTAINER_NAME: $CONTAINER_NAME , CONTAINER_IP: $CONTAINER_IP"; \
+              if [[ -z "$CONTAINER_NAME" || "$CONTAINER_NAME" == "null" || -z "$CONTAINER_IP" || "$CONTAINER_IP" == "null" ]]; then continue; fi; \
+              if systemctl -q is-active knot.service; then \
+                echo "adding container $CONTAINER_NAME to zone $DNSZONE in knot DNS"; \
+                knotc zone-begin "$DNSZONE." && knotc zone-set "$DNSZONE." "$CONTAINER_NAME" A "$CONTAINER_IP" && knotc zone-commit "$DNSZONE." || knotc zone-abort "$DNSZONE."; \
+              elif systemctl -q is-active unbound.service; then \
+                echo "adding container $CONTAINER_NAME to zone $DNSZONE in unbound DNS"; \
+                unbound-control local_data "$CONTAINER_NAME.$DNSZONE" A "$CONTAINER_IP"; \
+              else \
+                echo "not adding container $CONTAINER_NAME to zone $DNSZONE because no unbound running"; \
+              fi; \
+            elif test "$event" = "died"; then \
+              if systemctl -q is-active knot.service; then \
+                echo "removing container $CONTAINER_NAME from zone $DNSZONE in knot DNS"; \
+                knotc zone-begin "$DNSZONE." && knotc zone-unset "$DNSZONE." "$CONTAINER_NAME" A && knotc zone-commit "$DNSZONE." || knotc zone-abort "$DNSZONE."; \
+              elif systemctl -q is-active unbound.service; then \
+                echo "removing container $CONTAINER_NAME from zone $DNSZONE in unbound DNS"; \
+                unbound-control local_data_remove "$CONTAINER_NAME.$DNSZONE"; \
+              else \
+                echo "not removing container $CONTAINER_NAME from zone $DNSZONE because no unbound running"; \
+              fi; \
+            fi; \
+          done \
+        '
 
         [Install]
         WantedBy=multi-user.target
