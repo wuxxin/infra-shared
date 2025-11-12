@@ -26,6 +26,7 @@ import base64
 import copy
 import datetime
 import glob
+import hashlib
 import os
 import re
 import stat
@@ -205,6 +206,7 @@ class ToolsExtension(jinja2.ext.Extension):
         self.environment.filters["cidr2ip"] = self.cidr2ip
         self.environment.filters["cidr2reverse_ptr"] = self.cidr2reverse_ptr
         self.environment.filters["created_at"] = self.created_at
+        self.environment.filters["sha256sum"] = self.sha256sum
         self.environment.globals["local_now"] = self.local_now
         self.environment.globals["utc_now"] = self.utc_now
 
@@ -409,6 +411,16 @@ class ToolsExtension(jinja2.ext.Extension):
             return utc_dt
         except Exception as e:
             return None
+
+    def sha256sum(self, value: str) -> Optional[str]:
+        """Calculates the SHA256 hash of a string and returns the hexadecimal representation
+
+        Args:
+            value (str): input data to be hashed
+        Returns:
+            str: hexadecimal representation of hash output
+        """
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
     def local_now(self) -> Optional[datetime.datetime]:
         """Returns the current time in the local timezone.

@@ -69,6 +69,10 @@ projectname:dns_resolver:
 - `{"key": "value"}|toyaml(inline=False)`
     - dump dict structure to yaml string, same as jinja buildin `tojson` but outputs yaml instead of json
     - set inline=True for compact representation, default is multiline
+#### Hashing
+
+- `string|sha256sum`
+    - calculates the SHA256 hash of a string and returns the hexadecimal representation
 
 #### Time Now and File Time
 
