@@ -1,0 +1,38 @@
+# traefik dynamic config
+# can be empty if neither POSTGRESQL_PUBLIC_TLS nor POSTGRESQL_PUBLIC_PWD is True
+# {% if POSTGRESQL_PUBLIC_MTLS or POSTGRESQL_PUBLIC_PWD %}
+tcp:
+  routers:
+    # {% if POSTGRESQL_PUBLIC_MTLS %}
+    pgmtls:
+      entryPoints:
+        - "pgmtls"
+      rule: "HostSNI(`*`)"
+      service: "pgmtls"
+      tls:
+        passthrough: true
+    # {% endif %}
+    # {% if POSTGRESQL_PUBLIC_PWD %}
+    pgpwd:
+      entryPoints:
+        - "pgpwd"
+      rule: "HostSNI(`*`)"
+      service: "pgpwd"
+      tls:
+        passthrough: true
+    # {% endif %}
+  services:
+    # {% if POSTGRESQL_PUBLIC_MTLS %}
+    pgmtls:
+      loadBalancer:
+        servers:
+          - address: "{{ PODMAN_STATIC_NETWORKS['pgmtls']|cidr2ip(1) }}:5432"
+    # {% endif %}
+    # {% if POSTGRESQL_PUBLIC_PWD %}
+    pgpwd:
+      loadBalancer:
+        servers:
+          - address: "{{ PODMAN_STATIC_NETWORKS['pgpwd']|cidr2ip(1) }}:5432"
+    # {% endif %}
+# {% endif %}
+
