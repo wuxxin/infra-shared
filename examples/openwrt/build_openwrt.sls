@@ -5,17 +5,15 @@
 
 #}
 
-{% import_yaml "build_defaults.yml" as defaults %}
-{% set settings=salt['grains.filter_by']({'default': defaults},
-    grain='default', default= 'default', merge= salt['pillar.get']('build', {})) %}
+{% set settings=salt['pillar.get']('openwrt') %}
 {% set tmp_dir= grains["tmp_dir"] %}
-{% set major= settings.openwrt.target.partition("-")[0] %}
-{% set minor= settings.openwrt.target.partition("-")[2] %}
+{% set major= settings.target.partition("-")[0] %}
+{% set minor= settings.target.partition("-")[2] %}
 {% set baseurl= "{baseurl}/{ver}/targets/{major}/{minor}".format(
-    baseurl=settings.openwrt.baseurl,
-    ver=settings.openwrt.version, major=major, minor=minor) %}
+    baseurl=settings.baseurl,
+    ver=settings.version, major=major, minor=minor) %}
 {% set basename= "openwrt-imagebuilder-{ver}-{major}-{minor}.Linux-x86_64".format(
-    ver=settings.openwrt.version, major=major, minor=minor) %}
+    ver=settings.version, major=major, minor=minor) %}
 
 create_tmp_dir:
   file.directory:
@@ -25,8 +23,8 @@ create_tmp_dir:
 openwrt_signing_key:
   file.managed:
     - name: {{ tmp_dir ~ "/openwrt.sign.asc" }}
-    - source: {{ settings.openwrt.sign.baseurl ~ "/" ~ settings.openwrt.sign.id ~ ".asc" }}
-    - source_hash: {{ settings.openwrt.sign.sha256sum }}
+    - source: {{ settings.sign.baseurl ~ "/" ~ settings.sign.id ~ ".asc" }}
+    - source_hash: {{ settings.sign.sha256sum }}
 
 openwrt_signing_keyring:
   cmd.run:
@@ -34,7 +32,7 @@ openwrt_signing_keyring:
         if test -e {{ tmp_dir ~ "/gnupg" }}; then rm -r {{ tmp_dir ~ "/gnupg" }}; fi &&
         mkdir -p -m 700 {{ tmp_dir ~ "/gnupg" }} &&
         gpg --homedir {{ tmp_dir ~ "/gnupg" }} --import {{ tmp_dir ~ "/openwrt.sign.asc" }} &&
-        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --export {{ settings.openwrt.sign.id }} > {{ tmp_dir ~ "/openwrt.sign.gpg" }} &&
+        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --export {{ settings.sign.id }} > {{ tmp_dir ~ "/openwrt.sign.gpg" }} &&
         if test -e {{ tmp_dir ~ "/gnupg" }}; then rm -r {{ tmp_dir ~ "/gnupg" }}; fi
     - creates: {{ tmp_dir ~ "/openwrt.sign.gpg" }}
     - require:
@@ -93,7 +91,7 @@ include_uci_defaults:
     - makedirs: True
     - contents: |
         if test "$(uci -q get network.lan.ipaddr)" = "192.168.1.1"; then
-          uci -q set network.lan.ipaddr='{{ settings.openwrt.defaults.ip }}'
+          uci -q set network.lan.ipaddr='{{ settings.defaults.ip }}'
         fi
         if test ! -e /root/.ssh/authorized_keys; then
           mkdir -p -m 700 /root/.ssh/
@@ -109,14 +107,14 @@ include_uci_defaults:
 build_openwrt_image:
   cmd.run:
     - name: {{ 'make image PROFILE="{profile}" FILES="{files}" BIN_DIR="{bin_dir}" DISABLED_SERVICES="{disabled_services}" PACKAGES="{packages}"'.format(
-        profile=settings.openwrt.model,
+        profile=settings.model,
         files= tmp_dir ~ "/openwrt-includes",
         bin_dir= tmp_dir ~ "/build",
-        disabled_services=" ".join(settings.openwrt.disabled_services),
-        packages=" ".join(settings.openwrt.packages)) }}
+        disabled_services=" ".join(settings.disabled_services),
+        packages=" ".join(settings.packages)) }}
     - cwd: {{ tmp_dir ~ "/" ~ basename }}
     - creates: {{ tmp_dir ~ "/build/openwrt-{ver}-{major}-{minor}-{model}.manifest".format(
-        ver=settings.openwrt.version, major=major, minor=minor, model=settings.openwrt.model) }}
+        ver=settings.version, major=major, minor=minor, model=settings.model) }}
     - output_loglevel: quiet
     - require:
       - archive: imgbuilder_source_extracted

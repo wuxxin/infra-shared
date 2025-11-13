@@ -13,11 +13,7 @@
 
 #}
 
-{% import_yaml "build_raspberry_extras.yml" as defaults %}
-{% set settings=salt['grains.filter_by']({'default': defaults},
-    grain='default', default= 'default', merge= salt['pillar.get']('build', {})) %}
-
-
+{% set settings=salt['pillar.get']('raspberry') %}
 {% set tmp_dir= grains["tmp_dir"] %}
 {% set download_dir= tmp_dir ~ "/download" %}
 
@@ -38,9 +34,9 @@ create_download_dir:
 rpi_eeprom_rpi4_download:
   file.managed:
     - name: {{ download_dir ~ "/rpi-boot-eeprom-recovery-sd.zip"  }}
-    - source: {{ settings.raspberry.eeprom_rpi4.fileurl.format(
-        VERSION=settings.raspberry.eeprom_rpi4.version) }}
-    - source_hash: {{ settings.raspberry.eeprom_rpi4.sha256sum }}
+    - source: {{ settings.eeprom_rpi4.fileurl.format(
+        VERSION=settings.eeprom_rpi4.version) }}
+    - source_hash: {{ settings.eeprom_rpi4.sha256sum }}
     - makedirs: True
     - require:
       - file: create_download_dir
@@ -54,7 +50,7 @@ rpi_eeprom_rpi4_extracted:
   archive.extracted:
     - name: {{ dest_dir }}/build
     - source: {{ download_dir ~ "/rpi-boot-eeprom-recovery-sd.zip"  }}
-    - source_hash: {{ settings.raspberry.eeprom_rpi4.sha256sum }}
+    - source_hash: {{ settings.eeprom_rpi4.sha256sum }}
     - extract_perms: False
     - enforce_toplevel: False
     - require:
@@ -68,9 +64,9 @@ rpi_eeprom_rpi4_extracted:
 rpi_fcos_uboot_download:
   file.managed:
     - name: {{ download_dir ~ "/uboot-images-armv8.rpm" }}
-    - source: {{ settings.raspberry.uboot.fileurl.format(
-        VERSION=settings.raspberry.uboot.version) }}
-    - source_hash: {{ settings.raspberry.uboot.sha256sum }}
+    - source: {{ settings.uboot.fileurl.format(
+        VERSION=settings.uboot.version) }}
+    - source_hash: {{ settings.uboot.sha256sum }}
     - makedirs: True
     - require:
       - file: create_download_dir
@@ -120,9 +116,9 @@ rpi_fcos_{{ uefi_rpi }}_dir:
 rpi_fcos_{{ uefi_rpi }}_download:
   file.managed:
     - name: {{ download_dir ~ "/" ~ uefi_rpi ~ "_firmware.zip" }}
-    - source: {{ settings.raspberry[uefi_rpi].fileurl.format(
-        VERSION=settings.raspberry[uefi_rpi].version) }}
-    - source_hash: {{ settings.raspberry[uefi_rpi].sha256sum }}
+    - source: {{ settings[uefi_rpi].fileurl.format(
+        VERSION=settings[uefi_rpi].version) }}
+    - source_hash: {{ settings[uefi_rpi].sha256sum }}
     - makedirs: True
     - require:
       - file: rpi_fcos_{{ uefi_rpi }}_dir
@@ -131,7 +127,7 @@ rpi_fcos_uefi_{{ uefi_rpi }}_extracted:
   archive.extracted:
     - name: {{ dest_dir }}
     - source: {{ download_dir ~ "/" ~ uefi_rpi ~ "_firmware.zip" }}
-    - source_hash: {{ settings.raspberry[uefi_rpi].sha256sum }}
+    - source_hash: {{ settings[uefi_rpi].sha256sum }}
     - extract_perms: False
     - enforce_toplevel: False
     - require:
