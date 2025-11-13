@@ -7,27 +7,31 @@
 """
 
 import os
+import yaml
 
 from infra.tools import BuildFromSalt
 
 this_dir = os.path.dirname(os.path.normpath(__file__))
 
 
-def build_openwrt(resource_name, environment={}, opts=None):
+def build_openwrt(
+    resource_name, environment={}, config_object_name="build_openwrt", opts=None
+):
     """Builds an OpenWrt image.
 
-    This function triggers a SaltStack build to create a customized OpenWrt
-    firmware image.
-
-    Input environment:
-        authorized_keys:
-            Multiline string for authorized_keys content.
+    This function triggers a SaltStack build to create a customized OpenWrt firmware image.
 
     Args:
         resource_name (str):
             The name of the Pulumi resource.
         environment (dict, optional):
             A dictionary of environment variables to pass to the build. Defaults to {}.
+
+            - authorized_keys: Multiline string for authorized_keys content baked into image
+
+        config_object_name (str, optional):
+            A name of a pulumi config object, that will be merged with the default pillar data.
+            Defaults to "build_openwrt"
         opts (pulumi.ResourceOptions, optional):
             The options for the resource. Defaults to None.
 
@@ -35,4 +39,13 @@ def build_openwrt(resource_name, environment={}, opts=None):
         LocalSaltCall:
             A `LocalSaltCall` resource representing the Salt execution.
     """
-    return BuildFromSalt(resource_name, "build_openwrt", "openwrt", environment, opts=opts)
+
+    return BuildFromSalt(
+        resource_name,
+        sls_name="build_openwrt",
+        pillar=yaml.safe_load(open(os.path.join(this_dir, "build_defaults.yml"), "r")),
+        environment=environment,
+        sls_dir=this_dir,
+        merge_config_name=config_object_name,
+        opts=opts,
+    )
