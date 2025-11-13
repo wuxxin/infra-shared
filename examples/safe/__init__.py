@@ -52,7 +52,7 @@ from infra.tools import (
     write_removable,
     public_local_export,
 )
-from infra.build import build_raspberry_extras
+from infra.os import build_raspberry_extras
 
 this_dir = os.path.dirname(os.path.normpath(__file__))
 files_basedir = os.path.join(this_dir)
