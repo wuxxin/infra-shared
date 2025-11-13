@@ -26,8 +26,11 @@ storage:
 tool:
 - c: LocalSaltCall
 - c: RemoteSaltCall
+- c: BuildFromSalt
+
 - d: TimedResource
 - f: log_warn
+
 - p: salt_config
 - p: get_ip_from_ifname
 - p: get_default_host_ip
@@ -43,6 +46,7 @@ import random
 import time
 import uuid
 import io
+import json
 
 from typing import Any, Optional, Type, Dict
 
@@ -1206,9 +1210,9 @@ class LocalSaltCall(pulumi.ComponentResource):
             *args:
                 Arguments to pass to the `salt-call` command.
             pillar (dict, optional):
-                A dictionary to use as pillar data. Defaults to {}.
+                A dictionary to use for the saltstack pillar data. Defaults to {}.
             environment (dict, optional):
-                A dictionary of environment variables for the command. Defaults to {}.
+                A dictionary of environment variables available in saltstack. Can be used to pass secrets. Defaults to {}.
             sls_dir (str, optional):
                 The directory containing the SLS files. Defaults to the project directory.
             opts (pulumi.ResourceOptions, optional):
@@ -1232,11 +1236,11 @@ class LocalSaltCall(pulumi.ComponentResource):
             os.symlink(sls_dir, dest_sls_dir, target_is_directory=True)
 
         with open(self.config["conf_file"], "w") as m:
-            m.write(yaml.safe_dump(self.config))
+            _ = m.write(yaml.safe_dump(self.config))
         with open(os.path.join(pillar_dir, "top.sls"), "w") as m:
-            m.write("base:\n  '*':\n    - main\n")
+            _ = m.write("base:\n  '*':\n    - main\n")
         with open(os.path.join(pillar_dir, "main.sls"), "w") as m:
-            m.write(yaml.safe_dump(pillar))
+            _ = m.write(yaml.safe_dump(pillar))
 
         self.executed = command.local.Command(
             resource_name,
@@ -1323,14 +1327,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
         )
 
         stack = pulumi.get_stack()
-        self.config = salt_config(
-            resource_name,
-            stack,
-            base_dir,
-            root_dir=root_dir,
-            tmp_dir=tmp_dir,
-            sls_dir=sls_dir,
-        )
+        self.config = salt_config(resource_name, stack, base_dir)
         pillar_dir = self.config["grains"]["pillar_dir"]
         sls_dir = self.config["grains"]["sls_dir"]
         rel_pillar_dir = os.path.relpath(pillar_dir, base_dir)
@@ -1376,6 +1373,74 @@ class RemoteSaltCall(pulumi.ComponentResource):
         )
 
         self.register_outputs({})
+
+
+class BuildFromSalt(pulumi.ComponentResource):
+    """Executes a local SaltStack call to build an image or other content.
+
+    It passes a merged configuration from pillar and pulumi config object to the saltstack state.
+    The build is triggered when the configuration or environment changes.
+    """
+
+    def __init__(
+        self,
+        resource_name,
+        sls_name,
+        pillar={},
+        environment={},
+        sls_dir=None,
+        merge_config_name="",
+        debug_output=False,
+        opts=None,
+    ):
+        """
+        Args:
+            resource_name (str):
+                The name of the Pulumi resource.
+            sls_name (str):
+                The name of the Salt state (SLS) file to execute.
+            pillar (dict, optional, defaults to "{}"):
+                A dictionary to use for the saltstack pillar data.
+            environment (dict, optional, defaults to "{}"):
+                A dictionary of environment variables available in saltstack.
+                Can be used to pass secrets.
+            sls_dir (str, optional, defaults to the project directory):
+                The directory containing the SLS files.
+            merge_config_name (str, optional, defaults to ""):
+                A name to use for getting a pulumi config object,
+                    that will be merged with the pillar data.
+            debug_output (boolean, optional, defaults to "False"):
+
+            opts (pulumi.ResourceOptions, optional, defaults to "None"):
+                The options for the resource.
+        Returns:
+            LocalSaltCall:
+                A `LocalSaltCall` resource representing the Salt execution.
+        """
+        super().__init__("pkg:tools:BuildFromSalt", resource_name, None, opts)
+
+        XXX 
+        config_dict = config.get_object(merge_config_name) or {}
+        merged_pillar = merge_dict_struct(pillar, config_dict)
+        merged_pillar_hash = hashlib.sha256(
+            json.dumps(merged_pillar).encode("utf-8")
+        ).hexdigest()
+        environment_hash = hashlib.sha256(json.dumps(environment).encode("utf-8")).hexdigest()
+
+        # debug: if true, salt-call will be executed with "-l debug"
+        salt_debug = True
+
+        resource = LocalSaltCall(
+            resource_name,
+            "-l debug" if salt_debug else "",
+            "state.sls",
+            sls_name,
+            pillar=merged_pillar,
+            environment=environment,
+            sls_dir=this_dir,
+            triggers=[merged_pillar_hash, environment_hash],
+            opts=opts,
+        )
 
 
 class _TimedResourceProviderInputs:
