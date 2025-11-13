@@ -40,22 +40,7 @@ LANGUAGE_MAP = {
     "Makefile": "makefile",
 }
 
-# A list of glob patterns to search for from the project root
-SOURCE_LIST = [
-    "examples/**/*",
-    "tools.py",
-    "scripts/*",
-    "authority.py",
-    "os/__init__.py",
-    "build.py",
-    "template.py",
-]
-
-OUTPUT_DOCS_DIR = "."
-BASE_DIR = Path.cwd()
-
 # List of extensions that are NOT processed by this script and are common in markdown
-# These links will be ignored by the link fixer.
 MEDIA_EXTENSIONS = (
     ".png",
     ".jpg",
@@ -74,6 +59,20 @@ MEDIA_EXTENSIONS = (
 )
 
 
+# A list of glob patterns to search for from the project root
+SOURCE_LIST = [
+    "authority.py",
+    "tools.py",
+    "template.py",
+    "os/__init__.py",
+    "examples/**/*",
+    "scripts/*",
+]
+
+OUTPUT_DOCS_DIR = "."
+BASE_DIR = Path.cwd()
+
+
 def _link_replacer(match):
     """
     Internal helper for re.sub to process a single link match.
@@ -84,44 +83,35 @@ def _link_replacer(match):
     # Check for external links
     if link_url.startswith("http://") or link_url.startswith("https://"):
         return match.group(0)  # Keep original
-
-    # 2. Check for anchor links
+    # Check for anchor links
     if link_url.startswith("#"):
         return match.group(0)  # Keep original
-
-    # 3. Check for mailto links
+    # Check for mailto links
     if link_url.startswith("mailto:"):
         return match.group(0)  # Keep original
-
-    # 4. Check if it already ends in .md
+    # Check if it already ends in .md
     if link_url.endswith(".md"):
         return match.group(0)  # Keep original
-
-    # 5. Check if it ends with a media file extension or is a directory link
+    # Check if it ends with a media file extension or is a directory link
     if link_url.endswith("/") or any(
         link_url.lower().endswith(ext) for ext in MEDIA_EXTENSIONS
     ):
         return match.group(0)  # Keep original
 
-    # If all checks pass, it's a relative link that needs .md
-    # We also need to be careful about query params or fragments
+    # split out optional fragments or query params from path_part
     parts = link_url.split("#", 1)
     url_part = parts[0]
     fragment_part = f"#{parts[1]}" if len(parts) > 1 else ""
-
     url_parts = url_part.split("?", 1)
     path_part = url_parts[0]
     query_part = f"?{url_parts[1]}" if len(url_parts) > 1 else ""
 
-    # Only append .md if the path part is not empty
+    # Check if the path part is not empty
     if not path_part:
-        return match.group(0)
+        return match.group(0)  # Keep original
 
-    # All checks passed. Append .md
-    # e.g. [link](path/to/file.py) -> [link](path/to/file.py.md)
-    # e.g. [link](path/to/file) -> [link](path/to/file.md)
+    # Append .md, e.g. [link](path/to/file.py) -> [link](path/to/file.py.md)
     new_link_url = f"{path_part}.md{query_part}{fragment_part}"
-
     return f"[{link_text}]({new_link_url})"
 
 
@@ -200,7 +190,6 @@ def generate_docs(is_dry_run: bool):
     if is_dry_run:
         print("DRY-RUN --- NOT ACTUALLY TOUCHING ANY FILES")
     else:
-        # This will only print when NOT in dry-run, e.g. when run by mkdocs
         print("LIVE-RUN --- Generating files for mkdocs")
 
     for pattern in SOURCE_LIST:
@@ -231,10 +220,8 @@ def generate_docs(is_dry_run: bool):
                 # )
                 if file_path.suffix == ".md":
                     md_file_rel_path = Path(OUTPUT_DOCS_DIR) / relative_file_path
-                    # --- MODIFIED BLOCK ---
                     content = file_path.read_text()
                     content = fix_markdown_links(content)
-                    # --- END MODIFIED BLOCK ---
                     print(
                         f"  verbat -> {md_file_rel_path}",
                         file=sys.stderr,
@@ -268,19 +255,18 @@ def main():
 Generates Markdown documentation from source files.
 - Run standalone (no args): Defaults to --dry-run.
 - Run by mkdocs: Defaults to 'live' mode.
+- --dry-run: select dry-run mode if needed.
 - --force: Forces write of files outside of Markdown, for standalone testing.
-- --dry-run: Forces dry-run mode if needed.
 """,
         formatter_class=argparse.RawTextHelpFormatter,
     )
-
-    parser.add_argument(
+    _ = parser.add_argument(
         "-d",
         "--dry-run",
         action="store_true",
         help="Force script to run in simulation (dry-run) mode.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "-f",
         "--force",
         action="store_true",
@@ -288,14 +274,7 @@ Generates Markdown documentation from source files.
     )
 
     args, unknown = parser.parse_known_args()
-    IS_DRY_RUN = False
-    if len(sys.argv) == 1:
-        IS_DRY_RUN = True
-    if args.dry_run:
-        IS_DRY_RUN = True
-    if args.force:
-        IS_DRY_RUN = False
-
+    IS_DRY_RUN = ((len(sys.argv) == 1) or args.dry_run) and not args.force
     generate_docs(is_dry_run=IS_DRY_RUN)
 
 
