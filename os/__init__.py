@@ -13,6 +13,7 @@
 ### Functions
 
 - get_locale
+- build_raspberry_extras
 - butane_clevis_to_json_clevis
 
 """
@@ -23,17 +24,15 @@ import re
 import sys
 import json
 import hashlib
-import yaml
 
+import yaml
 import pulumi
 import pulumi_command as command
-from pulumi_command.local import Logging as LocalLogging
-
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
-import yaml
+from pulumi_command.local import Logging as LocalLogging
 
-from ..tools import log_warn
+from ..tools import log_warn, BuildFromSalt
 from ..template import (
     jinja_run,
     jinja_run_file,
@@ -170,6 +169,26 @@ def get_locale():
     locale = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))["LOCALE"]
     locale.update({key.upper(): value for key, value in config.get_object("locale").items()})
     return locale
+
+
+def build_raspberry_extras():
+    """Builds extra files for Raspberry Pi.
+
+    This function triggers a SaltStack build to create extra files needed for
+    Raspberry Pi devices, such as bootloader firmware.
+
+    Returns:
+        LocalSaltCall:
+            A `LocalSaltCall` resource representing the Salt execution.
+    """
+    return BuildFromSalt(
+        "build_raspberry_extras",
+        sls_name="build_raspberry_extras",
+        pillar=yaml.safe_load(open(os.path.join(this_dir, "build_raspberry_extras.yml"), "r")),
+        environment={},
+        sls_dir=this_dir,
+        merge_config_name="",
+    )
 
 
 class ButaneTranspiler(pulumi.ComponentResource):
@@ -633,30 +652,27 @@ class FcosImageDownloader(pulumi.ComponentResource):
         """Initializes an FcosImageDownloader component.
 
         Args:
-            stream (str, optional):
-                The Fedora CoreOS stream (e.g., "stable"). Defaults to the value from the
-                build defaults.
-            architecture (str, optional):
-                The CPU architecture (e.g., "x86_64"). Defaults to the value from the build
-                defaults.
-            platform (str, optional):
-                The platform (e.g., "qemu"). Defaults to the value from the build defaults.
-            image_format (str, optional):
-                The image format (e.g., "qcow2.xz"). Defaults to the value from the build
-                defaults.
+            stream (str, optional):         The Fedora CoreOS stream (e.g., "stable").
+            architecture (str, optional):   The CPU architecture (e.g., "x86_64").
+            platform (str, optional):       The platform (e.g., "qemu").
+            image_format (str, optional):   The image format (e.g., "qcow2.xz").
             overwrite_url (str, optional):
                 A URL to an image to download instead of using the stream/architecture/platform.
-                Defaults to None.
             opts (pulumi.ResourceOptions, optional):
                 The options for the resource. Defaults to None.
+        Returns:
+            self.result: ImagePath of generated image
+
+        Defaults:
+            Defaults are taken the merge of from "FCOS" section in `jinja_defaults.yml`,
+            and optional pulumi config object settings `fcos`.
+
         """
         from ..authority import project_dir, stack_name, config
 
-        defaults = yaml.safe_load(
-            open(os.path.join(this_dir, "..", "build_defaults.yml"), "r")
-        )
-        config = config.get_object("build") or {}
-        system_config = merge_dict_struct(defaults["fcos"], config.get("fcos") or {})
+        defaults = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
+        fcos_config = {key.upper(): value for key, value in config.get_object("fcos").items()}
+        system_config = merge_dict_struct(defaults["FCOS"], fcos_config or {})
 
         if not stream:
             stream = system_config["stream"]
