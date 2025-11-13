@@ -141,7 +141,7 @@ def write_to_device(block_device_path, image_file, verbose=True):
                     target_handle.write(data)
 
 
-def patch_partitions(block_device_path, block_info, patches, verbose=True):
+def patch_partitions(block_info, patches, verbose=True):
     """Write files on specific partitions after writing the image"""
     udisks_obj = bus.get_object("org.freedesktop.UDisks2", "/org/freedesktop/UDisks2")
     udisks_obj_manager = dbus.Interface(udisks_obj, "org.freedesktop.DBus.ObjectManager")
@@ -232,15 +232,15 @@ def main():
     parser = argparse.ArgumentParser(
         description="Write image from to removable storage device specified by serial_number."
     )
-    parser.add_argument("--dest-serial", help="Serial number of the destination drive")
-    parser.add_argument(
+    _ = parser.add_argument("--dest-serial", help="Serial number of the destination drive")
+    _ = parser.add_argument(
         "--dest-size",
         help="optional Byte Size of the destination drive, as additional match criteria",
         type=int,
         default=0,
     )
-    parser.add_argument("--source-image", help="Path to the source image file")
-    parser.add_argument(
+    _ = parser.add_argument("--source-image", help="Path to the source image file")
+    _ = parser.add_argument(
         "--patch",
         action="append",
         nargs=2,
@@ -251,13 +251,13 @@ Use '@' prefix for UUID, e.g. 'u-boot.bin @7B77-95E7/boot/efi/u-boot.bin'
 or filesystem label, eg. 'u-boot.bin EFI-SYSTEM/boot/efi/u-boot.bin'. """,
     )
     group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument(
+    _ = group.add_argument(
         "--list", action="store_true", default=False, help="List all available drives"
     )
-    group.add_argument(
+    _ = group.add_argument(
         "--verbose", action="store_true", default=True, help="Enable verbose output"
     )
-    group.add_argument(
+    _ = group.add_argument(
         "--silent", action="store_false", dest="verbose", help="Disable verbose output"
     )
 
@@ -302,7 +302,7 @@ or filesystem label, eg. 'u-boot.bin EFI-SYSTEM/boot/efi/u-boot.bin'. """,
             write_to_device(block_device_path, args.source_image, args.verbose)
 
             if args.patch:
-                patch_partitions(block_device_path, block_info, args.patch, args.verbose)
+                patch_partitions(block_info, args.patch, args.verbose)
 
         except (KeyError, IndexError) as e:
             print(f"Error: {e}", file=sys.stderr)
