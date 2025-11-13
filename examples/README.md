@@ -7,6 +7,8 @@
 - [Fake CA](fake_ca/__init__.py) - create a Root, Provision and MitM CA and a example host cert based on that MitM CA
 
 - [OpenWRT](openwrt/build_openwrt.py) -  Builds a customized OpenWrt firmware image
+    - [build_defaults.yml](openwrt/build_defaults.yml)
+    - [build_openwrt.sls](openwrt/build_openwrt.sls)
 
 - [ESPHome](esphome/build_esphome.py) - Builds and uploads an ESPHome firmware image
 
