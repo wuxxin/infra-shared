@@ -26,6 +26,9 @@ You have just created two TLS Certificates and an SSH Keypair in a very fancy wa
 
 See the [examples](examples/README.md) for code of what else can be done with it
 
+## Documentation
+
+Documentation is available under [https://wuxxin.github.io/infra-shared/](https://wuxxin.github.io/infra-shared/).
 ## Features
 
 - **Appliance** based on **Fedora-CoreOS Linux** - updating, minimal, monolithic, container-focused operating system
