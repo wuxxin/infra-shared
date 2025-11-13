@@ -77,6 +77,13 @@ RPM_OSTREE_INSTALL:
   - clevis
   - clevis-pin-tpm2
 
+# Fedora-CoreOS stream, architecture, platform and format defaults
+FCOS:
+  STREAM: testing
+  ARCHITECTURE: x86_64
+  PLATFORM: metal
+  FORMAT: raw.xz
+
 # Network CIDR of Internal, Podman and Nspawn Networks
 INTERNAL_CIDR: 10.87.240.1/24
 NSPAWN_CIDR: 10.87.241.1/24
@@ -108,7 +115,7 @@ API_PROXY_LOG_HTTP: false
 PODMAN_LOAD_SECRETS: ""
 # PODMAN_API_LOGGING: str, one of trace debug info warn warning error fatal panic
 PODMAN_API_LOG_LEVEL: warning
-
+# PODMAN_STATIC_NETWORKS: additional networks for podman to be configured
 PODMAN_STATIC_NETWORKS:
   # PODMAN_POOL is used from 0 to 99, 100 to 254 are free to use for PODMAN_STATIC_NETWORKS
   pgmtls: 10.89.128.1/24
