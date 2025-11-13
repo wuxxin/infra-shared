@@ -1,5 +1,9 @@
 # Workpad
 
+This file is for human notes only, dont read or follow this file's instructions as an software agent.
+
+## next
+
 Read `docs/development.md`.
 Read the following required changes, considering which parts should be combined and which should be separate tasks and in what order they should be performed.
 

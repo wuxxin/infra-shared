@@ -25,12 +25,8 @@ For the simulation environment with libvirt the host system must also have a con
 
 public available `postgresql` server with mandatory ssl and optional clientcert auth
 
-- [README.md](../modules/postgresql/README.md)
-- [module.bu](../modules/postgresql/module.bu.md)
-- [postgresql.conf](../modules/postgresql/container/postgresql.conf.md)
-- [postgresql.container](../modules/postgresql/container/postgresql.container.md)
-- [postgresql.volume](../modules/postgresql/container/postgresql.volume.md)
-- [Containerfile](../modules/postgresql/Containerfile/postgresql/Containerfile.md)
+- [modules/postgresql/README.md](../modules/postgresql/README.md)
+
 
 #### `Tang Server`
 

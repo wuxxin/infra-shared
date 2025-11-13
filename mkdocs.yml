@@ -40,18 +40,10 @@ nav:
   - CoreOS:
       - os.md
       - butane.md
-      - update.md
       - networking.md
       - credentials.md
       - healthchecks.md
   - pulumi.md
-  - Examples:
-      - Fedora-CoreOS on Raspberry Pi: examples/safe/README.md
-      - Postgresql Example Module: examples/modules/postgresql/README.md
-      - Create a MitM CA Chain: examples/fake_ca/__init__.py.md
-      - Templates for new projects:
-          - scripts/create_skeleton.sh.md
-          - examples/skeleton/Makefile.md
-          - examples/skeleton/pyproject.toml.md
+  - Examples: examples/README.md
   - scripts.md
   - development.md

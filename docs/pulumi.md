@@ -58,7 +58,7 @@ from infra.authority import create_host_cert
 tls = create_host_cert(hostname, hostname, dns_names)
 ```
 
-## `tools` - Serve HTTPS, SSH-put/get/exec, Salt-Call, Img-Transfer
+## `tools` - Serve HTTPS, SSH-put/get/exec, SaltCall, ImgTransfer
 
 This module provides various tools for use with Pulumi.
 
