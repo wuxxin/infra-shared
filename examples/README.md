@@ -6,6 +6,10 @@
 
 - [Fake CA](fake_ca/__init__.py) - create a Root, Provision and MitM CA and a example host cert based on that MitM CA
 
+- [OpenWRT](openwrt/build_openwrt.py) -  Builds a customized OpenWrt firmware image
+
+- [ESPHome](esphome/build_esphome.py) - Builds and uploads an ESPHome firmware image
+
 - [Notebooks](notebooks) - Jupyter and Marimo Notebooks for interactive usage of pulumi and mqtt
     - [storage-write-book.py](notebooks/storage-write-book.py) - Write image to removable storage device as User App
 
