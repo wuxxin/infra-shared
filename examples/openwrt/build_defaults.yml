@@ -1,0 +1,75 @@
+openwrt:
+  version: "24.10.2"
+  target: x86-64
+  model: generic
+  baseurl: https://downloads.openwrt.org/releases
+  sign:
+    id: B313E594
+    sha256sum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
+    comment: |
+      Since 2024-11-05 0x1D53D1877742E911 is used to production builds
+        User ID: OpenWrt Build System (Nitrokey3) contact@openwrt.org
+      Before for 23.05.0 and newer builds are signed with PGP key for unattended snapshot builds
+        User ID: OpenWrt Build System pgpsign-snapshots@openwrt.org
+      see https://openwrt.org/docs/guide-user/security/signatures
+  disabled_services:
+    - uhttpd
+  defaults:
+    # can be overwritten using pulumi:config("build").openwrt.defaults.ip
+    ip: "192.168.1.1"
+  packages:
+    # packages for command line scripts
+    - coreutils-base64
+    - coreutils-nohup
+    - hostapd-utils
+    - knot-dig
+    - knot-host
+    - knot-nsupdate
+    - mosquitto-client-ssl
+    - resolveip
+    # network debugging tool
+    - tcpdump
+    # add unbound in addition to dnsmasq
+    - unbound-anchor
+    - unbound-control
+    - unbound-control-setup
+    - unbound-daemon
+    # add dnsproxy (big, written in go) in addition to unbound as proxy server for DoH, DoT, DoQ
+    - dnsproxy
+    # replace wpad-basic-* in favor of wpad-openssl
+    - "-wpad-basic-wolfssl"
+    - "-wpad-basic-mbedtls"
+    - wpad-openssl
+    # replace dropbear with openssh
+    - "-dropbear"
+    - openssh-server
+    - openssh-sftp-server
+    # replace uhttpd with nginx
+    - "-uhttpd"
+    # replace nginx-ssl (dragged in by luci-ssl-nginx) in favor of nginx-full
+    - "-nginx-ssl"
+    - nginx-full
+    - nginx-mod-stream
+    - nginx-mod-luci-ssl
+    - luci-ssl-nginx
+    # luci apps and their upstream programs
+    - luci-app-banip
+    - luci-app-firewall
+    - luci-app-nlbwmon
+    - luci-app-ntpc
+    - luci-app-nft-qos
+    - luci-app-sqm
+    - luci-app-unbound
+    - luci-app-upnp
+    - luci-app-wireguard
+    - luci-app-wol
+    - luci-mod-admin-full
+    - luci-proto-ipv6
+    - luci-proto-ppp
+    # optional dependency for luci-proto-wireguard
+    - qrencode
+    - luci-proto-wireguard
+    # make optional themes available for the web-ui
+    - luci-theme-material
+    - luci-theme-openwrt-2020

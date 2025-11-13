@@ -13,7 +13,7 @@
 
 #}
 
-{% import_yaml "build_defaults.yml" as defaults %}
+{% import_yaml "build_raspberry_extras.yml" as defaults %}
 {% set settings=salt['grains.filter_by']({'default': defaults},
     grain='default', default= 'default', merge= salt['pillar.get']('build', {})) %}
 

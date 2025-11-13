@@ -1,0 +1,22 @@
+raspberry:
+  # raspberry pi (3), 4, (5): eeprom, uboot, uefi
+  eeprom_rpi4:
+    # Raspberry Pi 4 and 5 first stage bootloader EEPROMs
+    version: 2025.01.22-2712
+    fileurl: https://github.com/raspberrypi/rpi-eeprom/releases/download/v2025.01.22-2712/rpi-boot-eeprom-recovery-2025-01-22-2712-sd.zip
+    sha256sum: cf37ba7fef2f65ada6e38d7c5445237653549993b746a24b185187129d2dfe04
+  uboot:
+    # second stage U-Boot firmware Images
+    version: 2025.01-3.fc42
+    fileurl: https://kojipkgs.fedoraproject.org/packages/uboot-tools/2025.01/3.fc42/noarch/uboot-images-armv8-2025.01-3.fc42.noarch.rpm
+    sha256sum: 4c53cae16971d3e27a37cb1dfc7a9abde246ebebbc99d4d10a26d03cea0d955f
+  uefi_rpi3:
+    # alt. second stage Pi 3 UEFI Firmware Images
+    version: "1.39"
+    fileurl: https://github.com/pftf/RPi3/releases/download/v{VERSION}/RPi3_UEFI_Firmware_v{VERSION}.zip
+    sha256sum: 9d2bae7868027997c59663d2a29c5a5573c4a846d67d0cd42cdddb5280ee22d8
+  uefi_rpi4:
+    # alt. second stage Pi 4 UEFI Firmware Images
+    version: "1.40"
+    fileurl: https://github.com/pftf/RPi4/releases/download/v{VERSION}/RPi4_UEFI_Firmware_v{VERSION}.zip
+    sha256sum: 2fe99b68fff95bd420bd7c8b24a3ef3c76aac2b523046d5742befdc239475844
