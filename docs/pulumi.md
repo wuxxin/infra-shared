@@ -1,55 +1,10 @@
 # Pulumi Resources
 
-This document outlines the Pulumi components, dynamic resources, and functions available in this project.
-
-## `os` - CoreOS Config, Deployment, Operation, Update
-
-This module provides resources for managing CoreOS systems.
-
-### Components
-
--   `ButaneTranspiler`
-    Transpiles Jinja2-templated Butane files into Ignition JSON and a SaltStack state
--   `SystemConfigUpdate`
-    Updates the configuration of a remote system using a transpiled SaltStack state
--   `FcosImageDownloader`
-    Downloads and decompresses a Fedora CoreOS image
--   `LibvirtIgniteFcos`
-    Creates a Fedora CoreOS virtual machine with Libvirt
--   `TangFingerprint`
-    Retrieves a Tang server's fingerprint
--   `RemoteDownloadIgnitionConfig`
-    Creates a minimal Ignition configuration that downloads the full configuration from a remote URL
-
-### Functions
-
--   `get_locale`
-    Retrieves and merges locale settings from default and Pulumi configurations
--   `butane_clevis_to_json_clevis`
-    Parses a Butane config and extracts Clevis SSS (Shamir's Secret Sharing) configurations for LUKS-encrypted devices
-
-### Example
-
-```python
-from infra.os import ButaneTranspiler, LibvirtIgniteFcos
-
-# Translate Butane into Ignition and SaltStack state
-host_config = ButaneTranspiler(
-    shortname, hostname, tls, butane_yaml, files_basedir, host_environment
-)
-
-# Create a Libvirt virtual machine
-host_machine = LibvirtIgniteFcos(
-    shortname,
-    public_config.result,
-    volumes=identifiers["storage"],
-    memory=4096,
-)
-```
+Pulumi components, dynamic resources, and functions available.
 
 ## `authority` - TLS/X509 CA & Certs, DNSSEC, OpenSSH
 
-This module provides resources for managing TLS/X509 CAs, certificates, DNSSEC keys, and OpenSSH keys.
+Resources for managing TLS/X509 CAs, certificates, DNSSEC keys, and OpenSSH keys.
 
 ### Components
 
@@ -117,6 +72,13 @@ This module provides various tools for use with Pulumi.
     Executes a local SaltStack call
 -   `RemoteSaltCall`
     Executes a SaltStack call on a remote host
+-   `BuildFromSalt`
+    Executes a local SaltStack call to build an image or OS
+
+- c: SSHPut
+- c: SSHDeploy
+- c: SSHGet
+- c: SSHExecute
 
 ### Dynamic Resources
 
@@ -137,12 +99,14 @@ This module provides various tools for use with Pulumi.
     Executes a command on a remote host over SSH
 -   `ssh_get`
     Copies files from a remote host to the local machine over SSH
+
 -   `write_removable`
     Writes an image to a removable storage device
 -   `encrypted_local_export`
     Exports and encrypts data to a local file using `age`
 -   `public_local_export`
     Exports data to a local file without encryption
+
 -   `log_warn`
     Logs a multi-line string to the Pulumi console with line numbers
 -   `salt_config`
@@ -159,6 +123,8 @@ This module provides various tools for use with Pulumi.
     Deserializes a YAML string into a Pulumi output
 
 ### Example
+
+#### ServePrepare and ServeOnce
 
 ```python
 from infra.tools import ServePrepare, ServeOnce
@@ -177,30 +143,59 @@ serve_data = ServeOnce(
 )
 ```
 
-## `build` - Embedded- & IoT- Images
+## `os` - CoreOS Config, Deployment, Operation, Update
 
-This module provides resources for building OpenWRT, Raspberry Pi, and ESPHome images.
+Resources for managing CoreOS systems.
 
 ### Components
 
--   `ESPhomeBuild`
-    Builds and uploads ESPHome firmware
+-   `ButaneTranspiler`
+    Transpiles Jinja2-templated Butane files into Ignition JSON and a SaltStack state
+-   `SystemConfigUpdate`
+    Updates the configuration of a remote system using a transpiled SaltStack state
+-   `FcosImageDownloader`
+    Downloads and decompresses a Fedora CoreOS image
+-   `LibvirtIgniteFcos`
+    Creates a Fedora CoreOS virtual machine with Libvirt
+-   `TangFingerprint`
+    Retrieves a Tang server's fingerprint
+-   `RemoteDownloadIgnitionConfig`
+    Creates a minimal Ignition configuration that downloads the full configuration from a remote URL
 
 ### Functions
 
--   `build_this_salt`
-    Executes a local SaltStack state to build an image or OS
+-   `get_locale`
+    Retrieves and merges locale settings from default and Pulumi configurations
 -   `build_raspberry_extras`
     Builds extra files for Raspberry Pi, such as bootloader firmware
--   `build_openwrt`
-    Builds a customized OpenWrt firmware image
--   `build_esphome`
-    Builds and uploads an ESPHome firmware image
+-   `butane_clevis_to_json_clevis`
+    Parses a Butane config and extracts Clevis SSS (Shamir's Secret Sharing) configurations for LUKS-encrypted devices
 
 ### Example
 
+#### Translate Butane and create a Libvirt Machine from config
+
 ```python
-from infra.build import build_raspberry_extras
+from infra.os import ButaneTranspiler, LibvirtIgniteFcos
+
+# Translate Butane into Ignition and SaltStack state
+host_config = ButaneTranspiler(
+    shortname, hostname, tls, butane_yaml, files_basedir, host_environment
+)
+
+# Create a Libvirt virtual machine
+host_machine = LibvirtIgniteFcos(
+    shortname,
+    public_config.result,
+    volumes=identifiers["storage"],
+    memory=4096,
+)
+```
+
+#### Build Raspberry Extras
+
+```python
+from infra.os import build_raspberry_extras
 
 # Download extra files for Raspberry Pi
 extras = build_raspberry_extras()
