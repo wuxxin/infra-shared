@@ -14,7 +14,6 @@
 
 - get_locale
 - build_raspberry_extras
-- butane_clevis_to_json_clevis
 
 """
 
@@ -41,116 +40,12 @@ from ..template import (
     join_paths,
     merge_dict_struct,
     merge_butane_dicts,
+    butane_clevis_to_json_clevis,
 )
 
 this_dir = os.path.dirname(os.path.normpath(__file__))
 subproject_dir = os.path.normpath(os.path.join(this_dir, ".."))
 project_dir = os.getcwd()
-
-
-def butane_clevis_to_json_clevis(butane_config):
-    """Parses a Butane config and extracts Clevis SSS configurations.
-
-    This function processes a Butane configuration dictionary and generates a
-    JSON string that describes the Clevis SSS (Shamir's Secret Sharing)
-    configuration for each LUKS-encrypted device.
-
-    Args:
-        butane_config (dict):
-            The Butane configuration dictionary.
-
-    Returns:
-        str:
-            A JSON string representing the Clevis configurations for all LUKS devices.
-    """
-
-    def clevis_to_sss(clevis_config):
-        """Returns a SSS config dict from a Clevis config dict"""
-        pins = {}
-        tang_configs = []
-        # Clevis's default threshold is 1 if not specified
-        threshold = clevis_config.get("threshold") or 1
-
-        if clevis_config.get("tpm2"):
-            # This is the standard default configuration for a tpm2 pin
-            pins["tpm2"] = [{"hash": "sha256", "key": "ecc"}]
-
-        for tang_server in clevis_config.get("tang") or []:
-            if tang_server.get("url"):
-                tang_configs.append({"url": tang_server["url"]})
-            if tang_server.get("thumbprint"):
-                tang_configs.append({"thp": tang_server["thumbprint"]})
-            if tang_server.get("advertisement"):
-                tang_configs.append({"advertisement": tang_server["advertisement"]})
-
-        if tang_configs:
-            pins["tang"] = tang_configs
-
-        if not pins:
-            # Only create a configuration if at least one pin is defined
-            return None
-
-        final_clevis_obj = {"t": threshold, "pins": pins}
-        return final_clevis_obj
-
-    storage_luks = []
-    boot_device_luks = {}
-    boot_device_processed = False
-    root_device_path = None
-    clevis_config_entries = {}
-
-    if butane_config.get("storage") and butane_config["storage"].get("luks"):
-        storage_luks = butane_config["storage"]["luks"]
-
-    if butane_config.get("boot_device") and butane_config["boot_device"].get("luks"):
-        boot_device_luks = butane_config["boot_device"]["luks"]
-
-    for device in storage_luks:
-        if device.get("name") == "root":
-            root_device_path = device.get("device")
-            break
-
-    # Process the boot_device, associating it with the root path
-    if boot_device_luks and (boot_device_luks.get("tpm2") or boot_device_luks.get("tang")):
-        clevis_config = boot_device_luks
-        device_path_to_use = (
-            root_device_path if root_device_path else clevis_config.get("device")
-        )
-
-        if device_path_to_use:
-            # Generate the Clevis SSS config for this device
-            sss_config = clevis_to_sss(clevis_config)
-            if sss_config:
-                clevis_config_entries.update(
-                    {"device": device_path_to_use, "clevis": sss_config}
-                )
-                boot_device_processed = True
-        else:
-            print(
-                "WARNING: boot_device clevis config found but no device path could be determined for 'root'.",
-                file=sys.stderr,
-            )
-
-    # Process other storage devices
-    for device in storage_luks:
-        if device.get("name") == "root" and boot_device_processed:
-            continue
-
-        clevis_config = device.get("clevis")
-        device_path = device.get("device")
-        if device_path and clevis_config:
-            if clevis_config.get("custom"):
-                print(
-                    f"WARNING: Ignoring custom clevis setup in storage:luks:clevis for {device_path}: {clevis_config['custom']}",
-                    file=sys.stderr,
-                )
-            else:
-                # Generate the Clevis SSS config for this device
-                sss_config = clevis_to_sss(clevis_config)
-                if sss_config:
-                    clevis_config_entries.update({"device": device_path, "clevis": sss_config})
-
-    return json.dumps(clevis_config_entries)
 
 
 def get_locale():
@@ -178,8 +73,7 @@ def build_raspberry_extras():
     Raspberry Pi devices, such as bootloader firmware.
 
     Returns:
-        LocalSaltCall:
-            A `LocalSaltCall` resource representing the Salt execution.
+        .result: A LocalSaltCall.result resource representing the Salt execution.
     """
     return BuildFromSalt(
         "build_raspberry_extras",
@@ -671,17 +565,20 @@ class FcosImageDownloader(pulumi.ComponentResource):
         from ..authority import project_dir, stack_name, config
 
         defaults = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
-        fcos_config = {key.upper(): value for key, value in config.get_object("fcos").items()}
-        system_config = merge_dict_struct(defaults["FCOS"], fcos_config or {})
+        default_config = {key.upper(): value for key, value in defaults["FCOS"].items()}
+        pulumi_config = {
+            key.upper(): value for key, value in config.get_object("fcos").items()
+        }
+        system_config = merge_dict_struct(default_config, pulumi_config or {})
 
         if not stream:
-            stream = system_config["stream"]
+            stream = system_config["STREAM"]
         if not architecture:
-            architecture = system_config["architecture"]
+            architecture = system_config["ARCHITECTURE"]
         if not platform:
-            platform = system_config["platform"]
+            platform = system_config["PLATFORM"]
         if not image_format:
-            image_format = system_config["format"]
+            image_format = system_config["FORMAT"]
 
         resource_name = "system_{s}_{a}_{p}_{f}".format(
             s=stream, a=architecture, p=platform, f=image_format
