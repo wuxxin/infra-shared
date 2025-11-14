@@ -61,7 +61,7 @@ from pulumi_command.remote import Logging as RemoteLogging
 from pulumi.output import Input, Output
 from pulumi import ResourceOptions
 
-from .template import join_paths
+from .template import join_paths, merge_dict_struct, dict_get_bool
 
 this_dir = os.path.dirname(os.path.normpath(__file__))
 project_dir = os.getcwd()
@@ -1379,6 +1379,8 @@ class BuildFromSalt(pulumi.ComponentResource):
     """Executes a local SaltStack call to build an image or other content.
 
     It passes a merged configuration from pillar and pulumi config object to the saltstack state.
+    Use pulumi config object `build` `{"debug": True}` to let salt-call output debug log.
+
     The build is triggered when the configuration or environment changes.
     """
 
@@ -1403,7 +1405,7 @@ class BuildFromSalt(pulumi.ComponentResource):
                 A dictionary to use for the saltstack pillar data.
             environment (dict, optional, defaults to "{}"):
                 A dictionary of environment variables available in saltstack.
-                Can be used to pass secrets.
+                Can be used to pass secrets. values can be string of pulumi output objects.
             sls_dir (str, optional, defaults to the project directory):
                 The directory containing the SLS files.
             merge_config_name (str, optional, defaults to ""):
@@ -1414,33 +1416,36 @@ class BuildFromSalt(pulumi.ComponentResource):
             opts (pulumi.ResourceOptions, optional, defaults to "None"):
                 The options for the resource.
         Returns:
-            LocalSaltCall:
-                A `LocalSaltCall` resource representing the Salt execution.
+            .result: a `LocalSaltCall.result` resource representing the Salt execution.
         """
         super().__init__("pkg:tools:BuildFromSalt", resource_name, None, opts)
 
-        XXX 
+        config = pulumi.Config("")
         config_dict = config.get_object(merge_config_name) or {}
         merged_pillar = merge_dict_struct(pillar, config_dict)
         merged_pillar_hash = hashlib.sha256(
             json.dumps(merged_pillar).encode("utf-8")
         ).hexdigest()
-        environment_hash = hashlib.sha256(json.dumps(environment).encode("utf-8")).hexdigest()
+        resolved_environment = pulumi.Output.all(**environment)
+        environment_hash = resolved_environment.apply(
+            lambda env: hashlib.sha256(
+                json.dumps(env, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+        )
+        salt_debug = dict_get_bool(config.get_object("build"), ["debug"], False)
 
-        # debug: if true, salt-call will be executed with "-l debug"
-        salt_debug = True
-
-        resource = LocalSaltCall(
+        salt_execution = LocalSaltCall(
             resource_name,
             "-l debug" if salt_debug else "",
             "state.sls",
             sls_name,
             pillar=merged_pillar,
             environment=environment,
-            sls_dir=this_dir,
+            sls_dir=sls_dir if sls_dir else this_dir,
             triggers=[merged_pillar_hash, environment_hash],
             opts=opts,
         )
+        self.result = salt_execution.result
 
 
 class _TimedResourceProviderInputs:
