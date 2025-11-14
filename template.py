@@ -7,15 +7,16 @@
 - jinja_run_file
 - load_butane_dir
 - butane_to_salt
-
-#### minor
+- butane_clevis_to_json_clevis
 - ToolsExtension(jinja2.ext.Extension)
+
+- dict_get_bool
+- merge_dict_struct
 - join_paths
 - is_text
 - load_text
 - load_contents
 - merge_butane_dicts
-- merge_dict_struct
 - inline_local_files
 - expand_templates
 - compile_selinux_module
@@ -25,23 +26,24 @@
 import base64
 import copy
 import datetime
+import fnmatch
 import glob
 import hashlib
+import ipaddress
+import json
+import logging
 import os
 import re
 import stat
 import subprocess
-import ipaddress
-import logging
+
+from functools import reduce
+from pathlib import Path
 
 import chardet
 import jinja2
 import jinja2.ext
 import yaml
-import fnmatch
-
-from pathlib import Path
-from typing import Optional, Union, List
 
 
 def join_paths(basedir, *filepaths):
@@ -186,6 +188,39 @@ def merge_dict_struct(struct1, struct2):
     return merged
 
 
+def dict_get_bool(data: dict, keys: list[str], default: bool | None) -> bool | None:
+    """Safely retrieves a boolean value from a nested dictionary.
+
+    This function navigates through a nested dictionary using a list of keys
+    and returns the boolean at the specified path,
+    or if string and .upper() in ("TRUE","FALSE), the converted string as bool.
+    It handles cases where keys are missing or the path contains non-dictionary values.
+
+    Args:
+        data (Dict): The dictionary to search.
+        keys (list[str]): A list of keys representing the path to the value.
+        default (bool|None): The default value to return if the key is not
+        found or the value is not a boolean or a str.upper() in ("TRUE","FALSE"). Defaults to None.
+    Returns:
+        bool|None: The retrieved boolean value, or the default value.
+    """
+    try:
+        value = reduce(lambda d, k: d[k], keys, data)
+        print(f"Value: {value} {repr(value)}")
+        if type(value) is str:
+            if value.upper() == "TRUE":
+                value = True
+            elif value.upper() == "FALSE":
+                value = False
+        if type(value) is bool:
+            return value
+        else:
+            return default
+    except (KeyError, TypeError, AttributeError):
+        # Handle missing keys or non-dict values
+        return default
+
+
 class ToolsExtension(jinja2.ext.Extension):
     """A Jinja2 extension that provides custom filters and global functions."""
 
@@ -325,7 +360,7 @@ class ToolsExtension(jinja2.ext.Extension):
         """
         return yaml.safe_dump(value, default_flow_style=inline)
 
-    def cidr2ip(self, value: str, index: int = 0) -> Optional[str]:
+    def cidr2ip(self, value: str, index: int = 0) -> str | None:
         """Converts a CIDR notation to an IP address.
 
         Args:
@@ -361,7 +396,7 @@ class ToolsExtension(jinja2.ext.Extension):
         else:
             raise ValueError(f"Index out of range: {index} of {len(hosts)}")
 
-    def cidr2reverse_ptr(self, value: str) -> Optional[str]:
+    def cidr2reverse_ptr(self, value: str) -> str | None:
         """Converts a CIDR string to its reverse DNS zone name.
 
         Args:
@@ -413,7 +448,7 @@ class ToolsExtension(jinja2.ext.Extension):
         except Exception as e:
             return None
 
-    def sha256sum(self, value: str) -> Optional[str]:
+    def sha256sum(self, value: str) -> str | None:
         """Calculates the SHA256 hash of a string and returns the hexadecimal representation
 
         Args:
@@ -423,7 +458,7 @@ class ToolsExtension(jinja2.ext.Extension):
         """
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
-    def local_now(self) -> Optional[datetime.datetime]:
+    def local_now(self) -> datetime.datetime | None:
         """Returns the current time in the local timezone.
 
         Returns:
@@ -432,7 +467,7 @@ class ToolsExtension(jinja2.ext.Extension):
         """
         return datetime.datetime.now(datetime.timezone.utc).astimezone()
 
-    def utc_now(self) -> Optional[datetime.datetime]:
+    def utc_now(self) -> datetime.datetime | None:
         """Returns the current time in the UTC timezone.
 
         Returns:
@@ -442,9 +477,7 @@ class ToolsExtension(jinja2.ext.Extension):
         return datetime.datetime.now(datetime.timezone.utc)
 
 
-def jinja_run(
-    template_str: str, searchpath: Union[str, List[str]], environment: dict = {}
-) -> str:
+def jinja_run(template_str: str, searchpath: str | list[str], environment: dict = {}) -> str:
     """Renders a Jinja2 template string.
 
     This function takes a Jinja2 template as a string, along with a search path
@@ -454,7 +487,7 @@ def jinja_run(
     Args:
         template_str (str):
             The Jinja2 template string.
-        searchpath (Union[str, List[str]]):
+        searchpath (Union[str, list[str]]):
             A path or list of paths to search for included templates.
         environment (dict, optional):
             A dictionary of variables to make available in the template. Defaults to {}.
@@ -498,7 +531,7 @@ def jinja_run_file(template_filename, searchpath, environment={}):
     Args:
         template_filename (str):
             The name of the template file.
-        searchpath (Union[str, List[str]]):
+        searchpath (str | list[str]):
             A path or list of paths to search for the template file.
         environment (dict, optional):
             A dictionary of variables to make available in the template. Defaults to {}.
@@ -1099,6 +1132,111 @@ def butane_to_salt(
             ]
 
     return dest
+
+
+def butane_clevis_to_json_clevis(butane_config):
+    """Parses a Butane config and extracts Clevis SSS configurations.
+
+    This function processes a Butane configuration dictionary and generates a
+    JSON string that describes the Clevis SSS (Shamir's Secret Sharing)
+    configuration for each LUKS-encrypted device.
+
+    Args:
+        butane_config (dict):
+            The Butane configuration dictionary.
+
+    Returns:
+        str:
+            A JSON string representing the Clevis configurations for all LUKS devices.
+    """
+
+    def clevis_to_sss(clevis_config):
+        """Returns a SSS config dict from a Clevis config dict"""
+        pins = {}
+        tang_configs = []
+        # Clevis's default threshold is 1 if not specified
+        threshold = clevis_config.get("threshold") or 1
+
+        if clevis_config.get("tpm2"):
+            # This is the standard default configuration for a tpm2 pin
+            pins["tpm2"] = [{"hash": "sha256", "key": "ecc"}]
+
+        for tang_server in clevis_config.get("tang") or []:
+            if tang_server.get("url"):
+                tang_configs.append({"url": tang_server["url"]})
+            if tang_server.get("thumbprint"):
+                tang_configs.append({"thp": tang_server["thumbprint"]})
+            if tang_server.get("advertisement"):
+                tang_configs.append({"advertisement": tang_server["advertisement"]})
+
+        if tang_configs:
+            pins["tang"] = tang_configs
+
+        if not pins:
+            # Only create a configuration if at least one pin is defined
+            return None
+
+        final_clevis_obj = {"t": threshold, "pins": pins}
+        return final_clevis_obj
+
+    storage_luks = []
+    boot_device_luks = {}
+    boot_device_processed = False
+    root_device_path = None
+    clevis_config_entries = {}
+
+    if butane_config.get("storage") and butane_config["storage"].get("luks"):
+        storage_luks = butane_config["storage"]["luks"]
+
+    if butane_config.get("boot_device") and butane_config["boot_device"].get("luks"):
+        boot_device_luks = butane_config["boot_device"]["luks"]
+
+    for device in storage_luks:
+        if device.get("name") == "root":
+            root_device_path = device.get("device")
+            break
+
+    # Process the boot_device, associating it with the root path
+    if boot_device_luks and (boot_device_luks.get("tpm2") or boot_device_luks.get("tang")):
+        clevis_config = boot_device_luks
+        device_path_to_use = (
+            root_device_path if root_device_path else clevis_config.get("device")
+        )
+
+        if device_path_to_use:
+            # Generate the Clevis SSS config for this device
+            sss_config = clevis_to_sss(clevis_config)
+            if sss_config:
+                clevis_config_entries.update(
+                    {"device": device_path_to_use, "clevis": sss_config}
+                )
+                boot_device_processed = True
+        else:
+            print(
+                "WARNING: boot_device clevis config found but no device path could be determined for 'root'.",
+                file=sys.stderr,
+            )
+
+    # Process other storage devices
+    for device in storage_luks:
+        if device.get("name") == "root" and boot_device_processed:
+            continue
+
+        clevis_config = device.get("clevis")
+        device_path = device.get("device")
+        if device_path and clevis_config:
+            if clevis_config.get("custom"):
+                print(
+                    f"WARNING: Ignoring custom clevis setup in storage:luks:clevis for {device_path}: {clevis_config['custom']}",
+                    file=sys.stderr,
+                )
+            else:
+                # Generate the Clevis SSS config for this device
+                sss_config = clevis_to_sss(clevis_config)
+                if sss_config:
+                    clevis_config_entries.update({"device": device_path, "clevis": sss_config})
+
+    return json.dumps(clevis_config_entries)
 
 
 def compile_selinux_module(content):
