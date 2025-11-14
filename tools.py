@@ -43,6 +43,7 @@ tool:
 import hashlib
 import os
 import random
+import sys
 import time
 import uuid
 import io
@@ -1244,7 +1245,8 @@ class LocalSaltCall(pulumi.ComponentResource):
 
         self.executed = command.local.Command(
             resource_name,
-            create="python {scripts_dir}/salt-call.py -c {conf_dir} {args}".format(
+            create="{sys_prefix}/bin/python {scripts_dir}/salt-call.py -c {conf_dir} {args}".format(
+                sys_prefix=sys.prefix,
                 scripts_dir=os.path.join(this_dir, "scripts"),
                 conf_dir=self.config["root_dir"],
                 args=" ".join(args),
@@ -1391,7 +1393,8 @@ class BuildFromSalt(pulumi.ComponentResource):
         pillar={},
         environment={},
         sls_dir=None,
-        merge_config_name="",
+        pillar_key="",
+        pulumi_key="",
         debug_output=False,
         opts=None,
     ):
@@ -1408,11 +1411,11 @@ class BuildFromSalt(pulumi.ComponentResource):
                 Can be used to pass secrets. values can be string of pulumi output objects.
             sls_dir (str, optional, defaults to the project directory):
                 The directory containing the SLS files.
-            merge_config_name (str, optional, defaults to ""):
-                A name to use for getting a pulumi config object,
-                    that will be merged with the pillar data.
+            pillar_key (str, optional, defaults to ""):
+            pulumi_key (str, optional, defaults to ""):
+                if both set, pulumi_key is used to get a pulumi config object,
+                that will get merged with pillar at pillar_key
             debug_output (boolean, optional, defaults to "False"):
-
             opts (pulumi.ResourceOptions, optional, defaults to "None"):
                 The options for the resource.
         Returns:
@@ -1421,8 +1424,12 @@ class BuildFromSalt(pulumi.ComponentResource):
         super().__init__("pkg:tools:BuildFromSalt", resource_name, None, opts)
 
         config = pulumi.Config("")
-        config_dict = config.get_object(merge_config_name) or {}
-        merged_pillar = merge_dict_struct(pillar, config_dict)
+        if pillar_key and pulumi_key:
+            config_dict = {pillar_key: config.get_object(pulumi_key) or {}}
+            merged_pillar = merge_dict_struct(pillar, config_dict)
+        else:
+            merged_pillar = pillar
+
         merged_pillar_hash = hashlib.sha256(
             json.dumps(merged_pillar).encode("utf-8")
         ).hexdigest()

@@ -30,7 +30,7 @@ def build_openwrt(
             - authorized_keys: Multiline string for authorized_keys content baked into image
 
         config_object_name (str, optional):
-            A name of a pulumi config object, that will be merged with the default pillar data.
+            A name of a pulumi config object, that will be merged with the default openwrt pillar data.
             Defaults to "build_openwrt"
         opts (pulumi.ResourceOptions, optional):
             The options for the resource. Defaults to None.
@@ -46,6 +46,7 @@ def build_openwrt(
         pillar=yaml.safe_load(open(os.path.join(this_dir, "build_defaults.yml"), "r")),
         environment=environment,
         sls_dir=this_dir,
-        merge_config_name=config_object_name,
+        pillar_key="openwrt",
+        pulumi_key=config_object_name,
         opts=opts,
     )
