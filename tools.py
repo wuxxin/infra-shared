@@ -353,6 +353,8 @@ class SSHSftp(pulumi.CustomResource):
             local_path (str):
                 The path to save the file to on the local machine.
 
+        It will create the directory path leading to local_path if it does not exist.
+
         Returns:
             str:
                 The SHA256 checksum of the downloaded file.
@@ -370,6 +372,9 @@ class SSHSftp(pulumi.CustomResource):
             pkey=privkey,
         )
         sftp = ssh.open_sftp()
+        local_dir = os.path.dirname(local_path)
+        if not os.path.isdir(local_dir):
+            os.makedirs(local_dir, exist_ok=True)
         sftp.get(remote_path, local_path)
         sftp.close()
         ssh.close()
@@ -410,43 +415,38 @@ class SSHGet(pulumi.ComponentResource):
             all_triggers = []
             for remote_path, local_path in files_dict.items():
                 remote_path_output = pulumi.Output.from_input(remote_path)
-                sub_resource_name = remote_path_output.apply(
+                sub_resource_name_output = remote_path_output.apply(
                     lambda p: "{}_get_{}".format(
                         resource_name.split("-")[0], p.replace("/", "_")
                     )
                 )
-                full_remote_path = pulumi.Output.all(
+                full_remote_path_output = pulumi.Output.all(
                     props["remote_prefix"], remote_path_output
                 ).apply(lambda args: join_paths(args[0], args[1]))
 
                 local_path_output = pulumi.Output.from_input(local_path)
-                if props["local_prefix"]:
-                    full_local_path_output = pulumi.Output.all(
-                        props["local_prefix"], local_path_output
-                    ).apply(lambda args: join_paths(args[0], args[1]))
-                else:
-                    full_local_path_output = local_path_output
+                full_local_path_output = pulumi.Output.all(
+                    props["local_dir"], props["local_prefix"], local_path_output
+                ).apply(lambda args: join_paths(args[0], args[1], args[2]))
 
                 file_triggers = [
-                    full_remote_path.apply(
+                    full_remote_path_output.apply(
                         lambda p: hashlib.sha256(p.encode("utf-8")).hexdigest()
                     ),
                 ]
                 all_triggers.extend(file_triggers)
 
                 if props["simulate"]:
-                    os.makedirs(props["tmpdir"], exist_ok=True)
-                    tmpfile = sub_resource_name.apply(
-                        lambda r: os.path.normpath(os.path.join(props["tmpdir"], r))
-                    )
+                    tmpfile = full_local_path_output
                     create_cmd = tmpfile.apply(
                         lambda p: f"mkdir -p $(dirname {p}) && touch {p}"
                     )
                     delete_cmd = (
                         tmpfile.apply(lambda p: f"rm {p} || true") if props["delete"] else ""
                     )
-
-                    _ = pulumi.Output.all(sub_resource_name, create_cmd, delete_cmd).apply(
+                    _ = pulumi.Output.all(
+                        sub_resource_name_output, create_cmd, delete_cmd
+                    ).apply(
                         lambda args: command.local.Command(
                             args[0],
                             create=args[1],
@@ -457,7 +457,9 @@ class SSHGet(pulumi.ComponentResource):
                     )
                 else:
                     _ = pulumi.Output.all(
-                        sub_resource_name, full_remote_path, full_local_path_output
+                        sub_resource_name_output,
+                        full_remote_path_output,
+                        full_local_path_output,
                     ).apply(
                         lambda args: SSHSftp(
                             args[0],
@@ -668,11 +670,12 @@ def ssh_get(
     port=22,
     delete=False,
     simulate=None,
+    local_dir="",
     opts=None,
 ):
     """Copies files from a remote host to the local machine over SSH.
 
-    This function creates an `SSHGet` component to manage the file transfer.
+    This function creates an `SSHGet` component to manage the file transfer
 
     Args:
         prefix (str):
@@ -683,6 +686,7 @@ def ssh_get(
             The username to connect with.
         files (dict, optional):
             A dictionary mapping remote file paths to local file paths. Defaults to {}.
+            The local file path is prefixed with
         remote_prefix (str, optional):
             A prefix to add to all remote paths. Defaults to "".
         local_prefix (str, optional):
@@ -694,6 +698,8 @@ def ssh_get(
         simulate (bool, optional):
             Whether to simulate the file transfer. If None, it is determined by the stack name.
             Defaults to None.
+        local_dir (str, optional):
+            Defaults to `os.path.join(project_dir, "build", "tmp", stack_name)` if empty.
         opts (pulumi.ResourceOptions, optional):
             The options for the resource. Defaults to None.
 
@@ -706,6 +712,7 @@ def ssh_get(
     from .authority import ssh_factory
 
     stack_name = pulumi.get_stack()
+
     props = {
         "host": host,
         "port": port,
@@ -716,7 +723,9 @@ def ssh_get(
         "remote_prefix": remote_prefix,
         "local_prefix": local_prefix,
         "simulate": stack_name.endswith("sim") if simulate is None else simulate,
-        "tmpdir": os.path.join(project_dir, "build", "tmp", stack_name),
+        "local_dir": local_dir
+        if local_dir
+        else os.path.join(project_dir, "build", "tmp", stack_name),
     }
     transferred = SSHGet(prefix, props, opts=opts)
     return transferred
@@ -1443,7 +1452,7 @@ class BuildFromSalt(pulumi.ComponentResource):
 
         salt_execution = LocalSaltCall(
             resource_name,
-            "-l debug" if salt_debug else "",
+            "-l all" if salt_debug else "",
             "state.sls",
             sls_name,
             pillar=merged_pillar,
