@@ -23,7 +23,7 @@ create_tmp_dir:
 openwrt_signing_key:
   file.managed:
     - name: {{ tmp_dir ~ "/openwrt.sign.asc" }}
-    - source: {{ settings.sign.baseurl ~ "/" ~ settings.sign.id ~ ".asc" }}
+    - source: {{ settings.sign.baseurl ~ ";f=gpg/" ~ settings.sign.id ~ ".asc" }}
     - source_hash: {{ settings.sign.sha256sum }}
 
 openwrt_signing_keyring:

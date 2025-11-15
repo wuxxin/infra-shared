@@ -5,8 +5,8 @@ openwrt:
   baseurl: https://downloads.openwrt.org/releases
   sign:
     id: B313E594
-    sha256sum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-    baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
+    sha256sum: b2057eed627a973c9abcf2bea4ef5cbff11dd8fb811fbd1a69403b0311531595
+    baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;hb=HEAD
     comment: |
       Since 2024-11-05 0x1D53D1877742E911 is used to production builds
         User ID: OpenWrt Build System (Nitrokey3) contact@openwrt.org
