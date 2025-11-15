@@ -118,7 +118,7 @@ execute provision shell (defaults to /usr/bin/bash interactive shell):
 
 ```sh
 # defaults to podman, but can be overridden with CONTAINER_CMD=executable
-CONTAINER_CMD=docker infra/scripts/provision_shell.sh
+CONTAINER_CMD=docker infra/scripts/provision_container.sh
 # use exit to return to base shell
 ```
 

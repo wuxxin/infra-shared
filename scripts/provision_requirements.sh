@@ -74,7 +74,7 @@ sys-deb: python3-dev
 sys-deb: pkg-config libdbus-1-dev libglib2.0-dev
 # saltstack is installed in the python environment, not as system package
 
-# # coreos build
+# # coreos build - butane and coreos-installer
 check: butane coreos-installer
 # butane - transpile butane into fedora coreos ignition files
 aur: butane

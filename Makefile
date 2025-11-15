@@ -23,11 +23,11 @@ help:
 .PHONY: provision-local
 provision-local: ## Build dependencies for provisioning using system apps
 	@echo "+++ $@"
-	if ! ./scripts/requirements.sh --check; then \
-		./scripts/requirements.sh --install && \
-		./scripts/requirements.sh --install-extra $(args); \
+	if ! ./scripts/provision_requirements.sh --check; then \
+		./scripts/provision_requirements.sh --install && \
+		./scripts/provision_requirements.sh --install-extra $(args); \
 	fi
-	./scripts/requirements.sh --check --verbose
+	./scripts/provision_requirements.sh --check --verbose
 
 .PHONY: provision-container
 provision-container: ## Build dependencies for provisioning using a container
@@ -76,6 +76,7 @@ pytest: buildenv ## Run python Tests using "pytest $(args)"
 pytest-clean: ## Remove pytest Artifacts
 	@echo "+++ $@"
 	if test -d $(ROOTDIR)/build/tests; then rm -rf $(ROOTDIR)/build/tests; fi
+	if test -d $(ROOTDIR)/.pytest_cache; then rm -rf $(ROOTDIR)/.pytest_cache; fi
 
 .PHONY: sim__
 sim__: ## Run "pulumi $(args)"
@@ -119,5 +120,5 @@ test-all: docs-online-build pytest ## Run all tests using local build deps
 .PHONY: test-all-container
 test-all-container: provision-container ## Run all tests using container build deps
 	@echo "+++ $@"
-	./scripts/provision_shell.sh make test-all-local
+	./scripts/provision_container.sh make test-all-local
 

@@ -65,26 +65,26 @@ Usage:
     [--get-host-ip] [--get-gateway-ip] [--get-public-ip]
 ```
 
-## `provision_shell.sh`
+## `provision_container.sh`
 
-Start a shell inside the provisioning container.
+Start a provisioning container shell.
 
 Usage:
 
 ```bash
-./scripts/provision_shell.sh [command]
+./scripts/provision_container.sh [command]
 ```
 
 -   `command`: The command to run inside the container. Defaults to `/usr/bin/bash`.
 
-## `requirements.sh`
+## `provision_requirements.sh`
 
 Checks and install the necessary packages for the project.
 
 Usage:
 
 ```bash
-./scripts/requirements.sh
+./scripts/provision_requirements.sh
     --install [--dry-run] | \
     --install-extra [--user] [--dry-run] | \
     --check [--verbose] | \
@@ -92,7 +92,7 @@ Usage:
     --containerfile
 ```
 
-## `salt-call.py`
+## `salt_execute.py`
 
 A wrapper for the `salt-call` command. It includes monkeypatches for Python > 3.10 and > 3.12.
 
