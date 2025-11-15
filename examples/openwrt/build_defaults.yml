@@ -8,15 +8,15 @@ openwrt:
     sha256sum: b2057eed627a973c9abcf2bea4ef5cbff11dd8fb811fbd1a69403b0311531595
     baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;hb=HEAD
     comment: |
-      Since 2024-11-05 0x1D53D1877742E911 is used to production builds
+      See https://openwrt.org/docs/guide-user/security/signatures
+      Since 2024-11-05, 0x1D53D1877742E911 is used to production builds:
         User ID: OpenWrt Build System (Nitrokey3) contact@openwrt.org
-      Before for 23.05.0 and newer builds are signed with PGP key for unattended snapshot builds
+      Before builds where signed with PGP key for unattended snapshot builds:
         User ID: OpenWrt Build System pgpsign-snapshots@openwrt.org
-      see https://openwrt.org/docs/guide-user/security/signatures
   disabled_services:
     - uhttpd
   defaults:
-    # can be overwritten using pulumi:config("build").openwrt.defaults.ip
+    # can be overwritten using pulumi:config("build_openwrt").openwrt.defaults.ip
     ip: "192.168.1.1"
   packages:
     # packages for command line scripts
