@@ -72,7 +72,6 @@ dependencies = [
     # pulumi modules used in authority, tools, os and butane pulumi modules
     "pulumi-command",       # pulumi-command - execute commands locally or remotely as resource
     "pulumi-libvirt",       # pulumi-libvirt - creating and managing libvirt cloud resources
-    "pulumi-postgresql",    # pulumi-postgresql - creating and managing postgresql cloud resources
     "pulumi-random",        # pulumi-random - safely use randomness
     "pulumi-tls",           # pulumi-tls - create TLS resources
     "pulumiverse_purrl",    # pulumiverse_purrl - native provider for making HTTP API calls
@@ -81,12 +80,6 @@ dependencies = [
 
 [project.optional-dependencies]
 
-embedded = [
-    # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-    # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
-    "esphome>=2025.7.1",
-]
-
 examples = [
     # pulumi-postgresql - needed for examples/safe
     "pulumi-postgresql",
@@ -94,12 +87,14 @@ examples = [
     "marimo",
     # phao-mqtt - needed for examples/notebooks/mqtt-book.ipynb
     "paho-mqtt",
+    # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
+    # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
+    "esphome>=2025.7.1",
 ]
 
 dev = [
     # This syntax means: "install this package (itself) with the 'docs' extra"
     "infra-shared[docs]",
-    "infra-shared[embedded]",
     "infra-shared[examples]",
     # ruff - An extremely fast Python linter and code formatter, written in Rust.
     "ruff",
