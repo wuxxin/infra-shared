@@ -182,44 +182,46 @@ if __name__ == "__main__":
         description=__doc__ + "\ndefaults:\n{}\n".format(DEFAULT_SHORT),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("--yaml-from-stdin", action="store_true", help="Read input from STDIN")
-    parser.add_argument("--serve-port", type=int, help="internal port to be forwarded to")
-    parser.add_argument(
+    _ = parser.add_argument(
+        "--yaml-from-stdin", action="store_true", help="Read input from STDIN"
+    )
+    _ = parser.add_argument("--serve-port", type=int, help="internal port to be forwarded to")
+    _ = parser.add_argument(
         "--public-port",
         type=int,
         help="public port of packets incoming, will be set to serve-port if unset",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--gateway-ip",
         type=str,
         help="gateway IP, will be inferred from network if unset",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--protocol",
         type=str,
         default="natpmp",
         choices=["natpmp"],
         help="port forwarding protocol",
     )
-    parser.add_argument("--lifetime-sec", type=int, help="lifetime in seconds")
-    parser.add_argument(
+    _ = parser.add_argument("--lifetime-sec", type=int, help="lifetime in seconds")
+    _ = parser.add_argument(
         "--yaml-to-stdout",
         action="store_true",
         help="print resulting config YAML to STDOUT, include merged YAML from STDIN",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--silent",
         action="store_true",
         help="dont print anything to STDOUT, just exit 0 on success",
     )
-    get_group = parser.add_argument_group("other Functions").add_mutually_exclusive_group()
-    get_group.add_argument(
+    _ = get_group = parser.add_argument_group("other Functions").add_mutually_exclusive_group()
+    _ = get_group.add_argument(
         "--get-host-ip", action="store_true", help="print default route host IP"
     )
-    get_group.add_argument(
+    _ = get_group.add_argument(
         "--get-gateway-ip", action="store_true", help="print default gateway IP"
     )
-    get_group.add_argument(
+    _ = get_group.add_argument(
         "--get-public-ip",
         action="store_true",
         help="request the public IP from gateway and print",
