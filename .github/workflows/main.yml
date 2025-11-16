@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/apt-cache
-          key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
+          key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/provision_requirements.sh') }}
           restore-keys: |
             apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
             apt-cache-${{ runner.os }}-
@@ -50,7 +50,7 @@ jobs:
         id: cache-local-bin
         with:
           path: ~/.local/bin
-          key: local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
+          key: local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/provision_requirements.sh') }}
           restore-keys: |
             local-bin-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-
             local-bin-cache-${{ runner.os }}-
@@ -67,7 +67,7 @@ jobs:
         if: steps.restore-apt-cache.outputs.cache-hit != 'true'
         with:
           path: ~/.cache/apt-cache
-          key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/requirements.sh') }}
+          key: apt-cache-${{ runner.os }}-${{ steps.get-date.outputs.CACHE_VERSION }}-${{ hashFiles('scripts/provision_requirements.sh') }}
 
       - name: Cache UV python packages
         uses: actions/cache@v4

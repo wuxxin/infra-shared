@@ -53,17 +53,17 @@ provision-client: ## Build dependencies for provisioning using a container
 .PHONY: install-requirements
 install-requirements: ## Build dependencies for provisioning using system apps
 	@echo "+ $@"
-	./infra/scripts/requirements.sh --install
-	./infra/scripts/requirements.sh --install-extra
+	./infra/scripts/provision_requirements.sh --install
+	./infra/scripts/provision_requirements.sh --install-extra
 
 uv.lock: pyproject.toml
 	@echo "+ $@"
-	./infra/scripts/requirements.sh --check
+	./infra/scripts/provision_requirements.sh --check
 	uv lock
 
 .venv/bin/activate: uv.lock
 	@echo "+ $@"
-	@./infra/scripts/requirements.sh --check
+	@./infra/scripts/provision_requirements.sh --check
 	# create venv
 	if test -d .venv; then rm -rf .venv; fi
 	uv venv

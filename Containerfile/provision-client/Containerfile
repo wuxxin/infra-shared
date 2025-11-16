@@ -2,7 +2,7 @@ FROM quay.io/archlinux/archlinux:base-devel
 # archlinux container -- Provision Client
 #
 # to update package lists, execute from here:
-# cat Containerfile | ../../scripts/requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
+# cat Containerfile | ../../scripts/provision_requirements.sh --containerfile > Containerfile.new && mv Containerfile.new Containerfile
 
 RUN pacman-key --init && pacman -Syu --noconfirm base-devel git doas && \
     pacman -Syu --noconfirm act age atftp dosfstools gawk gettext git gnupg go jose jq knot libarchive libxslt lsb-release ncurses openssl pango python rust udisks2 unzip uv vault wget xz zip zlib zstd && \
