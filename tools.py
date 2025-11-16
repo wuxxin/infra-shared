@@ -1234,11 +1234,11 @@ class LocalSaltCall(pulumi.ComponentResource):
         """
         super().__init__("pkg:tools:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
-        self.config = salt_config(resource_name, stack, project_dir)
-        pillar_dir = self.config["grains"]["pillar_dir"]
-        dest_sls_dir = self.config["grains"]["sls_dir"]
+        self.salt_config = salt_config(resource_name, stack, project_dir)
+        pillar_dir = self.salt_config["grains"]["pillar_dir"]
+        dest_sls_dir = self.salt_config["grains"]["sls_dir"]
 
-        os.makedirs(self.config["root_dir"], exist_ok=True)
+        os.makedirs(self.salt_config["root_dir"], exist_ok=True)
         os.makedirs(pillar_dir, exist_ok=True)
         if not sls_dir:
             sls_dir = project_dir
@@ -1247,8 +1247,8 @@ class LocalSaltCall(pulumi.ComponentResource):
         if not os.path.exists(dest_sls_dir):
             os.symlink(sls_dir, dest_sls_dir, target_is_directory=True)
 
-        with open(self.config["conf_file"], "w") as m:
-            _ = m.write(yaml.safe_dump(self.config))
+        with open(self.salt_config["conf_file"], "w") as m:
+            _ = m.write(yaml.safe_dump(self.salt_config))
         with open(os.path.join(pillar_dir, "top.sls"), "w") as m:
             _ = m.write("base:\n  '*':\n    - main\n")
         with open(os.path.join(pillar_dir, "main.sls"), "w") as m:
@@ -1259,7 +1259,7 @@ class LocalSaltCall(pulumi.ComponentResource):
             create="{sys_prefix}/bin/python {scripts_dir}/salt_execute.py -c {conf_dir} {args}".format(
                 sys_prefix=sys.prefix,
                 scripts_dir=os.path.join(this_dir, "scripts"),
-                conf_dir=self.config["root_dir"],
+                conf_dir=self.salt_config["root_dir"],
                 args=" ".join(args),
             ),
             environment=environment,
@@ -1340,15 +1340,15 @@ class RemoteSaltCall(pulumi.ComponentResource):
         )
 
         stack = pulumi.get_stack()
-        self.config = salt_config(resource_name, stack, base_dir)
-        pillar_dir = self.config["grains"]["pillar_dir"]
-        sls_dir = self.config["grains"]["sls_dir"]
+        self.salt_config = salt_config(resource_name, stack, base_dir)
+        pillar_dir = self.salt_config["grains"]["pillar_dir"]
+        sls_dir = self.salt_config["grains"]["sls_dir"]
         rel_pillar_dir = os.path.relpath(pillar_dir, base_dir)
         rel_sls_dir = os.path.relpath(sls_dir, base_dir)
 
         self.config_dict = {
-            os.path.relpath(self.config["conf_file"], base_dir): pulumi.Output.from_input(
-                yaml.safe_dump(self.config)
+            os.path.relpath(self.salt_config["conf_file"], base_dir): pulumi.Output.from_input(
+                yaml.safe_dump(self.salt_config)
             ),
             os.path.join(rel_sls_dir, "top.sls"): pulumi.Output.from_input(
                 "base:\n  '*':\n    - main\n"
@@ -1377,7 +1377,7 @@ class RemoteSaltCall(pulumi.ComponentResource):
             host,
             user,
             cmdline=exec.format(
-                base_dir=self.config["root_dir"],
+                base_dir=self.salt_config["root_dir"],
                 args=" ".join(args),
             ),
             simulate=False,
@@ -1430,7 +1430,7 @@ class BuildFromSalt(pulumi.ComponentResource):
             opts (pulumi.ResourceOptions, optional, defaults to "None"):
                 The options for the resource.
         Returns:
-            .result: a `LocalSaltCall.result` resource representing the Salt execution.
+            .result: a `LocalSaltCall` resource representing the Salt execution.
         """
         super().__init__("pkg:tools:BuildFromSalt", resource_name, None, opts)
 
@@ -1463,7 +1463,7 @@ class BuildFromSalt(pulumi.ComponentResource):
             triggers=[merged_pillar_hash, environment_hash],
             opts=opts,
         )
-        self.result = salt_execution.result
+        self.result = salt_execution
 
 
 class _TimedResourceProviderInputs:

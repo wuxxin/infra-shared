@@ -52,7 +52,7 @@ from infra.tools import (
     write_removable,
     public_local_export,
 )
-from infra.os import build_raspberry_extras
+from infra.examples.raspberry.build_raspberry_extras import build_raspberry_extras
 
 this_dir = os.path.dirname(os.path.normpath(__file__))
 files_basedir = os.path.join(this_dir)
@@ -201,6 +201,13 @@ public_config = RemoteDownloadIgnitionConfig(
     opts=pulumi.ResourceOptions(ignore_changes=["stdin"]),
 )
 
+
+# download bios and other extras for Raspberry PI for customization
+extras = build_raspberry_extras()
+uboot_image_filename = os.path.join(
+    extras.result.salt_config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
+)
+
 # only simulate SystemConfigUpdate, skip rest if unittest
 if host_environment["SHOWCASE_UNITTEST"]:
     host_update = SystemConfigUpdate(
@@ -236,12 +243,6 @@ else:
         # download metal version of ARM64 os image (Raspberry PI compatible)
         image = FcosImageDownloader(
             architecture="aarch64", platform="metal", image_format="raw.xz"
-        )
-
-        # download bios and other extras for Raspberry PI for customization
-        extras = build_raspberry_extras()
-        uboot_image_filename = os.path.join(
-            extras.config["grains"]["tmp_dir"], "uboot/boot/efi/u-boot.bin"
         )
 
         # export public config to be copied to the removable storage device
