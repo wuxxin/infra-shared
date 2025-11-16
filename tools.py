@@ -1177,6 +1177,8 @@ cachedir: {root_dir}/var/cache/salt/minion
 extension_modules: {root_dir}/var/cache/salt/minion/extmods
 log_level_logfile: quiet
 log_file: /dev/null
+# XXX workaround on python >= 3.12, default backend "tornado" silently fails
+backend: requests
 
 """.format(
             resource_name=resource_name,

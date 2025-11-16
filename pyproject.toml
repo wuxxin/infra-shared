@@ -60,8 +60,12 @@ dependencies = [
     "distro",
     "looseversion",
     "msgpack",
+    # use passlib and bcrypt instead of deprecated removed crypt module in python > 3.12
     "passlib",
     "bcrypt",
+    # tornado, the default http library for salt sinelty fails in python > 3.12
+    # include requests as alternative http library for salt, has to be configured in minion config as backend: requests
+    "requests",
 
     # pulumi - imperativ infrastructure delaration using python
     "pulumi>3.200.0,<4.0.0",

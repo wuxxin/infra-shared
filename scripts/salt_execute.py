@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
-This script can be used as replacement script,
-with an original salt package (3007.X) installed from pip in an local environment,
-to work on systems with newer python (>3.10 up to 3.13) versions by monkeypatching.
+This script can be used as replacement script for `salt-call`,
+with an unpatched salt package (3007.X) installed from pip in an local environment.
+
+It works on systems with newer python versions (>3.10 up to 3.13) by monkeypatching salt on execution.
 
 """
 
@@ -16,12 +17,14 @@ import salt.utils.data
 import salt.version
 
 from urllib.parse import urlunsplit
+
+# XXX workaround "KeyError: 'config.option'" in default `salt-call` on python >=3.12
 from salt.scripts import salt_call
 
 try:
     import bcrypt
 
-    # XXX workaround pycrypto-passlib-bcrypt
+    # XXX workaround pycrypto-passlib-bcrypt on python >= 3.12
     # salt.utils.pycrypto uses passlib uses bcrypt.
     # passlib expects brcypt.__about__.__version
     # check if __version__ exists but __about__ does not
@@ -50,7 +53,7 @@ if __name__ == "__main__":
     print(f"Python: {sys.version_info} , Salt: {salt.version.__version__}", file=sys.stderr)
 
     if sys.version_info > (3, 10):
-        print("Monkeypatch salt.utils.url.create for Python > 3.10", file=sys.stderr)
+        # XXX monkeypatch salt.utils.url.create for Python > 3.10
         salt.utils.url.create = _patched_url_create
 
     if sys.argv[0].endswith("-script.pyw"):
