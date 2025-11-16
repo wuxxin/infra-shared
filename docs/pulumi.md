@@ -166,10 +166,6 @@ Resources for managing CoreOS systems.
 
 -   `get_locale`
     Retrieves and merges locale settings from default and Pulumi configurations
--   `build_raspberry_extras`
-    Builds extra files for Raspberry Pi, such as bootloader firmware
--   `butane_clevis_to_json_clevis`
-    Parses a Butane config and extracts Clevis SSS (Shamir's Secret Sharing) configurations for LUKS-encrypted devices
 
 ### Example
 

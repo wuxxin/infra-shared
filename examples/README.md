@@ -20,6 +20,14 @@ Postgresql Example Module
 
 create a Root, Provision and MitM CA and a example host cert based on that MitM CA
 
+## Build Raspberry Extras
+
+Builds extra files for Raspberry Pi, such as bootloader firmware
+
+- [build_raspberry_extras.py](raspberry/build_raspberry_extras.py)
+- [build_raspberry_extras.yml](raspberry/build_raspberry_extras.yml)
+- [build_raspberry_extras.sls](raspberry/build_raspberry_extras.sls)
+
 ## Build OpenWRT
 
 Builds a customized OpenWrt firmware image

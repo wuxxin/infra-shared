@@ -13,7 +13,6 @@
 ### Functions
 
 - get_locale
-- build_raspberry_extras
 
 """
 
@@ -64,25 +63,6 @@ def get_locale():
     locale = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))["LOCALE"]
     locale.update({key.upper(): value for key, value in config.get_object("locale").items()})
     return locale
-
-
-def build_raspberry_extras():
-    """Builds extra files for Raspberry Pi.
-
-    This function triggers a SaltStack build to create extra files needed for
-    Raspberry Pi devices, such as bootloader firmware.
-
-    Returns:
-        .result: A LocalSaltCall.result resource representing the Salt execution.
-    """
-    return BuildFromSalt(
-        "build_raspberry_extras",
-        sls_name="build_raspberry_extras",
-        pillar=yaml.safe_load(open(os.path.join(this_dir, "build_raspberry_extras.yml"), "r")),
-        environment={},
-        sls_dir=this_dir,
-        merge_config_name="",
-    )
 
 
 class ButaneTranspiler(pulumi.ComponentResource):
