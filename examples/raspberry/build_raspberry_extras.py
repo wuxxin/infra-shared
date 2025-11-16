@@ -18,7 +18,7 @@ def build_raspberry_extras():
     return BuildFromSalt(
         "build_raspberry_extras",
         sls_name="build_raspberry_extras",
-        pillar=yaml.safe_load(open(os.path.join(this_dir, "build_raspberry_extras.yml"), "r")),
+        pillar=yaml.safe_load(open(os.path.join(this_dir, "build_defaults.yml"), "r")),
         environment={},
         sls_dir=this_dir,
     )
