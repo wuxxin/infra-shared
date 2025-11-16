@@ -65,14 +65,14 @@ Usage:
     [--get-host-ip] [--get-gateway-ip] [--get-public-ip]
 ```
 
-## `provision_container.sh`
+## `provision_shell.sh`
 
 Start a provisioning container shell.
 
 Usage:
 
 ```bash
-./scripts/provision_container.sh [command]
+./scripts/provision_shell.sh [command]
 ```
 
 -   `command`: The command to run inside the container. Defaults to `/usr/bin/bash`.

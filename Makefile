@@ -120,5 +120,5 @@ test-all: docs-online-build pytest ## Run all tests using local build deps
 .PHONY: test-all-container
 test-all-container: provision-container ## Run all tests using container build deps
 	@echo "+++ $@"
-	./scripts/provision_container.sh make test-all-local
+	./scripts/provision_shell.sh make test-all-local
 
