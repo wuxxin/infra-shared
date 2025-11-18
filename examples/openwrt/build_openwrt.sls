@@ -23,20 +23,8 @@ create_tmp_dir:
 openwrt_signing_key:
   file.managed:
     - name: {{ tmp_dir ~ "/openwrt.sign.asc" }}
-    - source: {{ settings.sign.baseurl ~ ";f=gpg/" ~ settings.sign.id ~ ".asc" }}
+    - source: {{ settings.sign.baseurl ~ "/0x" ~ settings.sign.id ~ ".asc" }}
     - source_hash: {{ settings.sign.sha256sum }}
-
-openwrt_signing_keyring:
-  cmd.run:
-    - name: |
-        if test -e {{ tmp_dir ~ "/gnupg" }}; then rm -r {{ tmp_dir ~ "/gnupg" }}; fi &&
-        mkdir -p -m 700 {{ tmp_dir ~ "/gnupg" }} &&
-        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --import {{ tmp_dir ~ "/openwrt.sign.asc" }} &&
-        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --export {{ settings.sign.id }} > {{ tmp_dir ~ "/openwrt.sign.gpg" }} &&
-        if test -e {{ tmp_dir ~ "/gnupg" }}; then rm -r {{ tmp_dir ~ "/gnupg" }}; fi
-    - creates: {{ tmp_dir ~ "/openwrt.sign.gpg" }}
-    - require:
-      - file: openwrt_signing_key
 
 imgbuilder_source_hashes:
   file.managed:
@@ -53,32 +41,45 @@ imgbuilder_hashes_signature:
 verify_hashes_signature:
   cmd.run:
     - name: |
-        if test -e {{ tmp_dir ~ "/gnupg" }}; then rm -r {{ tmp_dir ~ "/gnupg" }}; fi &&
-        mkdir -p -m 700 {{ tmp_dir ~ "/gnupg" }} &&
-        gpgv --quiet --homedir {{ tmp_dir ~ "/gnupg" }} \
-          --keyring {{ tmp_dir ~ "/openwrt.sign.gpg" }} \
-          {{ tmp_dir ~ "/openwrt.sha256sums.asc" }} \
-          {{ tmp_dir ~ "/openwrt.sha256sums" }}
+        set -eo pipefail
+        if test -e {{ tmp_dir ~ "/gnupg" }}; then rm -r {{ tmp_dir ~ "/gnupg" }}; fi
+        mkdir -p -m 700 {{ tmp_dir ~ "/gnupg" }}
+        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --import {{ tmp_dir ~ "/openwrt.sign.asc" }} > /dev/null 2>&1
+        echo -e "5\ny\n" | gpg --homedir "{{ tmp_dir ~ "/gnupg" }}" --command-fd 0 --expert --edit-key "{{ settings.sign.subkey }}" trust > /dev/null 2>&1
+        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --verify {{ tmp_dir ~ "/openwrt.sha256sums.asc" }} {{ tmp_dir ~ "/openwrt.sha256sums" }}
+        rm -r {{ tmp_dir ~ "/gnupg" }}
+
     - require:
-      - cmd: openwrt_signing_keyring
+      - file: openwrt_signing_key
       - file: imgbuilder_source_hashes
       - file: imgbuilder_hashes_signature
 
 imgbuilder_source_archive:
   file.managed:
-    - name: {{ tmp_dir ~ "/openwrt-imagebuilder.tar.xz" }}
-    - source: {{ baseurl ~ "/" ~ basename ~ ".tar.xz" }}
+    - name: {{ tmp_dir ~ "/openwrt-imagebuilder.tar.zst" }}
+    - source: {{ baseurl ~ "/" ~ basename ~ ".tar.zst" }}
     - source_hash: {{ tmp_dir ~ "/openwrt.sha256sums" }}
     - require:
       - cmd: verify_hashes_signature
 
-imgbuilder_source_extracted:
-  archive.extracted:
-    - name: {{ tmp_dir }}
-    - source: {{ tmp_dir ~ "/openwrt-imagebuilder.tar.xz" }}
-    - trim_output: 20
+imgbuilder_zstd_extracted:
+  cmd.run:
+    - cwd: {{ tmp_dir }}
+    - name: zstd -d {{ tmp_dir ~ "/openwrt-imagebuilder.tar.zst" }} -o {{ tmp_dir ~ "/openwrt-imagebuilder.tar" }}
+    - creates:
+      - {{ tmp_dir ~ "/openwrt-imagebuilder.tar" }}
     - require:
       - file: imgbuilder_source_archive
+
+imgbuilder_tar_extracted:
+  archive.extracted:
+    - name: {{ tmp_dir }}
+    - source: {{ tmp_dir ~ "/openwrt-imagebuilder.tar" }}
+    - trim_output: 20
+    - creates:
+        - {{ tmp_dir ~ "/" ~ basename }}
+    - require:
+      - cmd: imgbuilder_zstd_extracted
 
 prepare_openwrt_includes:
   file.directory:
@@ -117,5 +118,5 @@ build_openwrt_image:
         ver=settings.version, major=major, minor=minor, model=settings.model) }}
     - output_loglevel: quiet
     - require:
-      - archive: imgbuilder_source_extracted
+      - archive: imgbuilder_tar_extracted
       - file: include_uci_defaults

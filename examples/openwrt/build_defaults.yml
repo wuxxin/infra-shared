@@ -1,12 +1,13 @@
 openwrt:
-  version: "24.10.2"
+  version: "24.10.4"
   target: x86-64
   model: generic
   baseurl: https://downloads.openwrt.org/releases
   sign:
-    id: B313E594
-    sha256sum: b2057eed627a973c9abcf2bea4ef5cbff11dd8fb811fbd1a69403b0311531595
-    baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;hb=HEAD
+    id: "1D53D1877742E911"
+    subkey: "2B0151090606D1D9"
+    baseurl: https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg
+    sha256sum: 334d8760642bf986e87ffa4eef3860df11941c38241956a9ebc6d90f8ab6f9a3
     comment: |
       See https://openwrt.org/docs/guide-user/security/signatures
       Since 2024-11-05, 0x1D53D1877742E911 is used to production builds:
