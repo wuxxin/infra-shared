@@ -52,6 +52,7 @@ class ESPhomeBuild(pulumi.ComponentResource):
             f"{resourcename}-write-config",
             create=f"mkdir -p {build_base} {build_dir} && cat > {config_file}",
             stdin=config_yaml,
+            add_previous_output_in_env=False,
             opts=child_opts,
         )
 
@@ -59,12 +60,14 @@ class ESPhomeBuild(pulumi.ComponentResource):
             f"{resourcename}-build-image",
             create=f"ESPHOME_build_dir={build_dir} esphome compile {config_file}",
             environment=environment,
+            add_previous_output_in_env=False,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.write_config]),
         )
 
         self.upload = command.local.Command(
             f"{resourcename}-upload-image",
             create=f"ESPHOME_build_dir={build_dir} esphome upload {config_file}",
+            add_previous_output_in_env=False,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.build]),
         )
 
@@ -73,6 +76,7 @@ class ESPhomeBuild(pulumi.ComponentResource):
             create=(
                 f"rm -rf {config_file} {build_base}/idedata/{resourcename}.json {build_base}/storage/{resourcename}.yaml.json {build_dir}"
             ),
+            add_previous_output_in_env=False,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.upload]),
         )
 
