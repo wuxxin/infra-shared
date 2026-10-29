@@ -492,6 +492,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             user,
             files=config_dict,
             remote_prefix=root_dir,
+            delete=False,
             simulate=self.simulate,
             opts=child_opts,
         )
