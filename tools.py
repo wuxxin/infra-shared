@@ -514,6 +514,7 @@ class SSHDeploy(pulumi.ComponentResource):
 
         def create_resources_and_get_triggers(files_dict, props=props):
             all_triggers = []
+            all_commands = []
             for remote_path, data in files_dict.items():
                 remote_path_output = pulumi.Output.from_input(remote_path)
                 sub_resource_name = remote_path_output.apply(
@@ -550,7 +551,7 @@ class SSHDeploy(pulumi.ComponentResource):
                         lambda r: os.path.normpath(os.path.join(props["tmpdir"], r))
                     )
 
-                    _ = pulumi.Output.all(sub_resource_name, tmpfile, data_output).apply(
+                    cmd = pulumi.Output.all(sub_resource_name, tmpfile, data_output).apply(
                         lambda args: command.local.Command(
                             args[0],
                             create=cat_cmd_template.format(args[1]),
@@ -562,8 +563,9 @@ class SSHDeploy(pulumi.ComponentResource):
                             opts=pulumi.ResourceOptions(parent=self),
                         )
                     )
+                    all_commands.append(cmd.apply(lambda c: c.id))
                 else:
-                    _ = pulumi.Output.all(
+                    cmd = pulumi.Output.all(
                         sub_resource_name, cat_cmd, rm_cmd, data_output
                     ).apply(
                         lambda args: command.remote.Command(
@@ -583,17 +585,19 @@ class SSHDeploy(pulumi.ComponentResource):
                             opts=pulumi.ResourceOptions(parent=self),
                         )
                     )
-            return all_triggers
+                    all_commands.append(cmd.apply(lambda c: c.id))
+            return all_triggers, all_commands
 
         files_output = pulumi.Output.from_input(props["files"])
-        all_triggers_output = files_output.apply(create_resources_and_get_triggers)
-        self.deployment_hash = all_triggers_output.apply(
-            lambda list_of_outputs: pulumi.Output.all(*list_of_outputs).apply(
+        res_output = files_output.apply(create_resources_and_get_triggers)
+        self.deployment_hash = res_output.apply(
+            lambda res: pulumi.Output.all(*res[0]).apply(
                 lambda resolved_triggers: hashlib.sha256(
                     ",".join(sorted(resolved_triggers)).encode("utf-8")
                 ).hexdigest()
             )
         )
+        self.result = res_output.apply(lambda res: pulumi.Output.all(*res[1]))
         self.register_outputs({})
 
 

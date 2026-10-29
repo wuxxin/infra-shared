@@ -504,8 +504,10 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             user,
             cmdline=cmdline,
             simulate=self.simulate,
-            triggers=[self.config_deployed.deployment_hash],
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.config_deployed]),
+            triggers=[self.config_deployed.deployment_hash, self.config_deployed.result],
+            opts=pulumi.ResourceOptions(
+                parent=self, depends_on=[self.config_deployed, self.config_deployed.result]
+            ),
         )
 
         self.result = self.config_updated
