@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-## Pulumi - Tools - Serve HTTPS, SSH-put/get/execute, local and Remote Salt-Call, write Removable-Media, State Data Export, Tools
+## Pulumi - Tools - Serve HTTPS, SSH-put/get/execute, Local and Remote Salt-Call, write Removable-Media, State Data Export, Tools
 
 https:
 - f: serve_simple
@@ -10,59 +10,65 @@ https:
 ssh:
 - f: ssh_put
 - f: ssh_deploy
-- f: ssh_get
 - f: ssh_execute
+- f: ssh_get
 - c: SSHPut
 - c: SSHDeploy
-- c: SSHGet
 - c: SSHExecute
+- c: SSHGet
+- c: RemoteCommand
+
+local:
+- c: LocalCommand
+- c: LocalPipe
+
+salt:
+- c: RemoteSaltCall
+- c: LocalSaltCall
+- c: BuildFromSalt
+
+dynamic resource:
 - d: WaitForHostReady
+- d: TimedResource
+
+debugging:
+- f: log_warn
 
 storage:
 - f: write_removable
 - f: encrypted_local_export
 - f: public_local_export
 
-tool:
-- c: LocalSaltCall
-- c: RemoteSaltCall
-- c: BuildFromSalt
-
-- d: TimedResource
-- f: log_warn
-
+python:
 - p: salt_config
-- p: get_ip_from_ifname
-- p: get_default_host_ip
-- p: get_default_gateway_ip
 - p: sha256sum_file
 - p: yaml_loads
-
+- p: IPv4: get_ip_from_ifname
+- p: IPv4: get_default_host_ip
+- p: IPv4: get_default_gateway_ip
 """
 
 import hashlib
+import io
+import json
 import os
 import random
 import sys
 import time
 import uuid
-import io
-import json
-
-from typing import Any, Optional, Type, Dict
+from typing import Any, Dict, Optional, Type
 
 import netifaces
-import yaml
-
 import pulumi
 import pulumi.dynamic
 import pulumi_command as command
+import yaml
+from pulumi import ResourceOptions
+from pulumi.output import Input, Output
 from pulumi_command.local import Logging as LocalLogging
 from pulumi_command.remote import Logging as RemoteLogging
-from pulumi.output import Input, Output
-from pulumi import ResourceOptions
 
-from .template import join_paths, merge_dict_struct, dict_get_bool
+from .template import dict_get_bool, join_paths, merge_dict_struct
 
 this_dir = os.path.dirname(os.path.normpath(__file__))
 project_dir = os.getcwd()
@@ -292,6 +298,7 @@ class SSHPut(pulumi.ComponentResource):
                             create=args[1],
                             delete=args[2],
                             triggers=file_triggers,
+                            add_previous_output_in_env=False,
                             opts=pulumi.ResourceOptions(parent=self),
                         )
                     )
@@ -452,6 +459,7 @@ class SSHGet(pulumi.ComponentResource):
                             create=args[1],
                             delete=args[2],
                             triggers=file_triggers,
+                            add_previous_output_in_env=False,
                             opts=pulumi.ResourceOptions(parent=self),
                         )
                     )
@@ -550,6 +558,7 @@ class SSHDeploy(pulumi.ComponentResource):
                             delete=rm_cmd_template.format(args[1]),
                             stdin=args[2],
                             triggers=file_triggers,
+                            add_previous_output_in_env=False,
                             opts=pulumi.ResourceOptions(parent=self),
                         )
                     )
@@ -839,6 +848,7 @@ class SSHExecute(pulumi.ComponentResource):
                 delete="rm {} || true".format(os.path.join(tmpdir, resource_name)),
                 stdin=cmdline,
                 triggers=props["triggers"],
+                add_previous_output_in_env=False,
                 opts=pulumi.ResourceOptions(parent=self),
             )
         else:
@@ -1029,6 +1039,7 @@ class DataExport(pulumi.ComponentResource):
             # DONT log output, as this might be security sensitive
             logging=LocalLogging.NONE,
             triggers=final_triggers,
+            add_previous_output_in_env=False,
             opts=final_opts,
         )
         self.register_outputs({})
@@ -1117,7 +1128,7 @@ def public_local_export(
     )
 
 
-def salt_config(resource_name, stack_name, base_dir):
+def salt_config(resource_name, stack_name, base_dir, debug_log=False):
     """Generates a SaltStack minion configuration.
 
     This function creates a configuration dictionary for a SaltStack minion,
@@ -1143,9 +1154,12 @@ def salt_config(resource_name, stack_name, base_dir):
     tmp_dir = os.path.join(base_dir, "build", "tmp", stack_name, resource_name)
     sls_dir = os.path.join(root_dir, "sls")
     pillar_dir = os.path.join(root_dir, "pillar")
+    debug_logname = ""
+    if debug_log:
+        debug_logname = os.path.join(root_dir, "var", "salt" + resource_name + ".log")
 
     config = yaml.safe_load(
-        """
+        f"""
 id: {resource_name}
 local: true
 file_client: local
@@ -1175,8 +1189,8 @@ pidfile: {root_dir}/var/run/salt-minion.pid
 sock_dir: {root_dir}/var/run/salt/minion
 cachedir: {root_dir}/var/cache/salt/minion
 extension_modules: {root_dir}/var/cache/salt/minion/extmods
-log_level_logfile: quiet
-log_file: /dev/null
+log_level_logfile: {"debug" if debug_logname else "quiet"}
+log_file: {debug_logname if debug_logname else "/dev/null"}
 # XXX workaround on python >= 3.12, default backend "tornado" silently fails
 backend: requests
 
@@ -1187,6 +1201,7 @@ backend: requests
             tmp_dir=tmp_dir,
             sls_dir=sls_dir,
             pillar_dir=pillar_dir,
+            debug_logname=debug_logname,
         )
     )
     return config
@@ -1211,6 +1226,7 @@ class LocalSaltCall(pulumi.ComponentResource):
         pillar={},
         environment={},
         sls_dir=None,
+        debug_log=False,
         opts=None,
         **kwargs,
     ):
@@ -1234,7 +1250,9 @@ class LocalSaltCall(pulumi.ComponentResource):
         """
         super().__init__("pkg:tools:LocalSaltCall", resource_name, None, opts)
         stack = pulumi.get_stack()
-        self.salt_config = salt_config(resource_name, stack, project_dir)
+        self.salt_config = salt_config(
+            resource_name, stack, project_dir, debug_log=debug_log
+        )
         pillar_dir = self.salt_config["grains"]["pillar_dir"]
         dest_sls_dir = self.salt_config["grains"]["sls_dir"]
 
@@ -1254,15 +1272,15 @@ class LocalSaltCall(pulumi.ComponentResource):
         with open(os.path.join(pillar_dir, "main.sls"), "w") as m:
             _ = m.write(yaml.safe_dump(pillar))
 
+        create_str = "salt-call --config-dir={conf_dir} {args}".format(
+            conf_dir=self.salt_config["root_dir"],
+            args=" ".join(args),
+        )
         self.executed = command.local.Command(
             resource_name,
-            create="{sys_prefix}/bin/python {scripts_dir}/salt_execute.py -c {conf_dir} {args}".format(
-                sys_prefix=sys.prefix,
-                scripts_dir=os.path.join(this_dir, "scripts"),
-                conf_dir=self.salt_config["root_dir"],
-                args=" ".join(args),
-            ),
+            create=create_str,
             environment=environment,
+            add_previous_output_in_env=False,
             opts=pulumi.ResourceOptions(parent=self),
             **kwargs,
         )
@@ -1708,7 +1726,7 @@ class ServePrepare(pulumi.ComponentResource):
             opts (pulumi.Input[object], optional):
                 The options for the resource. Defaults to None.
         """
-        from .authority import config, ca_factory, provision_host_tls
+        from .authority import ca_factory, config, provision_host_tls
 
         super().__init__(
             "pkg:tools:ServeConfigure", "{}_serve_prepare".format(resource_name), None, opts
@@ -1794,6 +1812,7 @@ class ServePrepare(pulumi.ComponentResource):
                 create=f"python {os.path.join(this_dir, 'scripts/port_forward.py')}"
                 + " --yaml-from-stdin --yaml-to-stdout",
                 stdin=self.merged_config.apply(yaml.safe_dump),
+                add_previous_output_in_env=False,
                 opts=pulumi.ResourceOptions(parent=self),
             )
 
@@ -1862,6 +1881,7 @@ class ServeOnce(pulumi.ComponentResource):
             create=f"python {os.path.join(this_dir, 'scripts/serve_once.py')}"
             + " --verbose --yes",
             stdin=this_config.apply(yaml.safe_dump),
+            add_previous_output_in_env=False,
             opts=this_opts,
         )
         self.result = self.executed.stdout
@@ -1924,6 +1944,7 @@ class WriteRemovable(pulumi.ComponentResource):
         self.executed = command.local.Command(
             resource_name,
             create=create_str,
+            add_previous_output_in_env=False,
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.result = self.executed
@@ -1985,8 +2006,9 @@ class WaitForHostReadyProvider(pulumi.dynamic.ResourceProvider):
             Exception:
                 If the host is not ready within the timeout.
         """
-        import paramiko
         import time
+
+        import paramiko
 
         name = props["name"]
         host = props["host"]

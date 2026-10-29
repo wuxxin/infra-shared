@@ -1,7 +1,8 @@
 import os
 
 from pulumi.automation import Stack
-from .utils import add_pulumi_program, assert_file_exists
+
+from .utils import add_pulumi_program
 
 
 def test_ssh_functions_with_pulumi_outputs(
@@ -70,9 +71,9 @@ tools.ssh_deploy(
 
     # ssh_get assertions
     # In simulate mode, ssh_get also creates local files
-    assert os.path.exists(os.path.join(tmpdir, "test_get_get__remote_path4"))
-    assert os.path.exists(os.path.join(tmpdir, "test_get_get__remote_path5"))
-    assert os.path.exists(os.path.join(tmpdir, "test_get_get__remote_path6"))
+    assert os.path.exists(os.path.join(tmpdir, "local_path1"))
+    assert os.path.exists(os.path.join(tmpdir, "local_path2"))
+    assert os.path.exists(os.path.join(tmpdir, "local_path3"))
 
     # ssh_deploy assertions
     assert os.path.exists(os.path.join(tmpdir, "test_deploy_deploy__remote_path6"))
