@@ -35,35 +35,113 @@ Development Scripts:
 
 - `docs/scripts.md` for documentation of scripts inside directory `scripts/`:
 
-## Building
+## Development Commands & Lifecycle
 
-- the root `README.md` describes the `examples/skeleton/Makefile` usage, not the root Makefile usage
+All development tasks within `infra` (and downstream repositories) are orchestrated using `make` and Python `uv`.
 
-- `Makefile`: the root central make file for building and developing
-- `make help` to list functions
-- `mkdocs.yml`: mkdocs configuration
-- `pyproject.toml`: python dependencies for pulumi, saltstack, esphome, mkdocs
+### Environment Setup
 
-- make help output: `make help`
+```bash
+# Verify and install OS-level dependencies (Arch/Manjaro, Debian/Ubuntu, or container)
+make provision-local
+
+# Build virtual environment (.venv) and synchronize all extras using pinned Python 3.13+
+make buildenv
+
+# Clean virtual environment and build artifacts
+make buildenv-clean
+make py-clean
+```
+
+The build system pins Python via `PYTHON ?= /usr/bin/python3`, invoking `uv lock --python $(PYTHON)` and `uv venv --python $(PYTHON)` to ensure stable virtualenv creation across environments.
+
+### Testing & Quality Assurance
+
+```bash
+# Run all pytest suites
+make pytest
+
+# Run a specific test module
+make pytest args="tests/test_authority.py"
+
+# Run tests matching an expression with verbose output
+make pytest args="-k test_tools -v"
+
+# Run combined test-all pipeline (online docs build followed by pytest)
+make test-all
+
+# Run test suite inside an isolated container
+make test-all-container
+```
+
+### Code Quality & Linting
+
+```bash
+# Lint source code using Ruff
+uv run ruff check .
+
+# Automatically format code using Ruff (configured line length: 95)
+uv run ruff format .
+
+# Static type checking using Pyright
+uv run pyright
+```
+
+### Documentation
+
+```bash
+# Build local documentation into build/docs-local/
+make docs
+
+# Serve documentation with live reload at http://127.0.0.1:8000
+make docs-serve
+
+# Build online documentation bundle into build/docs-online/
+make docs-online-build
+
+# Clean documentation artifacts
+make docs-clean
+```
+
+### Pulumi Stack Operations
+
+Workflows operate on either the `sim` (local simulation / Libvirt) or `prod` (production) stack:
+
+```bash
+# Simulation Stack (local KVM/simulation or offline validation)
+make sim-create         # Initialize 'sim' stack with passphrase 'sim'
+make sim-preview        # Preview infrastructure plan for simulation
+make sim-up             # Apply infrastructure changes to simulation
+make sim-show           # Export current simulation state as JSON
+make sim-clean          # Destroy resources and clean up simulation stack
+make sim__ args="<cmd>" # Run arbitrary Pulumi CLI command on simulation stack
+
+# Production Stack (encrypted with age prod_passphrase.age)
+make prod-create        # Initialize 'prod' stack
+make prod-preview       # Preview infrastructure plan for production
+make prod-up            # Apply infrastructure changes to production
+make prod__ args="<cmd>" # Run arbitrary Pulumi CLI command on production
+```
+
+### Makefile Target Summary
 
 | command | description |
 | --- | --- |
-| buildenv |  Build python environment |
-| buildenv-clean |  Remove build environment artifacts |
-| clean |  Remove all artifacts |
-| docs |  Build docs for local usage |
-| docs-clean |  Remove all generated docs |
-| docs-online-build |  Build docs for http serve |
-| docs-serve |  Rebuild and serve docs with autoreload |
-| provision-container |  Build dependencies for provisioning using a container |
-| provision-local |  Build dependencies for provisioning using system apps |
-| py-clean |  Remove python related artifacts |
-| pytest |  Run Tests using "pytest $(args)" |
-| pytest-clean |  Remove pytest Artifacts |
-| sim__ |  Run "pulumi $(args)" |
-| test-all |  Run all tests using local build deps |
-| test-all-container |  Run all tests using container build deps |
-
+| `buildenv` | Build python virtual environment and sync dependencies |
+| `buildenv-clean` | Remove build environment artifacts and `.venv` |
+| `clean` | Remove all build and test artifacts |
+| `docs` | Build docs for local usage into `build/docs-local` |
+| `docs-clean` | Remove all generated documentation |
+| `docs-online-build` | Build docs for static web serving into `build/docs-online` |
+| `docs-serve` | Rebuild and serve docs with autoreload on port 8000 |
+| `provision-container` | Build dependencies for provisioning using a container |
+| `provision-local` | Check and install system prerequisites via `scripts/provision_requirements.sh` |
+| `py-clean` | Remove python related bytecode and cache artifacts |
+| `pytest` | Run tests using `pytest $(args)` |
+| `pytest-clean` | Remove pytest cache and coverage artifacts |
+| `sim__` | Run arbitrary Pulumi CLI command on simulation stack |
+| `test-all` | Run complete pipeline: `docs-online-build` + full `pytest` |
+| `test-all-container` | Run complete pipeline inside isolated container |
 ### Tools used
 
 - `pulumi` - imperativ infrastructure declaration using python
@@ -99,40 +177,83 @@ Development Scripts:
 
 ## Python Style, Conventions and preferred libraries
 
-- **Use uv** (the virtual environment and package manager) whenever executing Python commands, including for unit tests.
-- **Use `pyproject.toml`** to add or modify dependencies installed during a task execution. as long as there is no version controlled uv.lock, dont add one to the repository.
+- **Use uv** (the virtual environment and package manager) whenever executing Python commands, including for unit tests. Never invoke `pip` directly.
+- **Python Runtime**: Minimum Python 3.13 (`requires-python = ">=3.13"`). Use native generic syntax (`list[str]`, `dict[str, Any]`, `tuple[int, ...]`).
+- **Use `pyproject.toml`** to declare dependencies.
+- **Line Length & Formatting**: Max 95 characters. Use `uv run ruff format .` and `uv run ruff check .`.
+- **Type Checking**: Use `uv run pyright` for static type validation.
 - **Use python_dotenv and load_env()** for environment variables.
 - **Use `pydantic` for data validation**.
 - **Use `pytest` for testing**, `playwright` with headless chromium and `pytest-playwright` for gui testing.
 - **Use `FastAPI` for APIs**.
 - **Use `FastHTML` for HTML**.
 - **Use `SQLAlchemy` or `SQLModel` for ORM**.
-- **Before adding a new library, look in `pyproject.yaml`** if there is already a fitting library to use.
-- **Follow PEP8**, use type hints, and format with `black` or equivalent.
+- **Before adding a new library, look in `pyproject.toml`** if there is already a fitting library to use.
 - Write **docstrings for every function** using the Google style:
 
   ```python
-  def example():
+  def example(param1: str) -> bool:
       """
-      Brief summary
+      Brief summary.
 
       Args:
-          param1 (type): Description
+          param1 (str): Description.
       Returns:
-          type: Description
+          bool: Description.
       """
   ```
 
-### Python Testing & Reliability
+### Testing Architecture & TDD Workflow
 
-- **Always create unit tests for new features** (functions, classes, routes, etc).
-- **After updating any logic**, check whether existing unit tests need to be updated and update it.
-- **Tests should live in a `/tests` folder** mirroring the main app structure.
-    - Include at least:
-        - 1 test for expected use
-        - 1 edge case
-        - 1 failure case
+The test suite in `tests/` uses **pytest** combined with the **Pulumi Automation API** (`pulumi.automation.Stack`) to run reproducible integration tests against isolated local file-backed state workspaces.
 
+#### Core Fixtures (`tests/conftest.py`)
+- **`pulumi_stack`**: Initializes a temporary Pulumi stack (`sim`), configures file-backed state under `state/pulumi`, yields the stack to the test, and guarantees teardown via `stack.destroy()` in a `finally` block.
+- **`pulumi_project_dir`**: Dynamically creates a temporary Git repository, executes `scripts/create_skeleton.sh`, and links the project's virtualenv to the active test runner.
+- **`robust_ssh_server`**: In-process multi-threaded Paramiko SSH server running on `127.0.0.1` capable of simulating server latency, connection loss, and authentication behavior.
+
+#### Writing New Tests
+1. **Use `utils.add_pulumi_program`**: Define minimal Pulumi test programs inline:
+   ```python
+   from tests.utils import add_pulumi_program
+
+   add_pulumi_program(
+       pulumi_project_dir,
+       """
+   import pulumi
+   from infra.authority import CACertFactory
+   ca = CACertFactory("test_ca")
+   pulumi.export("ca_cert", ca.root_cert_pem)
+   """,
+   )
+   ```
+2. **Execute and Assert**:
+   ```python
+   up_result = pulumi_stack.up(**pulumi_up_args)
+   assert up_result.summary.result == "succeeded"
+   assert "ca_cert" in up_result.outputs
+   ```
+3. **Prefer Simulation for File/SSH Tests**: Set `simulate=True` when validating `SSHPut` or `SSHDeploy` to inspect output files under `build/tmp/sim/` without spawning network sockets.
+
+#### Test-Driven Development (TDD) Red-Green-Refactor Pattern
+- **Red (Write Failing Specification First)**:
+  - Formulate minimal Pulumi test scripts via `add_pulumi_program(pulumi_project_dir, code)`.
+  - Assert on external observable artifacts (e.g. generated files in `build/`, exported Pulumi outputs, exit codes) rather than internal implementation details or private dictionaries.
+  - Run the targeted test: `make pytest args="tests/test_<feature>.py"`.
+  - Verify the test fails specifically due to the absent feature or broken contract.
+- **Green (Minimal Working Implementation)**:
+  - Implement the minimal declarative resources (`ComponentResource`, `command.local.Command`, etc.) required to satisfy the assertion.
+  - Verify the targeted test suite passes cleanly.
+- **Refactor & Mutation Check**:
+  - Keep files under 800 lines; format with `uv run ruff format .` (95 max line length); type-check with `uv run pyright`.
+  - Perform mutation checks: simulate erroneous branches, missing configurations, or broken paths and verify that tests fail accordingly.
+  - Run the full suite with `make test-all` (combining docs build and complete pytest suite).
+
+#### Test Component File & Runtime Conventions
+- **`SSHPut` and `SSHDeploy`** in simulation mode write files named after their sub-resource identity (`<prefix>_<remote_path_sanitized>`) under `build/tmp/sim/`.
+- **`SSHGet`** in simulation mode targets the specified `local_dir` or `build/tmp/<stack>/` and writes directly to the destination local file path (`full_local_path_output`), preserving local filesystem semantics.
+- **`LocalSaltCall`** (`infra/tools.py`, tested in `tests/test_localsaltcall.py`) generates isolated minion configurations in `build/salt/<stack>/<resource_name>/` with dedicated `sls` and `pillar` trees, allowing full unprivileged execution of local Salt modules (`test.ping`, `pillar.items`, `state.sls`).
+- **Environment & Plugin Isolation**: Pytest configuration in `pyproject.toml` sets `addopts = "-p no:pylama"` to prevent host environment plugin conflicts (e.g., deprecated hooks from system `pylama` on Python 3.14).
 ## Project Memory
 
 ### Project Overview
@@ -170,7 +291,7 @@ Development Scripts:
 
 ### System & Tooling
 
-- **Python Version**: The project requires Python 3.11 or newer.
+- **Python Version**: The project requires Python 3.13 or newer.
 - **`os/__init__.py`**: The `os/__init__.py` module provides Pulumi components for Fedora CoreOS system configuration, deployment, and operation.
 - **`tools.py`**: The `tools.py` module provides Pulumi utility components for serving HTTPS, executing remote SSH commands, running SaltStack calls, and waiting for a host to become ready via SSH. The `waitforhostready` function in `tools.py` is a Pulumi Dynamic Resource that uses `paramiko` to check for host availability via SSH and file existence.
 - **`authority.py`**: The `authority.py` module provides Pulumi components for managing TLS/X509 CAs, certificates, DNSSEC keys, and OpenSSH keys.
@@ -198,6 +319,13 @@ Development Scripts:
 - **Comment non-obvious code**, when writing complex logic, **add an inline `# Reason:` comment** explaining the why, not just the what
 - **Update `README.md`** and other feature related `docs/*.md` when new features are added, dependencies change, or setup steps are modified.
 - if a new memorable relation, a memory was discovered during a task, **Update `/docs/development.md`** with this information under `## Project Memory` with date of discovery.
+
+### Recent Discoveries & Technical Memories (2026-10-29)
+
+- **Submodule Hierarchy**: `infra` serves as a Git submodule of a main monorepo (`athome`) by default, but maintains independent testability and build infrastructure (`make test-all`, standalone virtualenv).
+- **Circular Symlink Traversal in Butane Loader**: When `LocalSaltCall` links `sls_dir` under `build/salt/<stack>/<resource>/sls`, recursive traversal of `build/` triggers symlink cycles. `template.py:load_butane_dir` prunes `build`, `.git`, `.venv`, `__pycache__`, and `.pytest_cache` in-place from `dirs[:]` during `os.walk`, and falls back to empty dict `or {}` on empty YAML.
+- **Python 3.14 Pytest Hook Compatibility**: System packages on the host (e.g. `/lib/python3.14/site-packages/pylama`) loaded via `PYTHONPATH` can fail with `PluginValidationError` due to deprecated `pytest_collect_file(path, parent)` hooks. Explicitly disabled across all project templates via `addopts = "-p no:pylama"` in `pyproject.toml`.
+- **SaltStack HTTP Backend on Python 3.12+**: Salt's default Tornado HTTP client silently fails on Python 3.12+. The `requests` package is added and configured as `backend: requests` in generated minion configurations.
 
 
 
