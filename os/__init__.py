@@ -469,11 +469,6 @@ class SystemConfigUpdate(pulumi.ComponentResource):
         target = update_fname.apply(lambda fname: join_paths("/etc/systemd/system", fname))
         sudo = this_env.apply(lambda env_dict: "sudo" if env_dict["UPDATE_USE_SUDO"] else "")
 
-        cmdline_inputs = pulumi.Output.all(source=source, target=target, sudo=sudo)
-        cmdline = cmdline_inputs.apply(
-            lambda args: f"""{args["sudo"]} cp {args["source"]} {args["target"]} && \
-{args["sudo"]} systemctl daemon-reload && {args["sudo"]} systemctl restart --wait update-system-config"""
-        )
 
         # transport update service file content and main.sls (translated butane) to root_dir and sls_dir
         config_dict = pulumi.Output.all(
@@ -496,6 +491,16 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             simulate=self.simulate,
             opts=child_opts,
         )
+        cmdline_inputs = pulumi.Output.all(
+            source=source,
+            target=target,
+            sudo=sudo,
+            deployed=self.config_deployed.result,
+        )
+        cmdline = cmdline_inputs.apply(
+            lambda args: f"""{args["sudo"]} cp {args["source"]} {args["target"]} && \
+{args["sudo"]} systemctl daemon-reload && {args["sudo"]} systemctl restart --wait update-system-config"""
+        )
 
         # copy update service to target location, reload systemd daemon, start update
         self.config_updated = ssh_execute(
@@ -506,7 +511,7 @@ class SystemConfigUpdate(pulumi.ComponentResource):
             simulate=self.simulate,
             triggers=[self.config_deployed.deployment_hash, self.config_deployed.result],
             opts=pulumi.ResourceOptions(
-                parent=self, depends_on=[self.config_deployed, self.config_deployed.result]
+                parent=self, depends_on=[self.config_deployed]
             ),
         )
 
