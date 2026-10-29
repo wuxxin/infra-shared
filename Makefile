@@ -14,6 +14,7 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 # skip annoying version information
 PULUMI_SKIP_UPDATE_CHECK=true
 PULUMI_DIY_BACKEND_GZIP=true
+PYTHON ?= /usr/bin/python3
 
 .PHONY: help
 help:
@@ -38,12 +39,12 @@ provision-container: ## Build dependencies for provisioning using a container
 
 uv.lock: pyproject.toml provision-local
 	@echo "+++ $@"
-	uv lock
+	uv lock --python $(PYTHON)
 
 .venv/bin/activate: uv.lock
 	@echo "+++ $@"
 	if test -d .venv; then rm -rf .venv; fi
-	uv venv
+	uv venv --python $(PYTHON)
 
 .venv/installed: .venv/bin/activate
 	@echo "+++ $@"
