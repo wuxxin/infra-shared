@@ -44,9 +44,9 @@ verify_hashes_signature:
         set -eo pipefail
         if test -e {{ tmp_dir ~ "/gnupg" }}; then rm -r {{ tmp_dir ~ "/gnupg" }}; fi
         mkdir -p -m 700 {{ tmp_dir ~ "/gnupg" }}
-        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --import {{ tmp_dir ~ "/openwrt.sign.asc" }} > /dev/null 2>&1
-        echo -e "5\ny\n" | gpg --homedir "{{ tmp_dir ~ "/gnupg" }}" --command-fd 0 --expert --edit-key "{{ settings.sign.subkey }}" trust > /dev/null 2>&1
-        gpg --homedir {{ tmp_dir ~ "/gnupg" }} --verify {{ tmp_dir ~ "/openwrt.sha256sums.asc" }} {{ tmp_dir ~ "/openwrt.sha256sums" }}
+        gpg --batch --no-tty --homedir {{ tmp_dir ~ "/gnupg" }} --import {{ tmp_dir ~ "/openwrt.sign.asc" }} > /dev/null 2>&1
+        echo -e "5\ny\n" | gpg --batch --no-tty --homedir "{{ tmp_dir ~ "/gnupg" }}" --command-fd 0 --expert --edit-key "{{ settings.sign.subkey }}" trust > /dev/null 2>&1
+        gpg --batch --no-tty --homedir {{ tmp_dir ~ "/gnupg" }} --verify {{ tmp_dir ~ "/openwrt.sha256sums.asc" }} {{ tmp_dir ~ "/openwrt.sha256sums" }}
         rm -r {{ tmp_dir ~ "/gnupg" }}
 
     - require:
@@ -72,15 +72,13 @@ imgbuilder_zstd_extracted:
       - file: imgbuilder_source_archive
 
 imgbuilder_tar_extracted:
-  archive.extracted:
-    - name: {{ tmp_dir }}
-    - source: {{ tmp_dir ~ "/openwrt-imagebuilder.tar" }}
-    - trim_output: 20
+  cmd.run:
+    - cwd: {{ tmp_dir }}
+    - name: tar -xf {{ tmp_dir ~ "/openwrt-imagebuilder.tar" }} -C {{ tmp_dir }}
     - creates:
         - {{ tmp_dir ~ "/" ~ basename }}
     - require:
       - cmd: imgbuilder_zstd_extracted
-
 prepare_openwrt_includes:
   file.directory:
     - name: {{ tmp_dir }}/openwrt-includes
@@ -107,7 +105,7 @@ include_uci_defaults:
 
 build_openwrt_image:
   cmd.run:
-    - name: {{ 'make image PROFILE="{profile}" FILES="{files}" BIN_DIR="{bin_dir}" DISABLED_SERVICES="{disabled_services}" PACKAGES="{packages}"'.format(
+    - name: {{ 'umask 022 && mkdir -p tmp && make image PROFILE="{profile}" FILES="{files}" BIN_DIR="{bin_dir}" DISABLED_SERVICES="{disabled_services}" PACKAGES="{packages}"'.format(
         profile=settings.model,
         files= tmp_dir ~ "/openwrt-includes",
         bin_dir= tmp_dir ~ "/build",
@@ -118,5 +116,5 @@ build_openwrt_image:
         ver=settings.version, major=major, minor=minor, model=settings.model) }}
     - output_loglevel: quiet
     - require:
-      - archive: imgbuilder_tar_extracted
+      - cmd: imgbuilder_tar_extracted
       - file: include_uci_defaults

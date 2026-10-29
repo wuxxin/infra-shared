@@ -52,18 +52,15 @@ openwrt:
     - "-nginx-ssl"
     - nginx-full
     - nginx-mod-stream
-    - nginx-mod-luci-ssl
     - luci-ssl-nginx
     # luci apps and their upstream programs
     - luci-app-banip
     - luci-app-firewall
     - luci-app-nlbwmon
-    - luci-app-ntpc
     - luci-app-nft-qos
     - luci-app-sqm
     - luci-app-unbound
     - luci-app-upnp
-    - luci-app-wireguard
     - luci-app-wol
     - luci-mod-admin-full
     - luci-proto-ipv6

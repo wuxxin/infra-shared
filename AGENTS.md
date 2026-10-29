@@ -80,7 +80,7 @@ flowchart TD
   )
   ```
 - **Masking Secrets**: Wrap sensitive strings with `Output.secret(...)` and ensure command outputs containing keys or passwords specify `additional_secret_outputs=["stdout"]`.
-
+- **Prevent Pulumi State Bloat**: Always ensure that large inputs or large outputs (such as binary disk images, massive tar archives, filesystem dumps, or large payloads) are NOT passed or stored directly into Pulumi resource properties or state unless explicitly intended. Prefer passing file paths, hashes, or external storage references to keep the Pulumi state compact and avoid serialization/performance degradation.
 ### Templating & Path Security
 - **Directory Traversal Protection**: Always resolve user- or config-provided paths using `infra.template.join_paths(base_path, relative_path)`. This function raises an exception if the resulting path escapes `base_path`.
 - **Empty YAML Safety**: Rendered Jinja templates that produce empty or whitespace-only output evaluate to `None` in `yaml.safe_load`. Always handle empty results safely: `yaml_loads(rendered) or {}`.

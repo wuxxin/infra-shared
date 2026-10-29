@@ -590,12 +590,8 @@ class FcosImageDownloader(pulumi.ComponentResource):
 
         self.decompressed_image = command.local.Command(
             "decompress_{}".format(resource_name),
-            create=pulumi.Output.concat(
-                'if test ! -e "$(echo ',
-                self.downloaded_image.stdout,
-                ' | sed -r "s/.xz$//")"; then xz --keep --decompress "',
-                self.downloaded_image.stdout,
-                '" 2>/dev/null; fi',
+            create=self.downloaded_image.stdout.apply(
+                lambda p: f'if test ! -e "{os.path.splitext(p.strip())[0]}"; then xz --keep --decompress "{p.strip()}"; fi'
             ),
             dir=workdir,
             opts=child_opts,
@@ -607,7 +603,9 @@ class FcosImageDownloader(pulumi.ComponentResource):
             else None
         )
 
-        self.imagepath = self.downloaded_image.stdout.apply(lambda x: os.path.splitext(x)[0])
+        self.imagepath = pulumi.Output.all(
+            self.downloaded_image.stdout, self.decompressed_image.id
+        ).apply(lambda args: os.path.splitext(args[0].strip())[0])
         self.result = self.imagepath
         self.register_outputs({})
 
