@@ -206,7 +206,6 @@ def dict_get_bool(data: dict, keys: list[str], default: bool | None) -> bool | N
     """
     try:
         value = reduce(lambda d, k: d[k], keys, data)
-        print(f"Value: {value} {repr(value)}")
         if type(value) is str:
             if value.upper() == "TRUE":
                 value = True
