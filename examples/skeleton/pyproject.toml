@@ -92,7 +92,6 @@ dependencies = [
     # "pulumiverse_time",   # pulumiverse_time - creating and managing Time resources
 
     # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
-    # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
     # "esphome>=2026.10.0",
     # phao-mqtt - mqtt library for publish and subscribe to mqtt messages
     # "paho-mqtt",
