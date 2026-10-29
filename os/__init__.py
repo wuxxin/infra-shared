@@ -17,30 +17,30 @@
 """
 
 import glob
+import hashlib
+import json
 import os
 import re
 import sys
-import json
-import hashlib
 
-import yaml
 import pulumi
 import pulumi_command as command
 import pulumi_libvirt as libvirt
 import pulumiverse_purrl as purrl
+import yaml
 from pulumi_command.local import Logging as LocalLogging
 
-from ..tools import log_warn, BuildFromSalt
 from ..template import (
+    butane_clevis_to_json_clevis,
+    butane_to_salt,
     jinja_run,
     jinja_run_file,
-    load_butane_dir,
-    butane_to_salt,
     join_paths,
-    merge_dict_struct,
+    load_butane_dir,
     merge_butane_dicts,
-    butane_clevis_to_json_clevis,
+    merge_dict_struct,
 )
+from ..tools import BuildFromSalt, log_warn
 
 this_dir = os.path.dirname(os.path.normpath(__file__))
 subproject_dir = os.path.normpath(os.path.join(this_dir, ".."))
@@ -80,7 +80,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
         butane_input,
         basedir,
         environment=None,
-        basedir_exclude=[os.path.basename(subproject_dir) + "/*"],
+        basedir_exclude=[os.path.basename(subproject_dir) + "/*", "build/*"],
         system_exclude=[],
         opts=None,
     ):
@@ -120,7 +120,7 @@ class ButaneTranspiler(pulumi.ComponentResource):
             clevis_luks_config (Output[Str]):
                 JSON config string of the clevis luks setup.
         """
-        from ..authority import ca_factory, acme_sub_ca, ssh_factory, ns_factory, config
+        from ..authority import acme_sub_ca, ca_factory, config, ns_factory, ssh_factory
 
         super().__init__(
             "pkg:os:ButaneTranspiler", "{}_butane".format(resource_name), None, opts
@@ -542,7 +542,7 @@ class FcosImageDownloader(pulumi.ComponentResource):
             and optional pulumi config object settings `fcos`.
 
         """
-        from ..authority import project_dir, stack_name, config
+        from ..authority import config, project_dir, stack_name
 
         defaults = yaml.safe_load(open(os.path.join(this_dir, "jinja_defaults.yml"), "r"))
         default_config = {key.upper(): value for key, value in defaults["FCOS"].items()}

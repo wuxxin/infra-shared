@@ -606,6 +606,11 @@ def load_butane_dir(
         seen_real_paths = set()
 
         for root, dirs, files in os.walk(walk_root, followlinks=True):
+            dirs[:] = [
+                d
+                for d in dirs
+                if d not in ("build", ".git", ".venv", "__pycache__", ".pytest_cache")
+            ]
             for file in files:
                 if file.endswith(".bu"):
                     abs_file_path_found = Path(root) / file
@@ -660,7 +665,7 @@ def load_butane_dir(
     )
     for fname_path in files_to_process_relative:
         fname = str(fname_path)
-        source_dict = yaml.safe_load(jinja_run_file(fname, basedir, environment))
+        source_dict = yaml.safe_load(jinja_run_file(fname, basedir, environment)) or {}
         inlined_dict = inline_local_files(source_dict, basedir)
         expanded_dict = expand_templates(inlined_dict, basedir, environment)
         merged_dict = merge_butane_dicts(merged_dict, expanded_dict)
