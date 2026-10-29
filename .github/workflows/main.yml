@@ -18,7 +18,7 @@ jobs:
     # - push events (all pushes matching the push trigger), OR
     # - pull_request events where the PR head repo is the same repository (i.e. same-repo branch PRs)
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     concurrency:
       group: "build"
       cancel-in-progress: true
@@ -121,7 +121,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy_pages.outputs.page_url }}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Deploy Artifact to GitHub Pages
         id: deploy_pages
