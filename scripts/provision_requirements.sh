@@ -402,24 +402,23 @@ EOF
                             echo "Skipping install of already existing $dir_prefix/$pkg_name"
                         else
                             if test "$pkg_name" = "act"; then
-                                curl -sSL -o $make_dir/act.tar.gz https://github.com/nektos/act/releases/download/v0.2.77/act_Linux_x86_64.tar.gz
+                                curl -sSL -o $make_dir/act.tar.gz https://github.com/nektos/act/releases/download/v0.2.92/act_Linux_x86_64.tar.gz
                                 tar -xz -C $make_dir -f $make_dir/act.tar.gz act
                                 $call_prefix install $make_dir/act $dir_prefix/act
                             elif test "$pkg_name" = "butane"; then
-                                curl -sSL -o $make_dir/butane https://github.com/coreos/butane/releases/download/v0.23.0/butane-x86_64-unknown-linux-gnu
+                                curl -sSL -o $make_dir/butane https://github.com/coreos/butane/releases/download/v0.29.0/butane-x86_64-unknown-linux-gnu
                                 $call_prefix install $make_dir/butane $dir_prefix/butane
                             elif test "$pkg_name" = "pulumi"; then
-                                curl -sSL -o $make_dir/pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v3.171.0/pulumi-v3.171.0-linux-x64.tar.gz
+                                curl -sSL -o $make_dir/pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v3.273.0/pulumi-v3.273.0-linux-x64.tar.gz
                                 tar -xz -C $make_dir -f $make_dir/pulumi.tar.gz pulumi
                                 for i in $(find $make_dir/pulumi -type f); do
                                     $call_prefix install $i $dir_prefix/$(basename $i)
                                 done
                             elif test "$pkg_name" = "coreos-installer"; then
-                                # XXX ubuntu 24.04: coreos-installer 0.24.0 requires rustc 1.84.1 or newer, active rustc 1.75.0
                                 curl -sSL -o $make_dir/coreos-installer.tar.gz \
-                                    "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.23.0.tar.gz"
+                                    "https://github.com/coreos/coreos-installer/archive/refs/tags/v0.27.0.tar.gz"
                                 curl -sSL -o $make_dir/coreos-installer-vendor.tar.gz \
-                                    "https://github.com/coreos/coreos-installer/releases/download/v0.23.0/coreos-installer-0.23.0-vendor.tar.gz"
+                                    "https://github.com/coreos/coreos-installer/releases/download/v0.27.0/coreos-installer-0.27.0-vendor.tar.gz"
                                 mkdir -p $make_dir/coreos-installer
                                 tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer.tar.gz --strip-components=1
                                 tar -xz -C $make_dir/coreos-installer -f $make_dir/coreos-installer-vendor.tar.gz
