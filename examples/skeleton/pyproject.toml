@@ -21,7 +21,7 @@ name = "project_name"
 # set version dynamic from git
 dynamic = ["version"]
 # demand a reasonable new python
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 
 dependencies = [
     # yaml handling
@@ -45,18 +45,18 @@ dependencies = [
     "ipykernel",
 
     # tooly.py: saltstack - saltcall for local tools building
-    "salt>=3007.1",
+    "salt>=3008",
     # include sometimes missing dependencies, add passlib and bcrypt for utils.pycrypto workaround
     "distro",
     "looseversion",
     "msgpack",
     "passlib",
     "bcrypt",
+    "requests",
 
     # pulumi - imperativ infrastructure delaration using python
-    "pulumi>3.200.0,<4.0.0",
-    # XXX: pin grpcio to minimum used python-pulumi grpcio version on build time, which is >= 1.71.0 for >=3.200
-    "grpcio>=1.71.0",
+    "pulumi>=3.273.0,<4.0.0",
+    "grpcio",
     # pip is needed for pulumi package auto detection
     "pip",
     # pulumi modules used in authority, tools, os and butane pulumi modules
@@ -93,7 +93,7 @@ dependencies = [
 
     # esphome - Solution for ESP8266/ESP32 projects with MQTT and Home Assistant
     # XXX we want a newer version, but any > 2025.7 requires protobuf >= 6 which pulumi current ~3.200  does not support.
-    # "esphome>=2025.7.1",
+    # "esphome>=2026.10.0",
     # phao-mqtt - mqtt library for publish and subscribe to mqtt messages
     # "paho-mqtt",
 
@@ -145,3 +145,9 @@ docs = [
     # for mkdocs-gensrc.py parsing of docstrings
     "docstring-parser",
 ]
+
+[tool.uv]
+environments = ["sys_platform == 'linux'"]
+
+[tool.pytest.ini_options]
+addopts = "-p no:pylama"

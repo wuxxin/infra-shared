@@ -14,6 +14,7 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 # skip annoying version information
 PULUMI_SKIP_UPDATE_CHECK=true
 PULUMI_DIY_BACKEND_GZIP=true
+PYTHON ?= /usr/bin/python3
 
 .PHONY: help
 help:
@@ -59,14 +60,14 @@ install-requirements: ## Build dependencies for provisioning using system apps
 uv.lock: pyproject.toml
 	@echo "+ $@"
 	./infra/scripts/provision_requirements.sh --check
-	uv lock
+	uv lock --python $(PYTHON)
 
 .venv/bin/activate: uv.lock
 	@echo "+ $@"
 	@./infra/scripts/provision_requirements.sh --check
 	# create venv
 	if test -d .venv; then rm -rf .venv; fi
-	uv venv
+	uv venv --python $(PYTHON)
 
 .venv/installed: .venv/bin/activate
 	@echo "+++ $@"

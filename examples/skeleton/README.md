@@ -9,7 +9,7 @@ This directory contains baseline template files used by [`infra/scripts/create_s
 | File | Purpose |
 |:---|:---|
 | [`Makefile`](Makefile) | Task automation for environment creation (`buildenv`), stack management (`sim` and `prod`), testing (`pytest`), and documentation (`docs`). |
-| [`pyproject.toml`](pyproject.toml) | Python project configuration specifying `>=3.11` runtime, core dependencies (Pulumi, SaltStack, Jinja2, Paramiko, Cryptography), Ruff/Pyright settings, and optional dependencies. |
+| [`pyproject.toml`](pyproject.toml) | Python project configuration specifying `>=3.13` runtime, core dependencies (Pulumi, SaltStack, Jinja2, Paramiko, Cryptography), Ruff/Pyright settings, and optional dependencies. |
 
 When initialized via `create_skeleton.sh`, the following project structure is generated:
 
