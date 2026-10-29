@@ -51,12 +51,12 @@ storage:
       contents:
         inline: |
           <?xml version="1.0" encoding="utf-8"?>
-          {% if POSTGRESQL_PUBLIC_MTLS or POSTGRESQL_PUBLIC_PWD %}
+          {% if POSTGRESQL_PUBLIC or POSTGRESQL_PUBLIC_MTLS or POSTGRESQL_PUBLIC_PWD %}
           <policy target="ACCEPT">
             <short>Allow Incoming postgresql Traffic</short>
-            <description>Allow incoming traffic to the host on the postgresql ports 5432 and 5431 from the public zone.</description>
+            <description>Allow incoming traffic to the host on the postgresql port from the public zone.</description>
             <ingress-zone name="public"/>
-            {% if POSTGRESQL_PUBLIC_MTLS %}<port protocol="tcp" port="5432"/>{% endif %}
+            <port protocol="tcp" port="5432"/>
             {% if POSTGRESQL_PUBLIC_PWD %}<port protocol="tcp" port="5431"/>{% endif %}
           </policy>
           {% else %}

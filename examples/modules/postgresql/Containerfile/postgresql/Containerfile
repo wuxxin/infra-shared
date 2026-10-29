@@ -1,4 +1,4 @@
-ARG VERSION=17.2
+ARG VERSION=17.11
 FROM docker.io/library/postgres:${VERSION}
 
 # add additional locales space seperated to "ADDLOCALES"

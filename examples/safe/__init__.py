@@ -99,6 +99,7 @@ host_environment = {
     in (True, "true", "True"),
     "AUTHORIZED_KEYS": ssh_factory.authorized_keys,
     "POSTGRESQL_PASSWORD": pg_postgres_password.result,
+    "POSTGRESQL_PUBLIC": True,
     "DNS_RESOLVER": {}
     if not config.get_object("dns_resolver")
     else {key.upper(): value for key, value in config.get_object("dns_resolver").items()},
@@ -291,7 +292,7 @@ else:
 
     pg_server = postgresql.Provider(
         "{}_POSTGRESQL_HOST".format(shortname),
-        host=hostname,
+        host=target,
         username="postgres",
         password=pg_postgres_password.result,
         # XXX currently either mtls or password can be configured and used, therefore password is activated.

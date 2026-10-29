@@ -45,7 +45,11 @@ Network=podman
 Network=pgmtls:ip={{ PODMAN_STATIC_NETWORKS['pgmtls']|cidr2ip(1) }}
 Network=pgpwd:ip={{ PODMAN_STATIC_NETWORKS['pgpwd']|cidr2ip(1) }}
 # publish to internal bridge for internal usage, public usage is over pgmtls and pgpwd
+{% if POSTGRESQL_PUBLIC or POSTGRESQL_PUBLIC_MTLS or POSTGRESQL_PUBLIC_PWD %}
+PublishPort=5432:5432
+{% else %}
 PublishPort={{ INTERNAL_CIDR|cidr2ip(1) }}:5432:5432
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target
