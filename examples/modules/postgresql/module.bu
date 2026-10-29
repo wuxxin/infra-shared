@@ -19,7 +19,8 @@ storage:
     # {% endfor %}
 
     # {% for f in ["Containerfile", "custom-entrypoint.sh",] %}
-    - path: /etc/containers/build/{{ f }}
+    - path: /etc/containers/build/postgresql/{{ f }}
+      mode: 0755
       contents:
         local: postgresql/Containerfile/postgresql/{{ f }}
         template: jinja
